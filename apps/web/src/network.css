@@ -1,0 +1,204 @@
+.app-main.network-view {
+  max-width: 1100px;
+  margin: 16px auto 32px;
+  padding: 0 24px;
+  min-height: calc(100dvh - 120px);
+}
+.connections-page,
+.requests-page {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.connections-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 26px 20px;
+}
+.connections-heading h1 {
+  font-size: 22px;
+}
+.connections-heading p {
+  margin-top: 5px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.connections-heading .compact-search {
+  width: 240px;
+}
+.connection-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 26px 22px;
+  border-bottom: 1px solid var(--line);
+}
+.connection-filters button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: #52677b;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 500;
+}
+.connection-filters button:hover {
+  background: #f2f6fa;
+}
+.connection-filters button[aria-pressed="true"] {
+  color: var(--primary);
+  background: var(--primary-soft);
+  border-color: #b9cbdc;
+}
+.connection-filters button span {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+.connections-results {
+  padding: 6px 26px 24px;
+}
+.connection-group h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 23px 0 6px;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+.connection-group h2 span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.connection-group ul {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.connection-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 0;
+  border-bottom: 1px solid #edf1f5;
+}
+.connection-row:last-child {
+  border-bottom: 0;
+}
+.connection-identity {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  flex: 1;
+  min-width: 0;
+}
+.connection-identity .company-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+.connection-identity > div:last-child {
+  min-width: 0;
+}
+.connection-identity h3 {
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.connection-identity:hover h3 {
+  color: var(--primary);
+  text-decoration: underline;
+}
+.connection-identity p {
+  margin-top: 5px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.connection-message {
+  flex-shrink: 0;
+}
+.connection-row .company-menu > summary {
+  border-color: transparent;
+}
+.requests-page {
+  max-width: 840px;
+  margin: 0 auto;
+  padding: 26px;
+}
+.request-tabs {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+}
+.request-tabs a {
+  display: flex;
+  gap: 8px;
+  padding: 0 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+  border-bottom: 2px solid transparent;
+}
+.request-tabs a.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+.notifications-panel .requests-notification-link {
+  align-items: center;
+  color: var(--primary);
+  margin-top: 8px;
+}
+.requests-notification-link > span {
+  flex: 1;
+}
+.requests-notification-link > svg {
+  flex-shrink: 0;
+}
+.requests-page > .company-card {
+  margin-bottom: 12px;
+}
+@media (max-width: 600px) {
+  .app-main.network-view {
+    margin: 8px 0 20px;
+    padding: 0 8px;
+    min-height: calc(100dvh - 144px);
+  }
+  .connections-heading {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px 16px 16px;
+  }
+  .connections-heading .compact-search {
+    width: 100%;
+  }
+  .connection-filters {
+    padding: 0 16px 16px;
+    gap: 6px;
+  }
+  .connections-results {
+    padding: 0 16px 16px;
+  }
+  .connection-row {
+    gap: 4px;
+  }
+  .connection-identity {
+    gap: 10px;
+  }
+  .connection-message {
+    padding: 9px;
+  }
+  .connection-message span {
+    display: none;
+  }
+  .requests-page {
+    padding: 20px 16px;
+  }
+}

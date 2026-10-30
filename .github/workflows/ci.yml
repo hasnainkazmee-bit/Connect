@@ -1,0 +1,39 @@
+name: Connect checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  web-api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: sunhub
+          POSTGRES_PASSWORD: sunhub_local
+          POSTGRES_DB: sunhub_community_test
+        ports: [5438:5432]
+        options: >-
+          --health-cmd "pg_isready -U sunhub -d sunhub_community_test"
+          --health-interval 5s --health-timeout 3s --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, cache: npm}
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chrome
+      - run: npm run test:ui
+  rust-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --locked -p sunhub-mobile-core
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t connect-check .

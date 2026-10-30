@@ -1,0 +1,5 @@
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:insetLeft="24%" android:insetRight="24%"
+    android:insetTop="22.2%" android:insetBottom="22.2%">
+    <bitmap android:src="@drawable/connect_icon" android:gravity="fill" android:filter="true" />
+</inset>

@@ -1,0 +1,4 @@
+[bindings.kotlin]
+package_name = "com.sunhub.core"
+cdylib_name = "sunhub_mobile_core"
+android = true

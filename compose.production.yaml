@@ -1,0 +1,92 @@
+name: connect-production
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: connect
+      POSTGRES_DB: connect
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a unique database password}
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U connect -d connect]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [private]
+  storage:
+    image: dxflrs/garage:v2.5.0
+    restart: unless-stopped
+    command: [/garage, server, --single-node, --default-bucket]
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?Set Garage RPC secret}
+      GARAGE_DEFAULT_ACCESS_KEY: ${S3_ACCESS_KEY_ID:?Set S3 access key}
+      GARAGE_DEFAULT_SECRET_KEY: ${S3_SECRET_ACCESS_KEY:?Set S3 secret}
+      GARAGE_DEFAULT_BUCKET: connect-media
+    volumes: [./infra/garage.toml:/etc/garage.toml:ro, object_data:/var/lib/garage]
+    networks: [private]
+  # Captures account emails until an actual SMTP sender is configured.
+  # The inbox is reachable only through an SSH forward, never the public tunnel.
+  mail:
+    image: axllent/mailpit:v1.29
+    restart: unless-stopped
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: 500
+    ports: [127.0.0.1:18026:8025]
+    volumes: [mail_data:/data]
+    networks: [private]
+  app:
+    image: connect-app:${CONNECT_RELEASE:-local}
+    build:
+      context: .
+      args:
+        CONNECT_RELEASE: ${CONNECT_RELEASE:-local}
+    restart: unless-stopped
+    init: true
+    environment:
+      DATABASE_URL: postgres://connect:${POSTGRES_PASSWORD}@db:5432/connect
+      APP_ORIGIN: https://connect.sunhubapp.com
+      PORT: 4100
+      NODE_ENV: production
+      TRUST_PROXY_HOPS: 1
+      CONNECT_RELEASE: ${CONNECT_RELEASE:-local}
+      UPLOAD_DIR: /app/uploads
+      AUTH_TOKEN_SECRET: ${AUTH_TOKEN_SECRET:?Set account token secret}
+      REQUIRE_EMAIL_VERIFICATION: "true"
+      SMTP_HOST: ${SMTP_HOST:-mail}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_REQUIRE_TLS: ${SMTP_REQUIRE_TLS:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-Connect <hello@connect.sunhubapp.com>}
+      STORAGE_BACKEND: s3
+      S3_ENDPOINT: http://storage:3900
+      S3_REGION: garage
+      S3_BUCKET: connect-media
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      COMPANY_STORAGE_LIMIT_BYTES: ${COMPANY_STORAGE_LIMIT_BYTES:-5368709120}
+    ports: [127.0.0.1:14100:4100]
+    volumes: [attachments:/app/uploads]
+    depends_on:
+      db: {condition: service_healthy}
+      storage: {condition: service_started}
+      mail: {condition: service_started}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4100/api/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 8s
+      start_period: 30s
+      retries: 3
+    networks: [private]
+volumes:
+  postgres_data:
+  object_data:
+  attachments:
+  mail_data:
+networks:
+  private:
+    ipam:
+      config: [{subnet: "${CONNECT_SUBNET:-10.77.46.0/24}"}]

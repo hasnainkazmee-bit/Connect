@@ -1,0 +1,15 @@
+node_modules
+**/dist
+.git
+.env
+uploads
+test-results
+playwright-report
+sunhub-community
+target
+.toolchains
+apps/android
+
+.env.*
+!.env.example
+.backups

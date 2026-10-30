@@ -1,0 +1,72 @@
+name: sunhub-community
+services:
+  mail:
+    image: axllent/mailpit:v1.29
+    profiles: [dev]
+    ports: ["127.0.0.1:1026:1025", "127.0.0.1:8026:8025"]
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: 500
+    volumes: ["mail_data:/data"]
+  storage:
+    image: dxflrs/garage:v2.5.0
+    profiles: [dev]
+    command: ["/garage", "server", "--single-node", "--default-bucket"]
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:-}
+      GARAGE_DEFAULT_ACCESS_KEY: ${S3_ACCESS_KEY_ID:-}
+      GARAGE_DEFAULT_SECRET_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      GARAGE_DEFAULT_BUCKET: ${S3_BUCKET:-connect-media}
+    ports: ["127.0.0.1:3900:3900"]
+    volumes: ["./infra/garage.toml:/etc/garage.toml:ro", "object_data:/var/lib/garage"]
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: sunhub
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sunhub_local}
+      POSTGRES_DB: sunhub_community
+    ports: ["127.0.0.1:5438:5432"]
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sunhub -d sunhub_community"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  app:
+    build: .
+    environment:
+      DATABASE_URL: postgres://sunhub:${POSTGRES_PASSWORD:-sunhub_local}@db:5432/sunhub_community
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:4100}
+      PORT: 4100
+      NODE_ENV: production
+      UPLOAD_DIR: /app/uploads
+      AUTH_TOKEN_SECRET: ${AUTH_TOKEN_SECRET:-}
+      REQUIRE_EMAIL_VERIFICATION: ${REQUIRE_EMAIL_VERIFICATION:-true}
+      SMTP_HOST: ${SMTP_DOCKER_HOST:-mail}
+      SMTP_PORT: ${SMTP_DOCKER_PORT:-1025}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_REQUIRE_TLS: ${SMTP_REQUIRE_TLS:-true}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-Connect <hello@connect.local>}
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
+      S3_ENDPOINT: ${S3_DOCKER_ENDPOINT:-http://storage:3900}
+      S3_REGION: ${S3_REGION:-garage}
+      S3_BUCKET: ${S3_BUCKET:-connect-media}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+    ports: ["127.0.0.1:4100:4100"]
+    volumes: ["attachments:/app/uploads"]
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  postgres_data:
+  attachments:
+  object_data:
+  mail_data:
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${COMMUNITY_SUBNET:-10.77.40.0/24}
