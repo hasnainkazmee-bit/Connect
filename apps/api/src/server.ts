@@ -27,6 +27,7 @@ import { pool, tx, root, HttpError, lockPair } from "./db.js";
 import {
   session,
   requireAuth,
+  clearSessionCookies,
   requireVerified,
   requireAdmin,
   requireCompany,
@@ -154,7 +155,7 @@ app.post("/api/auth/logout", async (req, res) => {
     await pool.query("DELETE FROM sessions WHERE token_hash=$1", [
       req.auth.tokenHash,
     ]);
-  res.clearCookie("sunhub_session", { path: "/" });
+  clearSessionCookies(res);
   res.json({ ok: true });
 });
 app.post("/api/session/company", requireAuth, async (req, res) => {

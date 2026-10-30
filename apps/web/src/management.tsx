@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -48,7 +49,9 @@ export function useSite() {
   return site;
 }
 export function publicProfileUrl(c: Company, site: Site) {
-  return site.appOrigin + (c.username ? "/" + c.username : "/company/" + c.slug);
+  return (
+    site.appOrigin + (c.username ? "/" + c.username : "/company/" + c.slug)
+  );
 }
 export function useAction() {
   const [busy, setBusy] = useState(false),
@@ -97,19 +100,60 @@ export function useUnsavedChanges(dirty: boolean, busy = false) {
     };
   }, [dirty, busy]);
   return pending ? (
-    <div className="discard-prompt" role="alert">
-      <span>
-        <strong>Keep your changes?</strong>
-        <small>They haven’t been saved yet.</small>
-      </span>
-      <button className="button" type="button" onClick={() => setPending(null)}>
-        Keep editing
-      </button>
-      <button className="button danger" type="button" onClick={pending}>
-        Discard
-      </button>
-    </div>
+    <DiscardChanges keep={() => setPending(null)} discard={pending} />
   ) : null;
+}
+function DiscardChanges({
+  keep,
+  discard,
+}: {
+  keep: () => void;
+  discard: () => void;
+}) {
+  const ref = useRef<HTMLDialogElement>(null),
+    keepButton = useRef<HTMLButtonElement>(null),
+    id = useId();
+  useEffect(() => {
+    const dialog = ref.current!;
+    dialog.showModal();
+    keepButton.current?.focus();
+    return () => dialog.close();
+  }, []);
+  return createPortal(
+    <dialog
+      ref={ref}
+      className="discard-confirmation"
+      role="alertdialog"
+      aria-labelledby={id + "-title"}
+      aria-describedby={id + "-description"}
+      onCancel={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        keep();
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) keep();
+      }}
+    >
+      <h2 id={id + "-title"}>Keep your changes?</h2>
+      <p id={id + "-description"}>Your changes haven’t been saved yet.</p>
+      <div>
+        <button className="button" type="button" onClick={discard}>
+          Discard changes
+        </button>
+        <button
+          className="button primary"
+          type="button"
+          ref={keepButton}
+          autoFocus
+          onClick={keep}
+        >
+          Keep editing
+        </button>
+      </div>
+    </dialog>,
+    document.body,
+  );
 }
 export function UsernameField({
   value,
@@ -957,7 +1001,8 @@ export function EmployeeInvite({
           <div className="invite-detail">
             <ShieldCheck size={19} />
             <p>
-              Only an invited, verified email can get access. This invitation expires in 3 days. Copy the link and share it with your employee.
+              Only an invited, verified email can get access. This invitation
+              expires in 3 days. Copy the link and share it with your employee.
             </p>
           </div>
           <FormError error={task.error} />

@@ -78,6 +78,7 @@ try {
     "tests/social.test.mjs",
     "tests/message-requests.test.mjs",
     "tests/accounts.test.mjs",
+    "tests/session-persistence.test.mjs",
     "tests/publishing-profiles.test.mjs",
   ]) {
     env.REQUIRE_EMAIL_VERIFICATION = suite === "tests/accounts.test.mjs" ? "true" : "false";
@@ -104,13 +105,17 @@ try {
     Object.assign(env, saved);
   }
   if (process.argv.includes("--ui")) {
-    // Give browser scenarios their own rate-limit window, keeping production limits intact.
-    await startServer();
-    await run(process.execPath, [
-      "node_modules/@playwright/test/cli.js",
-      "test",
-    ]);
-    await stopServer();
+    // Each independent browser suite gets a fresh rate-limit window. Recovery
+    // tests deliberately sign in repeatedly; production limits stay unchanged.
+    const suites = (await fs.readdir("tests/browser")).filter(name => name.endsWith(".spec.ts")).sort();
+    for (const suite of suites) {
+      await startServer();
+      await run(process.execPath, [
+        "node_modules/@playwright/test/cli.js", "test", "tests/browser/" + suite,
+        "--output=test-results/browser/" + suite.replace(".spec.ts", ""),
+      ]);
+      await stopServer();
+    }
   }
   if (process.argv.includes("--rust")) {
     await startServer();

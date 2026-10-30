@@ -190,6 +190,8 @@ function App() {
     [network, setNetwork] = useState<Network>(emptyNetwork),
     [revision, setRevision] = useState(0),
     [modal, setModal] = useState<ReactNode>(null),
+    [sessionExpired, setSessionExpired] = useState(false),
+    [reauthenticate, setReauthenticate] = useState(false),
     [notice, setNotice] = useState(""),
     [deferredOnboarding, setDeferredOnboarding] = useState("");
   const navigate = useNavigate(),
@@ -206,8 +208,38 @@ function App() {
       .finally(() => setReady(true));
   }, []);
   useEffect(() => {
+    if (!session.user) return;
+    let checking = false,
+      cancelled = false;
+    const check = async () => {
+      if (checking) return;
+      checking = true;
+      try {
+        const current = await api<Session>("/session");
+        if (!cancelled && !current.user) {
+          setSessionExpired(true);
+          setReauthenticate(true);
+        }
+      } catch {
+        // An unavailable network is not evidence that the user has signed out.
+      } finally {
+        checking = false;
+      }
+    };
+    const visible = () => {
+      if (document.visibilityState === "visible") void check();
+    };
+    window.addEventListener("connect:session-expired", check);
+    document.addEventListener("visibilitychange", visible);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("connect:session-expired", check);
+      document.removeEventListener("visibilitychange", visible);
+    };
+  }, [session.user?.id, sessionExpired]);
+  useEffect(() => {
     let cancel = false;
-    if (!company) {
+    if (!company || sessionExpired) {
       setNetwork(emptyNetwork);
       return;
     }
@@ -219,14 +251,14 @@ function App() {
     return () => {
       cancel = true;
     };
-  }, [company?.id, revision]);
+  }, [company?.id, revision, sessionExpired]);
   useEffect(() => {
-    if (!company) return;
+    if (!company || sessionExpired) return;
     const source = new EventSource("/api/events");
     source.addEventListener("changed", refresh);
     source.addEventListener("open", refresh);
     return () => source.close();
-  }, [company?.id]);
+  }, [company?.id, sessionExpired]);
   useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(() => setNotice(""), 6500);
@@ -235,7 +267,10 @@ function App() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [location.pathname]);
-  const auth = (after?: () => void) => setModal(<AuthModal after={after} />);
+  const auth = (after?: () => void) =>
+    sessionExpired
+      ? setReauthenticate(true)
+      : setModal(<AuthModal after={after} />);
   const incompleteAccount =
     session.user &&
     session.verificationRequired !== false &&
@@ -247,7 +282,7 @@ function App() {
   const mobileNavigation = useMobileNavigation(
     session.user?.account_type === "individual",
     !!session.user,
-    !!modal || !!needsOnboarding,
+    !!modal || !!needsOnboarding || reauthenticate,
     () => auth(),
   );
   const unread =
@@ -416,7 +451,7 @@ function App() {
             )}
           </nav>
           <div className="header-actions">
-            {session.user ? (
+            {session.user && !sessionExpired ? (
               <>
                 {company && (
                   <Link
@@ -501,12 +536,14 @@ function App() {
               </>
             ) : (
               <>
-                <button
-                  className="button ghost"
-                  onClick={() => setModal(<AuthModal initialMode="register" />)}
-                >
-                  Join Connect
-                </button>
+                {!sessionExpired && (
+                  <button
+                    className="button ghost"
+                    onClick={() => setModal(<AuthModal initialMode="register" />)}
+                  >
+                    Join Connect
+                  </button>
+                )}
                 <button className="button primary" onClick={() => auth()}>
                   Sign in
                 </button>
@@ -625,6 +662,19 @@ function App() {
           />
         </Routes>
       </main>
+      {sessionExpired && !reauthenticate && (
+        <div className="session-recovery-notice" role="status">
+          <span>
+            Your session has ended. Your unsaved changes are still here.
+          </span>
+          <button
+            className="button primary"
+            onClick={() => setReauthenticate(true)}
+          >
+            Sign in again
+          </button>
+        </div>
+      )}
       {incompleteAccount && !needsOnboarding && (
         <div className="setup-reminder">
           <ShieldCheck size={18} />
@@ -676,6 +726,26 @@ function App() {
         </ModalFrame>
       ) : (
         modal && <ModalFrame close={() => setModal(null)}>{modal}</ModalFrame>
+      )}
+      {reauthenticate && (
+        <ModalFrame guarded={false} close={() => setReauthenticate(false)}>
+          <div className="session-recovery-message" role="status">
+            Sign in again to continue. Your unsaved changes are still here.
+          </div>
+          <AuthExperience
+            onSuccess={(value) => {
+              if (
+                value.user?.id !== session.user?.id ||
+                value.activeCompanyId !== session.activeCompanyId
+              )
+                setModal(null);
+              setSession(value);
+              setSessionExpired(false);
+              setReauthenticate(false);
+              refresh();
+            }}
+          />
+        </ModalFrame>
       )}
     </AppContext.Provider>
   );
@@ -741,12 +811,18 @@ function Protected({
 function ModalFrame({
   children,
   close,
+  guarded = true,
 }: {
   children: ReactNode;
   close: () => void;
+  guarded?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const requestClose = () => {
+    if (!guarded) {
+      close();
+      return;
+    }
     const event = new CustomEvent("connect:modal-close", {
       cancelable: true,
       detail: { close },
@@ -772,6 +848,7 @@ function ModalFrame({
         <button
           className="modal-close icon-button"
           aria-label="Close dialog"
+          type="button"
           onClick={requestClose}
         >
           <X size={20} />

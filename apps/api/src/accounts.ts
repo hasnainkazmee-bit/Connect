@@ -10,6 +10,7 @@ import type { PoolClient } from "pg";
 import { pool, tx, HttpError, lockPair } from "./db.js";
 import {
   requireAuth,
+  clearSessionCookies,
   hashPassword,
   verifyPassword,
   createSession,
@@ -313,7 +314,7 @@ export function accountRoutes() {
       );
       await event(db, userId, "password_reset");
     });
-    res.clearCookie("sunhub_session", { path: "/" });
+    clearSessionCookies(res);
     res.json({ ok: true });
   });
   router.post("/auth/password/change", requireAuth, async (req, res) => {
@@ -386,7 +387,7 @@ export function accountRoutes() {
     const signedOut = result.rows.some(
       (r) => r.token_hash === req.auth!.tokenHash,
     );
-    if (signedOut) res.clearCookie("sunhub_session", { path: "/" });
+    if (signedOut) clearSessionCookies(res);
     res.json({ ok: true, signedOut });
   });
   router.post("/onboarding/company", requireAuth, async (req, res) => {
