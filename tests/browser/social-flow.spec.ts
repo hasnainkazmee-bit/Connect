@@ -44,13 +44,13 @@ test("company publishes photos and video, another follows and comments", async (
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await login(owner.user.email);
-  await page.getByRole("button", { name: "Photo", exact: true }).click();
+  await page.getByRole("button", { name: "Photo / video", exact: true }).click();
   await page.getByLabel("Post text").fill("New installation milestone " + id);
   await page
     .getByRole("dialog")
     .locator("input[type=file]")
     .setInputFiles("apps/web/public/assets/solar.jpg");
-  await page.getByLabel("Image description 1").fill("Solar panels in sunlight");
+  await page.getByLabel("Image description").fill("Solar panels in sunlight");
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Post", exact: true })
@@ -66,7 +66,7 @@ test("company publishes photos and video, another follows and comments", async (
       exact: true,
     }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Video", exact: true }).click();
+  await page.getByRole("button", { name: "Photo / video", exact: true }).click();
   await page.getByLabel("Post text").fill("Video site update " + id);
   await page
     .getByRole("dialog")

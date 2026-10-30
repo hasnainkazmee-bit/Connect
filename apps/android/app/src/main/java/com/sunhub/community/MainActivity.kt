@@ -4,23 +4,22 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Chat
@@ -40,8 +39,6 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -53,9 +50,9 @@ import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import coil3.compose.AsyncImage
-import org.json.JSONObject
-import org.json.JSONArray
 import com.sunhub.core.UploadFile
+import org.json.JSONArray
+import org.json.JSONObject
 
 internal val Ink = Color(0xFF192936)
 internal val Navy = Color(0xFF153E67)
@@ -68,7 +65,22 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MaterialTheme(colorScheme = lightColorScheme(primary = Navy, onPrimary = Color.White, primaryContainer = Pale, secondary = Orange, secondaryContainer = Color(0xFFFFE5D2), onSecondaryContainer = Ink, background = Pale, surface = Color.White, onSurface = Ink, surfaceVariant = Pale, onSurfaceVariant = Muted)) {
+            MaterialTheme(
+                colorScheme =
+                    lightColorScheme(
+                        primary = Navy,
+                        onPrimary = Color.White,
+                        primaryContainer = Pale,
+                        secondary = Orange,
+                        secondaryContainer = Color(0xFFFFE5D2),
+                        onSecondaryContainer = Ink,
+                        background = Pale,
+                        surface = Color.White,
+                        onSurface = Ink,
+                        surfaceVariant = Pale,
+                        onSurfaceVariant = Muted,
+                    )
+            ) {
                 ConnectApp()
             }
         }
@@ -78,16 +90,52 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConnectApp(model: CommunityModel = viewModel()) {
+    val updates: AppUpdates = viewModel()
+    var updateInfo by rememberSaveable { mutableStateOf(false) }
+    if (updateInfo) UpdateDialog(updates) { updateInfo = false }
     var auth by rememberSaveable { mutableStateOf(false) }
     var security by rememberSaveable { mutableStateOf(false) }
     var setupCompany by rememberSaveable { mutableStateOf(false) }
-    val welcomePrefs = LocalContext.current.getSharedPreferences("connect-intro", android.content.Context.MODE_PRIVATE)
+    val welcomePrefs =
+        LocalContext.current.getSharedPreferences(
+            "connect-intro",
+            android.content.Context.MODE_PRIVATE,
+        )
     var welcome by rememberSaveable { mutableStateOf(!welcomePrefs.getBoolean("seen", false)) }
     var initialAuthMode by rememberSaveable { mutableStateOf("login") }
-    fun finishWelcome() { welcome = false; welcomePrefs.edit().putBoolean("seen", true).apply() }
+    fun finishWelcome() {
+        welcome = false
+        welcomePrefs.edit().putBoolean("seen", true).apply()
+    }
     var afterSignIn by remember { mutableStateOf<(() -> Unit)?>(null) }
     var account by remember { mutableStateOf(false) }
+    var personalThread by
+        remember(model.session?.optJSONObject("user")?.text("id"), model.company?.text("id")) {
+            mutableStateOf<JSONObject?>(null)
+        }
+    var peopleInbox by rememberSaveable { mutableStateOf(false) }
+    var employeeAccess by remember { mutableStateOf(false) }
+    if (employeeAccess && model.admin) EmployeeAccess(model) { employeeAccess = false }
     val screenStates = rememberSaveableStateHolder()
+    val tabs = Tab.entries.filter { !model.individual || it != Tab.Network }
+    val pager =
+        rememberPagerState(
+            initialPage = tabs.indexOf(model.tab).coerceAtLeast(0),
+            pageCount = { tabs.size },
+        )
+    LaunchedEffect(model.tab, tabs) {
+        val index = tabs.indexOf(model.tab)
+        if (index >= 0 && pager.currentPage != index) pager.animateScrollToPage(index)
+    }
+    LaunchedEffect(pager.settledPage, tabs) {
+        val target = tabs[pager.settledPage.coerceIn(tabs.indices)]
+        if (!pager.isScrollInProgress && target != model.tab) {
+            if (!model.signedIn && target in listOf(Tab.Network, Tab.Messages)) {
+                afterSignIn = { model.selectTab(target) }
+                auth = true
+            } else model.selectTab(target)
+        }
+    }
     val homeScroll = rememberLazyListState()
     val directoryScroll = rememberLazyListState()
     val networkScroll = rememberLazyListState()
@@ -95,107 +143,404 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
     val lifecycle = LocalLifecycleOwner.current
     DisposableEffect(lifecycle, model) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_START) model.observe(true)
+            if (event == Lifecycle.Event.ON_START) {
+                model.observe(true)
+                updates.check()
+            }
             if (event == Lifecycle.Event.ON_STOP) model.observe(false)
         }
         lifecycle.lifecycle.addObserver(observer)
         model.observe(lifecycle.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
-        onDispose { lifecycle.lifecycle.removeObserver(observer); model.observe(false) }
+        updates.check()
+        onDispose {
+            lifecycle.lifecycle.removeObserver(observer)
+            model.observe(false)
+        }
     }
-    if (!model.booting && (model.needsOnboarding || setupCompany)) { OnboardingScreen(model, onSignOut = { model.logout(); auth = false; setupCompany = false }, onComplete = { setupCompany = false; auth = false; initialAuthMode = "login"; afterSignIn?.invoke(); afterSignIn = null }); return }
+    if (!model.booting && (model.needsOnboarding || setupCompany)) {
+        OnboardingScreen(
+            model,
+            onSignOut = {
+                model.logout()
+                auth = false
+                setupCompany = false
+            },
+            onComplete = {
+                setupCompany = false
+                auth = false
+                initialAuthMode = "login"
+                afterSignIn?.invoke()
+                afterSignIn = null
+            },
+        )
+        return
+    }
     if (auth) {
-        AuthScreen(model, initialAuthMode, onClose = { auth = false; initialAuthMode = "login"; model.dismissError() }, onSignedIn = { auth = false; initialAuthMode = "login"; if (!model.needsOnboarding) afterSignIn?.invoke(); afterSignIn = null })
+        AuthScreen(
+            model,
+            initialAuthMode,
+            onClose = {
+                auth = false
+                initialAuthMode = "login"
+                model.dismissError()
+            },
+            onSignedIn = {
+                auth = false
+                initialAuthMode = "login"
+                if (!model.needsOnboarding) afterSignIn?.invoke()
+                afterSignIn = null
+            },
+        )
         return
     }
     if (!model.booting && !model.signedIn && welcome) {
-        WelcomeScreen(onCreate = { finishWelcome(); initialAuthMode = "register"; auth = true }, onSignIn = { finishWelcome(); initialAuthMode = "login"; auth = true }, onBrowse = { finishWelcome() })
+        WelcomeScreen(
+            onCreate = {
+                finishWelcome()
+                initialAuthMode = "register"
+                auth = true
+            },
+            onSignIn = {
+                finishWelcome()
+                initialAuthMode = "login"
+                auth = true
+            },
+            onBrowse = { finishWelcome() },
+        )
         return
     }
-    if (security && model.signedIn) { SecurityScreen(model) { security = false }; return }
-    val detail = model.profileId != null || model.chatCompany != null
-    BackHandler(detail) { model.back() }
+    if (security && model.signedIn) {
+        SecurityScreen(model) { security = false }
+        return
+    }
+    val detail = model.profileId != null || model.chatCompany != null || personalThread != null
+    val goBack = { if (personalThread != null) personalThread = null else model.back() }
+    BackHandler(detail) { goBack() }
     Scaffold(
         containerColor = Pale,
         topBar = {
             TopAppBar(
-                title = { if (detail) Text(if (model.profileId != null) "Company" else model.chatCompany?.optString("name").orEmpty(), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    else Image(painterResource(R.drawable.connect_logo), "Connect", Modifier.width(160.dp).height(32.dp), contentScale = ContentScale.Fit)
+                title = {
+                    if (detail)
+                        Text(
+                            if (model.profileId != null) "Company"
+                            else
+                                personalThread?.text("person_name")
+                                    ?: model.chatCompany?.optString("name").orEmpty(),
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    else
+                        Image(
+                            painterResource(R.drawable.connect_logo),
+                            "Connect",
+                            Modifier.width(160.dp).height(32.dp),
+                            contentScale = ContentScale.Fit,
+                        )
                 },
-                navigationIcon = { if (detail) IconButton(onClick = model::back) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
-                actions = {
-                    if (model.signedIn) Box {
-                        IconButton(onClick = { account = true }) { Icon(Icons.Outlined.AccountCircle, "Account and company") }
-                        DropdownMenu(account, onDismissRequest = { account = false }) {
-                            model.companies.forEach { company -> DropdownMenuItem(
-                                text = { Text(company.optString("name")) }, enabled = !model.busy,
-                                leadingIcon = { if (company.optString("id") == model.company?.optString("id")) Icon(Icons.Outlined.Check, null) },
-                                onClick = { account = false; model.switchCompany(company.optString("id")) }) }
-                            if (model.company == null) DropdownMenuItem(text = { Text("Set up company") }, onClick = { account = false; setupCompany = true })
-                            DropdownMenuItem(text = { Text("Account & security") }, onClick = { account = false; security = true })
-                            DropdownMenuItem(enabled = !model.busy, text = { Text("Sign out") }, onClick = { account = false; model.logout() })
+                navigationIcon = {
+                    if (detail)
+                        IconButton(onClick = goBack) {
+                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back")
                         }
-                    } else TextButton(onClick = { auth = true }) { Text("Sign in") }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Pale)
+                actions = {
+                    if (model.signedIn)
+                        Box {
+                            IconButton(onClick = { account = true }) {
+                                Icon(Icons.Outlined.AccountCircle, "Account and company")
+                            }
+                            DropdownMenu(account, onDismissRequest = { account = false }) {
+                                model.companies.forEach { company ->
+                                    DropdownMenuItem(
+                                        text = { Text(company.optString("name")) },
+                                        enabled = !model.busy,
+                                        leadingIcon = {
+                                            if (
+                                                company.optString("id") ==
+                                                    model.company?.optString("id")
+                                            )
+                                                Icon(Icons.Outlined.Check, null)
+                                        },
+                                        onClick = {
+                                            account = false
+                                            model.switchCompany(company.optString("id"))
+                                        },
+                                    )
+                                }
+                                if (model.company == null && !model.individual)
+                                    DropdownMenuItem(
+                                        text = { Text("Set up company") },
+                                        onClick = {
+                                            account = false
+                                            setupCompany = true
+                                        },
+                                    )
+                                if (model.company != null)
+                                    DropdownMenuItem(
+                                        text = { Text("Company profile") },
+                                        onClick = {
+                                            account = false
+                                            model.profile(model.company!!.text("id"))
+                                        },
+                                    )
+                                if (model.admin)
+                                    DropdownMenuItem(
+                                        text = { Text("Employee access") },
+                                        onClick = {
+                                            account = false
+                                            employeeAccess = true
+                                        },
+                                    )
+                                DropdownMenuItem(
+                                    text = { Text("App updates") },
+                                    onClick = {
+                                        account = false
+                                        updateInfo = true
+                                        updates.check(true)
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Account & security") },
+                                    onClick = {
+                                        account = false
+                                        security = true
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    enabled = !model.busy,
+                                    text = { Text("Sign out") },
+                                    onClick = {
+                                        account = false
+                                        model.logout()
+                                    },
+                                )
+                            }
+                        }
+                    else TextButton(onClick = { auth = true }) { Text("Sign in") }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Pale),
             )
         },
-        bottomBar = { if (!detail) NavigationBar(containerColor = Color.White) {
-            Tab.entries.forEach { tab -> NavigationBarItem(
-                selected = tab == model.tab,
-                onClick = { if (!model.signedIn && tab in listOf(Tab.Network, Tab.Messages)) { afterSignIn = { model.selectTab(tab) }; auth = true } else model.selectTab(tab) },
-                icon = { val icon = when(tab) { Tab.Home -> Icons.Outlined.Home; Tab.Companies -> Icons.Outlined.Business; Tab.Network -> Icons.Outlined.People; Tab.Messages -> Icons.AutoMirrored.Outlined.Chat }
-                    if (tab == Tab.Messages && model.incoming.isNotEmpty()) BadgedBox(badge = { Badge { Text(model.incoming.size.toString()) } }) { Icon(icon, null) }
-                    else Icon(icon, null)
-                },
-                label = { Text(tab.name) },
-                colors = NavigationBarItemDefaults.colors(selectedIconColor = Ink, indicatorColor = Orange.copy(alpha = .18f))
-            ) }
-        } }
+        bottomBar = {
+            if (!detail)
+                NavigationBar(containerColor = Color.White) {
+                    tabs.forEach { tab ->
+                        NavigationBarItem(
+                            selected = tab == model.tab,
+                            onClick = {
+                                if (!model.signedIn && tab in listOf(Tab.Network, Tab.Messages)) {
+                                    afterSignIn = { model.selectTab(tab) }
+                                    auth = true
+                                } else model.selectTab(tab)
+                            },
+                            icon = {
+                                val icon =
+                                    when (tab) {
+                                        Tab.Home -> Icons.Outlined.Home
+                                        Tab.Companies -> Icons.Outlined.Business
+                                        Tab.Network -> Icons.Outlined.People
+                                        Tab.Messages -> Icons.AutoMirrored.Outlined.Chat
+                                    }
+                                if (tab == Tab.Messages && model.incoming.isNotEmpty())
+                                    BadgedBox(
+                                        badge = { Badge { Text(model.incoming.size.toString()) } }
+                                    ) {
+                                        Icon(icon, null)
+                                    }
+                                else Icon(icon, null)
+                            },
+                            label = { Text(tab.name) },
+                            colors =
+                                NavigationBarItemDefaults.colors(
+                                    selectedIconColor = Ink,
+                                    indicatorColor = Orange.copy(alpha = .18f),
+                                ),
+                        )
+                    }
+                }
+        },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
-            model.error?.let { error -> Surface(color = MaterialTheme.colorScheme.errorContainer) { Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(error, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                IconButton(onClick = model::dismissError) { Icon(Icons.Outlined.Close, "Dismiss error") }
-            } } }
-            if (model.offline) Row(Modifier.fillMaxWidth().background(Color(0xFFFFF3D7)).padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(if (model.pages.isEmpty()) "Can’t connect right now" else "Offline · showing saved content", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
-                TextButton(onClick = model::retryConnection) { Text("Retry") }
+            UpdateBanner(updates) { updateInfo = true }
+            model.error?.let { error ->
+                Surface(color = MaterialTheme.colorScheme.errorContainer) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(error, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                        IconButton(onClick = model::dismissError) {
+                            Icon(Icons.Outlined.Close, "Dismiss error")
+                        }
+                    }
+                }
             }
-            val screenKey = "${model.company?.optString("id")}:${model.profileId ?: model.chatCompany?.optString("id") ?: model.tab.name}"
-            screenStates.SaveableStateProvider(screenKey) {
-            when {
-                model.booting -> LoadingScreen()
-                model.profileId != null -> CompanyProfile(model, model.profileId!!, onSignIn = { auth = true }, onMessageSignIn = { company -> afterSignIn = { model.chat(company) }; auth = true })
-                model.chatCompany != null -> ChatScreen(model)
-                model.tab == Tab.Home -> FeedScreen(model, homeScroll, onSignIn = { auth = true })
-                model.tab == Tab.Companies -> DirectoryScreen(model, directoryScroll)
-                model.tab == Tab.Network -> NetworkScreen(model, networkScroll)
-                else -> MessagesScreen(model, messagesScroll)
-            }
-            }
+            if (model.offline)
+                Row(
+                    Modifier.fillMaxWidth()
+                        .background(Color(0xFFFFF3D7))
+                        .padding(start = 16.dp, end = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        if (model.pages.isEmpty()) "Can’t connect right now"
+                        else "Offline · showing saved content",
+                        Modifier.weight(1f),
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                    TextButton(onClick = model::retryConnection) { Text("Retry") }
+                }
+            if (model.booting) LoadingScreen()
+            else if (detail) {
+                val screenKey =
+                    "detail:${model.session?.optJSONObject("user")?.text("id")}:${model.company?.text("id")}:${personalThread?.text("id")?:model.profileId?:model.chatCompany?.text("id")}"
+                screenStates.SaveableStateProvider(screenKey) {
+                    when {
+                        personalThread != null ->
+                            PersonalChat(model, threadId = personalThread!!.text("id"))
+                        model.profileId != null ->
+                            CompanyProfileScreen(
+                                model,
+                                model.profileId!!,
+                                onSignIn = { auth = true },
+                                onMessageSignIn = { company ->
+                                    afterSignIn = { model.chat(company) }
+                                    auth = true
+                                },
+                            )
+                        model.chatCompany != null ->
+                            if (model.individual) PersonalChat(model, company = model.chatCompany)
+                            else ChatScreen(model)
+                    }
+                }
+            } else
+                HorizontalPager(
+                    state = pager,
+                    modifier = Modifier.weight(1f).testTag("main-tabs"),
+                    key = { tabs[it].name },
+                ) { page ->
+                    val tab = tabs[page]
+                    screenStates.SaveableStateProvider(
+                        "tab:${model.session?.optJSONObject("user")?.text("id")}:${model.company?.text("id")}:${tab.name}"
+                    ) {
+                        if (!model.signedIn && tab in listOf(Tab.Network, Tab.Messages))
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Button(
+                                    onClick = {
+                                        afterSignIn = { model.selectTab(tab) }
+                                        auth = true
+                                    }
+                                ) {
+                                    Text("Sign in to ${tab.name.lowercase()}")
+                                }
+                            }
+                        else
+                            when (tab) {
+                                Tab.Home ->
+                                    FeedScreen(model, homeScroll, onSignIn = { auth = true })
+                                Tab.Companies -> DirectoryScreen(model, directoryScroll)
+                                Tab.Network -> NetworkScreen(model, networkScroll)
+                                Tab.Messages ->
+                                    if (model.individual)
+                                        PersonalInbox(model) { personalThread = it }
+                                    else
+                                        Column {
+                                            Row(
+                                                Modifier.padding(horizontal = 16.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            ) {
+                                                FilterChip(
+                                                    !peopleInbox,
+                                                    { peopleInbox = false },
+                                                    label = { Text("Companies") },
+                                                )
+                                                FilterChip(
+                                                    peopleInbox,
+                                                    { peopleInbox = true },
+                                                    label = { Text("People") },
+                                                )
+                                            }
+                                            if (peopleInbox)
+                                                PersonalInbox(model) { personalThread = it }
+                                            else MessagesScreen(model, messagesScroll)
+                                        }
+                            }
+                    }
+                }
         }
     }
-
 }
 
 @Composable
-private fun LoadingScreen() { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(Modifier.size(28.dp)) } }
+private fun LoadingScreen() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(Modifier.size(28.dp))
+    }
+}
 
 @Composable
 internal fun CompanyAvatar(company: JSONObject, size: Int = 42) {
-    val letters = company.optString("name").split(" ").take(2).mapNotNull { it.firstOrNull() }.joinToString("")
-    Box(Modifier.size(size.dp).clip(RoundedCornerShape(12.dp)).background(Navy.copy(alpha = .09f)), contentAlignment = Alignment.Center) {
-        Text(letters, color = Navy, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
+    val letters =
+        company
+            .optString("name")
+            .split(" ")
+            .take(2)
+            .mapNotNull { it.firstOrNull() }
+            .joinToString("")
+    Box(
+        Modifier.size(size.dp).clip(RoundedCornerShape(12.dp)).background(Navy.copy(alpha = .09f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (company.text("logo_url").isNotBlank())
+            AsyncImage(
+                if (company.text("logo_url").startsWith("/"))
+                    BuildConfig.API_URL.trimEnd('/') + company.text("logo_url")
+                else company.text("logo_url"),
+                null,
+                Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit,
+            )
+        else
+            Text(
+                letters,
+                color = Navy,
+                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.labelLarge,
+            )
     }
 }
 
 @Composable
 private fun CompanyRow(company: JSONObject, subtitle: String = "", onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().testTag("company-${company.optString("id")}").clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(
+        Modifier.fillMaxWidth()
+            .testTag("company-${company.optString("id")}")
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 15.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         CompanyAvatar(company)
         Column(Modifier.weight(1f)) {
-            Text(company.optString("name"), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(subtitle.ifBlank { listOf(company.optString("type"), company.optString("location")).filter { it.isNotBlank() }.joinToString(" · ") }, style = MaterialTheme.typography.bodySmall, color = Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                company.optString("name"),
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                subtitle.ifBlank {
+                    listOf(company.optString("type"), company.optString("location"))
+                        .filter { it.isNotBlank() }
+                        .joinToString(" · ")
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = Muted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
         Icon(Icons.Outlined.ChevronRight, null, tint = Muted, modifier = Modifier.size(18.dp))
     }
@@ -203,32 +548,68 @@ private fun CompanyRow(company: JSONObject, subtitle: String = "", onClick: () -
 
 @Composable
 private fun SearchField(value: String, onChange: (String) -> Unit) {
-    OutlinedTextField(value, onValueChange = onChange, modifier = Modifier.fillMaxWidth().padding(16.dp), singleLine = true,
-        placeholder = { Text("Search companies…") }, leadingIcon = { Icon(Icons.Outlined.Search, null) }, shape = RoundedCornerShape(12.dp))
+    OutlinedTextField(
+        value,
+        onValueChange = onChange,
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        singleLine = true,
+        placeholder = { Text("Search companies…") },
+        leadingIcon = { Icon(Icons.Outlined.Search, null) },
+        shape = RoundedCornerShape(12.dp),
+    )
 }
 
 @Composable
 private fun Pagination(page: Int, total: Int, pageSize: Int = 24, change: (Int) -> Unit) {
-    if (total > pageSize) Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        TextButton(onClick = { change(page - 1) }, enabled = page > 1) { Text("Previous") }
-        Text("$page of ${(total + pageSize - 1) / pageSize}", style = MaterialTheme.typography.bodySmall)
-        TextButton(onClick = { change(page + 1) }, enabled = page * pageSize < total) { Text("Next") }
-    }
+    if (total > pageSize)
+        Row(
+            Modifier.fillMaxWidth().padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = { change(page - 1) }, enabled = page > 1) { Text("Previous") }
+            Text(
+                "$page of ${(total + pageSize - 1) / pageSize}",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            TextButton(onClick = { change(page + 1) }, enabled = page * pageSize < total) {
+                Text("Next")
+            }
+        }
 }
 
 @Composable
 private fun DirectoryScreen(model: CommunityModel, scroll: LazyListState) {
-    var search by rememberSaveable { mutableStateOf("") }; var page by rememberSaveable { mutableIntStateOf(1) }
+    var search by rememberSaveable { mutableStateOf("") }
+    var page by rememberSaveable { mutableIntStateOf(1) }
     val path = "/companies?q=${query(search)}&page=$page"
-    LaunchedEffect(path) { kotlinx.coroutines.delay(180); model.load(path) }
+    LaunchedEffect(path) {
+        kotlinx.coroutines.delay(180)
+        model.load(path)
+    }
     Column {
-        SearchField(search) { search = it; page = 1 }
-        val result = model.pages[path]
-        if (result == null) LoadingScreen() else LazyColumn(state = scroll, modifier = Modifier.weight(1f)) {
-            item { Text("${result.optInt("total")} companies", Modifier.padding(horizontal = 16.dp, vertical = 4.dp), style = MaterialTheme.typography.labelMedium, color = Muted) }
-            items(result.optJSONArray("companies").objects(), key = { it.optString("id") }) { company -> CompanyRow(company) { model.profile(company.optString("id")) } }
-            item { Pagination(page, result.optInt("total")) { page = it } }
+        SearchField(search) {
+            search = it
+            page = 1
         }
+        val result = model.pages[path]
+        if (result == null) LoadingScreen()
+        else
+            LazyColumn(state = scroll, modifier = Modifier.weight(1f)) {
+                item {
+                    Text(
+                        "${result.optInt("total")} companies",
+                        Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Muted,
+                    )
+                }
+                items(result.optJSONArray("companies").objects(), key = { it.optString("id") }) {
+                    company ->
+                    CompanyRow(company) { model.profile(company.optString("id")) }
+                }
+                item { Pagination(page, result.optInt("total")) { page = it } }
+            }
     }
 }
 
@@ -236,143 +617,442 @@ private fun DirectoryScreen(model: CommunityModel, scroll: LazyListState) {
 private fun NetworkScreen(model: CommunityModel, scroll: LazyListState) {
     var type by rememberSaveable { mutableStateOf("") }
     LaunchedEffect(Unit) { model.load("/network") }
-    val connections = model.connections.filter { it.optString("status") == "connected" && !it.optBoolean("blocked") }
-    val types = listOf("Installer" to "Installers", "EPC" to "EPCs", "Developer" to "Developers", "Distributor" to "Distributors", "Manufacturer" to "Manufacturers", "Service provider" to "Services")
+    val connections =
+        model.connections.filter {
+            it.optString("status") == "connected" && !it.optBoolean("blocked")
+        }
+    val types =
+        listOf(
+            "Installer" to "Installers",
+            "EPC" to "EPCs",
+            "Developer" to "Developers",
+            "Distributor" to "Distributors",
+            "Manufacturer" to "Manufacturers",
+            "Service provider" to "Services",
+        )
     LazyColumn(state = scroll, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        item { Column(Modifier.padding(16.dp)) { Text("My Network", style = MaterialTheme.typography.headlineSmall); Text("${connections.size} connections", style = MaterialTheme.typography.bodySmall, color = Muted) } }
-        item { androidx.compose.foundation.lazy.LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            item { FilterChip(type.isEmpty(), onClick = { type = "" }, label = { Text("All ${connections.size}") }) }
-            items(types) { pair -> FilterChip(type == pair.first, onClick = { type = pair.first }, label = { Text("${pair.second} ${connections.count { it.optJSONObject("company")?.optString("type") == pair.first }}") }) }
-        } }
-        types.filter { type.isEmpty() || type == it.first }.forEach { pair ->
-            val group = connections.filter { it.optJSONObject("company")?.optString("type") == pair.first }
-            if (group.isNotEmpty()) {
-                item(key = pair.first) { Text("${pair.second}  ${group.size}", Modifier.padding(16.dp), style = MaterialTheme.typography.titleSmall) }
-                items(group, key = { it.optString("id") }) { connection -> CompanyRow(connection.getJSONObject("company")) { model.chat(connection.getJSONObject("company")) } }
+        item {
+            Column(Modifier.padding(16.dp)) {
+                Text("My Network", style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    "${connections.size} connections",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Muted,
+                )
             }
         }
-        if (connections.none { type.isEmpty() || it.optJSONObject("company")?.optString("type") == type }) item { Text("No connections yet. Accepted requests appear here.", Modifier.padding(24.dp), color = Muted) }
+        item {
+            androidx.compose.foundation.lazy.LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                item {
+                    FilterChip(
+                        type.isEmpty(),
+                        onClick = { type = "" },
+                        label = { Text("All ${connections.size}") },
+                    )
+                }
+                items(types) { pair ->
+                    FilterChip(
+                        type == pair.first,
+                        onClick = { type = pair.first },
+                        label = {
+                            Text(
+                                "${pair.second} ${connections.count { it.optJSONObject("company")?.optString("type") == pair.first }}"
+                            )
+                        },
+                    )
+                }
+            }
+        }
+        types
+            .filter { type.isEmpty() || type == it.first }
+            .forEach { pair ->
+                val group =
+                    connections.filter {
+                        it.optJSONObject("company")?.optString("type") == pair.first
+                    }
+                if (group.isNotEmpty()) {
+                    item(key = pair.first) {
+                        Text(
+                            "${pair.second}  ${group.size}",
+                            Modifier.padding(16.dp),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                    }
+                    items(group, key = { it.optString("id") }) { connection ->
+                        CompanyRow(connection.getJSONObject("company")) {
+                            model.chat(connection.getJSONObject("company"))
+                        }
+                    }
+                }
+            }
+        if (
+            connections.none {
+                type.isEmpty() || it.optJSONObject("company")?.optString("type") == type
+            }
+        )
+            item {
+                Text(
+                    "No connections yet. Accepted requests appear here.",
+                    Modifier.padding(24.dp),
+                    color = Muted,
+                )
+            }
     }
 }
 
 @Composable
 private fun MessagesScreen(model: CommunityModel, scroll: LazyListState) {
-    var search by rememberSaveable { mutableStateOf("") }; var page by rememberSaveable { mutableIntStateOf(1) }; var filter by rememberSaveable { mutableIntStateOf(0) }
+    var search by rememberSaveable { mutableStateOf("") }
+    var page by rememberSaveable { mutableIntStateOf(1) }
+    var filter by rememberSaveable { mutableIntStateOf(0) }
     val path = "/messaging/companies?q=${query(search)}&page=$page"
-    LaunchedEffect(path, filter) { model.load("/network"); if (filter == 0) { kotlinx.coroutines.delay(180); model.load(path) } }
-    Column {
-        SearchField(search) { search = it; page = 1 }
-        TabRow(selectedTabIndex = filter) { listOf("All companies", "Chats", "Requests${if (model.incoming.isNotEmpty()) " ${model.incoming.size}" else ""}").forEachIndexed { index, label ->
-            androidx.compose.material3.Tab(filter == index, onClick = { filter = index }, text = { Text(label, style = MaterialTheme.typography.labelMedium) })
-        } }
-        val companies = (when(filter) { 0 -> model.pages[path]?.optJSONArray("companies").objects(); 1 -> model.connections.map { it.getJSONObject("company") }; else -> (model.incoming + model.sent).map { it.getJSONObject("company") } }).filter { filter == 0 || it.optString("name").contains(search, true) }.distinctBy { it.optString("id") }
-        LazyColumn(state = scroll, modifier = Modifier.weight(1f)) {
-            items(companies, key = { it.optString("id") }) { company ->
-                val pending = (model.incoming + model.sent).firstOrNull { it.getJSONObject("company").optString("id") == company.optString("id") }
-                val connection = model.connections.firstOrNull { it.getJSONObject("company").optString("id") == company.optString("id") }
-                val subtitle = pending?.let { (if (it.optString("to_id") == model.company?.optString("id")) "Request: " else "Sent request: ") + it.optString("note", "Let’s connect.") }
-                    ?: connection?.optString("last_message").orEmpty().takeUnless { it == "null" }.orEmpty()
-                InboxRow(company, subtitle, connection?.optString("last_message_at").orEmpty(), connection?.optInt("unread") ?: 0, pending != null) { model.chat(company) }
-            }
-            if (companies.isEmpty()) item { Text(if (filter == 2) "No pending requests." else "Search for a company to start a conversation.", Modifier.padding(24.dp), color = Muted) }
-            if (filter == 0) item { Pagination(page, model.pages[path]?.optInt("total") ?: 0) { page = it } }
+    LaunchedEffect(path, filter) {
+        model.load("/network")
+        if (filter == 0) {
+            kotlinx.coroutines.delay(180)
+            model.load(path)
         }
     }
-}
-
-@Composable
-private fun CompanyProfile(model: CommunityModel, id: String, onSignIn: () -> Unit, onMessageSignIn: (JSONObject) -> Unit) {
-    val profile = model.pages["/companies/$id"] ?: return LoadingScreen()
-    val company = profile.getJSONObject("company")
-    val stats = model.pages["/social/companies/$id"]
-    val handler = LocalUriHandler.current
-    LazyColumn {
-        item { AsyncImage(model.baseUrl + company.optString("cover_url"), "Company cover", Modifier.fillMaxWidth().height(160.dp), contentScale = ContentScale.Crop) }
-        item { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            CompanyAvatar(company, 60)
-            Text(company.optString("name"), style = MaterialTheme.typography.headlineSmall)
-            Text(company.optString("tagline"), color = Muted)
-            Text(listOf(company.optString("type"), company.optString("location")).filter { it.isNotBlank() }.joinToString(" · "), style = MaterialTheme.typography.bodyMedium)
-            if (model.company?.optString("id") != id) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(onClick = { if (model.signedIn) model.chat(company) else onMessageSignIn(company) }) { Icon(Icons.AutoMirrored.Outlined.Chat, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Message") }
-                OutlinedButton(enabled = !model.busy && (!model.signedIn || model.admin), onClick = { if (!model.signedIn) onSignIn() else model.mutate("/social/companies/$id/follow", JSONObject().put("following", !(stats?.optBoolean("following") ?: false))) { model.load("/social/companies/$id", true) } }) { Text(if (stats?.optBoolean("following") == true) "Following" else "Follow") }
+    Column {
+        SearchField(search) {
+            search = it
+            page = 1
+        }
+        TabRow(selectedTabIndex = filter) {
+            listOf(
+                    "All companies",
+                    "Chats",
+                    "Requests${if (model.incoming.isNotEmpty()) " ${model.incoming.size}" else ""}",
+                )
+                .forEachIndexed { index, label ->
+                    androidx.compose.material3.Tab(
+                        filter == index,
+                        onClick = { filter = index },
+                        text = { Text(label, style = MaterialTheme.typography.labelMedium) },
+                    )
+                }
+        }
+        val companies =
+            (when (filter) {
+                    0 -> model.pages[path]?.optJSONArray("companies").objects()
+                    1 -> model.connections.map { it.getJSONObject("company") }
+                    else -> (model.incoming + model.sent).map { it.getJSONObject("company") }
+                })
+                .filter { filter == 0 || it.optString("name").contains(search, true) }
+                .distinctBy { it.optString("id") }
+        LazyColumn(state = scroll, modifier = Modifier.weight(1f)) {
+            items(companies, key = { it.optString("id") }) { company ->
+                val pending =
+                    (model.incoming + model.sent).firstOrNull {
+                        it.getJSONObject("company").optString("id") == company.optString("id")
+                    }
+                val connection =
+                    model.connections.firstOrNull {
+                        it.getJSONObject("company").optString("id") == company.optString("id")
+                    }
+                val subtitle =
+                    pending?.let {
+                        (if (it.optString("to_id") == model.company?.optString("id")) "Request: "
+                        else "Sent request: ") + it.optString("note", "Let’s connect.")
+                    }
+                        ?: connection
+                            ?.optString("last_message")
+                            .orEmpty()
+                            .takeUnless { it == "null" }
+                            .orEmpty()
+                InboxRow(
+                    company,
+                    subtitle,
+                    connection?.optString("last_message_at").orEmpty(),
+                    connection?.optInt("unread") ?: 0,
+                    pending != null,
+                ) {
+                    model.chat(company)
+                }
             }
-            HorizontalDivider()
-            Text("About", style = MaterialTheme.typography.titleMedium)
-            Text(company.optString("description").ifBlank { "This company is completing its profile." }, style = MaterialTheme.typography.bodyMedium)
-            Text("Services", style = MaterialTheme.typography.titleMedium)
-            Text(company.optJSONArray("services").strings().joinToString(" · ").ifBlank { "Not added yet" }, style = MaterialTheme.typography.bodyMedium)
-            Text("Areas served", style = MaterialTheme.typography.titleMedium)
-            Text(company.optJSONArray("service_areas").strings().joinToString(", "), style = MaterialTheme.typography.bodyMedium)
-            company.optString("website").takeIf { it.startsWith("https://") || it.startsWith("http://") }?.let { url -> TextButton(onClick = { handler.openUri(url) }) { Text("Visit website") } }
-        } }
+            if (companies.isEmpty())
+                item {
+                    Text(
+                        if (filter == 2) "No pending requests."
+                        else "Search for a company to start a conversation.",
+                        Modifier.padding(24.dp),
+                        color = Muted,
+                    )
+                }
+            if (filter == 0)
+                item { Pagination(page, model.pages[path]?.optInt("total") ?: 0) { page = it } }
+        }
     }
 }
 
 @Composable
 private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: () -> Unit) {
-    var following by rememberSaveable { mutableStateOf(false) }; var compose by rememberSaveable { mutableStateOf(false) }; var commentPost by remember { mutableStateOf<String?>(null) }
+    var following by rememberSaveable { mutableStateOf(false) }
+    var compose by rememberSaveable { mutableStateOf(false) }
+    var commentPost by remember { mutableStateOf<String?>(null) }
+    var readPost by remember { mutableStateOf<JSONObject?>(null) }
+    var drafts by rememberSaveable { mutableStateOf(false) }
     val firstPath = "/feed?scope=${if (following) "following" else "all"}"
     var paths by rememberSaveable(firstPath) { mutableStateOf(listOf(firstPath)) }
     val path = paths.last()
     LaunchedEffect(path) { model.load(path) }
     val result = model.pages[path]
-    val posts = paths.flatMap { model.pages[it]?.optJSONArray("posts").objects() }.distinctBy { it.optString("id") }
-    LazyColumn(state = scroll, contentPadding = PaddingValues(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item { Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(!following, onClick = { following = false }, label = { Text("For you") })
-            FilterChip(following, onClick = { if (model.signedIn) { following = true } else onSignIn() }, label = { Text("Following") })
-            Spacer(Modifier.weight(1f)); IconButton(onClick = { paths = listOf(firstPath); model.load(firstPath, true) }) { Icon(Icons.Outlined.Refresh, "Refresh feed") }
-        } }
-        if (model.admin) item { OutlinedButton(onClick = { compose = true }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) { Icon(Icons.Outlined.Edit, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Share an update") } }
-        items(posts, key = { it.optString("id") }) { post ->
-            var expanded by rememberSaveable(post.optString("id")) { mutableStateOf(false) }
-            var overflows by remember(post.optString("id")) { mutableStateOf(false) }
-            Card(Modifier.fillMaxWidth().padding(horizontal = 12.dp), shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
-                val time = runCatching { android.text.format.DateUtils.getRelativeTimeSpanString(java.time.Instant.parse(post.optString("created_at")).toEpochMilli(), System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS).toString() }.getOrDefault("")
-                CompanyRow(post.getJSONObject("company"), listOf(post.optString("author_name"), time).filter { it.isNotBlank() }.joinToString(" · ")) { model.profile(post.getJSONObject("company").optString("id")) }
-                if (post.optString("body").isNotBlank()) Text(post.optString("body"), Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp), style = MaterialTheme.typography.bodyMedium, maxLines = if (expanded) Int.MAX_VALUE else 5, overflow = TextOverflow.Ellipsis, onTextLayout = { if (!expanded) overflows = it.hasVisualOverflow })
-                if (overflows || expanded) TextButton(onClick = { expanded = !expanded }, modifier = Modifier.padding(horizontal = 4.dp)) { Text(if (expanded) "Show less" else "Show more") }
-                post.optJSONArray("media").objects().forEach { media -> PostMedia(model.baseUrl, media) }
-                Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.SpaceAround) {
-                    TextButton(enabled = !model.busy, onClick = { if (!model.signedIn) onSignIn() else model.mutate("/posts/${post.optString("id")}/like", JSONObject().put("liked", !post.optBoolean("liked"))) { model.load(paths.first { page -> model.pages[page]?.optJSONArray("posts").objects().any { it.optString("id") == post.optString("id") } }, true) } }) { Icon(Icons.Outlined.ThumbUp, null, Modifier.size(17.dp)); Spacer(Modifier.width(6.dp)); Text("${post.optInt("like_count")} ${if (post.optBoolean("liked")) "Liked" else "Like"}") }
-                    TextButton(onClick = { commentPost = post.optString("id") }) { Icon(Icons.Outlined.ChatBubbleOutline, null, Modifier.size(17.dp)); Spacer(Modifier.width(6.dp)); Text("${post.optInt("comment_count")} Comments") }
+    val posts =
+        paths
+            .flatMap { model.pages[it]?.optJSONArray("posts").objects() }
+            .distinctBy { it.optString("id") }
+    LazyColumn(
+        state = scroll,
+        contentPadding = PaddingValues(bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                FilterChip(!following, onClick = { following = false }, label = { Text("For you") })
+                FilterChip(
+                    following,
+                    onClick = {
+                        if (model.signedIn) {
+                            following = true
+                        } else onSignIn()
+                    },
+                    label = { Text("Following") },
+                )
+                Spacer(Modifier.weight(1f))
+                IconButton(
+                    onClick = {
+                        paths = listOf(firstPath)
+                        model.load(firstPath, true)
+                    }
+                ) {
+                    Icon(Icons.Outlined.Refresh, "Refresh feed")
                 }
             }
         }
-        if (result == null) item { Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(Modifier.size(26.dp)) } }
-        if (result != null && posts.isEmpty()) item { Text("No posts yet. Follow companies to hear what they’re working on.", Modifier.padding(24.dp), color = Muted) }
-        if (result?.optString("nextCursor")?.let { it.isNotBlank() && it != "null" } == true) item { TextButton(onClick = { paths = paths + "$firstPath&before=${query(result.optString("nextCursor"))}" }, modifier = Modifier.fillMaxWidth()) { Text("Older posts") } }
+        if (model.admin)
+            item {
+                Row {
+                    TextButton(
+                        onClick = { drafts = true },
+                        modifier = Modifier.padding(start = 12.dp),
+                    ) {
+                        Text("Drafts")
+                    }
+                    OutlinedButton(
+                        onClick = { compose = true },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    ) {
+                        Icon(Icons.Outlined.Edit, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Share an update")
+                    }
+                }
+            }
+        items(posts, key = { it.optString("id") }) { post ->
+            var expanded by rememberSaveable(post.optString("id")) { mutableStateOf(false) }
+            var overflows by remember(post.optString("id")) { mutableStateOf(false) }
+            Card(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+            ) {
+                val time =
+                    runCatching {
+                            android.text.format.DateUtils.getRelativeTimeSpanString(
+                                    java.time.Instant.parse(post.optString("created_at"))
+                                        .toEpochMilli(),
+                                    System.currentTimeMillis(),
+                                    android.text.format.DateUtils.MINUTE_IN_MILLIS,
+                                )
+                                .toString()
+                        }
+                        .getOrDefault("")
+                CompanyRow(
+                    post.getJSONObject("company"),
+                    listOf(post.optString("author_name"), time)
+                        .filter { it.isNotBlank() }
+                        .joinToString(" · "),
+                ) {
+                    model.profile(post.getJSONObject("company").optString("id"))
+                }
+                if (post.text("kind") != "post" && post.text("title").isNotBlank())
+                    PublicationHeading(
+                        post,
+                        Modifier.padding(horizontal = 16.dp).clickable { readPost = post },
+                    )
+                if (post.optString("body").isNotBlank())
+                    Text(
+                        post.optString("body"),
+                        Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = if (expanded) Int.MAX_VALUE else 5,
+                        overflow = TextOverflow.Ellipsis,
+                        onTextLayout = { if (!expanded) overflows = it.hasVisualOverflow },
+                    )
+                if (overflows || expanded)
+                    TextButton(
+                        onClick = { expanded = !expanded },
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    ) {
+                        Text(if (expanded) "Show less" else "Show more")
+                    }
+                post.optJSONArray("media").objects().forEach { media -> PostMedia(model, media) }
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                ) {
+                    TextButton(
+                        enabled = !model.busy && !model.individual,
+                        onClick = {
+                            if (!model.signedIn) onSignIn()
+                            else
+                                model.mutate(
+                                    "/posts/${post.optString("id")}/like",
+                                    JSONObject().put("liked", !post.optBoolean("liked")),
+                                ) {
+                                    model.load(
+                                        paths.first { page ->
+                                            model.pages[page]?.optJSONArray("posts").objects().any {
+                                                it.optString("id") == post.optString("id")
+                                            }
+                                        },
+                                        true,
+                                    )
+                                }
+                        },
+                    ) {
+                        Icon(Icons.Outlined.ThumbUp, null, Modifier.size(17.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            "${post.optInt("like_count")} ${if (post.optBoolean("liked")) "Liked" else "Like"}"
+                        )
+                    }
+                    TextButton(onClick = { commentPost = post.optString("id") }) {
+                        Icon(Icons.Outlined.ChatBubbleOutline, null, Modifier.size(17.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("${post.optInt("comment_count")} Comments")
+                    }
+                }
+            }
+        }
+        if (result == null)
+            item {
+                Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(Modifier.size(26.dp))
+                }
+            }
+        if (result != null && posts.isEmpty())
+            item {
+                Text(
+                    "No posts yet. Follow companies to hear what they’re working on.",
+                    Modifier.padding(24.dp),
+                    color = Muted,
+                )
+            }
+        if (result?.optString("nextCursor")?.let { it.isNotBlank() && it != "null" } == true)
+            item {
+                TextButton(
+                    onClick = {
+                        paths = paths + "$firstPath&before=${query(result.optString("nextCursor"))}"
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Older posts")
+                }
+            }
     }
-    if (compose) PostComposer(model, { compose = false }) { paths = listOf(firstPath); model.load(firstPath, true) }
-    commentPost?.let { id -> CommentsDialog(model, id, onClose = { commentPost = null }, onSignIn = onSignIn) }
+    if (compose)
+        PublicationComposer(model, null, { compose = false }) {
+            paths = listOf(firstPath)
+            model.load(firstPath, true)
+        }
+    if (drafts) PublicationDrafts(model) { drafts = false }
+    readPost?.let { post ->
+        WorkSheet(model, "Read story", { readPost = null }) { PublicationBody(model, post) }
+    }
+    commentPost?.let { id ->
+        CommentsDialog(model, id, onClose = { commentPost = null }, onSignIn = onSignIn)
+    }
 }
 
 @Composable
-private fun PostMedia(base: String, media: JSONObject) {
-    val uri = base + media.optString("url")
+internal fun PostMedia(model: CommunityModel, media: JSONObject) {
+    val uri = mediaUrl(model, media.text("url"))
     val handler = LocalUriHandler.current
     when {
-        media.optString("mime").startsWith("image/") -> AsyncImage(uri, media.optString("alt").ifBlank { "Post image" }, Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 380.dp), contentScale = ContentScale.FillWidth)
+        media.optString("mime").startsWith("image/") ->
+            AsyncImage(
+                publicationImage(model, media.text("url")),
+                media.optString("alt").ifBlank { "Post image" },
+                Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 380.dp),
+                contentScale = ContentScale.FillWidth,
+            )
         media.optString("mime").startsWith("video/") -> {
             var play by rememberSaveable(uri) { mutableStateOf(false) }
-            if (play) NativeVideo(uri) else Box(Modifier.fillMaxWidth().height(210.dp).background(Ink), contentAlignment = Alignment.Center) { FilledTonalButton(onClick = { play = true }) { Icon(Icons.Outlined.PlayArrow, null); Text("Play video") } }
+            if (play) NativeVideo(model, uri)
+            else
+                Box(
+                    Modifier.fillMaxWidth().height(210.dp).background(Ink),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    FilledTonalButton(onClick = { play = true }) {
+                        Icon(Icons.Outlined.PlayArrow, null)
+                        Text("Play video")
+                    }
+                }
         }
-        else -> TextButton(onClick = { handler.openUri(uri) }, modifier = Modifier.padding(12.dp)) { Icon(Icons.Outlined.Description, null); Text(media.optString("name", "Open document")) }
+        else ->
+            TextButton(
+                onClick = { model.openPublicationMedia(media) },
+                modifier = Modifier.padding(12.dp),
+            ) {
+                Icon(Icons.Outlined.Description, null)
+                Text(media.optString("name", "Open document"))
+            }
     }
 }
 
 @Composable
-private fun NativeVideo(uri: String) {
+private fun NativeVideo(model: CommunityModel, uri: String) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current
-    val player = remember(uri) { ExoPlayer.Builder(context).build().apply { setMediaItem(MediaItem.fromUri(uri)); prepare(); playWhenReady = true } }
+    val player =
+        remember(uri) {
+            ExoPlayer.Builder(context)
+                .setMediaSourceFactory(
+                    androidx.media3.exoplayer.source.DefaultMediaSourceFactory(
+                        androidx.media3.datasource.DefaultHttpDataSource.Factory()
+                            .setDefaultRequestProperties(mapOf("Cookie" to model.mediaCookie()))
+                    )
+                )
+                .build()
+                .apply {
+                    setMediaItem(MediaItem.fromUri(uri))
+                    prepare()
+                    playWhenReady = true
+                }
+        }
     DisposableEffect(player, lifecycle) {
-        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_STOP) player.pause() }
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) player.pause()
+        }
         lifecycle.lifecycle.addObserver(observer)
-        onDispose { lifecycle.lifecycle.removeObserver(observer); player.release() }
+        onDispose {
+            lifecycle.lifecycle.removeObserver(observer)
+            player.release()
+        }
     }
-    AndroidView(factory = { PlayerView(it).apply { this.player = player } }, modifier = Modifier.fillMaxWidth().height(230.dp))
+    AndroidView(
+        factory = { PlayerView(it).apply { this.player = player } },
+        modifier = Modifier.fillMaxWidth().height(230.dp),
+    )
 }
 
 @Composable
@@ -383,80 +1063,313 @@ private fun ChatScreen(model: CommunityModel) {
     val request = model.currentRequest
     val incoming = request?.optString("to_id") == model.company?.optString("id")
     val relationship = model.pages["/companies/$id"]?.optJSONObject("relationship")
-    val blocked = relationship?.optString("status") == "blocked" || connection?.optBoolean("blocked") == true
+    val blocked =
+        relationship?.optString("status") == "blocked" || connection?.optBoolean("blocked") == true
     val connected = connection?.optString("status") == "connected" && !blocked
     var draft by rememberSaveable(id) { mutableStateOf("") }
     var mediaJson by rememberSaveable(id) { mutableStateOf("[]") }
     val files = mediaJson.uploadFiles()
     var pendingId by rememberSaveable(id) { mutableStateOf("") }
     var pendingFingerprint by rememberSaveable(id) { mutableStateOf("") }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> model.pickMedia(uris, false) { selected -> MediaFiles.discard(files); mediaJson = selected.toJson() } }
+    val picker =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+            model.pickMedia(uris, false) { selected ->
+                MediaFiles.discard(files)
+                mediaJson = selected.toJson()
+            }
+        }
     val path = model.messagePath
-    var olderCursors by rememberSaveable(connection?.optString("id")) { mutableStateOf(emptyList<String>()) }
+    var olderCursors by
+        rememberSaveable(connection?.optString("id")) { mutableStateOf(emptyList<String>()) }
     val historyPaths = listOfNotNull(path) + olderCursors.map { "$path?before=$it" }
     val oldestPage = historyPaths.lastOrNull()?.let { model.pages[it] }
-    val messages = historyPaths.flatMap { model.pages[it]?.optJSONArray("messages").objects() }.distinctBy { it.optString("id") }.sortedBy { it.optLong("sequence") }
+    val messages =
+        historyPaths
+            .flatMap { model.pages[it]?.optJSONArray("messages").objects() }
+            .distinctBy { it.optString("id") }
+            .sortedBy { it.optLong("sequence") }
     LaunchedEffect(historyPaths.lastOrNull()) { historyPaths.lastOrNull()?.let { model.load(it) } }
     val scroll = rememberLazyListState()
     var lastCount by remember(id) { mutableIntStateOf(0) }
     LaunchedEffect(messages.lastOrNull()?.optString("id"), request?.optString("id")) {
-        val nearBottom = (scroll.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) >= lastCount - 2
-        if (messages.isNotEmpty() && (lastCount == 0 || nearBottom)) scroll.animateScrollToItem(messages.size - 1 + if (oldestPage?.optBoolean("hasMore") == true) 1 else 0)
+        val nearBottom =
+            (scroll.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) >= lastCount - 2
+        if (messages.isNotEmpty() && (lastCount == 0 || nearBottom))
+            scroll.animateScrollToItem(
+                messages.size - 1 + if (oldestPage?.optBoolean("hasMore") == true) 1 else 0
+            )
         lastCount = messages.size
     }
     Column(Modifier.fillMaxSize().background(Color.White)) {
-        Text(if (connected) "Connected · shared with both company teams" else if (request != null) "Message request" else "${company.optString("type")} · ${company.optString("location")}", Modifier.padding(16.dp), style = MaterialTheme.typography.bodySmall, color = Muted)
-        LazyColumn(state = scroll, modifier = Modifier.weight(1f), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (oldestPage?.optBoolean("hasMore") == true) item(key = "older") {
-                TextButton(onClick = { messages.firstOrNull()?.optString("sequence")?.let { olderCursors = olderCursors + it } }) { Text("Earlier messages") }
-            }
-            itemsIndexed(messages, key = { _, message -> message.optString("id") }) { index, message ->
+        Text(
+            if (connected) "Connected · shared with both company teams"
+            else if (request != null) "Message request"
+            else "${company.optString("type")} · ${company.optString("location")}",
+            Modifier.padding(16.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = Muted,
+        )
+        LazyColumn(
+            state = scroll,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (oldestPage?.optBoolean("hasMore") == true)
+                item(key = "older") {
+                    TextButton(
+                        onClick = {
+                            messages.firstOrNull()?.optString("sequence")?.let {
+                                olderCursors = olderCursors + it
+                            }
+                        }
+                    ) {
+                        Text("Earlier messages")
+                    }
+                }
+            itemsIndexed(messages, key = { _, message -> message.optString("id") }) { index, message
+                ->
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    if (index == 0 || chatDate(messages[index - 1].optString("created_at")) != chatDate(message.optString("created_at"))) Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) { Surface(color = Pale, shape = RoundedCornerShape(20.dp)) { Text(chatDate(message.optString("created_at")), Modifier.padding(horizontal = 12.dp, vertical = 5.dp), style = MaterialTheme.typography.labelSmall, color = Muted) } }
-                    ChatMessage(model, message, index == messages.lastIndex, model.pages[path]?.optLong("peerReadSequence") ?: 0L)
+                    if (
+                        index == 0 ||
+                            chatDate(messages[index - 1].optString("created_at")) !=
+                                chatDate(message.optString("created_at"))
+                    )
+                        Box(
+                            Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Surface(color = Pale, shape = RoundedCornerShape(20.dp)) {
+                                Text(
+                                    chatDate(message.optString("created_at")),
+                                    Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Muted,
+                                )
+                            }
+                        }
+                    ChatMessage(
+                        model,
+                        message,
+                        index == messages.lastIndex,
+                        model.pages[path]?.optLong("peerReadSequence") ?: 0L,
+                    )
                 }
             }
-            if (request != null) item { MessageBubble(request.optString("note").ifBlank { "We’d like to connect." }, request.optString("author_name"), !incoming) }
-            if (messages.isEmpty() && request == null) item { Column(Modifier.fillMaxWidth().padding(top = 40.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) { CompanyAvatar(company, 60); Text("Message ${company.optString("name")}", style = MaterialTheme.typography.titleMedium) } }
+            if (request != null)
+                item {
+                    MessageBubble(
+                        request.optString("note").ifBlank { "We’d like to connect." },
+                        request.optString("author_name"),
+                        !incoming,
+                    )
+                }
+            if (messages.isEmpty() && request == null)
+                item {
+                    Column(
+                        Modifier.fillMaxWidth().padding(top = 40.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        CompanyAvatar(company, 60)
+                        Text(
+                            "Message ${company.optString("name")}",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                }
         }
         HorizontalDivider()
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             when {
                 blocked -> Text("New messages are unavailable for this company.", color = Muted)
                 request != null && incoming -> {
-                    Text("Accept to connect your companies and start chatting.", style = MaterialTheme.typography.bodySmall)
-                    if (model.admin) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedButton(enabled = !model.busy, onClick = { model.respond(request, "decline") }) { Text("Decline") }
-                        Button(enabled = !model.busy, onClick = { model.respond(request, "accept") }) { Text("Accept & connect") }
-                    } else Text("A company administrator can accept this request.", color = Muted)
+                    Text(
+                        "Accept to connect your companies and start chatting.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    if (model.admin)
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            OutlinedButton(
+                                enabled = !model.busy,
+                                onClick = { model.respond(request, "decline") },
+                            ) {
+                                Text("Decline")
+                            }
+                            Button(
+                                enabled = !model.busy,
+                                onClick = { model.respond(request, "accept") },
+                            ) {
+                                Text("Accept & connect")
+                            }
+                        }
+                    else Text("A company administrator can accept this request.", color = Muted)
                 }
                 request != null -> {
-                    Text("Request sent. You can chat once they accept.", style = MaterialTheme.typography.bodySmall)
-                    if (model.admin) TextButton(enabled = !model.busy, onClick = { model.respond(request, "withdraw") }) { Text("Withdraw request") }
+                    Text(
+                        "Request sent. You can chat once they accept.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    if (model.admin)
+                        TextButton(
+                            enabled = !model.busy,
+                            onClick = { model.respond(request, "withdraw") },
+                        ) {
+                            Text("Withdraw request")
+                        }
                 }
-                !connected && !model.admin -> Text("A company administrator can send a message request.", color = Muted)
+                !connected && !model.admin ->
+                    Text("A company administrator can send a message request.", color = Muted)
                 else -> {
-                    if (!connected) Text("Your first message is a request. Acceptance connects both companies.", style = MaterialTheme.typography.bodySmall, color = Muted)
-                    if (files.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        files.forEach { file -> Box(Modifier.size(74.dp).clip(RoundedCornerShape(12.dp)).background(Pale)) {
-                            if (file.mime.startsWith("image/")) AsyncImage(java.io.File(file.path), file.name, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                            else Column(Modifier.fillMaxSize().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Outlined.Description, null); Text(file.name, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelSmall) }
-                            IconButton(enabled = !model.busy, onClick = { MediaFiles.discard(listOf(file)); mediaJson = (files - file).toJson() }, modifier = Modifier.align(Alignment.TopEnd).size(26.dp).background(Color.White, CircleShape)) { Icon(Icons.Outlined.Close, "Remove ${file.name}", Modifier.size(15.dp)) }
-                        } }
+                    if (!connected)
+                        Text(
+                            "Your first message is a request. Acceptance connects both companies.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Muted,
+                        )
+                    if (files.isNotEmpty())
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            files.forEach { file ->
+                                Box(
+                                    Modifier.size(74.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Pale)
+                                ) {
+                                    if (file.mime.startsWith("image/"))
+                                        AsyncImage(
+                                            java.io.File(file.path),
+                                            file.name,
+                                            Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop,
+                                        )
+                                    else
+                                        Column(
+                                            Modifier.fillMaxSize().padding(8.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                        ) {
+                                            Icon(Icons.Outlined.Description, null)
+                                            Text(
+                                                file.name,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis,
+                                                style = MaterialTheme.typography.labelSmall,
+                                            )
+                                        }
+                                    IconButton(
+                                        enabled = !model.busy,
+                                        onClick = {
+                                            MediaFiles.discard(listOf(file))
+                                            mediaJson = (files - file).toJson()
+                                        },
+                                        modifier =
+                                            Modifier.align(Alignment.TopEnd)
+                                                .size(26.dp)
+                                                .background(Color.White, CircleShape),
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.Close,
+                                            "Remove ${file.name}",
+                                            Modifier.size(15.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    Row(
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        if (connected)
+                            IconButton(
+                                enabled = !model.busy,
+                                onClick = {
+                                    picker.launch(
+                                        arrayOf(
+                                            "image/jpeg",
+                                            "image/png",
+                                            "image/webp",
+                                            "application/pdf",
+                                        )
+                                    )
+                                },
+                                modifier =
+                                    Modifier.padding(bottom = 4.dp)
+                                        .size(40.dp)
+                                        .background(Pale, CircleShape),
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Add,
+                                    "Attach a file",
+                                    Modifier.size(23.dp),
+                                    tint = Navy,
+                                )
+                            }
+                        OutlinedTextField(
+                            draft,
+                            onValueChange = {
+                                if (!model.busy && it.length <= if (connected) 10000 else 2000)
+                                    draft = it
+                            },
+                            placeholder = {
+                                Text(
+                                    if (connected) "Write a message…" else "Say hello…",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            },
+                            modifier = Modifier.weight(1f),
+                            maxLines = 5,
+                            shape = RoundedCornerShape(24.dp),
+                            colors =
+                                OutlinedTextFieldDefaults.colors(
+                                    unfocusedBorderColor = Color(0xFFDCE6EF),
+                                    unfocusedContainerColor = Color(0xFFF9FBFD),
+                                ),
+                        )
+                        FilledIconButton(
+                            enabled =
+                                !model.busy &&
+                                    (draft.isNotBlank() || connected && files.isNotEmpty()),
+                            onClick = {
+                                if (connected && path != null) {
+                                    val fingerprint = draft + "\n" + mediaJson
+                                    if (pendingFingerprint != fingerprint || pendingId.isBlank()) {
+                                        pendingFingerprint = fingerprint
+                                        pendingId = java.util.UUID.randomUUID().toString()
+                                    }
+                                    model.sendText(path, draft, files, pendingId) {
+                                        draft = ""
+                                        mediaJson = "[]"
+                                        pendingId = ""
+                                        pendingFingerprint = ""
+                                    }
+                                } else model.sendRequest(draft) { draft = "" }
+                            },
+                            modifier = Modifier.padding(bottom = 3.dp).size(46.dp),
+                        ) {
+                            if (model.busy)
+                                CircularProgressIndicator(
+                                    Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White,
+                                )
+                            else
+                                Icon(
+                                    Icons.AutoMirrored.Outlined.Send,
+                                    if (connected) "Send" else "Send request",
+                                    Modifier.size(20.dp),
+                                )
+                        }
                     }
-                    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (connected) IconButton(enabled = !model.busy, onClick = { picker.launch(arrayOf("image/jpeg", "image/png", "image/webp", "application/pdf")) }, modifier = Modifier.padding(bottom = 4.dp).size(40.dp).background(Pale, CircleShape)) { Icon(Icons.Outlined.Add, "Attach a file", Modifier.size(23.dp), tint = Navy) }
-                        OutlinedTextField(draft, onValueChange = { if (!model.busy && it.length <= if (connected) 10000 else 2000) draft = it }, placeholder = { Text(if (connected) "Write a message…" else "Say hello…", style = MaterialTheme.typography.bodyMedium) }, modifier = Modifier.weight(1f), maxLines = 5, shape = RoundedCornerShape(24.dp), colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color(0xFFDCE6EF), unfocusedContainerColor = Color(0xFFF9FBFD)))
-                        FilledIconButton(enabled = !model.busy && (draft.isNotBlank() || connected && files.isNotEmpty()), onClick = {
-                            if (connected && path != null) {
-                                val fingerprint = draft + "\n" + mediaJson
-                                if (pendingFingerprint != fingerprint || pendingId.isBlank()) { pendingFingerprint = fingerprint; pendingId = java.util.UUID.randomUUID().toString() }
-                                model.sendText(path, draft, files, pendingId) { draft = ""; mediaJson = "[]"; pendingId = ""; pendingFingerprint = "" }
-                            } else model.sendRequest(draft) { draft = "" }
-                        }, modifier = Modifier.padding(bottom = 3.dp).size(46.dp)) { if (model.busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White) else Icon(Icons.AutoMirrored.Outlined.Send, if (connected) "Send" else "Send request", Modifier.size(20.dp)) }
-                    }
-                    if (!connected) Text("Send request", Modifier.align(Alignment.End), style = MaterialTheme.typography.labelSmall, color = Muted)
-
+                    if (!connected)
+                        Text(
+                            "Send request",
+                            Modifier.align(Alignment.End),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Muted,
+                        )
                 }
             }
         }
@@ -465,55 +1378,162 @@ private fun ChatScreen(model: CommunityModel) {
 
 @Composable
 private fun MessageBubble(body: String, author: String, own: Boolean) {
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = if (own) Alignment.End else Alignment.Start) {
-        Text(author, Modifier.padding(horizontal = 4.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = Muted)
-        Surface(shape = RoundedCornerShape(14.dp), color = if (own) Navy.copy(alpha = .10f) else Pale, modifier = Modifier.widthIn(max = 310.dp)) { Text(body, Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium) }
+    Column(
+        Modifier.fillMaxWidth(),
+        horizontalAlignment = if (own) Alignment.End else Alignment.Start,
+    ) {
+        Text(
+            author,
+            Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = Muted,
+        )
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = if (own) Navy.copy(alpha = .10f) else Pale,
+            modifier = Modifier.widthIn(max = 310.dp),
+        ) {
+            Text(body, Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium)
+        }
     }
 }
 
-private fun String.uploadFiles() = JSONArray(this).objects().map { UploadFile(it.getString("path"), it.getString("name"), it.getString("mime")) }
-private fun List<UploadFile>.toJson() = JSONArray(map { JSONObject().put("path", it.path).put("name", it.name).put("mime", it.mime) }).toString()
+private fun String.uploadFiles() =
+    JSONArray(this).objects().map {
+        UploadFile(it.getString("path"), it.getString("name"), it.getString("mime"))
+    }
+
+private fun List<UploadFile>.toJson() =
+    JSONArray(map { JSONObject().put("path", it.path).put("name", it.name).put("mime", it.mime) })
+        .toString()
 
 @Composable
-private fun AttachmentPicker(model: CommunityModel, post: Boolean, files: List<UploadFile>, change: (List<UploadFile>) -> Unit) {
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        model.pickMedia(uris, post) { selected -> MediaFiles.discard(files); change(selected) }
-    }
+private fun AttachmentPicker(
+    model: CommunityModel,
+    post: Boolean,
+    files: List<UploadFile>,
+    change: (List<UploadFile>) -> Unit,
+) {
+    val picker =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+            model.pickMedia(uris, post) { selected ->
+                MediaFiles.discard(files)
+                change(selected)
+            }
+        }
     Column {
-        files.forEach { file -> Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(if (file.mime.startsWith("video/")) Icons.Outlined.Videocam else Icons.Outlined.AttachFile, null, Modifier.size(18.dp))
-            Text(file.name, Modifier.weight(1f).padding(horizontal = 8.dp), style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            IconButton(enabled = !model.busy, onClick = { MediaFiles.discard(listOf(file)); change(files - file) }) { Icon(Icons.Outlined.Close, "Remove ${file.name}", Modifier.size(18.dp)) }
-        } }
-        TextButton(enabled = !model.busy, onClick = { picker.launch(if (post) arrayOf("image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm", "application/pdf") else arrayOf("image/jpeg", "image/png", "image/webp", "application/pdf")) }) {
-            Icon(Icons.Outlined.AttachFile, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(if (files.isNotEmpty()) "Change attachments" else if (post) "Photo, video or document" else "Attach a file")
+        files.forEach { file ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    if (file.mime.startsWith("video/")) Icons.Outlined.Videocam
+                    else Icons.Outlined.AttachFile,
+                    null,
+                    Modifier.size(18.dp),
+                )
+                Text(
+                    file.name,
+                    Modifier.weight(1f).padding(horizontal = 8.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                IconButton(
+                    enabled = !model.busy,
+                    onClick = {
+                        MediaFiles.discard(listOf(file))
+                        change(files - file)
+                    },
+                ) {
+                    Icon(Icons.Outlined.Close, "Remove ${file.name}", Modifier.size(18.dp))
+                }
+            }
+        }
+        TextButton(
+            enabled = !model.busy,
+            onClick = {
+                picker.launch(
+                    if (post)
+                        arrayOf(
+                            "image/jpeg",
+                            "image/png",
+                            "image/webp",
+                            "video/mp4",
+                            "video/webm",
+                            "application/pdf",
+                        )
+                    else arrayOf("image/jpeg", "image/png", "image/webp", "application/pdf")
+                )
+            },
+        ) {
+            Icon(Icons.Outlined.AttachFile, null, Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(
+                if (files.isNotEmpty()) "Change attachments"
+                else if (post) "Photo, video or document" else "Attach a file"
+            )
         }
     }
 }
 
 @Composable
-private fun PostComposer(model: CommunityModel, close: () -> Unit, published: () -> Unit) {
-    var text by rememberSaveable { mutableStateOf("") }
-    var mediaJson by rememberSaveable { mutableStateOf("[]") }
-    val files = mediaJson.uploadFiles()
-    val dismiss = { if (!model.busy) { MediaFiles.discard(files); close() } }
-    AlertDialog(onDismissRequest = dismiss, title = { Text("Share an update") }, text = { Column(Modifier.verticalScroll(rememberScrollState())) {
-        Text(model.company?.optString("name").orEmpty(), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(bottom = 12.dp))
-        OutlinedTextField(text, { if (it.length <= 4000) text = it }, placeholder = { Text("What’s happening at your company?") }, minLines = 4, maxLines = 8)
-        AttachmentPicker(model, true, files) { mediaJson = it.toJson() }
-        if (model.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-    } }, confirmButton = { TextButton(enabled = !model.busy && (text.isNotBlank() || files.isNotEmpty()), onClick = { model.sendText("/posts", text, files) { close(); published() } }) { Text(if (model.busy) "Posting…" else "Post") } }, dismissButton = { TextButton(enabled = !model.busy, onClick = dismiss) { Text("Cancel") } })
-}
-
-@Composable
-private fun CommentsDialog(model: CommunityModel, id: String, onClose: () -> Unit, onSignIn: () -> Unit) {
+private fun CommentsDialog(
+    model: CommunityModel,
+    id: String,
+    onClose: () -> Unit,
+    onSignIn: () -> Unit,
+) {
     val path = "/posts/$id/comments"
     var text by rememberSaveable { mutableStateOf("") }
     LaunchedEffect(id) { model.load(path) }
-    AlertDialog(onDismissRequest = onClose, title = { Text("Comments") }, text = { Column {
-        LazyColumn(Modifier.heightIn(max = 280.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(model.pages[path]?.optJSONArray("comments").objects(), key = { it.optString("id") }) { comment -> Column { Text(comment.optString("author_name"), style = MaterialTheme.typography.labelMedium); Text(comment.optString("body"), style = MaterialTheme.typography.bodyMedium) } }
-        }
-        if (model.signedIn) OutlinedTextField(text, { text = it.take(2000) }, placeholder = { Text("Add a comment…") }, modifier = Modifier.padding(top = 16.dp))
-    } }, confirmButton = { TextButton(enabled = !model.busy && (!model.signedIn || text.isNotBlank()), onClick = { if (!model.signedIn) onSignIn() else model.mutate(path, JSONObject().put("body", text)) { text = ""; model.load(path, true) } }) { Text(if (model.signedIn) "Comment" else "Sign in") } }, dismissButton = { TextButton(onClick = onClose) { Text("Close") } })
+    AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text("Comments") },
+        text = {
+            Column {
+                LazyColumn(
+                    Modifier.heightIn(max = 280.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(
+                        model.pages[path]?.optJSONArray("comments").objects(),
+                        key = { it.optString("id") },
+                    ) { comment ->
+                        Column {
+                            Text(
+                                comment.optString("author_name"),
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                            Text(
+                                comment.optString("body"),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                    }
+                }
+                if (model.signedIn)
+                    OutlinedTextField(
+                        text,
+                        { text = it.take(2000) },
+                        placeholder = { Text("Add a comment…") },
+                        modifier = Modifier.padding(top = 16.dp),
+                    )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = !model.busy && (!model.signedIn || text.isNotBlank()),
+                onClick = {
+                    if (!model.signedIn) onSignIn()
+                    else
+                        model.mutate(path, JSONObject().put("body", text)) {
+                            text = ""
+                            model.load(path, true)
+                        }
+                },
+            ) {
+                Text(if (model.signedIn) "Comment" else "Sign in")
+            }
+        },
+        dismissButton = { TextButton(onClick = onClose) { Text("Close") } },
+    )
 }

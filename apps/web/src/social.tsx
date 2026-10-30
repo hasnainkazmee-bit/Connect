@@ -25,6 +25,13 @@ import { useApp } from "./context";
 import { Logo } from "./identity";
 import { api, post } from "./api";
 import type { Company } from "./types";
+import {
+  Publisher,
+  DraftsDialog,
+  formats,
+  RichDocument,
+  type PublicationKind,
+} from "./composer";
 
 type Media = {
   id: string;
@@ -38,6 +45,11 @@ type Post = {
   id: string;
   sequence: string;
   body: string;
+  kind: PublicationKind;
+  title: string;
+  subtitle: string;
+  document: any;
+  cover_media_id: string | null;
   company: Company;
   company_id: string;
   author_name: string;
@@ -140,10 +152,6 @@ export function FollowButton({
             signIn();
             return;
           }
-          if (!company) {
-            createCompany();
-            return;
-          }
           setBusy(true);
           setError("");
           try {
@@ -200,23 +208,17 @@ export function SocialStats({ companyId }: { companyId: string }) {
     </div>
   ) : null;
 }
-function ComposerLauncher({
-  onPublished,
-}: {
-  onPublished?: (p: Post) => void;
-}) {
+export function ComposerLauncher() {
   const { company, session, admin, open, signIn, createCompany } = useApp();
-  const launch = (kind?: "image" | "video" | "document") => {
-    if (!session.user) {
-      signIn();
-      return;
-    }
-    if (!company) {
-      createCompany();
-      return;
-    }
+  if (session.user?.account_type === "individual") return null;
+  const launch = (
+    kind: PublicationKind = "post",
+    media?: "image" | "video" | "document",
+  ) => {
+    if (!session.user) return signIn();
+    if (!company) return createCompany();
     if (!admin) return;
-    open(<PostComposer initialKind={kind} onPublished={onPublished} />);
+    open(<Publisher initialKind={kind} initialMedia={media} />);
   };
   return (
     <section className="feed-composer" aria-label="Create a post">
@@ -231,325 +233,32 @@ function ComposerLauncher({
         <button disabled={!!company && !admin} onClick={() => launch()}>
           {company && !admin
             ? "Your company’s updates appear here"
-            : company
-              ? "Share an update, a project, an idea…"
-              : "Share what’s happening at your company"}
+            : "What’s happening at your company?"}
         </button>
+        {company && admin && (
+          <button
+            className="launcher-drafts"
+            onClick={() => open(<DraftsDialog />)}
+          >
+            Drafts
+          </button>
+        )}
       </div>
       {(!company || admin) && (
-        <div className="composer-attachments">
-          <button onClick={() => launch("image")}>
+        <div className="composer-attachments composer-formats">
+          <button onClick={() => launch("post", "image")}>
             <ImageIcon size={18} />
-            <span>Photo</span>
+            <span>Photo / video</span>
           </button>
-          <button onClick={() => launch("video")}>
-            <Video size={19} />
-            <span>Video</span>
-          </button>
-          <button onClick={() => launch("document")}>
-            <FileText size={18} />
-            <span>Document</span>
-          </button>
+          {formats.slice(1).map((f) => (
+            <button key={f.value} onClick={() => launch(f.value)}>
+              <f.icon size={18} />
+              <span>{f.label}</span>
+            </button>
+          ))}
         </div>
       )}
     </section>
-  );
-}
-function PostComposer({
-  initialKind,
-  onPublished,
-}: {
-  initialKind?: "image" | "video" | "document";
-  onPublished?: (p: Post) => void;
-}) {
-  const { company, session, close, toast, refresh } = useApp();
-  const draftKey = "post-draft:" + session.user!.id + ":" + company!.id;
-  const [body, setBody] = useState(
-      () => sessionStorage.getItem(draftKey) || "",
-    ),
-    [files, setFiles] = useState<File[]>([]),
-    [urls, setUrls] = useState<string[]>([]),
-    [alts, setAlts] = useState<string[]>([]),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false),
-    [progress, setProgress] = useState(0);
-  const [kind, setKind] = useState(initialKind || "image");
-  const input = useRef<HTMLInputElement>(null);
-  const publishing = useRef(false);
-  useEffect(() => {
-    sessionStorage.setItem(draftKey, body);
-  }, [body, draftKey]);
-  useEffect(() => {
-    const next = files.map((f) => URL.createObjectURL(f));
-    setUrls(next);
-    return () => next.forEach(URL.revokeObjectURL);
-  }, [files]);
-  const choose = (k: "image" | "video" | "document") => {
-    setKind(k);
-    setTimeout(() => input.current?.click(), 0);
-  };
-  const add = (incoming: File[]) => {
-    const all =
-      files.length &&
-      files.every((f) => f.type.startsWith("image/")) &&
-      incoming.every((f) => f.type.startsWith("image/"))
-        ? [...files, ...incoming]
-        : incoming;
-    if (
-      all.length > 4 ||
-      (all.some((f) => !f.type.startsWith("image/")) && all.length > 1)
-    ) {
-      setError("Choose up to 4 photos, or one video or PDF.");
-      return;
-    }
-    for (const f of all) {
-      if (
-        ![
-          "image/jpeg",
-          "image/png",
-          "image/webp",
-          "video/mp4",
-          "video/webm",
-          "application/pdf",
-        ].includes(f.type)
-      ) {
-        setError("Use JPG, PNG, WebP, MP4, WebM, or PDF.");
-        return;
-      }
-      const limit = f.type.startsWith("image/")
-        ? 10
-        : f.type.startsWith("video/")
-          ? 100
-          : 20;
-      if (f.size > limit * 1024 * 1024) {
-        setError(f.name + " is too large. Maximum " + limit + " MB.");
-        return;
-      }
-    }
-    setError("");
-    setFiles(all);
-    setAlts(all.map((_, i) => (all !== incoming ? alts[i] || "" : "")));
-  };
-  return (
-    <div className="post-composer-dialog">
-      <h2>Create a post</h2>
-      <div className="post-publisher">
-        <Logo company={company!} />
-        <div>
-          <strong>{company!.name}</strong>
-          <span>
-            <Globe size={12} />
-            Public · Posted by {session.user!.name}
-          </span>
-        </div>
-      </div>
-      <form
-        onSubmit={async (e) => {
-          e.preventDefault();
-          if (publishing.current) return;
-          publishing.current = true;
-          setBusy(true);
-          setError("");
-          try {
-            const form = new FormData();
-            form.set("body", body);
-            form.set("alts", JSON.stringify(alts));
-            files.forEach((f) => form.append("files", f));
-            const result = await new Promise<Post>((resolve, reject) => {
-              const xhr = new XMLHttpRequest();
-              xhr.open("POST", "/api/posts");
-              xhr.upload.onprogress = (e) => {
-                if (e.lengthComputable)
-                  setProgress(Math.round((e.loaded / e.total) * 100));
-              };
-              xhr.onload = () => {
-                try {
-                  const data = JSON.parse(xhr.responseText);
-                  xhr.status >= 200 && xhr.status < 300
-                    ? resolve(data)
-                    : reject(
-                        new Error(data.error || "Could not publish your post."),
-                      );
-                } catch {
-                  reject(new Error("Could not publish your post."));
-                }
-              };
-              xhr.onerror = () =>
-                reject(
-                  new Error(
-                    "Upload interrupted. Your draft is saved; try again.",
-                  ),
-                );
-              xhr.send(form);
-            });
-            sessionStorage.removeItem(draftKey);
-            onPublished?.(result);
-            refresh();
-            close();
-            toast("Your post is live.");
-          } catch (e) {
-            setError((e as Error).message);
-          } finally {
-            publishing.current = false;
-            setBusy(false);
-          }
-        }}
-      >
-        <textarea
-          autoFocus
-          aria-label="Post text"
-          placeholder="What’s happening at your company?"
-          maxLength={4000}
-          rows={5}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          disabled={busy}
-        />
-        <div className={"upload-previews media-count-" + files.length}>
-          {files.map((f, i) => (
-            <div className="upload-preview" key={f.name + i}>
-              {f.type.startsWith("image/") ? (
-                <>
-                  <img src={urls[i]} alt={alts[i] || f.name} />
-                  <input
-                    aria-label={"Image description " + (i + 1)}
-                    placeholder="Add an image description"
-                    maxLength={250}
-                    value={alts[i] || ""}
-                    disabled={busy}
-                    onChange={(e) =>
-                      setAlts(
-                        alts.map((v, n) => (n === i ? e.target.value : v)),
-                      )
-                    }
-                  />
-                </>
-              ) : f.type.startsWith("video/") ? (
-                <video src={urls[i]} controls preload="metadata" />
-              ) : (
-                <div className="document-preview">
-                  <FileText size={30} />
-                  <span>
-                    {f.name}
-                    <small>{(f.size / 1024 / 1024).toFixed(1)} MB · PDF</small>
-                  </span>
-                </div>
-              )}
-              <button
-                type="button"
-                className="remove-media"
-                aria-label={"Remove " + f.name}
-                disabled={busy}
-                onClick={() => {
-                  setFiles(files.filter((_, n) => n !== i));
-                  setAlts(alts.filter((_, n) => n !== i));
-                }}
-              >
-                <X size={16} />
-              </button>
-            </div>
-          ))}
-        </div>
-        <ErrorNote error={error} />
-        <input
-          ref={input}
-          hidden
-          type="file"
-          accept={
-            kind === "image"
-              ? ".jpg,.jpeg,.png,.webp"
-              : kind === "video"
-                ? ".mp4,.webm"
-                : ".pdf"
-          }
-          multiple={kind === "image"}
-          onChange={(e) => {
-            add(Array.from(e.target.files || []));
-            e.target.value = "";
-          }}
-        />
-        {initialKind && !files.length && (
-          <button
-            className="upload-dropzone"
-            type="button"
-            disabled={busy}
-            onClick={() => choose(kind)}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              add(Array.from(e.dataTransfer.files));
-            }}
-          >
-            {kind === "image" ? (
-              <ImageIcon size={27} />
-            ) : kind === "video" ? (
-              <Video size={27} />
-            ) : (
-              <FileText size={27} />
-            )}
-            <strong>
-              Choose{" "}
-              {kind === "image"
-                ? "photos"
-                : kind === "video"
-                  ? "a video"
-                  : "a PDF"}
-            </strong>
-            <span>or drag and drop here</span>
-          </button>
-        )}
-        <div className="post-upload-help">
-          Up to 4 photos · 10 MB each. One video · 100 MB. One PDF · 20 MB.
-        </div>
-        <div className="post-compose-footer">
-          <div className="compose-media-buttons">
-            <button
-              title="Add photos"
-              aria-label="Add photos"
-              type="button"
-              disabled={busy}
-              onClick={() => choose("image")}
-            >
-              <ImageIcon size={21} />
-            </button>
-            <button
-              title="Add video"
-              aria-label="Add video"
-              type="button"
-              disabled={busy}
-              onClick={() => choose("video")}
-            >
-              <Video size={21} />
-            </button>
-            <button
-              title="Add document"
-              aria-label="Add document"
-              type="button"
-              disabled={busy}
-              onClick={() => choose("document")}
-            >
-              <FileText size={20} />
-            </button>
-          </div>
-          <span className="post-character-count">{body.length}/4,000</span>
-          <button
-            className="button primary"
-            disabled={busy || (!body.trim() && !files.length)}
-          >
-            {busy ? (
-              <>
-                <LoaderCircle className="spin" size={15} />
-                {files.length && progress < 100
-                  ? `Uploading ${progress}%`
-                  : "Publishing…"}
-              </>
-            ) : (
-              "Post"
-            )}
-          </button>
-        </div>
-      </form>
-    </div>
   );
 }
 function DeletePost({
@@ -600,7 +309,11 @@ function PostCard({
   item,
   onUpdated,
   onDeleted,
+  reading = false,
+  showFollow = true,
 }: {
+  showFollow?: boolean;
+  reading?: boolean;
   item: Post;
   onUpdated: (p: Post) => void;
   onDeleted: () => void;
@@ -622,6 +335,12 @@ function PostCard({
       return false;
     }
     if (!company) {
+      if (session.user.account_type === "individual") {
+        setError(
+          "Company accounts publish and comment. You can follow this company or message them from their profile.",
+        );
+        return false;
+      }
       createCompany();
       return false;
     }
@@ -662,7 +381,12 @@ function PostCard({
             {item.is_demo && <span className="demo-post-tag">Demo</span>}
           </Link>
         </div>
-        <FollowButton target={item.company} initialFollowing={item.following} />
+        {showFollow && (
+          <FollowButton
+            target={item.company}
+            initialFollowing={item.following}
+          />
+        )}
         {company?.id === item.company_id && admin && (
           <details className="post-menu">
             <summary aria-label="Post options" className="icon-button">
@@ -682,79 +406,154 @@ function PostCard({
           </details>
         )}
       </header>
-      {item.body && (
+      {item.kind && item.kind !== "post" ? (
         <div
           className={
-            "post-body " +
-            (!expanded && item.body.length > 400 ? "is-collapsed" : "")
+            "publication-card " + (reading ? "publication-reading" : "")
           }
         >
-          <p>
-            {!expanded && item.body.length > 400
-              ? item.body.slice(0, 400) + "…"
-              : item.body}
-          </p>
-          {item.body.length > 400 && (
-            <button onClick={() => setExpanded(!expanded)}>
-              {expanded ? "Show less" : "…see more"}
-            </button>
+          <span className="publication-label">
+            {formats.find((f) => f.value === item.kind)?.label} ·{" "}
+            {Math.max(1, Math.ceil(item.body.split(/\s+/).length / 200))} min
+            read
+          </span>
+          <h2>
+            <Link to={"/posts/" + item.id}>{item.title}</Link>
+          </h2>
+          {item.subtitle && (
+            <p className="publication-subtitle">{item.subtitle}</p>
           )}
-        </div>
-      )}
-      {item.media.length > 0 && (
-        <div className={"post-media media-count-" + item.media.length}>
-          {item.media.map((m) =>
-            m.mime.startsWith("image/") ? (
-              <button
-                className="post-photo"
-                key={m.id}
-                onClick={() =>
-                  open(
-                    <div className="post-lightbox">
-                      <img
-                        src={m.url}
-                        alt={m.alt || "Photo shared by " + item.company.name}
-                      />
-                      {m.alt && <p>{m.alt}</p>}
-                    </div>,
-                  )
+          {item.cover_media_id && (
+            <Link to={"/posts/" + item.id}>
+              <img
+                className="publication-cover"
+                src={item.media.find((m) => m.id === item.cover_media_id)?.url}
+                alt={
+                  item.media.find((m) => m.id === item.cover_media_id)?.alt ||
+                  item.title
                 }
-                aria-label={
-                  "View " + (m.alt || "photo from " + item.company.name)
-                }
-              >
-                <img
-                  src={m.url}
-                  alt={m.alt || "Photo shared by " + item.company.name}
-                  loading="lazy"
-                />
-              </button>
-            ) : m.mime.startsWith("video/") ? (
-              <video
-                key={m.id}
-                src={m.url}
-                controls
-                playsInline
-                preload="metadata"
-                aria-label={"Video from " + item.company.name}
               />
-            ) : (
-              <a key={m.id} href={m.url} className="post-document">
-                <span>
-                  <FileText size={28} />
-                </span>
-                <div>
-                  <strong>{m.name}</strong>
-                  <small>
-                    PDF · {(m.size / 1024 / 1024).toFixed(1)} MB · Download
-                  </small>
-                </div>
-                <ArrowRight size={19} />
-              </a>
-            ),
+            </Link>
+          )}
+          {reading ? (
+            <RichDocument
+              document={
+                item.document || {
+                  type: "doc",
+                  content: [
+                    {
+                      type: "paragraph",
+                      content: [{ type: "text", text: item.body }],
+                    },
+                  ],
+                }
+              }
+            />
+          ) : (
+            <>
+              <p className="publication-excerpt">
+                {item.body.slice(0, 210)}
+                {item.body.length > 210 ? "…" : ""}
+              </p>
+              <Link className="publication-read" to={"/posts/" + item.id}>
+                Read{" "}
+                {formats
+                  .find((f) => f.value === item.kind)
+                  ?.label.toLowerCase()}
+                <ArrowRight size={15} />
+              </Link>
+            </>
           )}
         </div>
+      ) : (
+        <>
+          {item.body && (
+            <div
+              className={
+                "post-body " +
+                (!expanded && item.body.length > 400 ? "is-collapsed" : "")
+              }
+            >
+              <p>
+                {!expanded && item.body.length > 400
+                  ? item.body.slice(0, 400) + "…"
+                  : item.body}
+              </p>
+              {item.body.length > 400 && (
+                <button onClick={() => setExpanded(!expanded)}>
+                  {expanded ? "Show less" : "…see more"}
+                </button>
+              )}
+            </div>
+          )}
+        </>
       )}
+      {item.media.length > 0 &&
+        (!item.kind || item.kind === "post" || reading) && (
+          <div className={"post-media media-count-" + item.media.length}>
+            {item.media
+              .filter(
+                (m) =>
+                  !item.kind ||
+                  item.kind === "post" ||
+                  !m.mime.startsWith("image/") ||
+                  (!JSON.stringify(item.document).includes(m.id) &&
+                    m.id !== item.cover_media_id),
+              )
+              .map((m) =>
+                m.mime.startsWith("image/") ? (
+                  <button
+                    className="post-photo"
+                    key={m.id}
+                    onClick={() =>
+                      open(
+                        <div className="post-lightbox">
+                          <img
+                            src={m.url}
+                            alt={
+                              m.alt || "Photo shared by " + item.company.name
+                            }
+                          />
+                          {m.alt && <p>{m.alt}</p>}
+                        </div>,
+                      )
+                    }
+                    aria-label={
+                      "View " + (m.alt || "photo from " + item.company.name)
+                    }
+                  >
+                    <img
+                      src={m.url}
+                      alt={m.alt || "Photo shared by " + item.company.name}
+                      loading="lazy"
+                    />
+                  </button>
+                ) : m.mime.startsWith("video/") ? (
+                  <video
+                    key={m.id}
+                    src={m.url}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    aria-label={"Video from " + item.company.name}
+                  />
+                ) : (
+                  <a key={m.id} href={m.url} className="post-document">
+                    <span>
+                      <FileText size={28} />
+                    </span>
+                    <div>
+                      <strong>{m.name}</strong>
+                      <small>
+                        PDF · {(m.size / 1024 / 1024).toFixed(1)} MB · Download
+                      </small>
+                    </div>
+                    <ArrowRight size={19} />
+                  </a>
+                ),
+              )}
+          </div>
+        )}
       <div className="post-engagement">
         <span>
           {item.like_count > 0 ? (
@@ -777,7 +576,7 @@ function PostCard({
         <button
           className={item.liked ? "is-liked" : ""}
           aria-pressed={item.liked}
-          disabled={liking}
+          disabled={liking || session.user?.account_type === "individual"}
           onClick={async () => {
             if (!ready()) return;
             setLiking(true);
@@ -940,7 +739,9 @@ function PostCard({
 function Feed({
   scope = "all",
   companyId,
+  kind,
 }: {
+  kind?: PublicationKind;
   scope?: "all" | "following";
   companyId?: string;
 }) {
@@ -951,7 +752,10 @@ function Feed({
     [more, setMore] = useState(false),
     [error, setError] = useState("");
   const query =
-    "/feed?scope=" + scope + (companyId ? "&companyId=" + companyId : "");
+    "/feed?scope=" +
+    scope +
+    (companyId ? "&companyId=" + companyId : "") +
+    (kind ? "&kind=" + kind : "");
   useEffect(() => {
     let cancel = false;
     setLoading(true);
@@ -1007,6 +811,7 @@ function Feed({
           <PostCard
             key={p.id}
             item={p}
+            showFollow={!companyId}
             onUpdated={update}
             onDeleted={() =>
               setPosts((items) => items.filter((x) => x.id !== p.id))
@@ -1123,9 +928,15 @@ export function HomeFeed() {
               Your community.
             </h2>
             <p>Meet the teams building what’s next in solar.</p>
-            <button className="button primary full" onClick={signIn}>
-              Join the conversation
-            </button>
+            {session.user ? (
+              <Link className="button primary full" to="/messages">
+                Talk to a company
+              </Link>
+            ) : (
+              <button className="button primary full" onClick={signIn}>
+                Join the conversation
+              </button>
+            )}
           </section>
         )}
         <nav className="feed-shortcuts" aria-label="Community shortcuts">
@@ -1133,10 +944,12 @@ export function HomeFeed() {
             <Building2 size={17} />
             Discover companies
           </Link>
-          <Link to="/network/connections">
-            <Users size={17} />
-            My network
-          </Link>
+          {session.user?.account_type !== "individual" && (
+            <Link to="/network/connections">
+              <Users size={17} />
+              My network
+            </Link>
+          )}
           <Link to="/messages">
             <MessageCircle size={17} />
             Messages
@@ -1145,7 +958,7 @@ export function HomeFeed() {
         <p className="feed-small-print">
           Connect
           <br />
-          Built around the companies moving solar forward.
+          Connect. Talk. Celebrate.
         </p>
       </aside>
       <section className="feed-stream" aria-label="Company feed">
@@ -1198,12 +1011,34 @@ export function HomeFeed() {
     </div>
   );
 }
-export function CompanyUpdates({ target }: { target: Company }) {
+export function CompanyUpdates({
+  target,
+  preview = false,
+}: {
+  target: Company;
+  preview?: boolean;
+}) {
   const { company } = useApp();
+  const [kind, setKind] = useState<PublicationKind | undefined>();
   return (
     <div className="company-updates">
-      {company?.id === target.id && <ComposerLauncher />}
-      <Feed companyId={target.id} />
+      {!preview && company?.id === target.id && <ComposerLauncher />}
+      <div className="publication-filters" aria-label="Publication type">
+        <button aria-pressed={!kind} onClick={() => setKind(undefined)}>
+          All updates
+        </button>
+        {formats.map((f) => (
+          <button
+            key={f.value}
+            aria-pressed={kind === f.value}
+            onClick={() => setKind(f.value)}
+          >
+            {f.label}
+            {f.value === "post" ? "s" : ""}
+          </button>
+        ))}
+      </div>
+      <Feed companyId={target.id} kind={kind} />
     </div>
   );
 }
@@ -1228,6 +1063,7 @@ export function PostPage() {
       {data ? (
         <PostCard
           item={data}
+          reading
           onUpdated={setData}
           onDeleted={() => {
             setData(null);

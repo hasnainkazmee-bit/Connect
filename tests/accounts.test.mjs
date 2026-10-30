@@ -36,6 +36,7 @@ test('verified account lifecycle, recovery and device access', async t => {
     const stored=(await db.query('SELECT password_hash FROM users WHERE id=$1',[userId])).rows[0].password_hash;
     assert.ok(stored.startsWith('scrypt-v2:'));
     assert.equal((await a('/requests',{companyId:randomUUID(),note:'Hello'})).status,403);
+    assert.equal((await a('/join/verified-solar/accept',{})).status,403);
   });
   await t.test('verification codes have bounded guesses and resends invalidate previous codes',async()=>{
     const original=await code();

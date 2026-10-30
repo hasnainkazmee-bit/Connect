@@ -70,6 +70,16 @@ import {
   CompanyUpdates,
   SocialStats,
 } from "./social";
+import { WebUpdateNotice } from "./app-updates";
+import { useMobileNavigation } from "./mobile-navigation";
+import {
+  InboxChannels,
+  PersonalInbox,
+  PersonalMessageButton,
+} from "./personal-messages";
+import { JoinCompanyPage } from "./join-company";
+import { CompanyProfileView } from "./company-profile";
+import { CompanySettings, EmployeeInvite } from "./management";
 import "./styles.css";
 import "./shell.css";
 import "./social.css";
@@ -226,8 +236,20 @@ function App() {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [location.pathname]);
   const auth = (after?: () => void) => setModal(<AuthModal after={after} />);
-  const incompleteAccount = session.user && session.verificationRequired !== false && (!session.user.email_verified_at || (!session.user.onboarding_completed_at && !location.pathname.startsWith("/invite/")));
-  const needsOnboarding = incompleteAccount && deferredOnboarding !== session.user?.id;
+  const incompleteAccount =
+    session.user &&
+    session.verificationRequired !== false &&
+    (!session.user.email_verified_at ||
+      (!session.user.onboarding_completed_at &&
+        !/^\/(invite|join)\//.test(location.pathname)));
+  const needsOnboarding =
+    incompleteAccount && deferredOnboarding !== session.user?.id;
+  const mobileNavigation = useMobileNavigation(
+    session.user?.account_type === "individual",
+    !!session.user,
+    !!modal || !!needsOnboarding,
+    () => auth(),
+  );
   const unread =
       network.connections.reduce((a, c) => a + c.unread, 0) +
       network.incoming.filter((r) => r.kind === "message").length,
@@ -285,24 +307,26 @@ function App() {
               <Building2 size={15} />
               Directory
             </Link>
-            <Link
-              to="/network/connections"
-              className={
-                location.pathname.startsWith("/network") ? "active" : ""
-              }
-              aria-current={
-                location.pathname.startsWith("/network") ? "page" : undefined
-              }
-              onClick={(e) => {
-                if (!session.user) {
-                  e.preventDefault();
-                  auth(() => navigate("/network/connections"));
+            {session.user?.account_type !== "individual" && (
+              <Link
+                to="/network/connections"
+                className={
+                  location.pathname.startsWith("/network") ? "active" : ""
                 }
-              }}
-            >
-              <Users size={15} />
-              My Network
-            </Link>
+                aria-current={
+                  location.pathname.startsWith("/network") ? "page" : undefined
+                }
+                onClick={(e) => {
+                  if (!session.user) {
+                    e.preventDefault();
+                    auth(() => navigate("/network/connections"));
+                  }
+                }}
+              >
+                <Users size={15} />
+                My Network
+              </Link>
+            )}
             <NavLink
               to="/messages"
               onClick={(e) => {
@@ -315,7 +339,7 @@ function App() {
               <MessageSquare size={15} />
               Messages{unread > 0 && <b className="count">{unread}</b>}
             </NavLink>
-            {session.user && (
+            {company && (
               <>
                 {" "}
                 <span className="nav-divider" />{" "}
@@ -435,11 +459,23 @@ function App() {
                         {c.id === company?.id && <Check size={15} />}
                       </button>
                     ))}
-                    <Link to="/account" onClick={e => e.currentTarget.closest("details")?.removeAttribute("open")}><ShieldCheck />Account & security</Link>
-                    <button onClick={() => setModal(<NewCompany />)}>
-                      <Plus />
-                      Create a company
-                    </button>
+                    <Link
+                      to="/account"
+                      onClick={(e) =>
+                        e.currentTarget
+                          .closest("details")
+                          ?.removeAttribute("open")
+                      }
+                    >
+                      <ShieldCheck />
+                      Account & security
+                    </Link>
+                    {session.user.account_type !== "individual" && (
+                      <button onClick={() => setModal(<NewCompany />)}>
+                        <Plus />
+                        Create a company
+                      </button>
+                    )}
                     {company && (
                       <Link to="/settings">
                         <Settings />
@@ -480,6 +516,7 @@ function App() {
         </div>
       </header>
       <main
+        {...mobileNavigation}
         className={
           "app-main " +
           (location.pathname.startsWith("/messages")
@@ -536,18 +573,26 @@ function App() {
             }
           />
           <Route
+            path="/messages/people/:id?"
+            element={
+              <Protected allowIndividual>
+                <PersonalInbox />
+              </Protected>
+            }
+          />
+          <Route
             path="/messages/company/:companyId"
             element={
-              <Protected>
-                <MessagesPage />
+              <Protected allowIndividual>
+                <MessagesRoute />
               </Protected>
             }
           />
           <Route
             path="/messages/:id?"
             element={
-              <Protected>
-                <MessagesPage />
+              <Protected allowIndividual>
+                <MessagesRoute />
               </Protected>
             }
           />
@@ -555,12 +600,14 @@ function App() {
             path="/settings"
             element={
               <Protected>
-                <SettingsPage />
+                <CompanySettings />
               </Protected>
             }
           />
           <Route path="/account" element={<AccountSecurity />} />
+          <Route path="/join/:username" element={<JoinCompanyPage />} />
           <Route path="/invite/:token" element={<InvitePage />} />
+          <Route path="/:username" element={<CompanyProfile />} />
           <Route
             path="*"
             element={
@@ -578,16 +625,29 @@ function App() {
           />
         </Routes>
       </main>
-      {incompleteAccount && !needsOnboarding && <div className="setup-reminder"><ShieldCheck size={18} /><span>Finish setting up your account to join the conversation.</span><button onClick={() => setDeferredOnboarding("")}>Continue setup <ArrowRight size={14} /></button></div>}
+      {incompleteAccount && !needsOnboarding && (
+        <div className="setup-reminder">
+          <ShieldCheck size={18} />
+          <span>Finish setting up your account to join the conversation.</span>
+          <button onClick={() => setDeferredOnboarding("")}>
+            Continue setup <ArrowRight size={14} />
+          </button>
+        </div>
+      )}
       <footer className="site-footer">
         <span>
-          <img className="footer-logo" src="/assets/connect-logo.png" alt="Connect" />
+          <img
+            className="footer-logo"
+            src="/assets/connect-logo.png"
+            alt="Connect"
+          />
         </span>
-        <span>Find your people. Build what’s next.</span>
+        <span>Connect. Talk. Celebrate.</span>
         <button onClick={() => setModal(<PhotoCredits />)}>
           Photo credits
         </button>
       </footer>
+      <WebUpdateNotice />
       {notice && (
         <div className="toast" role="status">
           <CheckCheck size={19} />
@@ -600,11 +660,33 @@ function App() {
           </button>
         </div>
       )}
-      {needsOnboarding ? <ModalFrame close={() => { setDeferredOnboarding(session.user!.id); setModal(null); }}><Onboarding onDone={() => { setModal(null); navigate("/"); }} /></ModalFrame> : modal && <ModalFrame close={() => setModal(null)}>{modal}</ModalFrame>}
+      {needsOnboarding ? (
+        <ModalFrame
+          close={() => {
+            setDeferredOnboarding(session.user!.id);
+            setModal(null);
+          }}
+        >
+          <Onboarding
+            onDone={() => {
+              setModal(null);
+              navigate("/");
+            }}
+          />
+        </ModalFrame>
+      ) : (
+        modal && <ModalFrame close={() => setModal(null)}>{modal}</ModalFrame>
+      )}
     </AppContext.Provider>
   );
 }
-function Protected({ children }: { children: ReactNode }) {
+function Protected({
+  children,
+  allowIndividual = false,
+}: {
+  children: ReactNode;
+  allowIndividual?: boolean;
+}) {
   const { session, company, open } = useApp();
   if (!session.user)
     return (
@@ -620,6 +702,22 @@ function Protected({ children }: { children: ReactNode }) {
         }
       >
         Sign in to connect with companies and manage your shared conversations.
+      </Empty>
+    );
+  if (session.user.account_type === "individual")
+    return allowIndividual ? (
+      children
+    ) : (
+      <Empty
+        title="Built around companies"
+        action={
+          <Link className="button primary" to="/messages">
+            Talk to a company
+          </Link>
+        }
+      >
+        Company profiles and employee access are managed by company accounts.
+        You can explore, follow, review, and message companies.
       </Empty>
     );
   if (!company)
@@ -648,6 +746,13 @@ function ModalFrame({
   close: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const requestClose = () => {
+    const event = new CustomEvent("connect:modal-close", {
+      cancelable: true,
+      detail: { close },
+    });
+    if (window.dispatchEvent(event)) close();
+  };
   useEffect(() => {
     ref.current?.showModal();
   }, []);
@@ -657,17 +762,17 @@ function ModalFrame({
       className="modal"
       onCancel={(e) => {
         e.preventDefault();
-        close();
+        requestClose();
       }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) close();
+        if (e.target === e.currentTarget) requestClose();
       }}
     >
       <div className="modal-content">
         <button
           className="modal-close icon-button"
           aria-label="Close dialog"
-          onClick={close}
+          onClick={requestClose}
         >
           <X size={20} />
         </button>
@@ -676,9 +781,25 @@ function ModalFrame({
     </dialog>
   );
 }
-function AuthModal({ after, initialMode = "login" }: { after?: () => void; initialMode?: "login" | "register" }) {
+function AuthModal({
+  after,
+  initialMode = "login",
+}: {
+  after?: () => void;
+  initialMode?: "login" | "register";
+}) {
   const { setSession, close, refresh } = useApp();
-  return <AuthExperience initialMode={initialMode} onSuccess={value => { setSession(value); refresh(); close(); after?.(); }} />;
+  return (
+    <AuthExperience
+      initialMode={initialMode}
+      onSuccess={(value) => {
+        setSession(value);
+        refresh();
+        close();
+        after?.();
+      }}
+    />
+  );
 }
 function NewCompany() {
   const { setSession, close, refresh, toast } = useApp();
@@ -1068,233 +1189,29 @@ function ConnectButton({ profile }: { profile: Profile }) {
   );
 }
 function CompanyProfile() {
-  const { id } = useParams();
-  const { data, error, loading } = useResource<Profile>("/companies/" + id);
-  const [tab, setTab] = useState("Overview");
-  const { open, session } = useApp();
-  if (loading) return <Loading />;
-  if (error || !data)
-    return <ErrorBox message={error || "Company not found."} />;
-  const c = data.company;
+  const { session } = useApp();
+  const { username } = useParams();
   return (
-    <>
-      <Link className="back-link" to="/directory">
-        <ArrowLeft size={16} />
-        All companies
-      </Link>
-      <article className="profile-panel">
-        <div className="profile-cover">
-          <img src={c.cover_url} alt="Solar energy installation" />
-          <span>
-            {c.type} · {c.location || "Solar industry"}
-          </span>
-        </div>
-        <div className="profile-header">
-          <Logo company={c} size="large" />
-          <div className="profile-identity">
-            <h1>{c.name}</h1>
-            <p>{c.tagline}</p>
-            <div className="profile-meta">
-              <span>
-                <MapPin />
-                {c.location || "Location not added"}
-              </span>
-              <span>
-                <Globe />
-                Serves {c.service_areas.join(", ") || "Not specified"}
-              </span>
-              {c.website && (
-                <a href={c.website} target="_blank" rel="noreferrer">
-                  <ExternalLink />
-                  {new URL(c.website).hostname}
-                </a>
-              )}
-            </div>
-          </div>
-          <div className="profile-controls">
-            <FollowButton target={c} />
-            <ConnectButton profile={data} />
-            {session.user && data.relationship.status !== "self" && (
-              <CompanyMenu company={c} relationship={data.relationship} />
-            )}
-          </div>
-        </div>
-        <SocialStats companyId={c.id} />
-        <div
-          className="profile-tabs"
-          role="tablist"
-          aria-label="Company details"
-        >
-          {[
-            "Overview",
-            "Updates",
-            "Services",
-            "Projects",
-            "Team",
-            "Credentials",
-          ].map((x) => (
-            <button
-              role="tab"
-              aria-selected={tab === x}
-              className={tab === x ? "active" : ""}
-              key={x}
-              onClick={() => setTab(x)}
-            >
-              {x}
-            </button>
-          ))}
-        </div>
-        <div className="profile-body" role="tabpanel">
-          {tab === "Overview" ? (
-            <div className="profile-grid">
-              <section>
-                <h2>About</h2>
-                <p className="about-copy">
-                  {c.description ||
-                    "This company is still completing its profile."}
-                </p>
-                <dl>
-                  <dt>Company type</dt>
-                  <dd>{c.type}</dd>
-                  <dt>Services</dt>
-                  <dd className="tags">
-                    {c.services.map((x) => (
-                      <span key={x}>{x}</span>
-                    ))}
-                    {!c.services.length && "Not added yet"}
-                  </dd>
-                  <dt>Areas served</dt>
-                  <dd className="tags">
-                    {c.service_areas.map((x) => (
-                      <span key={x}>{x}</span>
-                    ))}
-                  </dd>
-                  {c.established && (
-                    <>
-                      <dt>Established</dt>
-                      <dd>{c.established}</dd>
-                    </>
-                  )}
-                </dl>
-              </section>
-              <aside className="profile-gallery">
-                <button
-                  onClick={() =>
-                    open(
-                      <Gallery
-                        image="/assets/office.jpg"
-                        title="Company gallery"
-                      />,
-                    )
-                  }
-                >
-                  <img src="/assets/office.jpg" alt="Modern office building" />
-                </button>
-                <div>
-                  <button
-                    onClick={() =>
-                      open(
-                        <Gallery
-                          image="/assets/solar.jpg"
-                          title="Solar installations"
-                        />,
-                      )
-                    }
-                  >
-                    <img src="/assets/solar.jpg" alt="Solar panels" />
-                  </button>
-                  <button onClick={() => setTab("Projects")}>
-                    <img src={c.cover_url} alt="View projects" />
-                    <span>
-                      View projects <ArrowRight size={15} />
-                    </span>
-                  </button>
-                </div>
-                <small>Illustrative stock photography</small>
-              </aside>
-            </div>
-          ) : tab === "Updates" ? (
-            <CompanyUpdates target={c} />
-          ) : tab === "Services" ? (
-            <>
-              <h2>What we do</h2>
-              <div className="service-grid">
-                {c.services.map((x) => (
-                  <div key={x}>
-                    <span>
-                      <Check size={18} />
-                    </span>
-                    <h3>{x}</h3>
-                  </div>
-                ))}
-              </div>
-              {!c.services.length && (
-                <p className="muted">Services haven’t been added yet.</p>
-              )}
-            </>
-          ) : tab === "Projects" ? (
-            <>
-              <div className="between">
-                <h2>Our work</h2>
-                {data.relationship.status === "self" && (
-                  <button
-                    className="button"
-                    onClick={() => open(<ProjectModal />)}
-                  >
-                    <Plus size={16} />
-                    Add project
-                  </button>
-                )}
-              </div>
-              <div className="projects-grid">
-                {data.projects.map((p) => (
-                  <button
-                    key={p.id}
-                    className="project-card"
-                    onClick={() => open(<ProjectDetail project={p} />)}
-                  >
-                    <img src={p.image_url} alt={p.name} />
-                    <div>
-                      <h3>{p.name}</h3>
-                      <p>
-                        {p.location} · {p.size}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-              {!data.projects.length && (
-                <Empty title="Projects will appear here.">
-                  This company hasn’t shared its work yet.
-                </Empty>
-              )}
-            </>
-          ) : tab === "Team" ? (
-            <>
-              <h2>The people behind {c.name}</h2>
-              <p className="muted section-intro">
-                Your connection is with the company. These are the people who
-                represent it.
-              </p>
-              <div className="team-grid">
-                {data.team.map((u) => (
-                  <div className="team-person" key={u.id}>
-                    <Avatar name={u.name} />
-                    <h3>{u.name}</h3>
-                    <p>{u.title || "Company representative"}</p>
-                  </div>
-                ))}
-              </div>
-            </>
+    <CompanyProfileView
+      username={username}
+      controls={(data) => (
+        <>
+          {session.user?.account_type === "individual" ? (
+            <PersonalMessageButton company={data.company} />
           ) : (
-            <Empty icon={<ShieldCheck />} title="No credentials published yet.">
-              This company hasn’t added credentials. Contact them directly about
-              qualifications required for your project.
-            </Empty>
+            <ConnectButton profile={data} />
           )}
-        </div>
-      </article>
-    </>
+          {session.user &&
+            session.user.account_type !== "individual" &&
+            data.relationship.status !== "self" && (
+              <CompanyMenu
+                company={data.company}
+                relationship={data.relationship}
+              />
+            )}
+        </>
+      )}
+    />
   );
 }
 function CompanyMenu({
@@ -1360,290 +1277,83 @@ function CompanyMenu({
   );
 }
 
-function SettingsPage() {
-  const { company, admin, refresh, setSession, open, session, toast } =
-    useApp();
-  const { data: team, error } =
-    useResource<
-      { id: string; name: string; email: string; role: string; title: string }[]
-    >("/team");
-  const task = useTask();
-  if (!company) return null;
-  return (
-    <div className="settings-layout">
-      <div className="page-heading">
-        <div>
-          <h1>Company settings</h1>
-          <p>Keep your company’s home on Connect up to date.</p>
-        </div>
-        <Link className="button" to={"/company/" + company.slug}>
-          View profile
-          <ExternalLink size={15} />
-        </Link>
-      </div>
-      <div className="settings-columns">
-        <section className="panel">
-          <h2>Company details</h2>
-          <form
-            key={company.id}
-            className="form-stack"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const d = Object.fromEntries(new FormData(e.currentTarget));
-              void task.run(async () => {
-                await api("/companies/current", {
-                  method: "PATCH",
-                  body: JSON.stringify({
-                    ...d,
-                    services: String(d.services)
-                      .split(",")
-                      .map((x) => x.trim())
-                      .filter(Boolean),
-                    service_areas: String(d.service_areas)
-                      .split(",")
-                      .map((x) => x.trim())
-                      .filter(Boolean),
-                  }),
-                });
-                setSession(await api("/session"));
-                refresh();
-                toast("Company details updated.");
-              });
-            }}
-          >
-            <fieldset disabled={!admin || task.busy}>
-              <label>
-                Company name
-                <input name="name" defaultValue={company.name} required />
-              </label>
-              <label>
-                Tagline
-                <input
-                  name="tagline"
-                  defaultValue={company.tagline}
-                  maxLength={200}
-                />
-              </label>
-              <label>
-                About
-                <textarea
-                  name="description"
-                  defaultValue={company.description}
-                  maxLength={3000}
-                  rows={5}
-                />
-              </label>
-              <div className="form-grid">
-                <label>
-                  Company type
-                  <select name="type" defaultValue={company.type}>
-                    {[
-                      "Installer",
-                      "EPC",
-                      "Developer",
-                      "Distributor",
-                      "Manufacturer",
-                      "Service provider",
-                    ].map((x) => (
-                      <option key={x}>{x}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Office location
-                  <input name="location" defaultValue={company.location} />
-                </label>
-              </div>
-              <label>
-                Services
-                <input
-                  name="services"
-                  defaultValue={company.services.join(", ")}
-                />
-                <small>Separate services with commas.</small>
-              </label>
-              <label>
-                Service areas
-                <input
-                  name="service_areas"
-                  defaultValue={company.service_areas.join(", ")}
-                />
-                <small>Where you work, separated by commas.</small>
-              </label>
-              <label>
-                Website
-                <input
-                  type="url"
-                  name="website"
-                  defaultValue={company.website}
-                  placeholder="https://yourcompany.com"
-                />
-              </label>
-            </fieldset>
-            <ErrorBox message={task.error} />
-            {admin && (
-              <button className="button primary" disabled={task.busy}>
-                {task.busy ? "Saving…" : "Save changes"}
-              </button>
-            )}
-          </form>
-        </section>
-        <aside className="stack">
-          <section className="panel">
-            <div className="between">
-              <h2>Your team</h2>
-              {admin && (
-                <button
-                  className="button small"
-                  onClick={() => open(<InviteModal />)}
-                >
-                  <UserPlus size={15} />
-                  Invite
-                </button>
-              )}
-            </div>
-            <ErrorBox message={error} />
-            {team?.map((u) => (
-              <div className="team-member" key={u.id}>
-                <Avatar name={u.name} />
-                <div>
-                  <strong>{u.name}</strong>
-                  <small>{u.email}</small>
-                  <span className="pill">{u.role}</span>
-                </div>
-                {admin && u.id !== session.user?.id && u.role !== "owner" && (
-                  <button
-                    className="icon-button"
-                    aria-label={"Remove " + u.name}
-                    onClick={() => open(<RemoveMember member={u} />)}
-                  >
-                    <X size={16} />
-                  </button>
-                )}
-              </div>
-            ))}
-          </section>
-          <section className="panel tip-panel">
-            <ShieldCheck size={22} />
-            <h3>Your company keeps the connection.</h3>
-            <p>
-              Owners and administrators manage relationships. Members can read
-              and reply in the shared inbox.
-            </p>
-            <Link className="text-button" to="/settings/blocked">
-              Blocked companies
-              <ArrowRight size={14} />
-            </Link>
-          </section>
-          <section className="panel">
-            <h3>Project portfolio</h3>
-            <p className="muted small">Show what your team has built.</p>
-            {admin && (
-              <button className="button" onClick={() => open(<ProjectModal />)}>
-                <Plus size={16} />
-                Add project
-              </button>
-            )}
-          </section>
-        </aside>
-      </div>
-    </div>
-  );
-}
-function InviteModal() {
-  const task = useTask();
-  const [url, setUrl] = useState("");
-  const { toast } = useApp();
-  return (
-    <>
-      <h2>Invite a teammate</h2>
-      <p className="modal-description">
-        Share a private invitation link with the teammate’s exact email address.
-        It expires after three days.
-      </p>
-      {url ? (
-        <>
-          <div className="invite-url">{url}</div>
-          <button
-            className="button primary"
-            onClick={async () => {
-              await navigator.clipboard.writeText(url);
-              toast("Invitation link copied.");
-            }}
-          >
-            Copy invitation link
-          </button>
-          <p className="muted small">
-            They’ll need to sign in or create an account using the invited email
-            address.
-          </p>
-        </>
-      ) : (
-        <form
-          className="form-stack"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const body = Object.fromEntries(new FormData(e.currentTarget));
-            void task.run(async () =>
-              setUrl((await post("/team/invites", body)).url),
-            );
-          }}
-        >
-          <label>
-            Work email
-            <input type="email" name="email" required />
-          </label>
-          <label>
-            Role
-            <select name="role">
-              <option value="member">Member — company messages</option>
-              <option value="admin">
-                Administrator — connections, team, profile
-              </option>
-            </select>
-          </label>
-          <ErrorBox message={task.error} />
-          <button className="button primary" disabled={task.busy}>
-            Create invitation
-          </button>
-        </form>
-      )}
-    </>
-  );
-}
 function InvitePage() {
-  const { token } = useParams();
-  const { session, setSession, refresh, open } = useApp();
-  const task = useTask();
-  const navigate = useNavigate();
+  const { token } = useParams(),
+    { session, setSession, refresh, open } = useApp(),
+    task = useTask(),
+    navigate = useNavigate();
+  const { data, error, loading } = useResource<{
+    name: string;
+    role: string;
+    emailHint: string;
+    emailMatches: boolean | null;
+  }>("/team/invites/preview/" + token);
   return (
     <div className="invite-page panel">
       <span className="modal-icon">
         <UserPlus />
       </span>
-      <h1>You’ve been invited to a company.</h1>
-      <p className="muted">
-        Join your team to manage relationships and conversations together.
-      </p>
-      <ErrorBox message={task.error} />
-      {session.user ? (
-        <button
-          className="button primary"
-          disabled={task.busy}
-          onClick={() =>
-            void task.run(async () => {
-              setSession(await post("/team/invites/" + token + "/accept"));
-              refresh();
-              navigate("/network/connections");
-            })
-          }
-        >
-          Accept invitation as {session.user.email}
-        </button>
+      {loading ? (
+        <Loading />
+      ) : error ? (
+        <>
+          <h1>This invitation isn’t available.</h1>
+          <ErrorBox message={error} />
+        </>
       ) : (
-        <button className="button primary" onClick={() => open(<AuthModal />)}>
-          Sign in to accept
-        </button>
+        data && (
+          <>
+            <h1>You’re invited to {data.name}.</h1>
+            <p className="muted">
+              {data.role === "admin"
+                ? "Manage publishing, the profile, connections, employees, and messages."
+                : "Read and reply in the company’s shared inbox."}
+            </p>
+            <p className="muted small">
+              Invitation for {data.emailHint}. Sign in with your own company
+              account.
+            </p>
+            <ErrorBox message={task.error} />
+            {session.user?.account_type === "individual" ? (
+              <div className="error">
+                This is an employee invitation. Individual accounts cannot join
+                company teams. Sign out and use your work account to continue.
+              </div>
+            ) : session.user ? (
+              <>
+                <p className="muted small">Signed in as {session.user.email}</p>
+                <button
+                  className="button primary"
+                  disabled={task.busy || !data.emailMatches}
+                  onClick={() =>
+                    void task.run(async () => {
+                      setSession(
+                        await post("/team/invites/" + token + "/accept"),
+                      );
+                      refresh();
+                      navigate("/settings");
+                    })
+                  }
+                >
+                  Join {data.name}
+                </button>
+                {!data.emailMatches && (
+                  <p className="error">
+                    Sign in with the email address this invitation was created
+                    for.
+                  </p>
+                )}
+              </>
+            ) : (
+              <button
+                className="button primary"
+                onClick={() => open(<AuthModal />)}
+              >
+                Sign in or create an account
+              </button>
+            )}
+          </>
+        )
       )}
     </div>
   );
@@ -2303,6 +2013,17 @@ function RequestCard({
   );
 }
 
+function MessagesRoute() {
+  const { session } = useApp();
+  return session.user?.account_type === "individual" ? (
+    <PersonalInbox />
+  ) : (
+    <>
+      <InboxChannels />
+      <MessagesPage />
+    </>
+  );
+}
 function MessagesPage() {
   const { id, companyId } = useParams();
   const { network, company } = useApp();
@@ -2941,7 +2662,16 @@ function Conversation({ connection: c }: { connection: Connection }) {
                       className="attachment"
                       href={"/api/attachments/" + a.id}
                     >
-                      {a.mime.startsWith("image/") ? <img className="chat-image" src={"/api/attachments/" + a.id + "?inline=1"} alt={a.name} loading="lazy" /> : <FileText size={20} />}
+                      {a.mime.startsWith("image/") ? (
+                        <img
+                          className="chat-image"
+                          src={"/api/attachments/" + a.id + "?inline=1"}
+                          alt={a.name}
+                          loading="lazy"
+                        />
+                      ) : (
+                        <FileText size={20} />
+                      )}
                       <span>
                         {a.name}
                         <small>{Math.ceil(a.size / 1024)} KB</small>
@@ -2950,7 +2680,16 @@ function Conversation({ connection: c }: { connection: Connection }) {
                     </a>
                   ))}
                 </div>
-                {m.sender_company_id === company?.id && i === data.messages.length - 1 && <span className="message-receipt"><CheckCheck size={13} />{BigInt(data.peerReadSequence || "0") >= BigInt(m.sequence) ? "Read" : "Sent"}</span>}
+                {m.sender_company_id === company?.id &&
+                  i === data.messages.length - 1 && (
+                    <span className="message-receipt">
+                      <CheckCheck size={13} />
+                      {BigInt(data.peerReadSequence || "0") >=
+                      BigInt(m.sequence)
+                        ? "Read"
+                        : "Sent"}
+                    </span>
+                  )}
               </div>
             </div>
           </React.Fragment>
@@ -2989,8 +2728,12 @@ function Conversation({ connection: c }: { connection: Connection }) {
             void task.run(async () => {
               const body = new FormData();
               body.set("body", draft);
-              const fingerprint = JSON.stringify([draft, ...files.map(f => [f.name, f.size, f.lastModified])]);
-              if (pendingSend.current?.fingerprint !== fingerprint) pendingSend.current = { fingerprint, id: crypto.randomUUID() };
+              const fingerprint = JSON.stringify([
+                draft,
+                ...files.map((f) => [f.name, f.size, f.lastModified]),
+              ]);
+              if (pendingSend.current?.fingerprint !== fingerprint)
+                pendingSend.current = { fingerprint, id: crypto.randomUUID() };
               body.set("clientId", pendingSend.current.id);
               files.forEach((f) => body.append("files", f));
               await api("/conversations/" + c.id + "/messages", {

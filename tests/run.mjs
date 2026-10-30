@@ -78,6 +78,7 @@ try {
     "tests/social.test.mjs",
     "tests/message-requests.test.mjs",
     "tests/accounts.test.mjs",
+    "tests/publishing-profiles.test.mjs",
   ]) {
     env.REQUIRE_EMAIL_VERIFICATION = suite === "tests/accounts.test.mjs" ? "true" : "false";
     await startServer();
@@ -86,6 +87,11 @@ try {
   }
   env.REQUIRE_EMAIL_VERIFICATION = "false";
   if (process.argv.includes("--services")) {
+    // Earlier API suites intentionally queue mail with SMTP disabled. Delivery
+    // scenarios start with their own outbox in this dedicated test database.
+    const mailDb = new pg.Pool({ connectionString: url.href });
+    await mailDb.query("DELETE FROM email_outbox WHERE sent_at IS NULL");
+    await mailDb.end();
     const local = dotenv.parse(await fs.readFile(".env"));
     const saved = { ...env };
     for (const key of ["S3_ENDPOINT", "S3_REGION", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "SMTP_HOST", "SMTP_PORT", "SMTP_REQUIRE_TLS", "MAIL_FROM"]) env[key] = local[key];
@@ -115,6 +121,7 @@ try {
     await startServer();
     await run("apps/android/with-local-tools.sh", [
       "./gradlew", "connectedDebugAndroidTest", "-PsunhubApiUrl=http://10.0.2.2:4101", "--console=plain",
+      ...(process.env.CONNECT_ANDROID_INIT_SCRIPT ? ["--init-script",process.env.CONNECT_ANDROID_INIT_SCRIPT,"--no-daemon"] : []),
       ...(process.env.ANDROID_EVENT_POLLING === "true" ? ["-PsunhubEventPolling=true"] : []),
     ]);
   }

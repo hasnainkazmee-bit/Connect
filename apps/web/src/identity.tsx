@@ -22,7 +22,19 @@ export function Logo({
         size
       }
     >
-      {c.logo_style === "leaf" ? (
+      {c.logo_url ? (
+        <img
+          src={c.logo_url}
+          alt=""
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            background: "white",
+            borderRadius: "inherit",
+          }}
+        />
+      ) : c.logo_style === "leaf" ? (
         <Leaf />
       ) : c.logo_style === "building" ? (
         <Building2 />

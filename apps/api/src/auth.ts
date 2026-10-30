@@ -33,6 +33,7 @@ export type Auth = {
   email: string;
   tokenHash: string;
   emailVerified: boolean;
+  accountType: 'company' | 'individual';
 };
 declare global {
   namespace Express {
@@ -57,7 +58,7 @@ export async function session(
     if (token && /^[a-f0-9]{64}$/.test(token)) {
       const tokenHash = hashToken(token);
       const { rows } = await pool.query(
-        `SELECT s.user_id,s.company_id,s.last_seen_at,u.name,u.email,u.email_verified_at,m.role FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN memberships m ON m.company_id=s.company_id AND m.user_id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now()`,
+        `SELECT s.user_id,s.company_id,s.last_seen_at,u.name,u.email,u.account_type,u.email_verified_at,m.role FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN memberships m ON m.company_id=s.company_id AND m.user_id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now()`,
         [tokenHash],
       );
       if (rows[0]) {
@@ -71,6 +72,7 @@ export async function session(
           email: r.email,
           tokenHash,
           emailVerified: !!r.email_verified_at,
+          accountType:r.account_type,
         };
       }
     }

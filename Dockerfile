@@ -5,6 +5,8 @@ COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 RUN npm ci
 COPY . .
+ARG CONNECT_RELEASE=development
+ENV CONNECT_RELEASE=$CONNECT_RELEASE
 RUN npm run build
 FROM node:22-alpine
 WORKDIR /app

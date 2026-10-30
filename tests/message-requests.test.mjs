@@ -293,7 +293,7 @@ test("directory messaging and consent-based connections", async (t) => {
       });
       const token = invite.data.url.split("/").at(-1);
       assert.equal(
-        (await member(`/team/invites/${token}/accept`, {})).status,
+        (await member(`/join/${token}/accept`, {})).status,
         200,
       );
       assert.equal((await send(member, C.activeCompanyId)).status, 403);

@@ -4,14 +4,17 @@ Native Kotlin/Jetpack Compose screens backed by a Rust client core through Mozil
 
 ## Initial scope
 
-- Native bottom navigation, sign-in/registration, company switching, and profiles.
-- Feed reading, native image/video presentation, text/photo/video/PDF posts, likes, comments, and follows.
+- Native bottom navigation with horizontal paging, preserved tab state, sign-in/registration, company switching, and profiles.
+- Feed reading, native image/video presentation, posts/articles/press releases/case studies, formatted story blocks, attachments, shared drafts, previews, likes, comments, and follows.
+- Company editing, branding uploads, portfolio, achievements, customer reviews, and employee invitations with readable welcome links.
+- Individual accounts and consent-based personal conversations, without company-team membership.
+- In-app update notices with checksum, package, version, and signing-certificate checks before the Android installer opens.
 - Searchable company directory and My Network grouped by business type.
 - Messages includes the directory, chats, requests, acceptance, text replies, and private photo/PDF attachments.
 - Rust owns pooled HTTP, session transport, a bounded SQLite response cache, and foreground SSE. Kotlin owns platform UI, lifecycle, media playback, and Keystore-encrypted session persistence. Rust never persists the raw session token.
 - Cached screens render before refresh. Message events refresh network/conversation data rather than the feed. Lists use native lazy layout with stable IDs. Video players are created on demand and released when removed.
 
-This is an initial implementation, not a measured performance release. Background message outbox/retry, push notifications, deep links, company/profile administration, relationship blocking/disconnection controls, and Android performance benchmarks remain to be implemented. Those existing management controls are available in the web app. The existing web upload flows remain available. Request/connection changes remain restricted to company owners and administrators; authorized team members can reply in accepted conversations.
+This is an initial implementation, not a measured performance release. Background message outbox/retry, push notifications, deep links, relationship blocking/disconnection controls, and Android performance benchmarks remain to be implemented. Those existing management controls are available in the web app. The existing web upload flows remain available. Request/connection changes remain restricted to company owners and administrators; authorized team members can reply in accepted conversations.
 
 ## Build
 

@@ -117,6 +117,46 @@ fn rust_mobile_client_connects_and_messages_through_the_real_api() {
     let stats: Value =
         serde_json::from_str(&a.get(format!("/social/companies/{bid}")).unwrap()).unwrap();
     assert_eq!(stats["following"], true);
+    let draft: Value = serde_json::from_str(
+        &a.request_json(
+            "POST".into(),
+            "/publications".into(),
+            json!({"kind":"article"}).to_string(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let draft_id = draft["id"].as_str().unwrap();
+    let media: Value = serde_json::from_str(
+        &a.upload_file(format!("/publications/{draft_id}/media"), image())
+            .unwrap(),
+    )
+    .unwrap();
+    let private_path = format!("/post-media/{}", media["id"].as_str().unwrap());
+    assert!(b
+        .download_attachment(
+            private_path.clone(),
+            files
+                .path()
+                .join("denied.png")
+                .to_string_lossy()
+                .into_owned()
+        )
+        .is_err());
+    a.download_attachment(
+        private_path,
+        files
+            .path()
+            .join("preview.png")
+            .to_string_lossy()
+            .into_owned(),
+    )
+    .unwrap();
+    let article: Value = serde_json::from_str(&a.request_json("PATCH".into(), format!("/publications/{draft_id}"), json!({"kind":"article","title":"A field story from Android","body":"Good work starts with a thoughtful project plan.","status":"published","version":draft["version"]}).to_string()).unwrap()).unwrap();
+    assert_eq!(article["status"], "published");
+    assert!(a
+        .request_json("GET".into(), "/session".into(), "{}".into())
+        .is_err());
     a.post_json("/auth/logout".into(), "{}".into()).unwrap();
     a.clear_session().unwrap();
 }

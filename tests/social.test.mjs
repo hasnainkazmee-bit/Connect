@@ -248,7 +248,7 @@ test("company social feed, media, follows and permissions", async (t) => {
       ).data;
       const token = invitation.url.split("/").at(-1);
       assert.equal(
-        (await member("/team/invites/" + token + "/accept", {})).status,
+        (await member("/join/" + token + "/accept", {})).status,
         200,
       );
       assert.equal(

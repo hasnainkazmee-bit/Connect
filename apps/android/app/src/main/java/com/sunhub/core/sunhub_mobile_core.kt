@@ -346,7 +346,7 @@ internal inline fun<T, reified E: Throwable> uniffiTraitInterfaceCallWithError(
         }
     }
 }
-// Initial value and increment amount for handles. 
+// Initial value and increment amount for handles.
 // These ensure that Kotlin-generated handles always have the lowest bit set
 private const val UNIFFI_HANDLEMAP_INITIAL = 1.toLong()
 private const val UNIFFI_HANDLEMAP_DELTA = 2.toLong()
@@ -356,7 +356,7 @@ private const val UNIFFI_HANDLEMAP_DELTA = 2.toLong()
 // This is used pass an opaque 64-bit handle representing a foreign object to the Rust code.
 internal class UniffiHandleMap<T: Any> {
     private val map = ConcurrentHashMap<Long, T>()
-    // Start 
+    // Start
     private val counter = java.util.concurrent.atomic.AtomicLong(UNIFFI_HANDLEMAP_INITIAL)
 
     val size: Int
@@ -713,9 +713,13 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_sunhub_mobile_core_checksum_method_communityclient_post_text(
     ): Int
+    external fun uniffi_sunhub_mobile_core_checksum_method_communityclient_request_json(
+    ): Int
     external fun uniffi_sunhub_mobile_core_checksum_method_communityclient_restore_session(
     ): Int
     external fun uniffi_sunhub_mobile_core_checksum_method_communityclient_session_cookie(
+    ): Int
+    external fun uniffi_sunhub_mobile_core_checksum_method_communityclient_upload_file(
     ): Int
     external fun uniffi_sunhub_mobile_core_checksum_method_communityclient_watch_changes(
     ): Int
@@ -728,65 +732,69 @@ internal object IntegrityCheckingUniffiLib {
     external fun ffi_sunhub_mobile_core_uniffi_contract_version(
     ): Int
 
-        
+
 }
 
 internal object UniffiLib {
-    
+
     // The Cleaner for the whole library
     internal val CLEANER: UniffiCleaner by lazy {
         UniffiCleaner.create()
     }
-    
+
 
     init {
         Native.register(UniffiLib::class.java, findLibraryName(componentName = "sunhub_mobile_core"))
         uniffiCallbackInterfaceChangeObserver.register(this)
-        
+
     }
 
     internal fun ensureInitialized() = Unit
-    external fun uniffi_sunhub_mobile_core_fn_clone_communityclient(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_sunhub_mobile_core_fn_clone_communityclient(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Long
-    external fun uniffi_sunhub_mobile_core_fn_free_communityclient(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_sunhub_mobile_core_fn_free_communityclient(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
-    external fun uniffi_sunhub_mobile_core_fn_constructor_communityclient_new(`baseUrl`: RustBuffer.ByValue,`cachePath`: RustBuffer.ByValue,`allowLocalHttp`: Byte,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_sunhub_mobile_core_fn_constructor_communityclient_new(`baseUrl`: RustBuffer.ByValue,`cachePath`: RustBuffer.ByValue,`allowLocalHttp`: Byte,uniffi_out_err: UniffiRustCallStatus,
     ): Long
-    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_cached(`ptr`: Long,`path`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_cached(`ptr`: Long,`path`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_clear_session(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_clear_session(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
-    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_download_attachment(`ptr`: Long,`path`: RustBuffer.ByValue,`destination`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_download_attachment(`ptr`: Long,`path`: RustBuffer.ByValue,`destination`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
-    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_get(`ptr`: Long,`path`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_get(`ptr`: Long,`path`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_post_json(`ptr`: Long,`path`: RustBuffer.ByValue,`body`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_post_json(`ptr`: Long,`path`: RustBuffer.ByValue,`body`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_post_media(`ptr`: Long,`path`: RustBuffer.ByValue,`text`: RustBuffer.ByValue,`files`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_post_media(`ptr`: Long,`path`: RustBuffer.ByValue,`text`: RustBuffer.ByValue,`files`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_post_text(`ptr`: Long,`path`: RustBuffer.ByValue,`text`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_post_text(`ptr`: Long,`path`: RustBuffer.ByValue,`text`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_restore_session(`ptr`: Long,`cookie`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_request_json(`ptr`: Long,`method`: RustBuffer.ByValue,`path`: RustBuffer.ByValue,`body`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_restore_session(`ptr`: Long,`cookie`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
-    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_session_cookie(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_session_cookie(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_watch_changes(`ptr`: Long,`observer`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_upload_file(`ptr`: Long,`path`: RustBuffer.ByValue,`file`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_sunhub_mobile_core_fn_method_communityclient_watch_changes(`ptr`: Long,`observer`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Long
-    external fun uniffi_sunhub_mobile_core_fn_clone_eventwatch(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_sunhub_mobile_core_fn_clone_eventwatch(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Long
-    external fun uniffi_sunhub_mobile_core_fn_free_eventwatch(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_sunhub_mobile_core_fn_free_eventwatch(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
-    external fun uniffi_sunhub_mobile_core_fn_method_eventwatch_cancel(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_sunhub_mobile_core_fn_method_eventwatch_cancel(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
     external fun uniffi_sunhub_mobile_core_fn_init_callback_vtable_changeobserver(`vtable`: UniffiVTableCallbackInterfaceChangeObserver,
     ): Unit
-    external fun ffi_sunhub_mobile_core_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_sunhub_mobile_core_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun ffi_sunhub_mobile_core_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_sunhub_mobile_core_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun ffi_sunhub_mobile_core_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_sunhub_mobile_core_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
-    external fun ffi_sunhub_mobile_core_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_sunhub_mobile_core_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun ffi_sunhub_mobile_core_rust_future_poll_u8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -794,7 +802,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_sunhub_mobile_core_rust_future_free_u8(`handle`: Long,
     ): Unit
-    external fun ffi_sunhub_mobile_core_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_sunhub_mobile_core_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Int
     external fun ffi_sunhub_mobile_core_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -802,7 +810,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_sunhub_mobile_core_rust_future_free_i8(`handle`: Long,
     ): Unit
-    external fun ffi_sunhub_mobile_core_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_sunhub_mobile_core_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Byte
     external fun ffi_sunhub_mobile_core_rust_future_poll_u16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -810,7 +818,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_sunhub_mobile_core_rust_future_free_u16(`handle`: Long,
     ): Unit
-    external fun ffi_sunhub_mobile_core_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_sunhub_mobile_core_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Int
     external fun ffi_sunhub_mobile_core_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -818,7 +826,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_sunhub_mobile_core_rust_future_free_i16(`handle`: Long,
     ): Unit
-    external fun ffi_sunhub_mobile_core_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_sunhub_mobile_core_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Short
     external fun ffi_sunhub_mobile_core_rust_future_poll_u32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -826,7 +834,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_sunhub_mobile_core_rust_future_free_u32(`handle`: Long,
     ): Unit
-    external fun ffi_sunhub_mobile_core_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_sunhub_mobile_core_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Int
     external fun ffi_sunhub_mobile_core_rust_future_poll_i32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -834,7 +842,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_sunhub_mobile_core_rust_future_free_i32(`handle`: Long,
     ): Unit
-    external fun ffi_sunhub_mobile_core_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_sunhub_mobile_core_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Int
     external fun ffi_sunhub_mobile_core_rust_future_poll_u64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -842,7 +850,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_sunhub_mobile_core_rust_future_free_u64(`handle`: Long,
     ): Unit
-    external fun ffi_sunhub_mobile_core_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_sunhub_mobile_core_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Long
     external fun ffi_sunhub_mobile_core_rust_future_poll_i64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -850,7 +858,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_sunhub_mobile_core_rust_future_free_i64(`handle`: Long,
     ): Unit
-    external fun ffi_sunhub_mobile_core_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_sunhub_mobile_core_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Long
     external fun ffi_sunhub_mobile_core_rust_future_poll_f32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -858,7 +866,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_sunhub_mobile_core_rust_future_free_f32(`handle`: Long,
     ): Unit
-    external fun ffi_sunhub_mobile_core_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_sunhub_mobile_core_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Float
     external fun ffi_sunhub_mobile_core_rust_future_poll_f64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -866,7 +874,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_sunhub_mobile_core_rust_future_free_f64(`handle`: Long,
     ): Unit
-    external fun ffi_sunhub_mobile_core_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_sunhub_mobile_core_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Double
     external fun ffi_sunhub_mobile_core_rust_future_poll_rust_buffer(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -874,7 +882,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_sunhub_mobile_core_rust_future_free_rust_buffer(`handle`: Long,
     ): Unit
-    external fun ffi_sunhub_mobile_core_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_sunhub_mobile_core_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun ffi_sunhub_mobile_core_rust_future_poll_void(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -882,10 +890,10 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_sunhub_mobile_core_rust_future_free_void(`handle`: Long,
     ): Unit
-    external fun ffi_sunhub_mobile_core_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_sunhub_mobile_core_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
 
-        
+
 }
 
 private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
@@ -920,10 +928,16 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_sunhub_mobile_core_checksum_method_communityclient_post_text() and 0xFFFF) != 17770) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_sunhub_mobile_core_checksum_method_communityclient_request_json() and 0xFFFF) != 57330) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_sunhub_mobile_core_checksum_method_communityclient_restore_session() and 0xFFFF) != 17140) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_sunhub_mobile_core_checksum_method_communityclient_session_cookie() and 0xFFFF) != 46105) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_sunhub_mobile_core_checksum_method_communityclient_upload_file() and 0xFFFF) != 49662) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_sunhub_mobile_core_checksum_method_communityclient_watch_changes() and 0xFFFF) != 5070) {
@@ -1013,7 +1027,7 @@ inline fun <T : Disposable?, R> T.use(block: (T) -> R) =
         }
     }
 
-/** 
+/**
  * Placeholder object used to signal that we're constructing an interface with a FFI handle.
  *
  * This is the first argument for interface constructors that input a raw handle. It exists is that
@@ -1024,7 +1038,7 @@ inline fun <T : Disposable?, R> T.use(block: (T) -> R) =
  * */
 object UniffiWithHandle
 
-/** 
+/**
  * Used to instantiate an interface without an actual pointer, for fakes in tests, mostly.
  *
  * @suppress
@@ -1353,39 +1367,49 @@ public object FfiConverterString: FfiConverter<String, RustBuffer.ByValue> {
 
 
 public interface CommunityClientInterface {
-    
+
     fun `cached`(`path`: kotlin.String): CachedResponse?
-    
+
     fun `clearSession`()
-    
+
     /**
      * Authenticated chat attachment download into app-private storage.
      */
     fun `downloadAttachment`(`path`: kotlin.String, `destination`: kotlin.String)
-    
+
     fun `get`(`path`: kotlin.String): kotlin.String
-    
+
     fun `postJson`(`path`: kotlin.String, `body`: kotlin.String): kotlin.String
-    
+
     /**
      * Stream files from private Android staging storage; do not copy large videos over FFI.
      */
     fun `postMedia`(`path`: kotlin.String, `text`: kotlin.String, `files`: List<UploadFile>): kotlin.String
-    
+
     fun `postText`(`path`: kotlin.String, `text`: kotlin.String): kotlin.String
-    
+
+    /**
+     * JSON updates stay on the configured API origin and use the same session and cache generation.
+     */
+    fun `requestJson`(`method`: kotlin.String, `path`: kotlin.String, `body`: kotlin.String): kotlin.String
+
     fun `restoreSession`(`cookie`: kotlin.String)
-    
+
     /**
      * Platform code stores this in Android Keystore-backed encrypted storage, never logs it.
      */
     fun `sessionCookie`(): kotlin.String
-    
+
+    /**
+     * Stream a single publication or company image upload from private device storage.
+     */
+    fun `uploadFile`(`path`: kotlin.String, `file`: UploadFile): kotlin.String
+
     /**
      * A foreground-only SSE stream. Android cancels it when the UI stops.
      */
     fun `watchChanges`(`observer`: ChangeObserver): EventWatch
-    
+
     companion object
 }
 
@@ -1414,11 +1438,11 @@ open class CommunityClient: Disposable, AutoCloseable, CommunityClientInterface
         this.cleanable = null
     }
     constructor(`baseUrl`: kotlin.String, `cachePath`: kotlin.String, `allowLocalHttp`: kotlin.Boolean) :
-        this(UniffiWithHandle, 
+        this(UniffiWithHandle,
     uniffiRustCallWithError(CoreException) { _status ->
     UniffiLib.uniffi_sunhub_mobile_core_fn_constructor_communityclient_new(
-    
-        
+
+
         FfiConverterString.lower(`baseUrl`),
         FfiConverterString.lower(`cachePath`),
         FfiConverterBoolean.lower(`allowLocalHttp`),_status)
@@ -1501,24 +1525,24 @@ open class CommunityClient: Disposable, AutoCloseable, CommunityClientInterface
         }
     }
 
-    
+
     @Throws(CoreException::class)override fun `cached`(`path`: kotlin.String): CachedResponse? {
             return FfiConverterOptionalTypeCachedResponse.lift(
     callWithHandle {
     uniffiRustCallWithError(CoreException) { _status ->
     UniffiLib.uniffi_sunhub_mobile_core_fn_method_communityclient_cached(
         it,
-        
+
         FfiConverterString.lower(`path`),_status)
 }
     }
     )
     }
-    
 
-    
+
+
     @Throws(CoreException::class)override fun `clearSession`()
-        = 
+        =
     callWithHandle {
     uniffiRustCallWithError(CoreException) { _status ->
     UniffiLib.uniffi_sunhub_mobile_core_fn_method_communityclient_clear_session(
@@ -1526,59 +1550,59 @@ open class CommunityClient: Disposable, AutoCloseable, CommunityClientInterface
         _status)
 }
     }
-    
-    
 
-    
+
+
+
     /**
      * Authenticated chat attachment download into app-private storage.
      */
     @Throws(CoreException::class)override fun `downloadAttachment`(`path`: kotlin.String, `destination`: kotlin.String)
-        = 
+        =
     callWithHandle {
     uniffiRustCallWithError(CoreException) { _status ->
     UniffiLib.uniffi_sunhub_mobile_core_fn_method_communityclient_download_attachment(
         it,
-        
+
         FfiConverterString.lower(`path`),
         FfiConverterString.lower(`destination`),_status)
 }
     }
-    
-    
 
-    
+
+
+
     @Throws(CoreException::class)override fun `get`(`path`: kotlin.String): kotlin.String {
             return FfiConverterString.lift(
     callWithHandle {
     uniffiRustCallWithError(CoreException) { _status ->
     UniffiLib.uniffi_sunhub_mobile_core_fn_method_communityclient_get(
         it,
-        
+
         FfiConverterString.lower(`path`),_status)
 }
     }
     )
     }
-    
 
-    
+
+
     @Throws(CoreException::class)override fun `postJson`(`path`: kotlin.String, `body`: kotlin.String): kotlin.String {
             return FfiConverterString.lift(
     callWithHandle {
     uniffiRustCallWithError(CoreException) { _status ->
     UniffiLib.uniffi_sunhub_mobile_core_fn_method_communityclient_post_json(
         it,
-        
+
         FfiConverterString.lower(`path`),
         FfiConverterString.lower(`body`),_status)
 }
     }
     )
     }
-    
 
-    
+
+
     /**
      * Stream files from private Android staging storage; do not copy large videos over FFI.
      */
@@ -1588,7 +1612,7 @@ open class CommunityClient: Disposable, AutoCloseable, CommunityClientInterface
     uniffiRustCallWithError(CoreException) { _status ->
     UniffiLib.uniffi_sunhub_mobile_core_fn_method_communityclient_post_media(
         it,
-        
+
         FfiConverterString.lower(`path`),
         FfiConverterString.lower(`text`),
         FfiConverterSequenceTypeUploadFile.lower(`files`),_status)
@@ -1596,39 +1620,59 @@ open class CommunityClient: Disposable, AutoCloseable, CommunityClientInterface
     }
     )
     }
-    
 
-    
+
+
     @Throws(CoreException::class)override fun `postText`(`path`: kotlin.String, `text`: kotlin.String): kotlin.String {
             return FfiConverterString.lift(
     callWithHandle {
     uniffiRustCallWithError(CoreException) { _status ->
     UniffiLib.uniffi_sunhub_mobile_core_fn_method_communityclient_post_text(
         it,
-        
+
         FfiConverterString.lower(`path`),
         FfiConverterString.lower(`text`),_status)
 }
     }
     )
     }
-    
 
-    
+
+
+    /**
+     * JSON updates stay on the configured API origin and use the same session and cache generation.
+     */
+    @Throws(CoreException::class)override fun `requestJson`(`method`: kotlin.String, `path`: kotlin.String, `body`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    callWithHandle {
+    uniffiRustCallWithError(CoreException) { _status ->
+    UniffiLib.uniffi_sunhub_mobile_core_fn_method_communityclient_request_json(
+        it,
+
+        FfiConverterString.lower(`method`),
+        FfiConverterString.lower(`path`),
+        FfiConverterString.lower(`body`),_status)
+}
+    }
+    )
+    }
+
+
+
     @Throws(CoreException::class)override fun `restoreSession`(`cookie`: kotlin.String)
-        = 
+        =
     callWithHandle {
     uniffiRustCallWithError(CoreException) { _status ->
     UniffiLib.uniffi_sunhub_mobile_core_fn_method_communityclient_restore_session(
         it,
-        
+
         FfiConverterString.lower(`cookie`),_status)
 }
     }
-    
-    
 
-    
+
+
+
     /**
      * Platform code stores this in Android Keystore-backed encrypted storage, never logs it.
      */
@@ -1643,9 +1687,28 @@ open class CommunityClient: Disposable, AutoCloseable, CommunityClientInterface
     }
     )
     }
-    
 
-    
+
+
+    /**
+     * Stream a single publication or company image upload from private device storage.
+     */
+    @Throws(CoreException::class)override fun `uploadFile`(`path`: kotlin.String, `file`: UploadFile): kotlin.String {
+            return FfiConverterString.lift(
+    callWithHandle {
+    uniffiRustCallWithError(CoreException) { _status ->
+    UniffiLib.uniffi_sunhub_mobile_core_fn_method_communityclient_upload_file(
+        it,
+
+        FfiConverterString.lower(`path`),
+        FfiConverterTypeUploadFile.lower(`file`),_status)
+}
+    }
+    )
+    }
+
+
+
     /**
      * A foreground-only SSE stream. Android cancels it when the UI stops.
      */
@@ -1655,26 +1718,26 @@ open class CommunityClient: Disposable, AutoCloseable, CommunityClientInterface
     uniffiRustCallWithError(CoreException) { _status ->
     UniffiLib.uniffi_sunhub_mobile_core_fn_method_communityclient_watch_changes(
         it,
-        
+
         FfiConverterTypeChangeObserver.lower(`observer`),_status)
 }
     }
     )
     }
-    
-
-    
-
-    
 
 
-    
-    
+
+
+
+
+
+
+
     /**
      * @suppress
      */
     companion object
-    
+
 }
 
 
@@ -1798,9 +1861,9 @@ public object FfiConverterTypeCommunityClient: FfiConverter<CommunityClient, Lon
 
 
 public interface EventWatchInterface {
-    
+
     fun `cancel`()
-    
+
     companion object
 }
 
@@ -1906,7 +1969,7 @@ open class EventWatch: Disposable, AutoCloseable, EventWatchInterface
     }
 
     override fun `cancel`()
-        = 
+        =
     callWithHandle {
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_sunhub_mobile_core_fn_method_eventwatch_cancel(
@@ -1914,21 +1977,21 @@ open class EventWatch: Disposable, AutoCloseable, EventWatchInterface
         _status)
 }
     }
-    
-    
-
-    
-
-    
 
 
-    
-    
+
+
+
+
+
+
+
+
     /**
      * @suppress
      */
     companion object
-    
+
 }
 
 
@@ -1959,15 +2022,15 @@ public object FfiConverterTypeEventWatch: FfiConverter<EventWatch, Long> {
 
 data class CachedResponse (
     var `json`: kotlin.String
-    , 
+    ,
     var `savedAt`: kotlin.ULong
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -1997,17 +2060,17 @@ public object FfiConverterTypeCachedResponse: FfiConverterRustBuffer<CachedRespo
 
 data class UploadFile (
     var `path`: kotlin.String
-    , 
+    ,
     var `name`: kotlin.String
-    , 
+    ,
     var `mime`: kotlin.String
-    
+
 ){
-    
 
-    
 
-    
+
+
+
     companion object
 }
 
@@ -2041,54 +2104,54 @@ public object FfiConverterTypeUploadFile: FfiConverterRustBuffer<UploadFile> {
 
 
 sealed class CoreException: kotlin.Exception() {
-    
+
     class Invalid(
-        
+
         val `detail`: kotlin.String
         ) : CoreException() {
         override val message
             get() = "detail=${ `detail` }"
     }
-    
+
     class Network(
-        
+
         val `detail`: kotlin.String
         ) : CoreException() {
         override val message
             get() = "detail=${ `detail` }"
     }
-    
+
     class Api(
-        
-        val `status`: kotlin.UShort, 
-        
+
+        val `status`: kotlin.UShort,
+
         val `detail`: kotlin.String
         ) : CoreException() {
         override val message
             get() = "status=${ `status` }, detail=${ `detail` }"
     }
-    
+
     class Storage(
         ) : CoreException() {
         override val message
             get() = ""
     }
-    
+
     class ContextChanged(
         ) : CoreException() {
         override val message
             get() = ""
     }
-    
 
-    
+
+
 
 
     companion object ErrorHandler : UniffiRustCallStatusErrorHandler<CoreException> {
         override fun lift(error_buf: RustBuffer.ByValue): CoreException = FfiConverterTypeCoreError.lift(error_buf)
     }
 
-    
+
 }
 
 /**
@@ -2096,7 +2159,7 @@ sealed class CoreException: kotlin.Exception() {
  */
 public object FfiConverterTypeCoreError : FfiConverterRustBuffer<CoreException> {
     override fun read(buf: ByteBuffer): CoreException {
-        
+
 
         return when(buf.getInt()) {
             1 -> CoreException.Invalid(
@@ -2180,9 +2243,9 @@ public object FfiConverterTypeCoreError : FfiConverterRustBuffer<CoreException> 
 
 
 public interface ChangeObserver {
-    
+
     fun `changed`()
-    
+
     companion object
 }
 

@@ -61,7 +61,7 @@ The Compose defaults are for local use. Set your own database password, exact pu
 - Messages includes the full company directory with search and pagination, plus Chats and Requests tabs. Owners and administrators can send a text message request (up to 2,000 characters) before connecting. Acceptance atomically creates or restores the connection and saves the original message once; pending, declined, and withdrawn requests do not enable replies. Blocking cancels pending requests.
 - Private JPG, PNG, WebP, and PDF attachments, up to three files of 10 MB per message.
 - Owner, administrator, and member permissions. Owners and administrators manage profiles and connections; members participate in conversations.
-- Email-bound, single-use team invitation links. The administrator copies and shares the link; this version does not send invitation emails.
+- Readable company welcome links at `/join/company-username`. Each invitation is bound to a verified work email, expires after three days, can be revoked, and can only be accepted once. The administrator copies the link; creating an invitation does not send an email.
 
 An accepted connection enables messaging for authorized teammates at both companies. Disconnecting or blocking prevents new messages and retains history. Unblocking does not reconnect automatically. Reconnecting reuses the same conversation. Removing a teammate revokes future access while preserving their attributed messages.
 
@@ -104,9 +104,9 @@ npm run test:ui
 
 ## Current scope
 
-The app covers social posts → follows → company discovery → connections → shared messaging. Audio Spaces, dedicated press releases, Sunhub SSO, marketplace links, and sales portal integration are not implemented.
+The app covers social posts → follows → company discovery → connections → shared messaging. Audio Spaces, Sunhub SSO, marketplace links, and sales portal integration remain outside the current release.
 
-Before opening public registration, add email verification and recovery, company ownership review, abuse reporting/moderation, and operational monitoring. Company registration currently records the registrant as owner without independently verifying their business authority. Credentials are not verified or presented as verified. Company logo/cover upload and project photo upload are not implemented; current photos are illustrative. Attachment signatures are validated, but malware scanning is not implemented.
+Email verification and recovery are implemented. Independent company ownership review, a complete moderation workflow, and operational monitoring remain deployment considerations. Company registration currently records the registrant as owner without independently verifying their business authority. Credentials are not verified or presented as verified. Company logos, covers, and portfolio photos support uploads; seeded photos remain illustrative. Attachment signatures are validated, but malware scanning is not implemented.
 
 Stock-photo credits are available in the app: solar photography by Siwawut Phoophinyo on Unsplash, and office photography by Jakub Zerdzicki on Pexels. Illustrative company data is separate from any existing Sunhub production system.
 
@@ -119,3 +119,15 @@ Start the open-source local services with `node tools/setup-local.mjs`, then `np
 Validation: `npm run build`, `npm test`, `node tests/run.mjs --services --ui --rust`, and `npm run test:android` with the emulator running. The services suite additionally tests real SMTP delivery, private S3 upload/download, byte ranges, retry deduplication, read receipts, and browser onboarding/recovery at desktop and phone sizes.
 
 Server setup and backup instructions: [infra/DEPLOYMENT.md](infra/DEPLOYMENT.md). The API remains TypeScript/Express; the native Android HTTP, caching and session transport core is Rust. Both clients use the same API and database.
+
+## Publishing and company workspaces
+
+Companies publish posts, articles, press releases, and case studies. Stories support formatted documents, titles and subtitles, headings, lists, quotes, links, inline images, cover images, video and PDF attachments, image descriptions, drafts, and previews. Drafts and their files stay private to authorized company members; optimistic versions prevent one editor from overwriting another editor’s changes. Publishing and profile management require an owner or administrator.
+
+Company profiles use `/company-username` on the app origin. Usernames are lowercase, unique, reserve application routes, and cannot reuse another company’s previous address. Previous usernames and `/company/...` links continue to resolve. Signup suggests a readable name; profile editing can claim another available username. Profiles include company facts, portfolio projects, achievements, people, customer ratings, and reviews.
+
+Company employees have their own company-account login, with owner, administrator, or inbox-member permissions. `/join/company-username` is a public welcome page, not an access token: acceptance checks the signed-in verified email against a live invitation, locks and consumes it atomically, and completes onboarding. Anonymous visitors cannot see invited email addresses or employee permissions. Previous secret invitation URLs remain supported.
+
+Individual accounts can follow companies, leave customer reviews, and start message requests with companies. They cannot publish, create company profiles, or join company teams. The People inbox keeps these conversations separate from company-to-company connections. Accepting an individual’s message request opens that conversation without creating a company connection. Employees of a company cannot review their own company.
+
+Phone layouts use bottom navigation. Horizontal swipes move between main tabs; editing, chat details, and horizontal content keep their own gestures. Android keeps tab scroll state and uses native Compose paging. Web builds check for a newer server release and offer a refresh. Android checks the release manifest, downloads only from the project’s GitHub releases, verifies the checksum, package, version, and signing certificate, and asks Android to confirm installation. Native changes require an APK update; API and web changes do not.

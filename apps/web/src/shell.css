@@ -1054,3 +1054,25 @@ summary:focus-visible {
   height: auto;
   object-fit: contain;
 }
+
+/* Thumb-friendly navigation on phones; the desktop pill stays in the header. */
+@media (max-width: 720px) {
+  body { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+  .site-header { height: 58px; }
+  .header-inner { grid-template-rows: 58px; padding: 0 16px; }
+  .header-inner .primary-nav { position: fixed; z-index: 45; inset: auto 0 0; width: 100%; max-width: none; height: calc(68px + env(safe-area-inset-bottom, 0px)); padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: space-around; gap: 5px; border-radius: 0; border: 0; border-top: 1px solid #dce5ed; box-sizing: border-box; box-shadow: 0 -3px 16px #23394e06; background: #fff; }
+  .header-inner .primary-nav > a { flex: 1; height: 54px; padding: 6px 2px; gap: 5px; flex-direction: column; justify-content: center; border-radius: 13px; font-size: 10px; line-height: 1.1; color: #6c7e8f; }
+  .header-inner .primary-nav > a svg { width: 21px; height: 21px; }
+  .header-inner .primary-nav > a.home-nav span { display: inline; }
+  .header-inner .primary-nav > a.active,.header-inner .primary-nav > a.active:hover { background: #edf4fa; color: #153e67; box-shadow: none; }
+  .primary-nav .nav-divider { display: none; }
+  .primary-nav .notifications { position: fixed; top: 12px; right: 62px; padding: 0; }
+  .primary-nav .notifications .notification-dropdown { bottom: auto; }
+  .primary-nav .count { position: absolute; transform: translate(19px,-14px); font-size: 9px; background: #ff6b0b; color: #172a3b; }
+  .app-main { min-height: calc(100dvh - 130px); }
+  .app-main.workspace-view { min-height: calc(100dvh - 138px - env(safe-area-inset-bottom, 0px)); }
+  .messaging-panel { height: calc(100dvh - 180px - env(safe-area-inset-bottom, 0px)); min-height: 300px; }
+  .people-inbox { height: calc(100dvh - 190px - env(safe-area-inset-bottom, 0px)); min-height: 300px; }
+  .people-inbox.has-chat { height: calc(100dvh - 140px - env(safe-area-inset-bottom, 0px)); }
+  .web-update-notice { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+}

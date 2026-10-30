@@ -1,6 +1,9 @@
 export type Company = {
   id: string;
   slug: string;
+  username?: string | null;
+  logo_url?: string;
+  employee_count?: string;
   name: string;
   tagline: string;
   description: string;
@@ -16,7 +19,14 @@ export type Company = {
   title?: string;
 };
 export type Session = {
-  user: null | { id: string; name: string; email: string; email_verified_at?: string | null; onboarding_completed_at?: string | null };
+  user: null | {
+    id: string;
+    name: string;
+    email: string;
+    account_type?: "company" | "individual";
+    email_verified_at?: string | null;
+    onboarding_completed_at?: string | null;
+  };
   verificationRequired?: boolean;
   challengeId?: string;
   companies: Company[];
@@ -42,12 +52,29 @@ export type Project = {
   location: string;
   size: string;
   image_url: string;
+  completed_year?: number | null;
+  url?: string;
+};
+export type Achievement = {
+  id: string;
+  title: string;
+  issuer: string;
+  year: number | null;
+  description: string;
+  url: string;
+};
+export type Rating = {
+  average: number | null;
+  count: number;
+  distribution: { rating: number; count: number }[];
 };
 export type Profile = {
   company: Company;
   projects: Project[];
   team: { id: string; name: string; title: string }[];
   relationship: Relationship;
+  achievements: Achievement[];
+  rating: Rating;
 };
 export type ConnectionRequest = {
   id: string;

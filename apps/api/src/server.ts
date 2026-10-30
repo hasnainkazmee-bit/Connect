@@ -1,8 +1,20 @@
+import { employeeInvitationRoutes } from "./employee-invitations.js";
+import { androidRelease } from "./mobile-release.js";
 import express from "express";
 import { socialRoutes } from "./social.js";
+import { profileRoutes, profileExtras, ensureUsername } from "./profiles.js";
+import { publishingRoutes } from "./publishing.js";
+import { personalMessagesRoutes } from "./personal-messages.js";
 import { accountRoutes, sessionPayload as mePayload } from "./accounts.js";
 import { flushMail } from "./mail.js";
-import { storeBuffer, sendStored, deferDelete, cleanStorage, checkQuota, storageReady } from "./storage.js";
+import {
+  storeBuffer,
+  sendStored,
+  deferDelete,
+  cleanStorage,
+  checkQuota,
+  storageReady,
+} from "./storage.js";
 import { rateLimit } from "express-rate-limit";
 import multer from "multer";
 import { z } from "zod";
@@ -47,7 +59,7 @@ app.use("/api", (req, res, next) => {
     return next(new HttpError(403, "Request origin is not allowed."));
   next();
 });
-app.use(express.json({ limit: "256kb" }));
+app.use(express.json({ limit: "1mb" }));
 app.use("/api", session);
 const authLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -111,11 +123,21 @@ async function conversation(db: PoolClient, id: string, actor: string) {
   if (!rows[0]) throw new HttpError(404, "Conversation not found.");
   return rows[0];
 }
+app.get("/api/mobile/releases/android", (_req, res) =>
+  res.json(androidRelease),
+);
 app.get("/api/health", async (_req, res) => {
   await pool.query("SELECT 1");
-  res.json({ release: process.env.CONNECT_RELEASE || "development", status: "ok" });
+  res.json({
+    release: process.env.CONNECT_RELEASE || "development",
+    status: "ok",
+  });
 });
-app.get("/api/ready", async (_req,res) => { await pool.query("SELECT 1"); await storageReady(); res.json({status:"ok"}); });
+app.get("/api/ready", async (_req, res) => {
+  await pool.query("SELECT 1");
+  await storageReady();
+  res.json({ status: "ok" });
+});
 app.get("/api/session", async (req, res) => {
   res.json(
     req.auth
@@ -125,6 +147,8 @@ app.get("/api/session", async (req, res) => {
 });
 app.use("/api/auth", authLimit);
 app.use("/api", accountRoutes());
+app.use("/api", profileRoutes());
+app.use("/api", personalMessagesRoutes());
 app.post("/api/auth/logout", async (req, res) => {
   if (req.auth)
     await pool.query("DELETE FROM sessions WHERE token_hash=$1", [
@@ -179,9 +203,10 @@ app.get("/api/companies", async (req, res) => {
 });
 app.get("/api/companies/:id", async (req, res) => {
   const company = (
-    await pool.query("SELECT * FROM companies WHERE id::text=$1 OR slug=$1", [
-      req.params.id,
-    ])
+    await pool.query(
+      "SELECT * FROM companies WHERE id::text=$1 OR slug=$1 OR username=$1 OR id=(SELECT company_id FROM company_username_history WHERE username=$1) ORDER BY (username=$1) DESC NULLS LAST LIMIT 1",
+      [req.params.id.toLowerCase()],
+    )
   ).rows[0];
   if (!company) throw new HttpError(404, "Company not found.");
   const [projects, team] = await Promise.all([
@@ -233,7 +258,13 @@ app.get("/api/companies/:id", async (req, res) => {
       };
     }
   }
-  res.json({ company, projects: projects.rows, team: team.rows, relationship });
+  res.json({
+    company,
+    projects: projects.rows,
+    team: team.rows,
+    relationship,
+    ...(await profileExtras(company.id)),
+  });
 });
 app.patch("/api/companies/current", requireAdmin, async (req, res) => {
   const body = z
@@ -280,6 +311,11 @@ app.patch("/api/companies/current", requireAdmin, async (req, res) => {
   res.json(rows[0]);
 });
 app.post("/api/companies", requireVerified, async (req, res) => {
+  if (req.auth!.accountType === "individual")
+    throw new HttpError(
+      403,
+      "Individual accounts cannot manage company profiles.",
+    );
   const { name } = z
     .object({ name: z.string().trim().min(2).max(120) })
     .parse(req.body);
@@ -302,6 +338,7 @@ app.post("/api/companies", requireVerified, async (req, res) => {
       c.id,
       req.auth!.tokenHash,
     ]);
+    c.username = await ensureUsername(db, c.id, name);
     return c;
   });
   res.status(201).json(company);
@@ -585,7 +622,12 @@ app.get("/api/conversations/:id/messages", requireCompany, async (req, res) => {
       readChanged = !!receipt.rowCount;
     }
     const other = c.company_a === actor ? c.company_b : c.company_a;
-    const read = (await db.query("SELECT read_sequence FROM conversation_reads WHERE connection_id=$1 AND company_id=$2", [id,other])).rows[0];
+    const read = (
+      await db.query(
+        "SELECT read_sequence FROM conversation_reads WHERE connection_id=$1 AND company_id=$2",
+        [id, other],
+      )
+    ).rows[0];
     return {
       connection: c,
       peerReadSequence: read?.read_sequence || "0",
@@ -595,7 +637,8 @@ app.get("/api/conversations/:id/messages", requireCompany, async (req, res) => {
     };
   });
   const { readChanged, ...payload } = result;
-  if (readChanged) broadcast(payload.connection.company_a, payload.connection.company_b);
+  if (readChanged)
+    broadcast(payload.connection.company_a, payload.connection.company_b);
   res.json(payload);
 });
 const upload = multer({
@@ -636,9 +679,23 @@ app.post(
         );
       prepared.push({ file, type, name: randomUUID() + "." + type.ext });
     }
-    const clientId = req.body.clientId || req.query.clientId ? idSchema.parse(req.body.clientId || req.query.clientId) : null;
-    const contentHash = createHash("sha256").update(JSON.stringify({body, files:prepared.map(p => [p.file.originalname,p.type.mime,createHash("sha256").update(p.file.buffer).digest("hex")])})).digest("hex");
-    const written: {name:string; backend:string}[] = [];
+    const clientId =
+      req.body.clientId || req.query.clientId
+        ? idSchema.parse(req.body.clientId || req.query.clientId)
+        : null;
+    const contentHash = createHash("sha256")
+      .update(
+        JSON.stringify({
+          body,
+          files: prepared.map((p) => [
+            p.file.originalname,
+            p.type.mime,
+            createHash("sha256").update(p.file.buffer).digest("hex"),
+          ]),
+        }),
+      )
+      .digest("hex");
+    const written: { name: string; backend: string }[] = [];
     let saved: any;
     let duplicate = false;
     try {
@@ -653,13 +710,27 @@ app.post(
           );
         await noBlock(db, c.company_a, c.company_b);
         if (clientId) {
-          const previous = (await db.query("SELECT * FROM messages WHERE connection_id=$1 AND sender_company_id=$2 AND client_id=$3",[id,actor,clientId])).rows[0];
+          const previous = (
+            await db.query(
+              "SELECT * FROM messages WHERE connection_id=$1 AND sender_company_id=$2 AND client_id=$3",
+              [id, actor, clientId],
+            )
+          ).rows[0];
           if (previous) {
-            if (previous.content_hash !== contentHash) throw new HttpError(409,"That send was already used for a different message.");
-            duplicate = true; return previous;
+            if (previous.content_hash !== contentHash)
+              throw new HttpError(
+                409,
+                "That send was already used for a different message.",
+              );
+            duplicate = true;
+            return previous;
           }
         }
-        await checkQuota(db, actor, prepared.reduce((sum,p) => sum+p.file.size,0));
+        await checkQuota(
+          db,
+          actor,
+          prepared.reduce((sum, p) => sum + p.file.size, 0),
+        );
         const message = (
           await db.query(
             "INSERT INTO messages(connection_id,sender_company_id,author_id,body,client_id,content_hash) VALUES($1,$2,$3,$4,$5,$6) RETURNING *",
@@ -667,8 +738,11 @@ app.post(
           )
         ).rows[0];
         for (const p of prepared) {
-          written.push({name:p.name,backend:process.env.STORAGE_BACKEND === "s3" ? "s3" : "local"});
-          const stored = await storeBuffer(p.name,p.file.buffer,p.type.mime);
+          written.push({
+            name: p.name,
+            backend: process.env.STORAGE_BACKEND === "s3" ? "s3" : "local",
+          });
+          const stored = await storeBuffer(p.name, p.file.buffer, p.type.mime);
           await db.query(
             "INSERT INTO attachments(message_id,original_name,storage_name,mime_type,size,storage_backend,sha256) VALUES($1,$2,$3,$4,$5,$6,$7)",
             [
@@ -676,7 +750,9 @@ app.post(
               p.file.originalname.slice(0, 200),
               p.name,
               p.type.mime,
-              p.file.size, stored.storage_backend, stored.sha256,
+              p.file.size,
+              stored.storage_backend,
+              stored.sha256,
             ],
           );
         }
@@ -686,9 +762,7 @@ app.post(
         return message;
       });
     } catch (error) {
-      await Promise.all(
-        written.map((f) => deferDelete(f.backend, f.name)),
-      );
+      await Promise.all(written.map((f) => deferDelete(f.backend, f.name)));
       throw error;
     }
     const c = (
@@ -698,7 +772,15 @@ app.post(
       )
     ).rows[0];
     broadcast(c.company_a, c.company_b);
-    res.status(duplicate ? 200 : 201).json({ ok: true, id: saved.id, sequence: saved.sequence, clientId, duplicate });
+    res
+      .status(duplicate ? 200 : 201)
+      .json({
+        ok: true,
+        id: saved.id,
+        sequence: saved.sequence,
+        clientId,
+        duplicate,
+      });
   },
 );
 app.get("/api/attachments/:id", requireCompany, async (req, res) => {
@@ -711,9 +793,10 @@ app.get("/api/attachments/:id", requireCompany, async (req, res) => {
   ).rows[0];
   if (!a) throw new HttpError(404, "Attachment not found.");
   res.type(a.mime_type);
-  if (req.query.inline === "1" && a.mime_type.startsWith("image/")) res.set("Content-Disposition", "inline");
+  if (req.query.inline === "1" && a.mime_type.startsWith("image/"))
+    res.set("Content-Disposition", "inline");
   else res.attachment(a.original_name);
-  await sendStored(req,res,a.storage_backend,a.storage_name);
+  await sendStored(req, res, a.storage_backend, a.storage_name);
 });
 app.get("/api/events", requireCompany, (req, res) => {
   const company = req.auth!.companyId!;
@@ -733,6 +816,7 @@ app.get("/api/events", requireCompany, (req, res) => {
     if (!listeners.get(company)?.size) listeners.delete(company);
   });
 });
+app.use("/api", employeeInvitationRoutes());
 app.get("/api/team", requireCompany, async (req, res) => {
   res.json(
     (
@@ -743,6 +827,60 @@ app.get("/api/team", requireCompany, async (req, res) => {
     ).rows,
   );
 });
+app.get("/api/team/invites", requireAdmin, async (req, res) => {
+  res.json(
+    (
+      await pool.query(
+        "SELECT id,email,role,expires_at,created_at FROM team_invites WHERE company_id=$1 AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at>now() ORDER BY created_at DESC",
+        [req.auth!.companyId],
+      )
+    ).rows,
+  );
+});
+app.delete("/api/team/invites/:id", requireAdmin, async (req, res) => {
+  const r = await pool.query(
+    "UPDATE team_invites SET revoked_at=now() WHERE id=$1 AND company_id=$2 AND accepted_at IS NULL AND revoked_at IS NULL RETURNING id",
+    [idSchema.parse(req.params.id), req.auth!.companyId],
+  );
+  if (!r.rowCount) throw new HttpError(404, "Invitation no longer active.");
+  res.json({ ok: true });
+});
+app.get("/api/team/invites/preview/:token", async (req, res) => {
+  const token = z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .parse(req.params.token);
+  const invite = (
+    await pool.query(
+      "SELECT c.name,c.logo_url,c.logo_style,i.role,i.email FROM team_invites i JOIN companies c ON c.id=i.company_id WHERE token_hash=$1 AND expires_at>now() AND accepted_at IS NULL AND revoked_at IS NULL",
+      [hashToken(token)],
+    )
+  ).rows[0];
+  if (!invite)
+    throw new HttpError(
+      404,
+      "This invitation has expired or was already used. Ask your company for a new link.",
+    );
+  const { email, ...info } = invite;
+  res.json({
+    ...info,
+    emailHint: email.slice(0, 1) + "•••@" + email.split("@")[1],
+    emailMatches: req.auth ? req.auth.email === email : null,
+  });
+});
+app.patch("/api/team/:userId/role", requireAdmin, async (req, res) => {
+  if (req.auth!.role !== "owner")
+    throw new HttpError(403, "Only the owner can change team permissions.");
+  const id = idSchema.parse(req.params.userId),
+    { role } = z.object({ role: z.enum(["admin", "member"]) }).parse(req.body);
+  const r = await pool.query(
+    "UPDATE memberships SET role=$1 WHERE user_id=$2 AND company_id=$3 AND role<>'owner' RETURNING user_id",
+    [role, id, req.auth!.companyId],
+  );
+  if (!r.rowCount)
+    throw new HttpError(404, "Team member not found or is the company owner.");
+  res.json({ ok: true });
+});
 app.post("/api/team/invites", requireAdmin, async (req, res) => {
   const { email, role } = z
     .object({
@@ -751,49 +889,95 @@ app.post("/api/team/invites", requireAdmin, async (req, res) => {
     })
     .parse(req.body);
   const token = randomBytes(32).toString("hex");
-  await pool.query(
-    "INSERT INTO team_invites(token_hash,company_id,email,role,expires_at) VALUES($1,$2,$3,$4,now()+interval '3 days')",
-    [hashToken(token), req.auth!.companyId, email, role],
-  );
-  res
-    .status(201)
-    .json({ url: `${origin}/invite/${token}`, expiresIn: "3 days" });
-});
-app.post("/api/team/invites/:token/accept", requireVerified, async (req, res) => {
-  const token = z
-    .string()
-    .regex(/^[a-f0-9]{64}$/)
-    .parse(req.params.token);
   const company = await tx(async (db) => {
-    const invite = (
+    const company = (
       await db.query(
-        "SELECT * FROM team_invites WHERE token_hash=$1 AND expires_at>now() AND accepted_at IS NULL FOR UPDATE",
-        [hashToken(token)],
+        "SELECT id,name,username,slug FROM companies WHERE id=$1 FOR UPDATE",
+        [req.auth!.companyId],
       )
     ).rows[0];
-    if (!invite)
-      throw new HttpError(404, "Invitation is expired or already used.");
-    if (invite.email !== req.auth!.email)
+    const user = (
+      await db.query(
+        "SELECT u.id,u.account_type,EXISTS(SELECT 1 FROM memberships m WHERE m.user_id=u.id AND m.company_id=$2) AS member FROM users u WHERE email=$1",
+        [email, req.auth!.companyId],
+      )
+    ).rows[0];
+    if (user?.member)
       throw new HttpError(
-        403,
-        "Sign in with the email address this invitation was sent to.",
+        409,
+        "This employee already has access to your company.",
+      );
+    if (user?.account_type === "individual")
+      throw new HttpError(
+        400,
+        "This email belongs to an individual account. Ask your employee to use a company account with their work email.",
       );
     await db.query(
-      "INSERT INTO memberships(user_id,company_id,role) VALUES($1,$2,$3) ON CONFLICT DO NOTHING",
-      [req.auth!.userId, invite.company_id, invite.role],
+      "UPDATE team_invites SET revoked_at=now() WHERE company_id=$1 AND email=$2 AND accepted_at IS NULL AND revoked_at IS NULL",
+      [req.auth!.companyId, email],
     );
     await db.query(
-      "UPDATE team_invites SET accepted_at=now() WHERE token_hash=$1",
-      [hashToken(token)],
+      "INSERT INTO team_invites(token_hash,company_id,email,role,expires_at) VALUES($1,$2,$3,$4,now()+interval '3 days')",
+      [hashToken(token), req.auth!.companyId, email, role],
     );
-    await db.query("UPDATE sessions SET company_id=$1 WHERE token_hash=$2", [
-      invite.company_id,
-      req.auth!.tokenHash,
-    ]);
-    return invite.company_id;
+    company.username = await ensureUsername(db, company.id, company.name);
+    return company;
   });
-  res.json(await mePayload(req.auth!.userId, company));
+  res
+    .status(201)
+    .json({
+      url: `${origin}/join/${company.username || company.slug}`,
+      expiresIn: "3 days",
+    });
 });
+app.post(
+  "/api/team/invites/:token/accept",
+  requireVerified,
+  async (req, res) => {
+    if (req.auth!.accountType === "individual")
+      throw new HttpError(
+        403,
+        "This invitation is for a company account. Individual accounts cannot join company teams.",
+      );
+    const token = z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .parse(req.params.token);
+    const company = await tx(async (db) => {
+      const invite = (
+        await db.query(
+          "SELECT * FROM team_invites WHERE token_hash=$1 AND expires_at>now() AND accepted_at IS NULL AND revoked_at IS NULL FOR UPDATE",
+          [hashToken(token)],
+        )
+      ).rows[0];
+      if (!invite)
+        throw new HttpError(404, "Invitation is expired or already used.");
+      if (invite.email !== req.auth!.email)
+        throw new HttpError(
+          403,
+          "Sign in with the email address this invitation was sent to.",
+        );
+      await db.query(
+        "INSERT INTO memberships(user_id,company_id,role) VALUES($1,$2,$3) ON CONFLICT DO NOTHING",
+        [req.auth!.userId, invite.company_id, invite.role],
+      );
+      await db.query(
+        "UPDATE team_invites SET accepted_at=now() WHERE token_hash=$1",
+        [hashToken(token)],
+      );
+      await db.query("UPDATE sessions SET company_id=$1 WHERE token_hash=$2", [
+        invite.company_id,
+        req.auth!.tokenHash,
+      ]);
+      await db.query(
+        "UPDATE users SET onboarding_completed_at=COALESCE(onboarding_completed_at,now()) WHERE id=$1",
+        [req.auth!.userId],
+      );
+      return invite.company_id;
+    });
+    res.json(await mePayload(req.auth!.userId, company));
+  },
+);
 app.delete("/api/team/:userId", requireAdmin, async (req, res) => {
   const userId = idSchema.parse(req.params.userId);
   if (userId === req.auth!.userId)
@@ -822,6 +1006,7 @@ app.delete("/api/team/:userId", requireAdmin, async (req, res) => {
   res.json({ ok: true });
 });
 app.use("/api", await socialRoutes(uploadDir));
+app.use("/api", publishingRoutes(uploadDir));
 app.use("/api", (_req, _res, next) =>
   next(new HttpError(404, "API endpoint not found.")),
 );
@@ -863,14 +1048,22 @@ app.use(
 const server = app.listen(Number(process.env.PORT || 4100), "0.0.0.0", () =>
   console.log(`Sunhub API: http://localhost:${process.env.PORT || 4100}`),
 );
-const mailTimer = setInterval(() => { void flushMail().catch(() => {}); void cleanStorage().catch(() => {}); }, 5000);
+const mailTimer = setInterval(() => {
+  void flushMail().catch(() => {});
+  void cleanStorage().catch(() => {});
+}, 5000);
 mailTimer.unref();
 const cleanupTimer = setInterval(() => {
-  void pool.query("DELETE FROM sessions WHERE expires_at<now(); DELETE FROM auth_limits WHERE expires_at<now(); DELETE FROM auth_challenges WHERE expires_at<now()-interval '1 day'; DELETE FROM email_outbox WHERE expires_at<now()-interval '7 days'; DELETE FROM auth_events WHERE created_at<now()-interval '90 days'").catch(() => {});
+  void pool
+    .query(
+      "DELETE FROM sessions WHERE expires_at<now(); DELETE FROM auth_limits WHERE expires_at<now(); DELETE FROM auth_challenges WHERE expires_at<now()-interval '1 day'; DELETE FROM email_outbox WHERE expires_at<now()-interval '7 days'; DELETE FROM auth_events WHERE created_at<now()-interval '90 days'",
+    )
+    .catch(() => {});
 }, 3600000);
 cleanupTimer.unref();
 const stop = () => {
-  clearInterval(mailTimer); clearInterval(cleanupTimer);
+  clearInterval(mailTimer);
+  clearInterval(cleanupTimer);
   for (const responses of listeners.values())
     for (const res of responses) res.end();
   server.close(() => {

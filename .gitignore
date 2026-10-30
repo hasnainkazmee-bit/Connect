@@ -10,6 +10,7 @@ playwright-report/
 /target/
 /.toolchains/
 **/.gradle/
+**/.kotlin/
 **/build/
 apps/android/local.properties
 apps/android/app/src/main/jniLibs/

@@ -321,9 +321,72 @@ impl CommunityClient {
             generation,
             matches!(
                 path.as_str(),
-                "/auth/login" | "/auth/register" | "/auth/logout" | "/session/company" | "/onboarding/company" | "/auth/password/change" | "/auth/password/reset"
-            ),
+                "/auth/login"
+                    | "/auth/register"
+                    | "/auth/logout"
+                    | "/session/company"
+                    | "/onboarding/company"
+                    | "/auth/password/change"
+                    | "/auth/password/reset"
+            ) || (path.starts_with("/join/") || path.starts_with("/team/invites/"))
+                && path.ends_with("/accept"),
         )
+    }
+
+    /// JSON updates stay on the configured API origin and use the same session and cache generation.
+    pub fn request_json(
+        &self,
+        method: String,
+        path: String,
+        body: String,
+    ) -> Result<String, CoreError> {
+        if !matches!(method.as_str(), "POST" | "PATCH" | "PUT" | "DELETE") {
+            return Err(invalid("Unsupported update method."));
+        }
+        if method == "POST" {
+            return self.post_json(path, body);
+        }
+        let _write = self.writes.lock().map_err(|_| CoreError::Storage)?;
+        let url = self.endpoint(&path)?;
+        let json: serde_json::Value =
+            serde_json::from_str(&body).map_err(|_| invalid("Invalid request body."))?;
+        let (cookie, generation) = self.identity()?;
+        let verb = reqwest::Method::from_bytes(method.as_bytes())
+            .map_err(|_| invalid("Unsupported update method."))?;
+        let response = self
+            .http
+            .request(verb, url)
+            .header(COOKIE, cookie)
+            .json(&json)
+            .send()
+            .map_err(network)?;
+        self.finish_write(response, generation, false)
+    }
+
+    /// Stream a single publication or company image upload from private device storage.
+    pub fn upload_file(&self, path: String, file: UploadFile) -> Result<String, CoreError> {
+        let _write = self.writes.lock().map_err(|_| CoreError::Storage)?;
+        let url = self.endpoint(&path)?;
+        let metadata =
+            std::fs::metadata(&file.path).map_err(|_| invalid("Choose this file again."))?;
+        if !metadata.is_file() || metadata.len() > 100 * 1024 * 1024 {
+            return Err(invalid("This attachment is too large."));
+        }
+        let part = multipart::Part::file(file.path)
+            .map_err(network)?
+            .file_name(file.name)
+            .mime_str(&file.mime)
+            .map_err(|_| invalid("Unsupported attachment type."))?;
+        let (cookie, generation) = self.identity()?;
+        let response = self
+            .http
+            .post(url)
+            .header(COOKIE, cookie)
+            .timeout(Duration::from_secs(180))
+            .multipart(multipart::Form::new().part("file", part))
+            .send()
+            .map_err(network)?;
+        self.finish_write(response, generation, false)
     }
 
     pub fn post_text(&self, path: String, text: String) -> Result<String, CoreError> {
@@ -374,7 +437,9 @@ impl CommunityClient {
 
     /// Authenticated chat attachment download into app-private storage.
     pub fn download_attachment(&self, path: String, destination: String) -> Result<(), CoreError> {
-        if !path.starts_with("/attachments/") || path.contains('?') {
+        if !(path.starts_with("/attachments/") || path.starts_with("/post-media/"))
+            || path.contains('?')
+        {
             return Err(invalid("Invalid attachment."));
         }
         let (cookie, generation) = self.identity()?;
@@ -388,12 +453,17 @@ impl CommunityClient {
             Self::decode(response)?;
             return Err(invalid("Attachment unavailable."));
         }
+        let limit = if path.starts_with("/post-media/") {
+            20 * 1024 * 1024
+        } else {
+            10 * 1024 * 1024
+        };
         let mut bytes = Vec::new();
         response
-            .take(10 * 1024 * 1024 + 1)
+            .take(limit + 1)
             .read_to_end(&mut bytes)
             .map_err(network)?;
-        if bytes.len() > 10 * 1024 * 1024 {
+        if bytes.len() as u64 > limit {
             return Err(invalid("Attachment is too large."));
         }
         let state = self.state.lock().map_err(|_| CoreError::Storage)?;

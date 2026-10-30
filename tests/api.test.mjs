@@ -323,15 +323,15 @@ test("authenticated company lifecycle and isolation", async (t) => {
     assert.equal(invite.status, 201);
     inviteToken = invite.data.url.split("/").at(-1);
     assert.equal(
-      (await c("/team/invites/" + inviteToken + "/accept", {})).status,
-      403,
+      (await c("/join/" + inviteToken + "/accept", {})).status,
+      404,
     );
     assert.equal(
-      (await member("/team/invites/" + inviteToken + "/accept", {})).status,
+      (await member("/join/" + inviteToken + "/accept", {})).status,
       200,
     );
     assert.equal(
-      (await member("/team/invites/" + inviteToken + "/accept", {})).status,
+      (await member("/join/" + inviteToken + "/accept", {})).status,
       404,
     );
   });
