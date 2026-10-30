@@ -94,6 +94,8 @@ test("company publishes photos and video, another follows and comments", async (
     .toBeGreaterThan(0);
   await page.getByLabel("Account and company menu").click();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  // Wait for the server to clear the session before navigation can cancel logout.
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
   await login(follower.user.email);
   await page.goto("/company/" + owner.activeCompanyId);
   await page

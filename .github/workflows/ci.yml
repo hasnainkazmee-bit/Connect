@@ -26,6 +26,12 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chrome
       - run: npm run test:ui
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failure
+          path: test-results/
+          retention-days: 7
   rust-core:
     runs-on: ubuntu-latest
     steps:

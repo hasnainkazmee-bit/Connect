@@ -18,7 +18,7 @@ trap restore_services EXIT
 "${compose[@]}" exec -T db pg_dump -U connect -d connect -Fc > "$backup_dir/database.dump"
 for component in objects attachments; do
   volume="$object_volume"; [[ "$component" == attachments ]] && volume="$attachment_volume"
-  docker run --rm --network none --mount "type=volume,source=$volume,target=/source,readonly" --mount "type=bind,source=$backup_dir,target=/backup" postgres:16-alpine sh -c "tar czf /backup/$component.tar.gz -C /source ."
+  docker run --rm --network none --mount "type=volume,source=$volume,target=/source,readonly" postgres:16-alpine tar czf - -C /source . > "$backup_dir/$component.tar.gz"
 done
 "${compose[@]}" exec -T db pg_restore --list < "$backup_dir/database.dump" > "$backup_dir/database-contents.txt"
 for archive in "$backup_dir"/*.tar.gz; do tar tzf "$archive" >/dev/null; done
