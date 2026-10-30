@@ -1,6 +1,6 @@
 # Connect deployment
 
-The production stack is independent of the Sunhub CRM. It owns the `connect-production` Docker project, network and volumes. Only the web/API process is published, at `127.0.0.1:14100`. PostgreSQL and Garage have no published ports. The account test inbox listens only on `127.0.0.1:18026`.
+The production stack is independent of the Sunhub CRM. It owns the `connect-production` Docker project, network and volumes. Only the web/API process is published, at `127.0.0.1:14100`. PostgreSQL and Garage have no published ports. The test inbox is confined to local development and is not part of this deployment.
 
 Cloudflare public application route:
 
@@ -19,7 +19,7 @@ The Docker image runs migrations before accepting traffic. Existing local-disk a
 
 ## Account email
 
-Chats are stored in PostgreSQL and delivered in-app. SMTP is exclusively for verification and password recovery. The default Docker mail container captures test messages; **it does not deliver to people's email accounts**. Keep it private. Before inviting real users, set an actual SMTP sender in `.env.production`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_REQUIRE_TLS=true`, and a verified `MAIL_FROM`. Port 465 also needs `SMTP_SECURE=true`. Restart only `app` to apply settings. Verification is enforced; do not disable it to work around missing delivery. Codes expire after ten minutes and five incorrect attempts. Outbox payloads are encrypted with a key derived from `AUTH_TOKEN_SECRET` and erased after sending or expiry.
+Chats are stored in PostgreSQL and delivered in-app. SMTP is exclusively for verification and password recovery. The local Docker mail container captures test messages; **it does not deliver to people's email accounts**. Production requires a real SMTP sender in `.env.production`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_REQUIRE_TLS=true`, and a verified `MAIL_FROM`. Port 465 also needs `SMTP_SECURE=true`. Restart only `app` to apply settings. Verification is enforced; do not disable it to work around missing delivery. Codes expire after ten minutes and five incorrect attempts. Outbox payloads are encrypted with a key derived from `AUTH_TOKEN_SECRET` and erased after sending or expiry.
 
 No production data or accounts are seeded automatically. `npm run seed` is a development-only fixture command; it is not part of the deployment startup.
 
