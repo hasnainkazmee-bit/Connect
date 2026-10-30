@@ -1,11 +1,15 @@
 // Deploy this manifest only after the matching signed APK is published.
 // API clients never receive private storage credentials or an executable URL from user content.
 export const androidRelease = {
-  versionCode: 3,
-  versionName: "0.2.0",
+  versionCode: 4,
+  versionName: "0.3.0",
   packageName: "com.sunhub.community.debug",
   minSdk: 26,
-  url: "https://github.com/hasnainkazmee-bit/Connect/releases/download/v0.2.0/connect-phone-0.2.0-debug.apk",
-  sha256: "13fec9378f19ef80a504c16d09e92d6b54dc1894df3cff2aea2e6a933ebc195e",
-  notes: ["Connect Android preview with company profiles and messaging."],
+  url: "https://github.com/hasnainkazmee-bit/Connect/releases/download/v0.3.0/connect-phone-0.3.0-debug.apk",
+  sha256: "79052bbd709df2053cfbd580ac14aff509fc28520a8426c5722658b5bbaa27ee",
+  notes: [
+    "Bottom navigation and swipe gestures keep your main screens within reach.",
+    "Publish posts, articles, press releases, and case studies with drafts and media.",
+    "Build your company profile, share readable employee invites, and talk to customers.",
+  ],
 };

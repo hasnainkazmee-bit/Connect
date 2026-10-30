@@ -311,12 +311,16 @@ internal fun PublicationComposer(
         if (kind == "post") "Post" else "Publish",
         canPublish,
         save = { save(true) },
+        secondaryAction = "Save & close",
+        secondary = { save(false) },
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Column {
+            Column(Modifier.weight(1f)) {
                 Text(
                     model.company?.text("name").orEmpty(),
                     style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
                 Text(
                     if (dirty) "Unsaved changes" else "Your company’s voice",
@@ -324,7 +328,6 @@ internal fun PublicationComposer(
                     style = MaterialTheme.typography.labelSmall,
                 )
             }
-            TextButton(enabled = !model.busy, onClick = { save(false) }) { Text("Save & close") }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(!preview, { preview = false }, label = { Text("Write") })

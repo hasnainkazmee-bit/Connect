@@ -17,6 +17,11 @@ class NativeFlowTest {
             ui.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
         }
 
+    private fun gone(text: String) =
+        ui.waitUntil(timeoutMillis = 20_000) {
+            ui.onAllNodesWithText(text).fetchSemanticsNodes().isEmpty()
+        }
+
     private fun click(text: String) =
         ui.onAllNodes(hasText(text) and hasClickAction()).onLast().performClick()
 
@@ -114,10 +119,20 @@ class NativeFlowTest {
         b.postJson("/requests/${incoming.getString("id")}/respond", "{\"action\":\"accept\"}")
         visible("Write a message…")
         ui.onNodeWithText("Write a message…").performTextInput("Here is the project scope.")
-        ui.onNodeWithContentDescription("Send").performClick()
+        // Invoke the enabled send action without racing Android's keyboard animation.
+        ui.onNodeWithContentDescription("Send").assertIsEnabled().performSemanticsAction(
+            androidx.compose.ui.semantics.SemanticsActions.OnClick
+        ) {
+            it()
+        }
         visible("Here is the project scope.")
         val network = JSONObject(b.get("/network"))
         val connection = network.getJSONArray("connections").getJSONObject(0).getString("id")
+        ui.waitUntil(20_000) {
+            JSONObject(b.get("/conversations/$connection/messages"))
+                .getJSONArray("messages")
+                .length() == 2
+        }
         val history =
             JSONObject(b.get("/conversations/$connection/messages")).getJSONArray("messages")
         check(history.length() == 2)
@@ -133,6 +148,7 @@ class NativeFlowTest {
         ui.onNodeWithText("What’s happening at your company?")
             .performTextInput("Native Android project update $suffix")
         click("Post")
+        gone("Save & close")
         visible("Native Android project update $suffix")
         // The profile workspace and editor use the same API as the web app.
         ui.onNodeWithContentDescription("Account and company").performClick()
@@ -144,6 +160,7 @@ class NativeFlowTest {
         ui.onNodeWithText("Company username").performTextInput("android-" + suffix)
         capture("native-profile-editor")
         click("Save changes")
+        gone("Save changes")
         visible("@android-" + suffix)
         click("Invite employees")
         visible("Invite employee")
@@ -159,19 +176,29 @@ class NativeFlowTest {
         click("Home")
         click("Share an update")
         click("Article")
+        visible("Tell your story…")
         ui.onNodeWithText("Story title").performTextInput("Android field notes $suffix")
         ui.onNodeWithText("Tell your story…")
             .performScrollTo()
             .performTextInput("A thoughtful solar project starts with listening to the community.")
+        ui.onNodeWithText("Save & close").assertIsDisplayed()
+        capture("native-publication-editor")
         click("Save & close")
+        gone("Save & close")
         visible("Drafts")
         click("Drafts")
         visible("Android field notes $suffix")
         click("Android field notes $suffix")
+        visible("Continue your draft")
+        ui.onNodeWithText("Save & close").assertIsDisplayed()
         click("Preview")
+        ui.onNode(hasText("Preview") and hasClickAction()).assertIsSelected()
+        ui.onNodeWithText("A thoughtful solar project starts with listening to the community.")
+            .assertIsDisplayed()
         visible("Android field notes $suffix")
         capture("native-publication-preview")
         click("Publish")
+        gone("Save & close")
         visible("Android field notes $suffix")
         capture("native-bottom-navigation")
         val feed =

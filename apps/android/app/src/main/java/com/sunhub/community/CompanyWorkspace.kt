@@ -39,6 +39,8 @@ internal fun WorkSheet(
     action: String? = null,
     enabled: Boolean = true,
     save: () -> Unit = {},
+    secondaryAction: String? = null,
+    secondary: () -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Dialog(
@@ -52,11 +54,24 @@ internal fun WorkSheet(
             containerColor = Color.White,
             topBar = {
                 TopAppBar(
-                    title = { Text(title, style = MaterialTheme.typography.titleMedium) },
+                    title = {
+                        Text(
+                            title,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        )
+                    },
                     navigationIcon = {
                         IconButton(enabled = !model.busy, onClick = close) {
                             Icon(Icons.Outlined.Close, "Close")
                         }
+                    },
+                    actions = {
+                        if (secondaryAction != null)
+                            TextButton(enabled = !model.busy, onClick = secondary) {
+                                Text(secondaryAction)
+                            }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Pale),
                 )
