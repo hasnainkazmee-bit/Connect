@@ -22,6 +22,9 @@ class NativeFlowTest {
 
     private fun capture(name: String) {
         ui.waitForIdle()
+        // Compose semantics can settle before Android has drawn a newly opened dialog.
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        android.os.SystemClock.sleep(500)
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val values =
             android.content.ContentValues().apply {
