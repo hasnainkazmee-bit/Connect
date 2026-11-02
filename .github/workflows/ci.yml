@@ -43,3 +43,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build -t connect-check .
+      - name: Check API runtime emoji support
+        run: >-
+          docker run --rm --entrypoint node
+          --mount "type=bind,source=$PWD/tests/container-runtime.mjs,target=/tmp/container-runtime.mjs,readonly"
+          --mount "type=bind,source=$PWD/apps/android/app/src/main/assets/reaction-emojis.json,target=/tmp/reaction-emojis.json,readonly"
+          connect-check /tmp/container-runtime.mjs

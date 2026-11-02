@@ -79,10 +79,8 @@ test("newsroom reflows, filters publications and keeps gallery photos uncropped"
   ).toBeVisible();
   const post = page.locator(`#post-${photoPost.id}`);
   await expect(post).toBeVisible();
-  const filters = page.getByLabel("Feed publication type");
-  await filters
-    .getByRole("button", { name: "Press releases", exact: true })
-    .click();
+  const filters = page.getByRole("combobox", { name: "Feed publication type" });
+  await filters.selectOption("press_release");
   await expect(
     page.getByRole("link", {
       name: `Daylight announces a community solar milestone ${suffix}`,
@@ -90,7 +88,7 @@ test("newsroom reflows, filters publications and keeps gallery photos uncropped"
     }),
   ).toBeVisible();
   await expect(post).toHaveCount(0);
-  await filters.getByRole("button", { name: "Posts", exact: true }).click();
+  await filters.selectOption("post");
   await expect(post).toBeVisible();
   await expect(page.locator(`#post-${draft.id}`)).toHaveCount(0);
   await expect(
@@ -128,11 +126,57 @@ test("newsroom reflows, filters publications and keeps gallery photos uncropped"
       .getByRole("region", { name: "Company feed" })
       .boundingBox();
     expect(stream!.width).toBeLessThanOrEqual(721);
+    const toolbar = page.locator(".feed-controls");
+    const toolbarBounds = (await toolbar.boundingBox())!;
+    expect(
+      toolbarBounds.height,
+      `one controls row at ${width}`,
+    ).toBeLessThanOrEqual(55);
+    for (const control of await toolbar.locator("button, select").all()) {
+      const box = (await control.boundingBox())!;
+      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(box.x).toBeGreaterThanOrEqual(toolbarBounds.x);
+      expect(box.x + box.width).toBeLessThanOrEqual(
+        toolbarBounds.x + toolbarBounds.width + 1,
+      );
+      expect(
+        Math.abs(
+          box.y + box.height / 2 - (toolbarBounds.y + toolbarBounds.height / 2),
+        ),
+      ).toBeLessThanOrEqual(1);
+    }
+    await filters.selectOption("press_release");
+    await expect(page.locator(`#post-${draft.id}`)).toBeVisible();
+    await expect(post).toHaveCount(0);
+    await filters.selectOption("post");
+    await expect(post).toBeVisible();
     for (const control of await post.locator(".post-actions button").all()) {
       expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     }
     await page.screenshot({ path: `test-results/newsroom-${width}.png` });
   }
+  const allTab = page.getByRole("tab", { name: "All posts", exact: true });
+  const followingTab = page.getByRole("tab", {
+    name: "Following",
+    exact: true,
+  });
+  await allTab.focus();
+  await allTab.press("ArrowRight");
+  await expect(followingTab).toBeFocused();
+  await expect(followingTab).toHaveAttribute("aria-selected", "true");
+  await followingTab.press("ArrowLeft");
+  await expect(allTab).toBeFocused();
+  await expect(allTab).toHaveAttribute("aria-selected", "true");
+  await filters.selectOption("");
+  await expect(post).toBeVisible();
+  await expect(page.locator(`#post-${draft.id}`)).toBeVisible();
+  const refreshed = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/feed?") &&
+      response.request().method() === "GET",
+  );
+  await page.getByRole("button", { name: "Refresh feed", exact: true }).click();
+  await refreshed;
   expect(errors).toEqual([]);
   await context.close();
 });

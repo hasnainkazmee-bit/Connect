@@ -6,6 +6,7 @@ import {
   Globe,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   MessageCircle,
   Plus,
   Check,
@@ -857,35 +858,39 @@ export function HomeFeed() {
                   Following
                 </button>
               </div>
-              <button
-                className="icon-button"
-                aria-label="Refresh feed"
-                title="Refresh feed"
-                onClick={refresh}
-              >
-                <RefreshCw size={17} />
-              </button>
             </div>
-            <div
-              className="publication-filters"
-              aria-label="Feed publication type"
+            <label className="feed-type-select">
+              <span className="sr-only">Feed publication type</span>
+              <select
+                value={kind || ""}
+                title={
+                  kind === "press_release"
+                    ? "Press releases"
+                    : kind === "post"
+                      ? "Posts"
+                      : "All types"
+                }
+                onChange={(event) =>
+                  setKind(
+                    (event.target.value || undefined) as
+                      PublicationKind | undefined,
+                  )
+                }
+              >
+                <option value="">All types</option>
+                <option value="post">Posts</option>
+                <option value="press_release">Press releases</option>
+              </select>
+              <ChevronDown size={14} aria-hidden="true" />
+            </label>
+            <button
+              className="icon-button feed-refresh"
+              aria-label="Refresh feed"
+              title="Refresh feed"
+              onClick={refresh}
             >
-              <button aria-pressed={!kind} onClick={() => setKind(undefined)}>
-                Everything
-              </button>
-              <button
-                aria-pressed={kind === "post"}
-                onClick={() => setKind("post")}
-              >
-                Posts
-              </button>
-              <button
-                aria-pressed={kind === "press_release"}
-                onClick={() => setKind("press_release")}
-              >
-                Press releases
-              </button>
-            </div>
+              <RefreshCw size={17} />
+            </button>
           </div>
           <div
             id="feed-results"

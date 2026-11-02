@@ -15,6 +15,7 @@ ENV NODE_ENV=production
 ENV CONNECT_RELEASE=$CONNECT_RELEASE
 LABEL org.opencontainers.image.revision=$CONNECT_RELEASE
 COPY --from=build /app/node_modules node_modules
+COPY --from=build /app/apps/api/node_modules apps/api/node_modules
 COPY --from=build /app/package.json package.json
 COPY --from=build /app/apps/api/package.json apps/api/package.json
 COPY --from=build /app/apps/api/dist apps/api/dist
