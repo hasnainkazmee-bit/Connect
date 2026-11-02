@@ -6,8 +6,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { pool, tx, lockPair, HttpError } from "./db.js";
-import { requireAdmin, requireCompany, requireVerified } from "./auth.js";
+import { requireAdmin, requireVerified } from "./auth.js";
 import { storeFile, sendStored, deferDelete, checkQuota } from "./storage.js";
+import { installPostInteractions, unblocked } from "./social-interactions.js";
 
 const uuid = z.string().uuid();
 const cursor = z.string().regex(/^[1-9][0-9]{0,18}$/);
@@ -15,9 +16,14 @@ const visible = `($1::uuid IS NULL OR NOT EXISTS(SELECT 1 FROM blocks b WHERE (b
 const projection = (
   user = "NULL",
 ) => `SELECT p.*,row_to_json(c) AS company,u.name AS author_name,
-  (SELECT count(*)::int FROM post_likes l WHERE l.post_id=p.id) AS like_count,
-  (SELECT count(*)::int FROM post_comments cm WHERE cm.post_id=p.id) AS comment_count,
-  EXISTS(SELECT 1 FROM post_likes l WHERE l.post_id=p.id AND l.company_id=$1) AS liked,
+  (SELECT count(*)::int FROM post_reactions l WHERE l.post_id=p.id AND l.emoji='🎉' AND ${unblocked("l", "$1")}) AS like_count,
+  (SELECT count(*)::int FROM post_comments cm WHERE cm.post_id=p.id AND cm.deleted_at IS NULL AND ${unblocked("cm", "$1")} AND (cm.parent_id IS NULL OR EXISTS(SELECT 1 FROM post_comments root WHERE root.id=cm.parent_id AND ${unblocked("root", "$1")}))) AS comment_count,
+  EXISTS(SELECT 1 FROM post_reactions l WHERE l.post_id=p.id AND l.company_id=$1 AND l.emoji='🎉') AS liked,
+  (SELECT count(*)::int FROM post_reactions r WHERE r.post_id=p.id AND ${unblocked("r", "$1")}) AS reaction_count,
+  COALESCE((SELECT json_agg(g ORDER BY g.count DESC,g.emoji) FROM (
+    SELECT r.emoji,count(*)::int AS count,bool_or(r.company_id=$1)::boolean IS TRUE AS reacted
+    FROM post_reactions r WHERE r.post_id=p.id AND ${unblocked("r", "$1")} GROUP BY r.emoji
+  ) g),'[]') AS reactions,
   (EXISTS(SELECT 1 FROM company_follows f WHERE f.follower_id=$1 AND f.followed_id=p.company_id) OR ($1::uuid IS NULL AND EXISTS(SELECT 1 FROM individual_follows f WHERE f.user_id=${user} AND f.company_id=p.company_id))) AS following,
   COALESCE((SELECT json_agg(json_build_object('id',m.id,'name',m.original_name,'mime',m.mime_type,'size',m.size,'alt',m.alt,'url','/api/post-media/'||m.id) ORDER BY m.position) FROM post_media m WHERE m.post_id=p.id),'[]') AS media
   FROM posts p JOIN companies c ON c.id=p.company_id JOIN users u ON u.id=p.author_id`;
@@ -324,67 +330,7 @@ export async function socialRoutes(uploadDir: string) {
     });
     res.json({ ok: true });
   });
-  router.post("/posts/:id/like", requireCompany, async (req, res) => {
-    const id = uuid.parse(req.params.id),
-      actor = req.auth!.companyId!;
-    const { liked } = z.object({ liked: z.boolean() }).parse(req.body);
-    await getPost(id, actor);
-    if (liked)
-      await pool.query(
-        "INSERT INTO post_likes(post_id,company_id) VALUES($1,$2) ON CONFLICT DO NOTHING",
-        [id, actor],
-      );
-    else
-      await pool.query(
-        "DELETE FROM post_likes WHERE post_id=$1 AND company_id=$2",
-        [id, actor],
-      );
-    res.json(await getPost(id, actor));
-  });
-  router.get("/posts/:id/comments", async (req, res) => {
-    const id = uuid.parse(req.params.id),
-      actor = req.auth?.companyId || null;
-    await getPost(id, actor);
-    const before = req.query.before ? cursor.parse(req.query.before) : null;
-    const { rows } = await pool.query(
-      `SELECT cm.id,cm.sequence,cm.body,cm.created_at,cm.author_id,u.name AS author_name,row_to_json(c) AS company FROM post_comments cm JOIN companies c ON c.id=cm.company_id JOIN users u ON u.id=cm.author_id
-     WHERE cm.post_id=$1 AND ($2::bigint IS NULL OR cm.sequence<$2) AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_id=$3 AND b.blocked_id=cm.company_id) OR (b.blocked_id=$3 AND b.blocker_id=cm.company_id)) ORDER BY cm.sequence DESC LIMIT 31`,
-      [id, before, actor],
-    );
-    res.json({
-      comments: rows.slice(0, 30).reverse(),
-      nextCursor: rows.length > 30 ? rows[29].sequence : null,
-    });
-  });
-  router.post("/posts/:id/comments", requireCompany, async (req, res) => {
-    const id = uuid.parse(req.params.id),
-      actor = req.auth!.companyId!;
-    const { body } = z
-      .object({ body: z.string().trim().min(1).max(1500) })
-      .parse(req.body);
-    await getPost(id, actor);
-    await pool.query(
-      "INSERT INTO post_comments(post_id,company_id,author_id,body) VALUES($1,$2,$3,$4)",
-      [id, actor, req.auth!.userId, body],
-    );
-    res.status(201).json(await getPost(id, actor));
-  });
-  router.delete(
-    "/posts/:postId/comments/:id",
-    requireCompany,
-    async (req, res) => {
-      const postId = uuid.parse(req.params.postId),
-        id = uuid.parse(req.params.id);
-      const isAdmin = ["owner", "admin"].includes(req.auth!.role || "");
-      const { rowCount } = await pool.query(
-        `DELETE FROM post_comments cm USING posts p WHERE cm.id=$1 AND cm.post_id=$2 AND p.id=cm.post_id AND
-     (cm.author_id=$3 AND cm.company_id=$4 OR $5 AND (cm.company_id=$4 OR p.company_id=$4))`,
-        [id, postId, req.auth!.userId, req.auth!.companyId, isAdmin],
-      );
-      if (!rowCount) throw new HttpError(404, "Comment not found.");
-      res.json(await getPost(postId, req.auth!.companyId));
-    },
-  );
+  installPostInteractions(router, getPost);
   router.get("/post-media/:id", async (req, res) => {
     const id = uuid.parse(req.params.id),
       actor = req.auth?.companyId || null;

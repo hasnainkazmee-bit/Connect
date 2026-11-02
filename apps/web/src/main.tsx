@@ -2155,7 +2155,11 @@ function MessagesPage() {
             </Link>
             <div className="details-connection-note">
               <Users size={15} />
-              <span>This conversation is shared with both company teams.</span>
+              <span>
+                {selectedCompany.listing_status === "unclaimed"
+                  ? "Public directory listing. This company has not joined Connect yet."
+                  : "Company conversations are shared with both teams."}
+              </span>
             </div>
           </>
         ) : (
@@ -2192,25 +2196,47 @@ function MessageRequestConversation({
   }, [draftKey, draft]);
   if (c.listing_status === "unclaimed")
     return (
-      <div className="first-message">
-        <Logo company={c} />
-        <h2>{c.name} hasn’t joined Connect yet.</h2>
-        <p>
-          Contact the company through its official website. Messaging opens when
-          its team claims this profile.
-        </p>
-        <a
-          className="button primary"
-          href={c.website}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Visit website <ExternalLink size={15} />
-        </a>
-        <Link className="text-button" to={"/" + (c.username || c.slug)}>
-          View company profile
-        </Link>
-      </div>
+      <>
+        <header className="conversation-header">
+          <Link
+            className="icon-button mobile-back"
+            to="/messages"
+            aria-label="Back to companies"
+          >
+            <ArrowLeft size={20} />
+          </Link>
+          <div>
+            <h2>{c.name}</h2>
+            <p>Directory listing</p>
+          </div>
+        </header>
+        <div className="unclaimed-conversation">
+          <div className="unclaimed-company-state">
+            <Logo company={c} size="large" />
+            <span className="directory-status">Not on Connect yet</span>
+            <h2>Reach {c.name} directly</h2>
+            <p>
+              You can contact this company through its website. Chat will be
+              available when its team joins Connect.
+            </p>
+            <div className="unclaimed-company-actions">
+              {c.website && (
+                <a
+                  className="button primary"
+                  href={c.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Visit website <ExternalLink size={16} />
+                </a>
+              )}
+              <Link className="button" to={"/" + (c.username || c.slug)}>
+                View company profile <ArrowRight size={16} />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </>
     );
   return (
     <>

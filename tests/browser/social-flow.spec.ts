@@ -119,11 +119,12 @@ test("company publishes photos and video, another follows and comments", async (
   await page.getByRole("link", { name: "Home", exact: true }).click();
   await page.getByRole("tab", { name: "Following", exact: true }).click();
   await expect(photoPost).toBeVisible();
-  await photoPost
-    .getByRole("button", { name: "Celebrate", exact: true })
-    .click();
+  await photoPost.getByRole("button", { name: "React", exact: true }).click();
+  const emojiPicker = page.getByRole("dialog", { name: "Choose a reaction" });
+  await emojiPicker.getByRole("searchbox").fill("party popper");
+  await emojiPicker.getByRole("button", { name: "🎉", exact: true }).click();
   await expect(
-    photoPost.getByRole("button", { name: "Celebrated", exact: true }),
+    photoPost.getByRole("button", { name: /Remove 🎉 reaction/ }),
   ).toHaveAttribute("aria-pressed", "true");
   await photoPost.getByRole("button", { name: "Comment", exact: true }).click();
   await photoPost

@@ -43,6 +43,12 @@ for (const width of [1440, 390]) {
       .getByLabel("Story title")
       .fill("Solar storage arrives at the community centre");
     await dialog
+      .getByRole("button", { name: "More formatting", exact: true })
+      .click();
+    await dialog
+      .getByRole("button", { name: "Add summary", exact: true })
+      .click();
+    await dialog
       .getByLabel("Story subtitle")
       .fill("A new installation built for reliable local energy.");
     await dialog
@@ -58,6 +64,7 @@ for (const width of [1440, 390]) {
     ).setFiles(path.resolve("apps/web/public/assets/solar.jpg"));
     await expect(dialog.locator(".publisher-cover-slot img")).toBeVisible();
     await expect(dialog.getByRole("progressbar")).toHaveCount(0);
+    await dialog.getByRole("button", { name: /Photos & files/ }).click();
     await dialog
       .getByLabel("Image description")
       .first()

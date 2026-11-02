@@ -54,6 +54,26 @@ Feed cards share the same company identity row, content measure, media geometry,
 
 Responsive image derivatives are a separate storage/API concern. CSS sizing and `loading="lazy"` do not reduce the bytes of an oversized original. Until derivatives exist, do not advertise `srcset` savings or fabricate resized URLs. Keep initial work bounded, lazy-load off-screen media, and use asynchronous decoding where appropriate.
 
+## Writing without a form
+
+Creation starts with a blank writing page. A post needs only text or media; a press release adds a title and a continuous rich-text body. Enter creates the next paragraph. Heading and subheading controls change the current paragraph, and links apply to a selection or insert the address when no text is selected. Do not ask writers to add a new text box for each paragraph or heading.
+
+Keep Publish and Close visible at the top. The small lower toolbar exposes photo, link, heading, and subheading tools. Additional formatting, an optional summary, attachment details, and preview should be discoverable without occupying the empty canvas. Photo descriptions remain available for accessibility. Revealing a tool must never steal focus after the writer has moved elsewhere.
+
+Android uses a native continuous text editor with standard selection and keyboard behavior. Its document spans must preserve headings, links, legacy formatting, and inline photo positions through editing, saving, and reopening. Keyboard insets keep the writing tools reachable. Main navigation is a floating capsule with a central create action; dismissing creation returns to the existing destination and scroll position. Company publishing permissions still apply.
+
+## Company presence
+
+Profiles introduce a business through its identity, purpose, location, and real work. Use a split masthead on wide screens, with an intact wordmark and actions beside an inset project or company photo. Stack identity first on phones. Avoid a full-width banner with an overlapping avatar. When no photo exists, show factual expertise and service areas instead of manufactured content. Keep company management, contact, review, and section controls easy to find.
+
+## Reactions and conversations
+
+React opens the searchable Unicode emoji catalog only when needed. Existing emoji chips are direct toggles, with an explicit selected state and count. The separate reaction total opens Who reacted with All and per-emoji filters; company identity comes first, with the team member attribution beneath it. Multiple different emoji from one company are supported. Existing Celebrates remain as 🎉 reactions.
+
+Comments use one visual depth for reply threads. Reply focuses the composer and identifies the recipient; Cancel reply returns to a new comment without losing the draft. Keep drafts on failed sends and hide/reopen, show only confirmed sends/counts, and keep a deleted-parent placeholder while replies remain. Additional comments and replies load through cursors. A company member can comment/react; existing individual permissions remain follow, review and direct company messaging.
+
+The inbox uses a bounded three-pane workspace on wide screens, hides company details on tablets, and shows one pane at a time on phones. Directory listings that have not joined Connect show two separate contact/profile actions and a reachable Back to companies control; they never imply a chat is already shared.
+
 ## Verification matrix
 
 Review directory, signed-in feed, company profile, publishing, and account dialogs at 320, 390, 768, 1024, 1440, and 1920px widths, plus a short landscape window. Also verify browser zoom at 200%; a 1440px browser at 200% presents roughly a 720 CSS-pixel layout viewport, but viewport resizing alone is not a full browser zoom accessibility test.
@@ -62,6 +82,7 @@ Check that page content has no horizontal overflow, controls remain reachable, v
 
 ## Source notes
 
+- [Medium editor guidance](https://help.medium.com/hc/en-us/articles/215194537-Using-the-story-editor) and [writing flow](https://help.medium.com/hc/en-us/articles/225168768-Writing-and-publishing-your-first-story) support the pattern of writing first, selection-based formatting, and compact media tools. Connect uses its own brand, permissions, and publication formats.
 - [Android responsive/adaptive guidance](https://developer.android.com/develop/ui/views/layout/responsive-adaptive-design-with-views) bases layout decisions on available window space and supports alternate arrangements as that space changes. Connect applies that principle to its web layout; CSS pixels and Android dp are not interchangeable measurements.
 - [Android touch target guidance](https://support.google.com/accessibility/android/answer/7101858?hl=en) recommends at least 48×48dp for native touch targets.
 - [W3C reflow guidance](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html) explains preserving content and functionality at a 320 CSS-pixel width without requiring two-dimensional page scrolling.

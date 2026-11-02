@@ -4,11 +4,9 @@ import {
   Image as ImageIcon,
   FileText,
   Globe,
-  PartyPopper,
   ChevronLeft,
   ChevronRight,
   MessageCircle,
-  Share2,
   Plus,
   Check,
   MoreHorizontal,
@@ -17,7 +15,6 @@ import {
   ArrowLeft,
   ArrowRight,
   LoaderCircle,
-  Send,
   RefreshCw,
   Building2,
 } from "lucide-react";
@@ -25,6 +22,7 @@ import { useApp } from "./context";
 import { Logo } from "./identity";
 import { api, post } from "./api";
 import type { Company } from "./types";
+import { PostEngagement, type Reaction } from "./post-engagement";
 import {
   Publisher,
   DraftsDialog,
@@ -42,7 +40,7 @@ type Media = {
   url: string;
   alt: string;
 };
-type Post = {
+export type Post = {
   id: string;
   sequence: string;
   body: string;
@@ -59,17 +57,12 @@ type Post = {
   like_count: number;
   comment_count: number;
   liked: boolean;
+  reactions: Reaction[];
+  reaction_count: number;
   following: boolean;
   media: Media[];
 };
-type Comment = {
-  id: string;
-  body: string;
-  company: Company;
-  author_name: string;
-  author_id: string;
-  created_at: string;
-};
+export type UpdatePost = (id: string, update: (current: Post) => Post) => void;
 type Stats = {
   followers: number;
   following_count: number;
@@ -276,7 +269,7 @@ function DeletePost({
     <>
       <h2>Delete this post?</h2>
       <p className="modal-description">
-        The post, its attachments, celebrations, and comments will be removed.
+        The post, its attachments, reactions, and comments will be removed.
       </p>
       <ErrorNote error={error} />
       <div className="row">
@@ -472,51 +465,11 @@ function PostCard({
   showFollow?: boolean;
   reading?: boolean;
   item: Post;
-  onUpdated: (p: Post) => void;
+  onUpdated: UpdatePost;
   onDeleted: () => void;
 }) {
-  const { company, session, admin, signIn, createCompany, open, toast } =
-    useApp();
-  const [expanded, setExpanded] = useState(false),
-    [commentsOpen, setCommentsOpen] = useState(false),
-    [comments, setComments] = useState<Comment[]>([]),
-    [cursor, setCursor] = useState<string | null>(null),
-    [comment, setComment] = useState(""),
-    [busy, setBusy] = useState(false),
-    [liking, setLiking] = useState(false),
-    [error, setError] = useState("");
-  const field = useRef<HTMLInputElement>(null);
-  const ready = () => {
-    if (!session.user) {
-      signIn();
-      return false;
-    }
-    if (!company) {
-      if (session.user.account_type === "individual") {
-        setError(
-          "Company accounts publish and comment. You can follow this company or message them from their profile.",
-        );
-        return false;
-      }
-      createCompany();
-      return false;
-    }
-    return true;
-  };
-  const loadComments = async (before?: string) => {
-    try {
-      const r = await api<{ comments: Comment[]; nextCursor: string | null }>(
-        "/posts/" + item.id + "/comments" + (before ? "?before=" + before : ""),
-      );
-      setComments((old) => (before ? [...r.comments, ...old] : r.comments));
-      setCursor(r.nextCursor);
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  };
-  useEffect(() => {
-    if (commentsOpen) void loadComments();
-  }, [commentsOpen, item.comment_count]);
+  const { company, session, admin, open } = useApp();
+  const [expanded, setExpanded] = useState(false);
   return (
     <article className="feed-post" id={"post-" + item.id}>
       <header className="post-header">
@@ -654,186 +607,11 @@ function PostCard({
           )}
         />
       )}
-      {(item.like_count > 0 || item.comment_count > 0) && (
-        <div className="post-engagement">
-          <span>
-            {item.like_count > 0 && (
-              <>
-                <PartyPopper size={15} />
-                {item.like_count}{" "}
-                {item.like_count === 1 ? "celebration" : "celebrations"}
-              </>
-            )}
-          </span>
-          {item.comment_count > 0 && (
-            <button onClick={() => setCommentsOpen(!commentsOpen)}>
-              {item.comment_count}{" "}
-              {item.comment_count === 1 ? "comment" : "comments"}
-            </button>
-          )}
-        </div>
-      )}
-      <div className="post-actions">
-        <button
-          className={item.liked ? "is-liked" : ""}
-          aria-pressed={item.liked}
-          disabled={liking || session.user?.account_type === "individual"}
-          onClick={async () => {
-            if (!ready()) return;
-            setLiking(true);
-            setError("");
-            try {
-              onUpdated(
-                await post("/posts/" + item.id + "/like", {
-                  liked: !item.liked,
-                }),
-              );
-            } catch (e) {
-              setError((e as Error).message);
-            } finally {
-              setLiking(false);
-            }
-          }}
-        >
-          <PartyPopper size={18} />
-          <span>{item.liked ? "Celebrated" : "Celebrate"}</span>
-        </button>
-        <button
-          onClick={() => {
-            setCommentsOpen(true);
-            setTimeout(() => field.current?.focus(), 0);
-          }}
-        >
-          <MessageCircle size={18} />
-          <span>Comment</span>
-        </button>
-        <button
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(
-                location.origin + "/posts/" + item.id,
-              );
-              toast("Post link copied.");
-            } catch {
-              open(
-                <>
-                  <h2>Share this post</h2>
-                  <p className="modal-description">Copy the link below.</p>
-                  <input
-                    className="share-link-input"
-                    readOnly
-                    value={location.origin + "/posts/" + item.id}
-                    onFocus={(e) => e.target.select()}
-                  />
-                </>,
-              );
-            }
-          }}
-        >
-          <Share2 size={17} />
-          <span>Share</span>
-        </button>
-      </div>
-      <ErrorNote error={error} />
-      {commentsOpen && (
-        <section className="post-comments" aria-label="Comments">
-          {session.user && company ? (
-            <form
-              className="comment-composer"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                if (!comment.trim() || busy) return;
-                setBusy(true);
-                setError("");
-                try {
-                  onUpdated(
-                    await post("/posts/" + item.id + "/comments", {
-                      body: comment,
-                    }),
-                  );
-                  setComment("");
-                  await loadComments();
-                } catch (e) {
-                  setError((e as Error).message);
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              <Logo company={company} size="tiny" />
-              <input
-                ref={field}
-                aria-label="Write a comment"
-                placeholder={"Comment as " + company.name + "…"}
-                maxLength={1500}
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-              />
-              <button
-                className="icon-button"
-                aria-label="Send comment"
-                disabled={busy || !comment.trim()}
-              >
-                <Send size={17} />
-              </button>
-            </form>
-          ) : (
-            <button className="comment-sign-in" onClick={() => ready()}>
-              Sign in with your company to join the conversation
-            </button>
-          )}
-          {cursor && (
-            <button
-              className="text-button earlier-comments"
-              onClick={() => void loadComments(cursor)}
-            >
-              View earlier comments
-            </button>
-          )}
-          {comments.map((c) => (
-            <div className="post-comment" key={c.id}>
-              <Link to={"/company/" + c.company.slug}>
-                <Logo company={c.company} size="tiny" />
-              </Link>
-              <div>
-                <div className="comment-byline">
-                  <Link to={"/company/" + c.company.slug}>
-                    {c.company.name}
-                  </Link>
-                  <time>{relative(c.created_at)}</time>
-                </div>
-                <small>{c.author_name}</small>
-                <p>{c.body}</p>
-              </div>
-              {company &&
-                ((c.author_id === session.user?.id &&
-                  c.company.id === company.id) ||
-                  (admin &&
-                    (c.company.id === company.id ||
-                      item.company_id === company.id))) && (
-                  <button
-                    className="icon-button delete-comment"
-                    aria-label="Delete comment"
-                    onClick={async () => {
-                      try {
-                        onUpdated(
-                          await api("/posts/" + item.id + "/comments/" + c.id, {
-                            method: "DELETE",
-                          }),
-                        );
-                        await loadComments();
-                      } catch (e) {
-                        setError((e as Error).message);
-                      }
-                    }}
-                  >
-                    <X size={13} />
-                  </button>
-                )}
-            </div>
-          ))}
-        </section>
-      )}
+      <PostEngagement
+        key={`${item.id}:${company?.id || session.user?.id || "guest"}`}
+        item={item}
+        onUpdated={onUpdated}
+      />
     </article>
   );
 }
@@ -885,8 +663,10 @@ function Feed({
       generation.current++;
     };
   }, [query, revision, company?.id]);
-  const update = (p: Post) =>
-    setPosts((items) => items.map((x) => (x.id === p.id ? p : x)));
+  const update: UpdatePost = (id, change) =>
+    setPosts((items) =>
+      items.map((item) => (item.id === id ? change(item) : item)),
+    );
   return (
     <>
       <ErrorNote error={error} />
@@ -1194,15 +974,22 @@ export function CompanyUpdates({
 }
 export function PostPage() {
   const { id } = useParams();
-  const { company } = useApp();
+  const { company, session } = useApp();
   const [data, setData] = useState<Post | null>(null),
     [error, setError] = useState("");
   useEffect(() => {
+    const controller = new AbortController();
+    setData(null);
     setError("");
-    api<Post>("/posts/" + id)
-      .then(setData)
-      .catch((e) => setError(e.message));
-  }, [id, company?.id]);
+    api<Post>("/posts/" + id, { signal: controller.signal })
+      .then((post) => {
+        if (!controller.signal.aborted) setData(post);
+      })
+      .catch((e) => {
+        if (!controller.signal.aborted) setError(e.message);
+      });
+    return () => controller.abort();
+  }, [id, company?.id, session.user?.id]);
   return (
     <div className="single-post">
       <Link className="back-link" to="/">
@@ -1212,9 +999,14 @@ export function PostPage() {
       <ErrorNote error={error} />
       {data ? (
         <PostCard
+          key={`${data.id}:${company?.id || session.user?.id || "guest"}`}
           item={data}
           reading
-          onUpdated={setData}
+          onUpdated={(postId, change) =>
+            setData((current) =>
+              current?.id === postId ? change(current) : current,
+            )
+          }
           onDeleted={() => {
             setData(null);
             setError("This post has been deleted.");

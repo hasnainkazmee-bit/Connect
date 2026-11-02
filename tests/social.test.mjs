@@ -285,6 +285,234 @@ test("company social feed, media, follows and permissions", async (t) => {
     },
   );
   await t.test(
+    "emoji reactions toggle, disclose actors and preserve legacy celebrates",
+    async () => {
+      const url = "/posts/" + P.id + "/reactions";
+      assert.equal(
+        (await anon(url, { emoji: "☀️", reacted: true })).status,
+        401,
+      );
+      for (const invalid of ["solar", "🎉🎉", "👍text", "", "1"]) {
+        assert.equal(
+          (await b(url, { emoji: invalid, reacted: true })).status,
+          400,
+        );
+      }
+      for (const symbol of ["☀️", "👩🏽‍🔧", "🇵🇰", "❤️", "🫠"]) {
+        for (let repeat = 0; repeat < 2; repeat++)
+          assert.equal(
+            (await b(url, { emoji: symbol, reacted: true })).status,
+            200,
+          );
+      }
+      let post = (await a("/posts/" + P.id)).data;
+      assert.equal(post.reaction_count, 5);
+      assert.equal(post.reactions.length, 5);
+      assert.ok(post.reactions.every((r) => r.count === 1 && !r.reacted));
+      assert.ok(
+        (await b("/posts/" + P.id)).data.reactions.every((r) => r.reacted),
+      );
+      await a(url, { emoji: "☀️", reacted: true });
+      const who = (await b(url + "?emoji=" + encodeURIComponent("☀️"))).data;
+      assert.equal(who.reactions.length, 2);
+      assert.deepEqual(
+        new Set(who.reactions.map((r) => r.company.id)),
+        new Set([A.activeCompanyId, B.activeCompanyId]),
+      );
+      assert.ok(who.reactions.every((r) => r.user.name && !r.user.email));
+      assert.equal(
+        (await b(url, { emoji: "☀️", reacted: false })).data.reaction_count,
+        5,
+      );
+      await b("/posts/" + P.id + "/like", { liked: true });
+      post = (await b("/posts/" + P.id)).data;
+      assert.equal(post.liked, true);
+      assert.equal(post.reactions.find((r) => r.emoji === "🎉").reacted, true);
+      assert.equal(
+        (await b(url, { emoji: "🎉", reacted: false })).data.liked,
+        false,
+      );
+      await b(url, { emoji: "🎉", reacted: true });
+      assert.equal(
+        (
+          await b("/posts/" + P.id + "/like", { liked: false })
+        ).data.reactions.some((r) => r.emoji === "🎉"),
+        false,
+      );
+    },
+  );
+  await t.test(
+    "who reacted pages are stable and company identities do not leak private account data",
+    async () => {
+      const db = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+      try {
+        const symbols = [
+          "😀",
+          "😃",
+          "😄",
+          "😁",
+          "😆",
+          "😅",
+          "😂",
+          "🤣",
+          "🥲",
+          "🥹",
+          "😊",
+          "😇",
+          "🙂",
+          "🙃",
+          "😉",
+          "😌",
+          "😍",
+          "🥰",
+          "😘",
+          "😗",
+          "😙",
+          "😚",
+          "😋",
+          "😛",
+          "😝",
+          "😜",
+          "🤪",
+          "🤨",
+          "🧐",
+          "🤓",
+          "😎",
+          "🥸",
+        ];
+        await db.query(
+          "INSERT INTO post_reactions(post_id,company_id,author_id,emoji) SELECT $1,$2,$3,unnest($4::text[])",
+          [V.id, A.activeCompanyId, A.user.id, symbols],
+        );
+      } finally {
+        await db.end();
+      }
+      const first = (await anon("/posts/" + V.id + "/reactions")).data;
+      const second = (
+        await anon("/posts/" + V.id + "/reactions?after=" + first.nextCursor)
+      ).data;
+      assert.equal(first.reactions.length, 30);
+      assert.equal(second.reactions.length, 2);
+      assert.equal(
+        new Set([...first.reactions, ...second.reactions].map((r) => r.id))
+          .size,
+        32,
+      );
+      assert.equal(second.nextCursor, null);
+      assert.deepEqual(Object.keys(first.reactions[0].user).sort(), [
+        "id",
+        "name",
+      ]);
+      assert.equal(
+        (await anon("/posts/" + V.id + "/reactions?after=oops")).status,
+        400,
+      );
+    },
+  );
+  await t.test(
+    "threaded replies preserve context, permissions, pagination and deleted parents",
+    async () => {
+      const url = "/posts/" + P.id + "/comments";
+      const root = (
+        await b(url, { body: "Can you share the project specifications?" })
+      ).data.created_comment;
+      assert.equal(root.parent_id, null);
+      assert.equal(root.can_delete, true);
+      const reply = (
+        await a(url, {
+          body: "The site uses rooftop modules.",
+          parentId: root.id,
+        })
+      ).data.created_comment;
+      assert.equal(reply.parent_id, root.id);
+      assert.equal(reply.reply_to_id, root.id);
+      const reply2 = (await b(url, { body: "Thank you!", parentId: reply.id }))
+        .data.created_comment;
+      assert.equal(reply2.parent_id, root.id);
+      assert.equal(reply2.reply_to_id, reply.id);
+      assert.equal(reply2.reply_to_name, "Social Alice");
+      assert.equal(
+        (
+          await a("/posts/" + V.id + "/comments", {
+            body: "Wrong post",
+            parentId: root.id,
+          })
+        ).status,
+        404,
+      );
+      assert.equal(
+        (await a("/posts/" + V.id + "/comments/" + root.id + "/replies"))
+          .status,
+        404,
+      );
+      assert.equal((await a(url + "/" + reply.id + "/replies")).status, 404);
+      assert.equal(
+        (await member(url + "/" + root.id, undefined, { method: "DELETE" }))
+          .status,
+        404,
+      );
+      let roots = (await anon(url)).data.comments;
+      assert.equal(roots.find((c) => c.id === root.id).reply_count, 2);
+      assert.ok(roots.every((c) => !c.parent_id && !c.can_delete));
+      const db = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+      try {
+        await db.query(
+          "INSERT INTO post_comments(post_id,company_id,author_id,body,parent_id,reply_to_id) SELECT $1,$2,$3,'Reply fixture '||n,$4,$4 FROM generate_series(1,23) n",
+          [P.id, A.activeCompanyId, A.user.id, root.id],
+        );
+      } finally {
+        await db.end();
+      }
+      const first = (await a(url + "/" + root.id + "/replies")).data;
+      const second = (
+        await a(url + "/" + root.id + "/replies?after=" + first.nextCursor)
+      ).data;
+      assert.equal(first.comments.length, 20);
+      assert.equal(second.comments.length, 5);
+      assert.equal(second.nextCursor, null);
+      assert.equal(
+        new Set([...first.comments, ...second.comments].map((c) => c.id)).size,
+        25,
+      );
+      assert.equal(first.comments[0].id, reply.id);
+      const before = (await a("/posts/" + P.id)).data.comment_count;
+      assert.equal(
+        (await a(url + "/" + root.id, undefined, { method: "DELETE" })).status,
+        200,
+      );
+      roots = (await a(url)).data.comments;
+      const tombstone = roots.find((c) => c.id === root.id);
+      assert.ok(tombstone.deleted_at);
+      assert.equal(tombstone.body, "");
+      assert.equal(tombstone.can_delete, false);
+      assert.equal(tombstone.reply_count, 25);
+      assert.equal((await a("/posts/" + P.id)).data.comment_count, before - 1);
+      assert.equal(
+        (await b(url, { body: "Too late", parentId: root.id })).status,
+        404,
+      );
+      assert.equal(
+        (await a(url + "/" + root.id + "/replies")).data.comments[0]
+          .reply_to_name,
+        null,
+      );
+      // Replies remain useful even after their original parent was removed.
+      assert.equal(
+        (await b(url, { body: "Following up", parentId: reply.id })).status,
+        201,
+      );
+      assert.equal(
+        (await a(url + "/" + reply.id, undefined, { method: "DELETE" })).status,
+        200,
+      );
+      assert.ok(
+        !(await a(url + "/" + root.id + "/replies")).data.comments.some(
+          (c) => c.id === reply.id,
+        ),
+      );
+    },
+  );
+  await t.test(
     "blocking removes follows and hides posts for the signed-in company",
     async () => {
       assert.equal(
@@ -297,6 +525,15 @@ test("company social feed, media, follows and permissions", async (t) => {
         false,
       );
       assert.equal((await b("/posts/" + P.id)).status, 404);
+      const visibleReactions = (await a("/posts/" + P.id + "/reactions")).data
+        .reactions;
+      assert.ok(
+        visibleReactions.every((r) => r.company.id !== B.activeCompanyId),
+      );
+      assert.equal(
+        (await a("/posts/" + P.id)).data.reaction_count,
+        visibleReactions.length,
+      );
       assert.equal((await b("/post-media/" + P.media[0].id)).status, 404);
       assert.equal(
         (

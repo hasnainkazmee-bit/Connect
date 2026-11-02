@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import org.json.JSONObject
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun CompanyProfileScreen(
     model: CommunityModel,
@@ -67,145 +68,89 @@ internal fun CompanyProfileScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Box(Modifier.fillMaxWidth().height(155.dp).background(Pale)) {
-                if (c.text("cover_url").isNotBlank())
-                    AsyncImage(
-                        mediaUrl(model, c.text("cover_url")),
-                        "Company cover",
-                        Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                    )
-                if (edit)
-                    FilledTonalIconButton(
-                        onClick = { sheet = "cover" },
-                        modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
-                    ) {
-                        Icon(Icons.Outlined.CameraAlt, "Edit cover photo")
-                    }
-            }
-        }
-        item {
-            Column(
-                Modifier.padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(11.dp),
+            CompanyShowcaseHeader(
+                model = model,
+                company = c,
+                project = data.optJSONArray("projects").objects().firstOrNull { it.text("image_url").isNotBlank() },
+                canEdit = edit,
+                onEditCover = { sheet = "cover" },
+                onWork = { tab = "Portfolio" },
             ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Box {
-                        CompanyAvatar(c, 64)
-                        if (edit)
-                            IconButton(
-                                onClick = { sheet = "logo" },
-                                modifier =
-                                    Modifier.align(Alignment.BottomEnd)
-                                        .size(24.dp)
-                                        .background(Color.White, RoundedCornerShape(8.dp)),
-                            ) {
-                                Icon(Icons.Outlined.Edit, "Edit company logo", Modifier.size(15.dp))
-                            }
+                    CompanyAvatar(c, 64)
+                    Column(Modifier.weight(1f).padding(start = 14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (c.text("type").isNotBlank())
+                            Text(c.text("type").uppercase(), style = MaterialTheme.typography.labelMedium, color = Muted)
+                        if (c.text("username").isNotBlank())
+                            Text("@${c.text("username")}", style = MaterialTheme.typography.bodySmall, color = Muted)
                     }
-                    Spacer(Modifier.weight(1f))
-                    IconButton(
-                        onClick = {
-                            val link =
-                                model.baseUrl +
-                                    "/" +
-                                    c.text("username").ifBlank { "company/" + c.text("slug") }
-                            context.startActivity(
-                                Intent.createChooser(
-                                    Intent(Intent.ACTION_SEND)
-                                        .setType("text/plain")
-                                        .putExtra(Intent.EXTRA_TEXT, link),
-                                    "Share company profile",
-                                )
-                            )
+                    if (edit)
+                        IconButton(onClick = { sheet = "logo" }) {
+                            Icon(Icons.Outlined.Edit, "Edit company logo", Modifier.size(19.dp))
                         }
-                    ) {
-                        Icon(Icons.Outlined.Share, "Share profile")
+                    IconButton(onClick = {
+                        val link = model.baseUrl + "/" + c.text("username").ifBlank { "company/" + c.text("slug") }
+                        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, link), "Share company profile"))
+                    }) {
+                        Icon(Icons.Outlined.Share, "Share profile", Modifier.size(20.dp))
                     }
                 }
-                Text(c.text("name"), style = MaterialTheme.typography.headlineSmall)
-                if (c.text("username").isNotBlank())
-                    Text(
-                        "@${c.text("username")}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Muted,
-                    )
-                if (c.text("tagline").isNotBlank()) Text(c.text("tagline"), color = Muted)
-                Text(
-                    listOf(c.text("type"), c.text("location"))
-                        .filter { it.isNotBlank() }
-                        .joinToString(" · "),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Muted,
-                )
+                Text(c.text("name"), style = MaterialTheme.typography.headlineMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                if (c.text("tagline").isNotBlank())
+                    Text(c.text("tagline"), style = MaterialTheme.typography.bodyLarge, color = Muted)
+                if (c.text("location").isNotBlank())
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.LocationOn, null, Modifier.size(17.dp), tint = Muted)
+                        Text(c.text("location"), style = MaterialTheme.typography.bodyMedium, color = Muted)
+                    }
                 val rating = data.optJSONObject("rating")
                 if ((rating?.optInt("count") ?: 0) > 0)
-                    Text(
-                        "★ ${rating?.optDouble("average")} · ${rating?.optInt("count")} customer reviews",
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                if (edit)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ConnectButton(onClick = { sheet = "profile" }) { Text("Edit profile") }
-                        ConnectOutlinedButton(onClick = { sheet = "employees" }) {
-                            Text("Invite employees")
-                        }
+                    TextButton(onClick = { tab = "Reviews" }, contentPadding = PaddingValues(0.dp)) {
+                        Icon(Icons.Outlined.Star, null, Modifier.size(18.dp), tint = Orange)
+                        Spacer(Modifier.width(6.dp))
+                        Text("${rating?.optDouble("average")} · ${rating?.optInt("count")} customer reviews")
                     }
-                else if (!own)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ConnectButton(
-                            onClick = {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (edit) {
+                        ConnectButton(onClick = { sheet = "profile" }) { Text("Edit profile") }
+                        ConnectOutlinedButton(onClick = { sheet = "employees" }) { Text("Invite employees") }
+                    } else if (!own) {
+                        if (!unclaimed || c.text("website").startsWith("https://") || c.text("website").startsWith("http://"))
+                            ConnectButton(onClick = {
                                 if (unclaimed) uri.openUri(c.text("website"))
                                 else if (model.signedIn) model.chat(c) else onMessageSignIn(c)
-                            }
-                        ) {
-                            Text(if (unclaimed) "Visit website" else "Message")
-                        }
+                            }) { Text(if (unclaimed) "Visit website" else "Message") }
                         ConnectOutlinedButton(
-                            enabled =
-                                !model.busy && (!model.signedIn || model.admin || model.individual),
+                            enabled = !model.busy && (!model.signedIn || model.admin || model.individual),
                             onClick = {
                                 if (!model.signedIn) onSignIn()
-                                else
-                                    model.mutate(
-                                        "/social/companies/${c.text("id")}/follow",
-                                        JSONObject()
-                                            .put(
-                                                "following",
-                                                !(stats?.optBoolean("following") ?: false),
-                                            ),
-                                    ) {
-                                        model.load("/social/companies/$id", true)
-                                    }
+                                else model.mutate("/social/companies/${c.text("id")}/follow", JSONObject().put("following", !(stats?.optBoolean("following") ?: false))) {
+                                    model.load("/social/companies/$id", true)
+                                }
                             },
-                        ) {
-                            Text(
-                                if (stats?.optBoolean("following") == true) "Following"
-                                else "Follow"
-                            )
-                        }
+                        ) { Text(if (stats?.optBoolean("following") == true) "Following" else "Follow") }
                     }
-                if (unclaimed)
-                    OutlinedCard(
-                        onClick = { uri.openUri(model.baseUrl + "/claim/" + c.text("username")) }
-                    ) {
-                        Column(
-                            Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Text(
-                                "Is this your company?",
-                                style = MaterialTheme.typography.titleSmall,
-                            )
-                            Text(
-                                "Claim this profile to publish updates and talk on Connect.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Muted,
-                            )
-                        }
-                    }
+                }
             }
         }
+        if (unclaimed)
+            item {
+                OutlinedCard(
+                    onClick = { uri.openUri(model.baseUrl + "/claim/" + c.text("username")) },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    shape = ConnectCardShape,
+                    colors = CardDefaults.outlinedCardColors(containerColor = Pale),
+                ) {
+                    Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Icon(Icons.Outlined.Business, null, tint = Ink)
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Is this your company?", style = MaterialTheme.typography.titleSmall)
+                            Text("Claim this profile to share your work and talk on Connect.", style = MaterialTheme.typography.bodyMedium, color = Muted)
+                        }
+                        Icon(Icons.Outlined.ArrowOutward, null, Modifier.size(19.dp))
+                    }
+                }
+            }
         item {
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
@@ -246,7 +191,7 @@ internal fun CompanyProfileScreen(
                 if (posts.isEmpty())
                     item {
                         Text(
-                            "This company’s stories will appear here.",
+                            "Project progress and company news will appear here.",
                             Modifier.padding(20.dp),
                             color = Muted,
                         )
@@ -293,7 +238,7 @@ internal fun CompanyProfileScreen(
                             }
                     }
                 }
-                item {
+                if (edit || data.optJSONArray("achievements").objects().isNotEmpty()) item {
                     ProfileSection("Achievements", if (edit) ({ add("achievement") }) else null) {
                         data.optJSONArray("achievements").objects().forEach { a ->
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {

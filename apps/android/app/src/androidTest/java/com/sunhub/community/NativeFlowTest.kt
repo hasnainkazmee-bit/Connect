@@ -186,12 +186,15 @@ class NativeFlowTest {
         ui.onNodeWithText("What’s happening at your company?")
             .performTextInput("Native Android project update $suffix")
         click("Post")
-        gone("Save & close")
+        ui.waitUntil(20_000) {
+            ui.onAllNodesWithTag("publication-composer").fetchSemanticsNodes().isEmpty()
+        }
         visible("Native Android project update $suffix")
         // The profile workspace and editor use the same API as the web app.
         ui.onNodeWithContentDescription("Account and company").performClick()
         click("Company profile")
         visible("Edit profile")
+        capture("native-company-showcase")
         click("Edit profile")
         visible("Company username")
         ui.onNodeWithText("Company username").performTextClearance()
@@ -213,30 +216,102 @@ class NativeFlowTest {
         ui.onNodeWithContentDescription("Back").performClick()
         click("Home")
         click("Share an update")
+        ui.onAllNodes(hasText("Post") and hasClickAction()).onFirst().performClick()
         click("Press release")
         visible("Tell your story…")
         ui.onNodeWithText("Headline").performTextInput("Android field notes $suffix")
         ui.onNodeWithText("Tell your story…")
             .performScrollTo()
-            .performTextInput("A thoughtful solar project starts with listening to the community. $suffix")
-        ui.onNodeWithText("Save & close").assertIsDisplayed()
+            .performClick()
+            .performTextInput(
+                "A thoughtful solar project starts with listening to the community. $suffix"
+            )
         capture("native-publication-editor")
+        // Format switching preserves the headline and continuous document.
+        click("Press release")
+        ui.onAllNodes(hasText("Post") and hasClickAction()).onLast().performClick()
+        ui.onAllNodes(hasText("Post") and hasClickAction()).onFirst().performClick()
+        click("Press release")
+        ui.onNodeWithText("Android field notes $suffix").assertExists()
+        ui.onNodeWithContentDescription("Writing options").performClick()
         click("Save & close")
-        gone("Save & close")
+        ui.waitUntil(20_000) {
+            ui.onAllNodesWithTag("publication-composer").fetchSemanticsNodes().isEmpty()
+        }
+        // Reopen a rich draft containing a real uploaded image, then edit around it.
+        val draft =
+            org.json.JSONArray(a.get("/publications")).objects().first {
+                it.text("title") == "Android field notes $suffix"
+            }
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val photo = java.io.File(context.cacheDir, "native-editor-photo.png")
+        context.resources.openRawResource(R.drawable.connect_icon).use { source ->
+            photo.outputStream().use { source.copyTo(it) }
+        }
+        val uploaded =
+            JSONObject(
+                a.uploadFile(
+                    "/publications/${draft.text("id")}/media",
+                    com.sunhub.core.UploadFile(photo.absolutePath, photo.name, "image/png"),
+                )
+            )
+        photo.delete()
+        val richDocument = draft.getJSONObject("document")
+        richDocument
+            .getJSONArray("content")
+            .put(
+                JSONObject()
+                    .put("type", "image")
+                    .put(
+                        "attrs",
+                        JSONObject()
+                            .put("src", uploaded.text("url"))
+                            .put("alt", "Connect company mark"),
+                    )
+            )
+        richDocument
+            .getJSONArray("content")
+            .put(JSONObject().put("type", "paragraph").put("content", org.json.JSONArray()))
+        a.requestJson(
+            "PATCH",
+            "/publications/${draft.text("id")}",
+            JSONObject()
+                .put("kind", "press_release")
+                .put("title", draft.text("title"))
+                .put("subtitle", draft.text("subtitle"))
+                .put("document", richDocument)
+                .put("status", "draft")
+                .put("version", draft.getInt("version"))
+                .toString(),
+        )
         visible("Drafts")
         click("Drafts")
         visible("Android field notes $suffix")
         click("Android field notes $suffix")
         visible("Continue your draft")
-        ui.onNodeWithText("Save & close").assertIsDisplayed()
+        ui.onNodeWithTag("publication-body").performScrollTo().performClick()
+        val bodyLength =
+            ui.onNodeWithTag("publication-body")
+                .fetchSemanticsNode()
+                .config[androidx.compose.ui.semantics.SemanticsProperties.EditableText]
+                .length
+        ui.onNodeWithTag("publication-body")
+            .performTextInputSelection(androidx.compose.ui.text.TextRange(bodyLength))
+        ui.onNodeWithTag("publication-body").performTextInput("Project progress shared.")
+        capture("native-inline-photo-editor")
+        ui.onNodeWithContentDescription("Writing options").performClick()
         click("Preview")
-        ui.onNode(hasText("Preview") and hasClickAction()).assertIsSelected()
-        ui.onNodeWithText("A thoughtful solar project starts with listening to the community. $suffix")
+        ui.onNodeWithText("Preview").assertIsDisplayed()
+        ui.onNodeWithText(
+                "A thoughtful solar project starts with listening to the community. $suffix"
+            )
             .assertIsDisplayed()
         visible("Android field notes $suffix")
         capture("native-publication-preview")
         click("Publish")
-        gone("Save & close")
+        ui.waitUntil(20_000) {
+            ui.onAllNodesWithTag("publication-composer").fetchSemanticsNodes().isEmpty()
+        }
         visible("Android field notes $suffix")
         capture("native-bottom-navigation")
         val feed =

@@ -129,3 +129,69 @@ test("message requests connect companies and carry the first message into chat",
   await contextA.close();
   await contextB.close();
 });
+
+test("unclaimed company contact state stays navigable across inbox sizes", async ({
+  browser,
+}) => {
+  const { default: pg } = await import("pg");
+  const db = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  const suffix = Date.now();
+  const context = await browser.newContext({
+    baseURL: process.env.API_TEST_URL || "http://localhost:4101",
+  });
+  let id: string | undefined;
+  try {
+    const registered = await context.request.post("/api/auth/register", {
+      data: {
+        name: "Inbox Reviewer",
+        companyName: `Solar Studio ${suffix}`,
+        email: `inbox-${suffix}@example.test`,
+        password: "InboxReview123!",
+      },
+    });
+    expect(registered.status()).toBe(201);
+    id = (
+      await db.query(
+        "INSERT INTO companies(name,slug,username,type,location,service_areas,services,listing_status,website,tagline,logo_url) VALUES($1,$2,$2,'Installer','Saint Paul, MN',ARRAY['Minnesota','Wisconsin','Iowa'],ARRAY['Installation','Design','Energy storage'],'unclaimed','https://official.example.test','Solar installation and storage for homes and businesses.','/assets/companies/all-energy-solar.png') RETURNING id",
+        [`Solar Partner ${suffix}`, `inbox-listing-${suffix}`],
+      )
+    ).rows[0].id;
+    const page = await context.newPage();
+    for (const width of [1912, 1024, 390]) {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 917 });
+      await page.goto(`/messages/company/${id}`);
+      const state = page.locator(".unclaimed-company-state");
+      await expect(
+        state.getByRole("heading", {
+          name: `Reach Solar Partner ${suffix} directly`,
+        }),
+      ).toBeVisible();
+      await expect(
+        state.getByRole("link", { name: "Visit website" }),
+      ).toHaveAttribute("href", "https://official.example.test");
+      await expect(
+        state.getByRole("link", { name: "View company profile" }),
+      ).toBeVisible();
+      await expect(
+        page.getByLabel("Message request", { exact: true }),
+      ).toHaveCount(0);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      await page.screenshot({
+        path: `test-results/inbox-unclaimed-${width}.png`,
+        fullPage: true,
+      });
+      if (width === 390) {
+        await page.getByRole("link", { name: "Back to companies" }).click();
+        await expect(page.getByLabel("Search companies")).toBeVisible();
+      }
+    }
+  } finally {
+    await context.close();
+    if (id) await db.query("DELETE FROM companies WHERE id=$1", [id]);
+    await db.end();
+  }
+});

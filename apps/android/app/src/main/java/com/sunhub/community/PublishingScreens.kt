@@ -1,12 +1,16 @@
 package com.sunhub.community
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -14,18 +18,20 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
@@ -56,29 +62,6 @@ private fun withoutImage(node: JSONObject, url: String): JSONObject {
             ),
         )
     }
-    return copy
-}
-
-private fun plain(node: JSONObject): String =
-    if (node.text("type") == "text") node.text("text")
-    else if (node.text("type") == "hardBreak") "\n"
-    else
-        node.optJSONArray("content").objects().joinToString(
-            if (
-                node.text("type") in
-                    listOf("doc", "blockquote", "bulletList", "orderedList", "listItem")
-            )
-                "\n"
-            else ""
-        ) {
-            plain(it)
-        }
-
-private fun replaceNode(root: JSONObject, path: List<Int>, value: JSONObject): JSONObject {
-    val copy = JSONObject(root.toString())
-    var parent = copy
-    path.dropLast(1).forEach { parent = parent.getJSONArray("content").getJSONObject(it) }
-    parent.getJSONArray("content").put(path.last(), value)
     return copy
 }
 
@@ -113,96 +96,7 @@ private fun styled(node: JSONObject): AnnotatedString = buildAnnotatedString {
     }
 }
 
-// Keep ranges around the actual edit, so changing one word retains all other formatting.
-private fun edited(old: AnnotatedString, text: String): AnnotatedString {
-    var left = 0
-    while (left < minOf(old.length, text.length) && old[left] == text[left]) left++
-    var right = 0
-    while (
-        right < minOf(old.length - left, text.length - left) &&
-            old[old.length - 1 - right] == text[text.length - 1 - right]
-    ) right++
-    val oldEnd = old.length - right
-    val newEnd = text.length - right
-    val delta = text.length - old.length
-    fun start(v: Int) =
-        when {
-            v <= left -> v
-            v >= oldEnd -> v + delta
-            else -> left
-        }
-    fun end(v: Int) =
-        when {
-            v < left -> v
-            v >= oldEnd -> v + delta
-            else -> newEnd
-        }
-    return buildAnnotatedString {
-        append(text)
-        old.spanStyles.forEach { r ->
-            val a = start(r.start).coerceIn(0, text.length)
-            val b = end(r.end).coerceIn(a, text.length)
-            if (a < b) addStyle(r.item, a, b)
-        }
-        old.getStringAnnotations(0, old.length).forEach { r ->
-            val a = start(r.start).coerceIn(0, text.length)
-            val b = end(r.end).coerceIn(a, text.length)
-            if (a < b) addStringAnnotation(r.tag, r.item, a, b)
-        }
-    }
-}
-
-private fun inlineNodes(text: AnnotatedString): JSONArray {
-    val result = JSONArray()
-    val links = text.getStringAnnotations("link", 0, text.length)
-    val bounds =
-        (listOf(0, text.length) +
-                text.spanStyles.flatMap { listOf(it.start, it.end) } +
-                links.flatMap { listOf(it.start, it.end) } +
-                text.text.indices.filter { text[it] == '\n' }.flatMap { listOf(it, it + 1) })
-            .distinct()
-            .sorted()
-    bounds.zipWithNext().forEach { (a, b) ->
-        if (a < b) {
-            val value = text.text.substring(a, b)
-            if (value == "\n") result.put(JSONObject().put("type", "hardBreak"))
-            else {
-                val marks = linkedMapOf<String, JSONObject>()
-                fun mark(kind: String) {
-                    marks[kind] = JSONObject().put("type", kind)
-                }
-                text.spanStyles
-                    .filter { it.start <= a && it.end >= b }
-                    .forEach {
-                        val style = it.item
-                        if ((style.fontWeight?.weight ?: 0) >= 600) mark("bold")
-                        if (style.fontStyle == FontStyle.Italic) mark("italic")
-                        if (style.textDecoration?.contains(TextDecoration.Underline) == true)
-                            mark("underline")
-                        if (style.textDecoration?.contains(TextDecoration.LineThrough) == true)
-                            mark("strike")
-                        if (style.fontFamily == FontFamily.Monospace) mark("code")
-                    }
-                links
-                    .lastOrNull { it.start <= a && it.end >= b }
-                    ?.let {
-                        marks["link"] =
-                            JSONObject()
-                                .put("type", "link")
-                                .put("attrs", JSONObject().put("href", it.item))
-                    }
-                result.put(
-                    JSONObject()
-                        .put("type", "text")
-                        .put("text", value)
-                        .put("marks", JSONArray(marks.values.toList()))
-                )
-            }
-        }
-    }
-    return result
-}
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PublicationComposer(
     model: CommunityModel,
@@ -213,23 +107,26 @@ internal fun PublicationComposer(
     var kind by rememberSaveable { mutableStateOf(initial?.text("kind") ?: "post") }
     var title by rememberSaveable { mutableStateOf(initial?.text("title").orEmpty()) }
     var subtitle by rememberSaveable { mutableStateOf(initial?.text("subtitle").orEmpty()) }
-    var body by rememberSaveable { mutableStateOf(initial?.text("body").orEmpty()) }
     var doc by rememberSaveable {
         mutableStateOf(
             (initial?.optJSONObject("document")
-                    ?: document().also {
-                        if (body.isNotBlank())
-                            it.getJSONArray("content")
+                    ?: document().also { d ->
+                        val text = initial?.text("body").orEmpty()
+                        if (text.isNotBlank())
+                            d.getJSONArray("content")
                                 .getJSONObject(0)
                                 .put(
                                     "content",
                                     JSONArray()
-                                        .put(JSONObject().put("type", "text").put("text", body)),
+                                        .put(JSONObject().put("type", "text").put("text", text)),
                                 )
                     })
                 .toString()
         )
     }
+    val editor = remember { ContinuousEditorState(doc) }
+    editor.synchronize(doc)
+    editor.onChange = { doc = it }
     var saved by rememberSaveable { mutableStateOf(initial?.toString()) }
     var mediaJson by rememberSaveable {
         mutableStateOf(initial?.optJSONArray("media")?.toString() ?: "[]")
@@ -237,36 +134,50 @@ internal fun PublicationComposer(
     var cover by rememberSaveable { mutableStateOf(initial?.text("cover_media_id").orEmpty()) }
     var preview by rememberSaveable { mutableStateOf(false) }
     var dirty by rememberSaveable { mutableStateOf(false) }
+    val writingScroll = rememberScrollState()
+    LaunchedEffect(preview) { if (preview) writingScroll.scrollTo(0) }
+    var showSubtitle by rememberSaveable { mutableStateOf(subtitle.isNotBlank()) }
     var leaving by remember { mutableStateOf(false) }
-    var formatSelection by remember { mutableStateOf<((String) -> Unit)?>(null) }
+    var formatsOpen by remember { mutableStateOf(false) }
+    var optionsOpen by remember { mutableStateOf(false) }
+    var moreFormatting by remember { mutableStateOf(false) }
+    var attachmentsOpen by remember { mutableStateOf(false) }
     var link by remember { mutableStateOf<String?>(null) }
     val media = JSONArray(mediaJson).objects()
+    val body = RichDocumentCodec.plain(JSONObject(doc))
+    val isPost = kind == "post"
     val story =
         JSONObject()
             .put("kind", kind)
             .put("title", title)
             .put("subtitle", subtitle)
             .put("body", body)
-            .put("document", if (kind == "post") JSONObject.NULL else JSONObject(doc))
+            .put("document", JSONObject(doc))
             .put("cover_media_id", cover)
             .put("media", JSONArray(mediaJson))
     suspend fun draft(): JSONObject {
         saved?.let {
             return JSONObject(it)
         }
-        val result = model.jsonRequest("POST", "/publications", JSONObject().put("kind", kind))
-        saved = result.toString()
-        return result
+        return model.jsonRequest("POST", "/publications", JSONObject().put("kind", kind)).also {
+            saved = it.toString()
+        }
     }
     fun save(publish: Boolean) {
         model.perform({
             val d = draft()
-            val request =
+            model.jsonRequest(
+                "PATCH",
+                "/publications/${d.text("id")}",
                 JSONObject(story.toString())
-                    .put("status", if (publish) "published" else "draft")
+                    .put(
+                        "status",
+                        if (publish || initial?.text("status") == "published") "published"
+                        else "draft",
+                    )
                     .put("version", d.getInt("version"))
-                    .put("coverMediaId", cover.ifBlank { null } ?: JSONObject.NULL)
-            model.jsonRequest("PATCH", "/publications/${d.text("id")}", request)
+                    .put("coverMediaId", cover.ifBlank { null } ?: JSONObject.NULL),
+            )
         }) {
             saved = it.toString()
             dirty = false
@@ -278,53 +189,83 @@ internal fun PublicationComposer(
     val picker =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
             if (uris.isNotEmpty())
-                model.pickMedia(uris, true, publication = kind != "post") { files ->
+                model.pickMedia(uris, true, publication = !isPost) { files ->
                     model.perform({
                         try {
                             val existing = JSONArray(mediaJson).objects()
-                            if (existing.size + files.size > if (kind == "post") 4 else 20)
+                            if (existing.size + files.size > if (isPost) 4 else 20)
                                 error(
-                                    if (kind == "post")
-                                        "Choose up to 4 photos, or one video or PDF."
+                                    if (isPost) "Choose up to 4 photos, or one video or PDF."
                                     else "A press release can include up to 20 attachments."
                                 )
-                            if (kind == "post") {
-                                val mimeTypes =
-                                    existing.map { it.text("mime") } + files.map { it.mime }
-                                if (
-                                    mimeTypes.any { !it.startsWith("image/") } && mimeTypes.size > 1
-                                )
+                            if (isPost) {
+                                val types = existing.map { it.text("mime") } + files.map { it.mime }
+                                if (types.any { !it.startsWith("image/") } && types.size > 1)
                                     error("Choose up to 4 photos, or one video or PDF.")
                             }
                             val d = draft()
-                            val added = JSONArray(mediaJson)
+                            // Format changes are saved before uploads so server-side media limits
+                            // match the editor.
+                            var current =
+                                if (d.text("kind") != kind)
+                                    model.jsonRequest(
+                                        "PATCH",
+                                        "/publications/${d.text("id")}",
+                                        JSONObject(story.toString())
+                                            .put(
+                                                "status",
+                                                if (initial?.text("status") == "published")
+                                                    "published"
+                                                else "draft",
+                                            )
+                                            .put("version", d.getInt("version"))
+                                            .put(
+                                                "coverMediaId",
+                                                cover.ifBlank { null } ?: JSONObject.NULL,
+                                            ),
+                                    )
+                                else d
+                            saved = current.toString()
                             for (file in files) {
                                 val uploaded =
                                     model.uploadOne("/publications/${d.text("id")}/media", file)
-                                added.put(uploaded)
-                                mediaJson = added.toString()
-                                if (uploaded.text("mime").startsWith("image/")) {
-                                    if (cover.isBlank()) cover = uploaded.text("id")
-                                    else if (kind != "post") {
-                                        val updated = JSONObject(doc)
-                                        updated
-                                            .getJSONArray("content")
+                                mediaJson = JSONArray(mediaJson).put(uploaded).toString()
+                                if (!isPost && uploaded.text("mime").startsWith("image/")) {
+                                    editor.insertImage(
+                                        JSONObject()
+                                            .put("type", "image")
                                             .put(
+                                                "attrs",
                                                 JSONObject()
-                                                    .put("type", "image")
-                                                    .put(
-                                                        "attrs",
-                                                        JSONObject()
-                                                            .put("src", uploaded.text("url"))
-                                                            .put("alt", uploaded.text("alt")),
-                                                    )
+                                                    .put("src", uploaded.text("url"))
+                                                    .put("alt", uploaded.text("alt")),
                                             )
-                                        updated.getJSONArray("content").put(paragraph())
-                                        doc = updated.toString()
-                                    }
+                                    )
+                                    doc = editor.document()
+                                }
+                                dirty = true
+                                // Persist each successful placement, so a later failed upload
+                                // cannot orphan its inline photo.
+                                if (initial?.text("status") != "published") {
+                                    current =
+                                        model.jsonRequest(
+                                            "PATCH",
+                                            "/publications/${d.text("id")}",
+                                            JSONObject(story.toString())
+                                                .put("title", title)
+                                                .put("subtitle", subtitle)
+                                                .put("document", JSONObject(doc))
+                                                .put("status", "draft")
+                                                .put("version", current.getInt("version"))
+                                                .put(
+                                                    "coverMediaId",
+                                                    cover.ifBlank { null } ?: JSONObject.NULL,
+                                                ),
+                                        )
+                                    saved = current.toString()
                                 }
                             }
-                            d
+                            current
                         } finally {
                             MediaFiles.discard(files)
                         }
@@ -333,235 +274,406 @@ internal fun PublicationComposer(
                     }
                 }
         }
-    val leave = { if (dirty) leaving = true else close() }
-    val canPublish =
-        if (kind == "post") body.trim().isNotEmpty() || media.isNotEmpty()
-        else title.trim().length >= 3 && plain(JSONObject(doc)).trim().length >= 20
-    WorkSheet(
-        model,
-        if (preview) "Preview"
-        else if (initial == null) "Share company news" else "Continue your draft",
-        leave,
-        if (kind == "post") "Post" else "Publish",
-        canPublish,
-        save = { save(true) },
-        secondaryAction = "Save & close",
-        secondary = { save(false) },
-    ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    model.company?.text("name").orEmpty(),
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                )
-                Text(
-                    if (dirty) "Unsaved changes" else "Your company’s voice",
-                    color = Muted,
-                    style = MaterialTheme.typography.labelSmall,
-                )
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ConnectFilterChip(!preview, { preview = false }, label = { Text("Write") })
-            ConnectFilterChip(preview, { preview = true }, label = { Text("Preview") })
-        }
-        if (preview) {
-            PublicationBody(model, story)
-        } else {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(formats) { (value, label) ->
-                    ConnectFilterChip(
-                        kind == value,
-                        {
-                            if (
-                                kind == "post" &&
-                                    value != "post" &&
-                                    plain(JSONObject(doc)) != body &&
-                                    body.isNotBlank()
-                            )
-                                doc =
-                                    document()
-                                        .also {
-                                            it.getJSONArray("content")
-                                                .getJSONObject(0)
-                                                .put(
-                                                    "content",
-                                                    JSONArray()
-                                                        .put(
-                                                            JSONObject()
-                                                                .put("type", "text")
-                                                                .put("text", body)
-                                                        ),
-                                                )
-                                        }
-                                        .toString()
-                            if (value == "post" && kind != "post") body = plain(JSONObject(doc))
-                            kind = value
-                            dirty = true
-                        },
-                        label = { Text(label) },
-                    )
-                }
-            }
-            if (kind in listOf("article", "case_study"))
-                Text(
-                    "Company update · your existing format is preserved.",
-                    color = Muted,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            Text(
-                if (kind == "post") "A project milestone, a team moment, or a quick update."
-                else "An announcement with a headline, photos and room for the details.",
-                color = Muted,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            if (kind != "post") {
-                media.firstOrNull { it.text("id") == cover }?.let { PostMedia(model, it, 16f / 9f) }
-                ConnectOutlinedButton(
-                    enabled = !model.busy && media.size < 20,
-                    onClick = { picker.launch(arrayOf("image/jpeg", "image/png", "image/webp")) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(Icons.Outlined.AddPhotoAlternate, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(if (cover.isBlank()) "Add cover photo" else "Add more photos")
-                }
-                Text(
-                    "Cover: 1600 × 900 recommended. Your full image is kept.",
-                    color = Muted,
-                    style = MaterialTheme.typography.labelSmall,
-                )
-            }
-            if (kind == "post")
-                OutlinedTextField(
-                    body,
-                    {
-                        body = it.take(4000)
-                        dirty = true
-                    },
-                    placeholder = { Text("What’s happening at your company?") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 5,
-                    shape = ConnectCardShape,
-                    supportingText = { Text("${body.length} / 4,000") },
-                )
-            else {
-                WorkField(
-                    "Headline",
-                    title,
-                    {
-                        title = it
-                        dirty = true
-                    },
-                    limit = 180,
-                )
-                WorkField(
-                    "Summary",
-                    subtitle,
-                    {
-                        subtitle = it
-                        dirty = true
-                    },
-                    limit = 300,
-                    hint = "Optional. Give your reader a reason to read on.",
-                )
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    items(
-                        listOf(
-                            "bold" to "Bold",
-                            "italic" to "Italic",
-                            "underline" to "Underline",
-                            "heading" to "Heading",
-                            "bulletList" to "List",
-                            "blockquote" to "Quote",
-                            "link" to "Link",
+    fun removeAttachment(m: JSONObject) {
+        model.perform({
+            val updatedDoc = withoutImage(JSONObject(doc), m.text("url"))
+            val current = JSONObject(saved!!)
+            val updated =
+                model.jsonRequest(
+                    "PATCH",
+                    "/publications/${current.text("id")}",
+                    JSONObject(story.toString())
+                        .put("document", updatedDoc)
+                        .put(
+                            "status",
+                            if (initial?.text("status") == "published") "published" else "draft",
                         )
-                    ) { (command, label) ->
-                        ConnectOutlinedButton(
-                            enabled = formatSelection != null,
-                            onClick = {
-                                if (command == "link") link = "https://"
-                                else formatSelection?.invoke(command)
-                            },
+                        .put("version", current.getInt("version"))
+                        .put(
+                            "coverMediaId",
+                            if (cover.isBlank() || cover == m.text("id")) JSONObject.NULL else cover,
+                        ),
+                )
+            saved = updated.toString()
+            doc = updatedDoc.toString()
+            model.jsonRequest("DELETE", "/publications/${current.text("id")}/media/${m.text("id")}")
+        }) {
+            mediaJson = JSONArray(media.filter { it.text("id") != m.text("id") }).toString()
+            if (cover == m.text("id")) cover = ""
+            dirty = true
+        }
+    }
+    val leave = { if (dirty) leaving = true else close() }
+    val mediaValid =
+        media.size <= 4 && (media.all { it.text("mime").startsWith("image/") } || media.size <= 1)
+    val canPublish =
+        if (isPost) (body.isNotBlank() || media.isNotEmpty()) && body.length <= 4000 && mediaValid
+        else title.trim().length >= 3 && body.trim().length >= 20 && body.length <= 50000
+    Dialog(
+        onDismissRequest = { if (!model.busy) leave() },
+        properties =
+            DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        BackHandler { if (!model.busy) leave() }
+        Box(
+            Modifier.fillMaxSize().systemBarsPadding().imePadding(),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            Scaffold(
+                modifier =
+                    Modifier.widthIn(max = FeedWidthDp.dp)
+                        .fillMaxSize()
+                        .clip(ConnectCardShape)
+                        .testTag("publication-composer"),
+                containerColor = Color.White,
+                topBar = {
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .background(Pale)
+                            .padding(horizontal = 6.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        IconButton(onClick = leave, enabled = !model.busy) {
+                            Icon(Icons.Outlined.Close, "Close")
+                        }
+                        Box(Modifier.weight(1f)) {
+                            TextButton(
+                                onClick = { formatsOpen = true },
+                                enabled = !model.busy && !preview,
+                            ) {
+                                Text(
+                                    if (isPost) "Post" else "Press release",
+                                    maxLines = 1,
+                                    style = MaterialTheme.typography.titleSmall,
+                                )
+                                Icon(Icons.Outlined.ExpandMore, null, Modifier.size(18.dp))
+                            }
+                            DropdownMenu(
+                                expanded = formatsOpen,
+                                onDismissRequest = { formatsOpen = false },
+                            ) {
+                                formats.forEach { (value, label) ->
+                                    DropdownMenuItem(
+                                        text = { Text(label) },
+                                        leadingIcon = {
+                                            Icon(
+                                                if (value == "post")
+                                                    Icons.Outlined.ChatBubbleOutline
+                                                else Icons.Outlined.Campaign,
+                                                null,
+                                            )
+                                        },
+                                        onClick = {
+                                            kind = value
+                                            dirty = true
+                                            formatsOpen = false
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                        Box {
+                            IconButton(onClick = { optionsOpen = true }, enabled = !model.busy) {
+                                Icon(Icons.Outlined.MoreHoriz, "Writing options")
+                            }
+                            DropdownMenu(
+                                expanded = optionsOpen,
+                                onDismissRequest = { optionsOpen = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(if (preview) "Continue writing" else "Preview") },
+                                    leadingIcon = { Icon(Icons.Outlined.Visibility, null) },
+                                    onClick = {
+                                        if (!preview) editor.hideKeyboard()
+                                        preview = !preview
+                                        optionsOpen = false
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Save & close") },
+                                    leadingIcon = { Icon(Icons.Outlined.Save, null) },
+                                    onClick = {
+                                        optionsOpen = false
+                                        save(false)
+                                    },
+                                )
+                                if (!isPost && !showSubtitle)
+                                    DropdownMenuItem(
+                                        text = { Text("Add a subtitle") },
+                                        onClick = {
+                                            showSubtitle = true
+                                            optionsOpen = false
+                                        },
+                                    )
+                                if (media.isNotEmpty())
+                                    DropdownMenuItem(
+                                        text = { Text("Manage attachments (${media.size})") },
+                                        onClick = {
+                                            attachmentsOpen = true
+                                            optionsOpen = false
+                                        },
+                                    )
+                            }
+                        }
+                        ConnectButton(
+                            onClick = { save(true) },
+                            enabled = canPublish && !model.busy,
+                            contentPadding = PaddingValues(horizontal = 18.dp),
                         ) {
-                            Text(label, style = MaterialTheme.typography.labelSmall)
+                            Text(if (isPost) "Post" else "Publish")
                         }
                     }
-                }
-                Text(
-                    "Select text to format it. Add photos between paragraphs below.",
-                    color = Muted,
-                    style = MaterialTheme.typography.labelSmall,
-                )
-                val root = JSONObject(doc)
-                root.getJSONArray("content").objects().forEachIndexed { index, node ->
-                    key(index) {
-                        StoryBlock(
+                },
+                bottomBar = {
+                    if (!preview)
+                        Surface(color = Color.White, shadowElevation = 3.dp) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                LazyRow(
+                                    Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    item {
+                                        IconButton(
+                                            enabled = !model.busy,
+                                            onClick = {
+                                                picker.launch(
+                                                    arrayOf("image/jpeg", "image/png", "image/webp")
+                                                )
+                                            },
+                                        ) {
+                                            Icon(Icons.Outlined.AddPhotoAlternate, "Add photo")
+                                        }
+                                    }
+                                    if (isPost)
+                                        item {
+                                            IconButton(
+                                                enabled = !model.busy,
+                                                onClick = {
+                                                    picker.launch(
+                                                        arrayOf("video/mp4", "video/webm")
+                                                    )
+                                                },
+                                            ) {
+                                                Icon(Icons.Outlined.Videocam, "Add video")
+                                            }
+                                        }
+                                    if (!isPost) {
+                                        item {
+                                            IconButton(
+                                                onClick = { link = "https://" },
+                                                enabled = !model.busy,
+                                            ) {
+                                                Icon(Icons.Outlined.Link, "Add link")
+                                            }
+                                        }
+                                        item {
+                                            IconButton(
+                                                onClick = {
+                                                    editor.command("heading")
+                                                    dirty = true
+                                                },
+                                                enabled = !model.busy,
+                                            ) {
+                                                Icon(Icons.Outlined.Title, "Heading")
+                                            }
+                                        }
+                                        item {
+                                            IconButton(
+                                                onClick = {
+                                                    editor.command("subheading")
+                                                    dirty = true
+                                                },
+                                                enabled = !model.busy,
+                                            ) {
+                                                Icon(Icons.Outlined.FormatSize, "Subheading")
+                                            }
+                                        }
+                                        item {
+                                            Box {
+                                                IconButton(
+                                                    onClick = { moreFormatting = true },
+                                                    enabled = !model.busy,
+                                                ) {
+                                                    Icon(
+                                                        Icons.Outlined.TextFormat,
+                                                        "Text formatting",
+                                                    )
+                                                }
+                                                DropdownMenu(
+                                                    expanded = moreFormatting,
+                                                    onDismissRequest = { moreFormatting = false },
+                                                ) {
+                                                    listOf(
+                                                            "bold" to "Bold",
+                                                            "italic" to "Italic",
+                                                            "underline" to "Underline",
+                                                            "paragraph" to "Normal text",
+                                                        )
+                                                        .forEach { (command, label) ->
+                                                            DropdownMenuItem(
+                                                                text = { Text(label) },
+                                                                onClick = {
+                                                                    editor.command(command)
+                                                                    dirty = true
+                                                                    moreFormatting = false
+                                                                },
+                                                            )
+                                                        }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    item {
+                                        IconButton(
+                                            enabled = !model.busy,
+                                            onClick = {
+                                                picker.launch(
+                                                    if (isPost) arrayOf("application/pdf")
+                                                    else
+                                                        arrayOf(
+                                                            "video/mp4",
+                                                            "video/webm",
+                                                            "application/pdf",
+                                                        )
+                                                )
+                                            },
+                                        ) {
+                                            Icon(
+                                                Icons.Outlined.AttachFile,
+                                                if (isPost) "Add document"
+                                                else "Add video or document",
+                                            )
+                                        }
+                                    }
+                                }
+                                Text(
+                                    if (isPost) "${body.length}/4,000"
+                                    else
+                                        "${body.trim().split(Regex("\\s+")).count { it.isNotEmpty() }} words",
+                                    color =
+                                        if (body.length > if (isPost) 4000 else 50000)
+                                            MaterialTheme.colorScheme.error
+                                        else Muted,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.padding(end = 8.dp),
+                                )
+                            }
+                        }
+                },
+            ) { padding ->
+                Column(
+                    Modifier.fillMaxSize()
+                        .padding(padding)
+                        .verticalScroll(writingScroll)
+                        .padding(horizontal = 24.dp, vertical = 18.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Icon(Icons.Outlined.Business, null, Modifier.size(20.dp), tint = Muted)
+                        Column {
+                            Text(
+                                model.company?.text("name").orEmpty(),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = Ink,
+                            )
+                            Text(
+                                if (preview) "Preview"
+                                else if (initial != null) "Continue your draft"
+                                else "Public · Your company’s voice",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Muted,
+                            )
+                        }
+                    }
+                    model.error?.let {
+                        Text(
+                            it,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    if (model.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+                    if (preview) PublicationBody(model, story)
+                    else {
+                        if (!isPost) {
+                            WritingTitleField(
+                                title,
+                                "Headline",
+                                MaterialTheme.typography.headlineLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = Ink,
+                                ),
+                            ) {
+                                title = it.take(180)
+                                dirty = true
+                            }
+                            if (showSubtitle)
+                                WritingTitleField(
+                                    subtitle,
+                                    "Add a subtitle",
+                                    MaterialTheme.typography.titleMedium.copy(color = Muted),
+                                ) {
+                                    subtitle = it.take(300)
+                                    dirty = true
+                                }
+                            media
+                                .firstOrNull { it.text("id") == cover }
+                                ?.let { PostMedia(model, it, 16f / 9f) }
+                        }
+                        ContinuousDocumentEditor(
                             model,
-                            node,
-                            listOf(index),
-                            { path, replacement ->
-                                doc = replaceNode(JSONObject(doc), path, replacement).toString()
+                            editor,
+                            doc,
+                            {
+                                doc = it
                                 dirty = true
                             },
-                            { formatSelection = it },
+                            if (isPost) "What’s happening at your company?" else "Tell your story…",
+                            Modifier.fillMaxWidth().testTag("publication-body"),
                         )
+                        val attachments =
+                            if (isPost) media
+                            else
+                                media.filter {
+                                    !it.text("mime").startsWith("image/") ||
+                                        (it.text("id") != cover && !doc.contains(it.text("url")))
+                                }
+                        if (attachments.isNotEmpty()) {
+                            PublicationMediaGallery(
+                                model,
+                                JSONObject()
+                                    .put("kind", "post")
+                                    .put("media", JSONArray(attachments)),
+                            )
+                            TextButton(onClick = { attachmentsOpen = true }) {
+                                Text("Manage attachments (${media.size})")
+                            }
+                        }
+                        if (isPost && (!mediaValid || body.length > 4000))
+                            Text(
+                                "This update needs more room. Switch to a press release to keep everything.",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
                     }
                 }
-                TextButton(
-                    onClick = {
-                        val d = JSONObject(doc)
-                        d.getJSONArray("content").put(paragraph())
-                        doc = d.toString()
-                        dirty = true
-                    }
-                ) {
-                    Icon(Icons.Outlined.Add, null)
-                    Text("Add paragraph")
-                }
             }
-            ConnectOutlinedButton(
-                enabled = !model.busy && media.size < if (kind == "post") 4 else 20,
-                onClick = {
-                    picker.launch(
-                        arrayOf(
-                            "image/jpeg",
-                            "image/png",
-                            "image/webp",
-                            "video/mp4",
-                            "video/webm",
-                            "application/pdf",
-                        )
-                    )
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.Outlined.AttachFile, null)
-                Spacer(Modifier.width(8.dp))
-                Text("Add photos, video, or a document")
-            }
-            Text(
-                if (kind == "post")
-                    "Up to 4 photos, or one video or PDF. Photos: 1080 × 1080 or 1080 × 1350. Nothing is cropped."
-                else "Up to 20 attachments. Photos up to 10 MB, videos 100 MB, PDFs 20 MB.",
-                color = Muted,
-                style = MaterialTheme.typography.labelSmall,
-            )
-            if (model.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+        }
+    }
+    if (attachmentsOpen)
+        WorkSheet(model, "Attachments", { attachmentsOpen = false }) {
             media.forEach { m ->
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    PostMedia(model, m)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PostMedia(model, m, if (isPost) 1f else 16f / 9f)
                     if (m.text("mime").startsWith("image/")) {
                         var alt by remember(m.text("id")) { mutableStateOf(m.text("alt")) }
-                        WorkField(
-                            "Image description",
-                            alt,
-                            { alt = it },
-                            limit = 250,
-                            hint = "Help everyone understand this image.",
-                        )
+                        WorkField("Image description", alt, { alt = it }, limit = 250)
                         Row {
                             TextButton(
                                 enabled = !model.busy,
@@ -583,92 +695,63 @@ internal fun PublicationComposer(
                                                     }
                                                 )
                                                 .toString()
+                                        doc =
+                                            replaceImageDescription(
+                                                    JSONObject(doc),
+                                                    m.text("url"),
+                                                    alt,
+                                                )
+                                                .toString()
+                                        dirty = true
                                     }
                                 },
                             ) {
                                 Text("Save description")
                             }
+                            if (!isPost)
+                                TextButton(
+                                    onClick = {
+                                        cover = if (cover == m.text("id")) "" else m.text("id")
+                                        if (cover.isNotBlank())
+                                            doc =
+                                                withoutImage(JSONObject(doc), m.text("url"))
+                                                    .toString()
+                                        dirty = true
+                                    }
+                                ) {
+                                    Text(
+                                        if (cover == m.text("id")) "Remove cover"
+                                        else "Use as cover"
+                                    )
+                                }
+                        }
+                        if (!isPost && !doc.contains(m.text("url")))
                             TextButton(
                                 onClick = {
-                                    cover = m.text("id")
+                                    editor.insertImage(
+                                        JSONObject()
+                                            .put("type", "image")
+                                            .put(
+                                                "attrs",
+                                                JSONObject()
+                                                    .put("src", m.text("url"))
+                                                    .put("alt", alt),
+                                            )
+                                    )
+                                    doc = editor.document()
                                     dirty = true
+                                    attachmentsOpen = false
                                 }
                             ) {
-                                Text(if (cover == m.text("id")) "Cover image ✓" else "Use as cover")
-                            }
-                        }
-                        if (kind != "post")
-                            TextButton(
-                                enabled = !doc.contains(m.text("url")),
-                                onClick = {
-                                    val d = JSONObject(doc)
-                                    d.getJSONArray("content")
-                                        .put(
-                                            JSONObject()
-                                                .put("type", "image")
-                                                .put(
-                                                    "attrs",
-                                                    JSONObject()
-                                                        .put("src", m.text("url"))
-                                                        .put("alt", alt),
-                                                )
-                                        )
-                                    doc = d.toString()
-                                    dirty = true
-                                },
-                            ) {
-                                Text(
-                                    if (doc.contains(m.text("url"))) "In press release ✓"
-                                    else "Insert into press release"
-                                )
+                                Text("Insert at cursor")
                             }
                     }
-                    TextButton(
-                        enabled = !model.busy,
-                        onClick = {
-                            model.perform({
-                                val updatedDocument = withoutImage(JSONObject(doc), m.text("url"))
-                                val currentDraft = JSONObject(saved!!)
-                                val updated =
-                                    model.jsonRequest(
-                                        "PATCH",
-                                        "/publications/${currentDraft.text("id")}",
-                                        JSONObject(story.toString())
-                                            .put(
-                                                "document",
-                                                if (kind == "post") JSONObject.NULL
-                                                else updatedDocument,
-                                            )
-                                            .put("status", "draft")
-                                            .put("version", currentDraft.getInt("version"))
-                                            .put(
-                                                "coverMediaId",
-                                                if (cover.isBlank() || cover == m.text("id"))
-                                                    JSONObject.NULL
-                                                else cover,
-                                            ),
-                                    )
-                                saved = updated.toString()
-                                doc = updatedDocument.toString()
-                                model.jsonRequest(
-                                    "DELETE",
-                                    "/publications/${JSONObject(saved!!).text("id")}/media/${m.text("id")}",
-                                )
-                            }) {
-                                mediaJson =
-                                    JSONArray(media.filter { it.text("id") != m.text("id") })
-                                        .toString()
-                                if (cover == m.text("id")) cover = ""
-                                dirty = true
-                            }
-                        },
-                    ) {
-                        Text("Remove attachment")
+                    TextButton(enabled = !model.busy, onClick = { removeAttachment(m) }) {
+                        Text("Remove attachment", color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
         }
-    }
     if (leaving)
         AlertDialog(
             onDismissRequest = { leaving = false },
@@ -679,7 +762,12 @@ internal fun PublicationComposer(
                     Text("Save & close")
                 }
             },
-            dismissButton = { TextButton(onClick = { leaving = false }) { Text("Keep writing") } },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = close) { Text("Discard changes") }
+                    TextButton(onClick = { leaving = false }) { Text("Keep writing") }
+                }
+            },
         )
     if (link != null)
         AlertDialog(
@@ -690,7 +778,8 @@ internal fun PublicationComposer(
                 TextButton(
                     enabled = link?.matches(Regex("https?://[^\\s]+")) == true,
                     onClick = {
-                        formatSelection?.invoke("link:" + link)
+                        editor.command("link:" + link)
+                        dirty = true
                         link = null
                     },
                 ) {
@@ -702,124 +791,38 @@ internal fun PublicationComposer(
 }
 
 @Composable
-private fun StoryBlock(
-    model: CommunityModel,
-    node: JSONObject,
-    path: List<Int>,
-    change: (List<Int>, JSONObject) -> Unit,
-    select: ((String) -> Unit) -> Unit,
+private fun WritingTitleField(
+    value: String,
+    hint: String,
+    style: TextStyle,
+    change: (String) -> Unit,
 ) {
-    val type = node.text("type")
-    when (type) {
-        "paragraph",
-        "heading",
-        "codeBlock" -> {
-            var value by remember(path, type) { mutableStateOf(TextFieldValue(styled(node))) }
-            fun commit(next: TextFieldValue) {
-                value = next
-                change(
-                    path,
-                    JSONObject(node.toString()).put("content", inlineNodes(next.annotatedString)),
-                )
+    BasicTextField(
+        value,
+        change,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        textStyle = style,
+        cursorBrush = androidx.compose.ui.graphics.SolidColor(Ink),
+        decorationBox = { inner ->
+            Box(Modifier.padding(vertical = 8.dp)) {
+                if (value.isEmpty()) Text(hint, style = style, color = Color(0xff8794a3))
+                inner()
             }
-            val command: (String) -> Unit = { action ->
-                when (action) {
-                    "heading" ->
-                        change(
-                            path,
-                            JSONObject(node.toString())
-                                .put("type", if (type == "heading") "paragraph" else "heading")
-                                .put("attrs", JSONObject().put("level", 2)),
-                        )
-                    "blockquote",
-                    "bulletList" -> {
-                        val child = JSONObject(node.toString()).put("type", "paragraph")
-                        change(
-                            path,
-                            JSONObject()
-                                .put("type", action)
-                                .put(
-                                    "content",
-                                    JSONArray()
-                                        .put(
-                                            if (action == "bulletList")
-                                                JSONObject()
-                                                    .put("type", "listItem")
-                                                    .put("content", JSONArray().put(child))
-                                            else child
-                                        ),
-                                ),
-                        )
-                    }
-                    else -> {
-                        val a = value.selection.min
-                        val b = value.selection.max
-                        if (a < b) {
-                            val formatted = buildAnnotatedString {
-                                append(value.annotatedString)
-                                when {
-                                    action == "bold" ->
-                                        addStyle(SpanStyle(fontWeight = FontWeight.Bold), a, b)
-                                    action == "italic" ->
-                                        addStyle(SpanStyle(fontStyle = FontStyle.Italic), a, b)
-                                    action == "underline" ->
-                                        addStyle(
-                                            SpanStyle(textDecoration = TextDecoration.Underline),
-                                            a,
-                                            b,
-                                        )
-                                    action.startsWith("link:") ->
-                                        addStringAnnotation(
-                                            "link",
-                                            action.removePrefix("link:"),
-                                            a,
-                                            b,
-                                        )
-                                }
-                            }
-                            commit(value.copy(annotatedString = formatted))
-                        }
-                    }
-                }
-            }
-            OutlinedTextField(
-                value,
-                { commit(it.copy(annotatedString = edited(value.annotatedString, it.text))) },
-                modifier =
-                    Modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) select(command) },
-                placeholder = { Text(if (type == "heading") "Heading" else "Tell your story…") },
-                minLines = if (type == "heading") 1 else 3,
-                textStyle =
-                    if (type == "heading") MaterialTheme.typography.titleLarge
-                    else MaterialTheme.typography.bodyLarge,
-                shape = if (type == "heading") ConnectPillShape else ConnectCardShape,
-            )
-        }
-        "image" -> {
-            AsyncImage(
-                publicationImage(model, node.optJSONObject("attrs")?.text("src").orEmpty()),
-                node.optJSONObject("attrs")?.text("alt"),
-                Modifier.fillMaxWidth().height(190.dp),
-                contentScale = ContentScale.Fit,
-            )
-            TextButton(onClick = { change(path, paragraph()) }) { Text("Remove from story") }
-        }
-        "horizontalRule" -> HorizontalDivider()
-        else ->
-            Column(
-                Modifier.padding(
-                    start = if (type in listOf("blockquote", "listItem")) 12.dp else 0.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                if (type == "blockquote")
-                    Text("Quote", color = Muted, style = MaterialTheme.typography.labelSmall)
-                node.optJSONArray("content").objects().forEachIndexed { index, child ->
-                    StoryBlock(model, child, path + index, change, select)
-                }
-            }
-    }
+        },
+    )
 }
+
+private fun replaceImageDescription(node: JSONObject, url: String, alt: String): JSONObject =
+    JSONObject(node.toString()).also { copy ->
+        if (copy.text("type") == "image" && copy.optJSONObject("attrs")?.text("src") == url)
+            copy.getJSONObject("attrs").put("alt", alt)
+        copy.optJSONArray("content")?.let {
+            copy.put(
+                "content",
+                JSONArray(it.objects().map { child -> replaceImageDescription(child, url, alt) }),
+            )
+        }
+    }
 
 @Composable
 internal fun PublicationDrafts(model: CommunityModel, close: () -> Unit) {

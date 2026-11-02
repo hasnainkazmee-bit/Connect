@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEditor, useEditorState, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import ImageExtension from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -7,6 +7,8 @@ import {
   Bold,
   Italic,
   Heading2,
+  Heading3,
+  MoreHorizontal,
   List,
   Quote,
   Link2,
@@ -97,6 +99,30 @@ export function Publisher({
     [mediaKind, setMediaKind] = useState(initialMedia || "image");
   const [uploadName, setUploadName] = useState("");
   const [confirmPost, setConfirmPost] = useState(false);
+  const [moreTools, setMoreTools] = useState(false);
+  const [summaryVisible, setSummaryVisible] = useState(false);
+  const [mediaDetails, setMediaDetails] = useState(false);
+  const summaryInput = useRef<HTMLTextAreaElement>(null);
+  const titleInput = useRef<HTMLTextAreaElement>(null);
+  const linkInput = useRef<HTMLInputElement>(null);
+  const morePanel = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (linkOpen) linkInput.current?.focus();
+  }, [linkOpen]);
+  useLayoutEffect(() => {
+    if (moreTools)
+      morePanel.current?.querySelector<HTMLButtonElement>("button")?.focus();
+  }, [moreTools]);
+  useLayoutEffect(() => {
+    const field = titleInput.current;
+    if (field) {
+      field.style.height = "auto";
+      field.style.height = field.scrollHeight + "px";
+    }
+  }, [title, kind, preview, loading]);
+  useLayoutEffect(() => {
+    if (summaryVisible) summaryInput.current?.focus();
+  }, [summaryVisible]);
   const uploadIntent = useRef<"attachment" | "cover" | "inline">("attachment");
   const uploadAction = useRef<
     (files: File[], intent?: "attachment" | "cover" | "inline") => void
@@ -135,8 +161,7 @@ export function Publisher({
       }),
       ImageExtension,
       Placeholder.configure({
-        placeholder:
-          "Share the announcement, the people behind it, and what happens next…",
+        placeholder: "Write your announcement…",
       }),
     ],
     content: emptyDoc,
@@ -176,6 +201,18 @@ export function Publisher({
       }
       setError("");
     },
+  });
+  const textStyle = useEditorState({
+    editor,
+    selector: ({ editor }) => ({
+      heading: editor?.isActive("heading", { level: 2 }) || false,
+      subheading: editor?.isActive("heading", { level: 3 }) || false,
+      link: editor?.isActive("link") || false,
+      bold: editor?.isActive("bold") || false,
+      italic: editor?.isActive("italic") || false,
+      list: editor?.isActive("bulletList") || false,
+      quote: editor?.isActive("blockquote") || false,
+    }),
   });
   useEffect(() => {
     mounted.current = true;
@@ -273,7 +310,7 @@ export function Publisher({
       published.current ||
       error ||
       fingerprint === saved ||
-      (!body.trim() && !title.trim() && !draft.current)
+      (!body.trim() && !title.trim() && !subtitle.trim() && !draft.current)
     )
       return;
     const t = setTimeout(() => void persist().catch(() => {}), 1400);
@@ -285,14 +322,14 @@ export function Publisher({
         busy ||
         mediaSaving ||
         pendingDescriptions.current.size ||
-        (fingerprint !== saved && (body || title))
+        (fingerprint !== saved && (body || title || subtitle))
       ) {
         e.preventDefault();
       }
     };
     window.addEventListener("beforeunload", prevent);
     return () => window.removeEventListener("beforeunload", prevent);
-  }, [fingerprint, saved, body, title, busy, mediaSaving]);
+  }, [fingerprint, saved, body, title, subtitle, busy, mediaSaving]);
   async function upload(files: File[], intent = uploadIntent.current) {
     if (!files.length || busy || uploadLock.current) return;
     if (
@@ -454,7 +491,7 @@ export function Publisher({
       }
       if (
         pendingDescriptions.current.size ||
-        ((body.trim() || title.trim() || draft.current) &&
+        ((body.trim() || title.trim() || subtitle.trim() || draft.current) &&
           fingerprint !== saved)
       ) {
         event.preventDefault();
@@ -468,7 +505,7 @@ export function Publisher({
     window.addEventListener("connect:modal-close", closeRequest);
     return () =>
       window.removeEventListener("connect:modal-close", closeRequest);
-  }, [busy, mediaSaving, body, title, fingerprint, saved]);
+  }, [busy, mediaSaving, body, title, subtitle, fingerprint, saved]);
   if (!company)
     return (
       <div className="publisher-empty">
@@ -535,31 +572,60 @@ export function Publisher({
       }
     >
       <header className="publisher-top">
-        <div>
-          <span className="publisher-eyebrow">CONNECT. TALK. CELEBRATE.</span>
-          <h2>
-            {preview
-              ? "Preview"
-              : publicationId
-                ? "Edit your update"
-                : "Share what’s happening"}
-          </h2>
-        </div>
+        <h2>
+          {preview
+            ? "Preview"
+            : publicationId
+              ? "Edit update"
+              : "Create an update"}
+        </h2>
         <button
-          className="publisher-drafts"
-          onClick={() => {
-            void flushMediaSaves()
-              .then(() => persist())
-              .then(() => {
-                close();
-                toast("Draft saved. Find it in Drafts.");
-              })
-              .catch(() => {});
+          className="button primary publish-button"
+          disabled={
+            busy ||
+            body.length > charLimit ||
+            (!body.trim() && !media.length) ||
+            (kind !== "post" && title.trim().length < 3)
+          }
+          onClick={async () => {
+            setBusy(true);
+            published.current = true;
+            try {
+              await flushMediaSaves();
+              await persist("published");
+              refresh();
+              close();
+              toast("Published. Your update is now on your company profile.");
+              onPublished?.();
+            } catch {
+              published.current = false;
+            } finally {
+              setBusy(false);
+            }
           }}
-          disabled={busy || saving || mediaSaving}
         >
-          <Bookmark size={16} />
-          Save & close
+          {busy
+            ? uploadName
+              ? "Uploading…"
+              : "Publishing…"
+            : kind === "post"
+              ? "Post"
+              : "Publish"}
+          <ArrowUpRight size={17} />
+        </button>
+        <button
+          className="icon-button publisher-close"
+          aria-label="Close dialog"
+          type="button"
+          onClick={() => {
+            const request = new CustomEvent("connect:modal-close", {
+              cancelable: true,
+              detail: { close },
+            });
+            if (window.dispatchEvent(request)) close();
+          }}
+        >
+          <X size={20} />
         </button>
       </header>
       <div
@@ -570,6 +636,7 @@ export function Publisher({
         {formats.map((f) => (
           <button
             key={f.value}
+            aria-label={f.label + " format"}
             aria-pressed={
               kind === f.value ||
               (f.value === "press_release" && kind !== "post")
@@ -580,7 +647,6 @@ export function Publisher({
             <f.icon size={17} />
             <span>
               <strong>{f.label}</strong>
-              <small>{f.description}</small>
             </span>
           </button>
         ))}
@@ -695,7 +761,8 @@ export function Publisher({
             <>
               <div
                 className={
-                  "publisher-cover-slot " + (coverPhoto ? "has-cover" : "")
+                  "publisher-cover-slot " +
+                  (coverPhoto ? "has-cover" : "empty-cover")
                 }
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
@@ -737,17 +804,18 @@ export function Publisher({
                     disabled={busy}
                     onClick={() => choose("image", "cover")}
                   >
-                    <Image size={25} />
-                    <strong>Add a cover photo</strong>
-                    <span>Choose or drop a photo · recommended 1600 × 900</span>
-                    <small>Optional. Your full image stays visible.</small>
+                    <Image size={17} />
+                    <span>Add a cover photo</span>
                   </button>
                 )}
               </div>
               <div className="story-titles">
-                <input
+                <textarea
+                  ref={titleInput}
+                  className="story-title-input"
+                  rows={1}
                   aria-label="Story title"
-                  placeholder="What’s the news?"
+                  placeholder="Title"
                   value={title}
                   maxLength={180}
                   onChange={(e) => {
@@ -755,14 +823,17 @@ export function Publisher({
                     setError("");
                   }}
                 />
-                <textarea
-                  aria-label="Story subtitle"
-                  placeholder="The key news in a sentence (optional)"
-                  rows={2}
-                  maxLength={300}
-                  value={subtitle}
-                  onChange={(e) => setSubtitle(e.target.value)}
-                />
+                {(summaryVisible || !!subtitle) && (
+                  <textarea
+                    ref={summaryInput}
+                    aria-label="Story subtitle"
+                    placeholder="The key news in a sentence (optional)"
+                    rows={2}
+                    maxLength={300}
+                    value={subtitle}
+                    onChange={(e) => setSubtitle(e.target.value)}
+                  />
+                )}
               </div>
             </>
           )}
@@ -771,7 +842,7 @@ export function Publisher({
               className="quick-post-input"
               autoFocus
               aria-label="Post text"
-              placeholder="A project taking shape. A milestone reached. What’s new at your company?"
+              placeholder="What’s happening at your company?"
               value={body}
               maxLength={4000}
               onChange={(e) => {
@@ -781,123 +852,21 @@ export function Publisher({
             />
           ) : (
             <>
-              <div
-                className="editor-toolbar"
-                role="toolbar"
-                aria-label="Text formatting"
-              >
-                {[
-                  [
-                    "Bold",
-                    Bold,
-                    () => editor?.chain().focus().toggleBold().run(),
-                    "bold",
-                  ],
-                  [
-                    "Italic",
-                    Italic,
-                    () => editor?.chain().focus().toggleItalic().run(),
-                    "italic",
-                  ],
-                  [
-                    "Heading",
-                    Heading2,
-                    () =>
-                      editor?.chain().focus().toggleHeading({ level: 2 }).run(),
-                    "heading",
-                  ],
-                  [
-                    "Bulleted list",
-                    List,
-                    () => editor?.chain().focus().toggleBulletList().run(),
-                    "bulletList",
-                  ],
-                  [
-                    "Quote",
-                    Quote,
-                    () => editor?.chain().focus().toggleBlockquote().run(),
-                    "blockquote",
-                  ],
-                  [
-                    "Link",
-                    Link2,
-                    () => {
-                      setLink(editor?.getAttributes("link").href || "");
-                      setLinkOpen(!linkOpen);
-                    },
-                    "link",
-                  ],
-                ].map(([label, Icon, action, active]: any) => (
-                  <button
-                    key={label}
-                    type="button"
-                    title={label}
-                    aria-label={label}
-                    aria-pressed={editor?.isActive(active) || false}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={action}
-                  >
-                    <Icon size={17} />
-                  </button>
-                ))}
-                <button
-                  className="editor-insert-photo"
-                  type="button"
-                  disabled={busy}
-                  onClick={() => choose("image", "inline")}
-                  aria-label="Insert photo"
-                >
-                  <Image size={17} />
-                  <span>Photo</span>
-                </button>
-              </div>
-              {linkOpen && (
-                <form
-                  className="editor-link"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (!/^https?:\/\//i.test(link)) {
-                      setError("Use a full link beginning with https://");
-                      return;
-                    }
-                    editor
-                      ?.chain()
-                      .focus()
-                      .extendMarkRange("link")
-                      .setLink({ href: link })
-                      .run();
-                    setLinkOpen(false);
-                    setError("");
-                  }}
-                >
-                  <input
-                    aria-label="Link address"
-                    value={link}
-                    placeholder="https://example.com"
-                    onChange={(e) => setLink(e.target.value)}
-                  />
-                  <button className="button small" type="submit">
-                    Apply link
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-button"
-                    aria-label="Close link editor"
-                    onClick={() => setLinkOpen(false)}
-                  >
-                    <X size={15} />
-                  </button>
-                </form>
-              )}
               <EditorContent editor={editor} />
-              <p className="editor-photo-hint">
-                Drop or paste a photo into your release, or use Photo above.
-              </p>
             </>
           )}
         </>
       )}
-      {!preview && !!media.length && (
+      {!preview && !!media.length && kind !== "post" && (
+        <button
+          className="publisher-media-toggle"
+          aria-expanded={mediaDetails}
+          onClick={() => setMediaDetails(!mediaDetails)}
+        >
+          <Image size={16} /> Photos & files <span>{media.length}</span>
+        </button>
+      )}
+      {!preview && !!media.length && (kind === "post" || mediaDetails) && (
         <div className="publisher-media">
           {media.map((m) => (
             <figure key={m.id}>
@@ -1056,29 +1025,212 @@ export function Publisher({
         </div>
       )}
       <footer className="publisher-bottom">
-        {!preview && (
-          <div className="publisher-add">
+        {!preview && kind !== "post" && (
+          <>
+            {linkOpen && (
+              <form
+                className="editor-link"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!/^https?:\/\//i.test(link)) {
+                    setError("Use a full link beginning with https://");
+                    return;
+                  }
+                  if (
+                    editor?.state.selection.empty &&
+                    !editor.isActive("link")
+                  ) {
+                    editor
+                      .chain()
+                      .focus()
+                      .insertContent({
+                        type: "text",
+                        text: link,
+                        marks: [{ type: "link", attrs: { href: link } }],
+                      })
+                      .run();
+                  } else {
+                    editor
+                      ?.chain()
+                      .focus()
+                      .extendMarkRange("link")
+                      .setLink({ href: link })
+                      .run();
+                  }
+                  setLinkOpen(false);
+                  setError("");
+                }}
+              >
+                <input
+                  ref={linkInput}
+                  aria-label="Link address"
+                  value={link}
+                  placeholder="https://example.com"
+                  onChange={(e) => setLink(e.target.value)}
+                />
+                <button className="button small" type="submit">
+                  Apply link
+                </button>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="Close link editor"
+                  onClick={() => setLinkOpen(false)}
+                >
+                  <X size={15} />
+                </button>
+              </form>
+            )}
+
+            {moreTools && (
+              <div
+                className="editor-more"
+                ref={morePanel}
+                role="group"
+                aria-label="More formatting"
+              >
+                {[
+                  [
+                    "Bold",
+                    Bold,
+                    textStyle?.bold,
+                    () => editor?.chain().focus().toggleBold().run(),
+                  ],
+                  [
+                    "Italic",
+                    Italic,
+                    textStyle?.italic,
+                    () => editor?.chain().focus().toggleItalic().run(),
+                  ],
+                  [
+                    "Bulleted list",
+                    List,
+                    textStyle?.list,
+                    () => editor?.chain().focus().toggleBulletList().run(),
+                  ],
+                  [
+                    "Quote",
+                    Quote,
+                    textStyle?.quote,
+                    () => editor?.chain().focus().toggleBlockquote().run(),
+                  ],
+                ].map(([label, Icon, active, action]: any) => (
+                  <button
+                    key={label}
+                    title={label}
+                    aria-label={label}
+                    aria-pressed={!!active}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={action}
+                  >
+                    <Icon size={18} />
+                  </button>
+                ))}
+                <button
+                  onClick={() => {
+                    setSummaryVisible(true);
+                    summaryInput.current?.focus();
+                    setMoreTools(false);
+                  }}
+                >
+                  Add summary
+                </button>
+                <button onClick={() => choose("video")} disabled={busy}>
+                  Video
+                </button>
+                <button onClick={() => choose("document")} disabled={busy}>
+                  PDF
+                </button>
+              </div>
+            )}
+            <div
+              className="editor-toolbar"
+              role="toolbar"
+              aria-label="Text formatting"
+            >
+              <button
+                type="button"
+                disabled={busy}
+                title="Insert photo"
+                aria-label="Insert photo"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => choose("image", "inline")}
+              >
+                <Image size={20} />
+              </button>
+              <button
+                type="button"
+                title="Link"
+                aria-label="Link"
+                aria-pressed={linkOpen || textStyle?.link || false}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setLink(editor?.getAttributes("link").href || "");
+                  setLinkOpen(!linkOpen);
+                  setMoreTools(false);
+                }}
+              >
+                <Link2 size={20} />
+              </button>
+              <button
+                type="button"
+                title="Heading"
+                aria-label="Heading"
+                aria-pressed={textStyle?.heading || false}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() =>
+                  editor?.chain().focus().toggleHeading({ level: 2 }).run()
+                }
+              >
+                <Heading2 size={20} />
+              </button>
+              <button
+                type="button"
+                title="Subheading"
+                aria-label="Subheading"
+                aria-pressed={textStyle?.subheading || false}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() =>
+                  editor?.chain().focus().toggleHeading({ level: 3 }).run()
+                }
+              >
+                <Heading3 size={20} />
+              </button>
+              <button
+                type="button"
+                title="More formatting"
+                aria-label="More formatting"
+                aria-expanded={moreTools}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setMoreTools(!moreTools);
+                  setLinkOpen(false);
+                }}
+              >
+                <MoreHorizontal size={20} />
+              </button>
+            </div>
+          </>
+        )}
+        {!preview && kind === "post" && (
+          <div
+            className="publisher-add"
+            role="toolbar"
+            aria-label="Add to your post"
+          >
             <button onClick={() => choose("image")} disabled={busy}>
-              <Image size={18} />
+              <Image size={19} />
               <span>Photo</span>
             </button>
             <button onClick={() => choose("video")} disabled={busy}>
-              <Video size={18} />
+              <Video size={19} />
               <span>Video</span>
             </button>
             <button onClick={() => choose("document")} disabled={busy}>
-              <FileText size={18} />
-              <span>Document</span>
+              <FileText size={19} />
+              <span>PDF</span>
             </button>
           </div>
-        )}
-        {!preview && (
-          <p className="publisher-media-guide">
-            {kind === "post"
-              ? "Up to 4 photos (1080 × 1080 or 1080 × 1350), or one video or PDF."
-              : "Up to 20 attachments. Cover: 1600 × 900. Photos in your release keep their original proportions."}{" "}
-            <span>Photos 10 MB · Videos 100 MB · PDFs 20 MB</span>
-          </p>
         )}
         <div className="publisher-submit">
           <span
@@ -1096,6 +1248,23 @@ export function Publisher({
             )}
           </span>
           <button
+            className="publisher-drafts"
+            title="Save & close"
+            aria-label="Save & close"
+            disabled={busy || saving || mediaSaving}
+            onClick={() => {
+              void flushMediaSaves()
+                .then(() => persist())
+                .then(() => {
+                  close();
+                  toast("Draft saved. Find it in Drafts.");
+                })
+                .catch(() => {});
+            }}
+          >
+            <Bookmark size={18} />
+          </button>
+          <button
             className="button"
             disabled={busy}
             onClick={async () => {
@@ -1110,40 +1279,6 @@ export function Publisher({
           >
             {preview ? <ArrowLeft size={16} /> : <Eye size={16} />}
             <span>{preview ? "Edit" : "Preview"}</span>
-          </button>
-          <button
-            className="button primary publish-button"
-            disabled={
-              busy ||
-              body.length > charLimit ||
-              (!body.trim() && !media.length) ||
-              (kind !== "post" && title.trim().length < 3)
-            }
-            onClick={async () => {
-              setBusy(true);
-              published.current = true;
-              try {
-                await flushMediaSaves();
-                await persist("published");
-                refresh();
-                close();
-                toast("Published. Your update is now on your company profile.");
-                onPublished?.();
-              } catch {
-                published.current = false;
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            {busy
-              ? uploadName
-                ? "Uploading…"
-                : "Publishing…"
-              : kind === "post"
-                ? "Post"
-                : "Publish"}
-            <ArrowUpRight size={17} />
           </button>
         </div>
       </footer>

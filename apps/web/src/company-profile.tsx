@@ -14,7 +14,6 @@ import {
   Building2,
   Calendar,
   Camera,
-  Check,
   ExternalLink,
   Globe,
   LoaderCircle,
@@ -45,7 +44,7 @@ import {
   ShareProfile,
   useAction,
 } from "./management";
-import type { Company, Profile } from "./types";
+import type { Profile } from "./types";
 import "./company-profile.css";
 
 function MemberTitle({
@@ -175,6 +174,8 @@ export function CompanyProfileView({
   const c = data.company,
     owner = company?.id === c.id,
     editable = owner && admin && !preview;
+  const featuredProject = data.projects.find((project) => project.image_url),
+    showcaseImage = c.cover_url || featuredProject?.image_url;
   const setTab = (value: typeof tab) =>
     setParams(
       { tab: value.toLowerCase() },
@@ -279,7 +280,7 @@ export function CompanyProfileView({
     </section>
   );
   return (
-    <div className="company-home">
+    <div className="company-home company-presence">
       <div className="profile-breadcrumb">
         <Link to="/directory">
           <ArrowLeft size={14} />
@@ -292,40 +293,62 @@ export function CompanyProfileView({
           </button>
         )}
       </div>
-      <article className="company-hero">
-        <div className="company-cover">
-          {c.cover_url ? (
-            <img src={c.cover_url} alt={c.name + " cover photo"} />
-          ) : (
-            <div className="company-cover-placeholder">
-              <span />
-              <span />
-              <span />
+      <article className="presence-masthead" aria-labelledby="presence-title">
+        <div className="presence-introduction">
+          <div className="presence-brand">
+            {c.logo_url ? (
+              <img
+                className="presence-wordmark"
+                src={c.logo_url}
+                alt={c.name + " logo"}
+                decoding="async"
+              />
+            ) : (
+              <Logo company={c} />
+            )}
+            <div className="presence-brand-tools">
+              {editable && (
+                <button
+                  className="presence-brand-edit icon-button"
+                  aria-label="Edit company logo"
+                  onClick={() => open(<BrandEditor target={c} slot="logo" />)}
+                >
+                  <Camera size={17} />
+                </button>
+              )}
+              <button
+                className="button icon-button"
+                aria-label="Share company profile"
+                title="Share profile"
+                onClick={() => open(<ShareProfile target={c} />)}
+              >
+                <Share2 size={17} />
+              </button>
+            </div>
+          </div>
+          <div className="presence-category">
+            <span>{c.type}</span>
+            {c.username && <span>@{c.username}</span>}
+          </div>
+          <h1 id="presence-title">{c.name}</h1>
+          {c.tagline && <p className="presence-purpose">{c.tagline}</p>}
+          {(c.location || c.website) && (
+            <div className="presence-location">
+              {c.location && (
+                <span>
+                  <MapPin size={16} />
+                  Based in {c.location}
+                </span>
+              )}
+              {c.website && (
+                <a href={c.website} target="_blank" rel="noopener noreferrer">
+                  {new URL(c.website).hostname.replace(/^www\./, "")}
+                  <ArrowUpRight size={15} />
+                </a>
+              )}
             </div>
           )}
-          {editable && (
-            <button
-              className="cover-edit"
-              onClick={() => open(<BrandEditor target={c} slot="cover" />)}
-            >
-              <Camera size={16} />
-              <span>Edit cover</span>
-            </button>
-          )}
-        </div>
-        <div className="company-intro">
-          <div className="company-logo-wrap">
-            <Logo company={c} size="large" />
-            {editable && (
-              <button
-                aria-label="Edit company logo"
-                onClick={() => open(<BrandEditor target={c} slot="logo" />)}
-              >
-                <Camera size={14} />
-              </button>
-            )}
-          </div>
-          <div className="company-top-actions">
+          <div className="presence-actions">
             {editable ? (
               <>
                 <button
@@ -348,7 +371,7 @@ export function CompanyProfileView({
                 <>
                   <FollowButton target={c} />
                   {c.listing_status === "unclaimed" ? (
-                    <div className="directory-profile-actions">
+                    <div className="presence-contact-actions">
                       {c.phone && (
                         <a
                           className="button"
@@ -374,62 +397,92 @@ export function CompanyProfileView({
                 </>
               )
             )}
+          </div>
+        </div>
+        <div
+          className={"presence-showcase" + (showcaseImage ? " has-image" : "")}
+        >
+          {showcaseImage ? (
+            <>
+              <img
+                src={showcaseImage}
+                alt={
+                  c.cover_url
+                    ? c.name + " cover photo"
+                    : featuredProject?.name || c.name + " project"
+                }
+                decoding="async"
+              />
+              {!c.cover_url && featuredProject && (
+                <button
+                  className="presence-project-caption"
+                  onClick={() => setTab("Portfolio")}
+                >
+                  <span>
+                    <small>From our portfolio</small>
+                    <strong>{featuredProject.name}</strong>
+                  </span>
+                  <ArrowUpRight size={20} />
+                </button>
+              )}
+            </>
+          ) : (
+            <div className="presence-capabilities">
+              <span className="presence-overline">What we do</span>
+              <h2>{c.services.length ? "Our expertise." : c.type}</h2>
+              {!!c.services.length && (
+                <div className="presence-services">
+                  {c.services.slice(0, 6).map((service) => (
+                    <span key={service}>{service}</span>
+                  ))}
+                </div>
+              )}
+              {!!c.service_areas.length && (
+                <div className="presence-coverage">
+                  <Globe size={18} />
+                  <span>
+                    <small>Where we work</small>
+                    {c.service_areas.slice(0, 4).join(" · ")}
+                    {c.service_areas.length > 4 &&
+                      " +" + (c.service_areas.length - 4) + " more"}
+                  </span>
+                </div>
+              )}
+              {editable && !c.services.length && (
+                <p>
+                  Add your expertise and a project photo to introduce your
+                  company.
+                </p>
+              )}
+            </div>
+          )}
+          {editable && (
             <button
-              className="button icon-button"
-              aria-label="Share company profile"
-              title="Share profile"
-              onClick={() => open(<ShareProfile target={c} />)}
+              className="presence-cover-edit button"
+              onClick={() => open(<BrandEditor target={c} slot="cover" />)}
             >
-              <Share2 size={17} />
+              <Camera size={16} />
+              Edit cover
             </button>
-          </div>
-          <div className="company-name">
-            <h1>{c.name}</h1>
-            {c.username && <span>@{c.username}</span>}
-          </div>
-          <p className="company-headline">{c.tagline || c.type}</p>
-          <div className="company-key-info">
-            <span>
-              <Building2 size={14} />
-              {c.type}
-            </span>
-            {c.location && (
-              <span>
-                <MapPin size={14} />
-                Based in {c.location}
-              </span>
-            )}
-            {c.employee_count && (
-              <button onClick={() => setTab("People")}>
-                <Users size={14} />
-                {c.employee_count} people
-              </button>
-            )}
-            {c.website && (
-              <a href={c.website} target="_blank" rel="noopener noreferrer">
-                <Globe size={14} />
-                {new URL(c.website).hostname}
-                <ArrowUpRight size={12} />
-              </a>
-            )}
-          </div>
-          <div className="company-social-line">
+          )}
+        </div>
+        <div className="presence-community">
+          <div className="presence-reputation">
             {c.ownership_verified_at && (
               <span
                 className="profile-ownership"
                 title="Company account ownership confirmed. Contractor qualifications are not verified by this badge."
               >
-                <ShieldCheck size={14} />
+                <ShieldCheck size={15} />
                 Ownership confirmed
               </span>
             )}
-            <SocialStats companyId={c.id} />
             <button
-              className="profile-rating"
+              className="presence-rating"
               onClick={() => setTab("Reviews")}
             >
               <Star
-                size={14}
+                size={16}
                 fill={data.rating?.count ? "currentColor" : "none"}
               />
               {data.rating?.count ? (
@@ -441,26 +494,36 @@ export function CompanyProfileView({
                 <span>No reviews yet</span>
               )}
             </button>
+            {c.employee_count && c.listing_status !== "unclaimed" && (
+              <button
+                className="presence-team-link"
+                onClick={() => setTab("People")}
+              >
+                <Users size={15} />
+                {c.employee_count} people
+              </button>
+            )}
           </div>
+          <SocialStats companyId={c.id} />
         </div>
-        <nav className="company-sections" aria-label="Company profile sections">
-          {visibleTabs.map((t) => (
-            <button
-              key={t}
-              aria-current={t === tab ? "page" : undefined}
-              onClick={() => setTab(t)}
-            >
-              {t}
-              {t === "Portfolio" && !!data.projects.length && (
-                <small>{data.projects.length}</small>
-              )}
-              {t === "People" && !!data.team.length && (
-                <small>{data.team.length}</small>
-              )}
-            </button>
-          ))}
-        </nav>
       </article>
+      <nav className="presence-sections" aria-label="Company profile sections">
+        {visibleTabs.map((t) => (
+          <button
+            key={t}
+            aria-current={t === tab ? "page" : undefined}
+            onClick={() => setTab(t)}
+          >
+            {t}
+            {t === "Portfolio" && !!data.projects.length && (
+              <small>{data.projects.length}</small>
+            )}
+            {t === "People" && !!data.team.length && (
+              <small>{data.team.length}</small>
+            )}
+          </button>
+        ))}
+      </nav>
       {c.listing_status === "unclaimed" && (
         <aside className="listing-notice">
           <div>
@@ -508,7 +571,11 @@ export function CompanyProfileView({
       >
         {tab === "Updates" ? (
           <>
-            <div>
+            <div className="presence-publications">
+              <header className="presence-section-intro">
+                <span className="presence-overline">From {c.name}</span>
+                <h2>Latest from the company.</h2>
+              </header>
               <CompanyUpdates target={c} preview={preview} />
             </div>
             <aside className="profile-side">

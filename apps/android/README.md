@@ -5,7 +5,7 @@ Native Kotlin/Jetpack Compose screens backed by a Rust client core through Mozil
 ## Initial scope
 
 - Native bottom navigation with horizontal paging, preserved tab state, sign-in/registration, company switching, and profiles.
-- Company news feed with Post and Press release, formatted release blocks, attachments, shared drafts, previews, celebrations, comments, and follows. Existing articles/case studies remain readable and editable as Company updates.
+- Company news feed with Post and Press release, a continuous native writing canvas, inline attachments, shared drafts, previews, emoji reactions, threaded replies, and follows. Existing articles/case studies remain readable and editable as Company updates.
 - Company editing, branding uploads, portfolio, achievements, customer reviews, and employee invitations with readable welcome links.
 - Individual accounts and consent-based personal conversations, without company-team membership.
 - In-app update notices with checksum, package, version, and signing-certificate checks before the Android installer opens.
@@ -93,7 +93,7 @@ apps/android/with-local-tools.sh emulator -avd Sunhub_API_36
 
 The native layout uses available window width, including split-screen: phone navigation stays at the bottom with swipe paging; windows at least 840 dp wide use a navigation rail. Feed content is centered and bounded to 720 dp, account forms to 520 dp, and workspaces to 840 dp. Primary and secondary actions share a 48 dp minimum target and full capsule corners; primary actions use the original #ff6b0b solar orange with dark ink text. Cards, multiline editors and dialogs use 24 dp corners. System font scaling is preserved.
 
-Posts allow up to four photos, or one video or PDF. Square 1080 × 1080 or portrait 1080 × 1350 photos are recommended. A post shows one photo at a time with swipe and accessible previous/next controls; tapping opens the original aspect ratio. Press releases have an optional 16:9 cover (1600 × 900 recommended) and up to 20 attachments. The first uploaded photo becomes the cover, additional photos are inserted into the release body, and all images use fit rather than destructive crop. There is no new required image dimension.
+Posts allow up to four photos, or one video or PDF. Square 1080 × 1080 or portrait 1080 × 1350 photos are recommended. A post shows one photo at a time with swipe and accessible previous/next controls; tapping opens the original aspect ratio. Press releases have an optional 16:9 cover (1600 × 900 recommended) and up to 20 attachments. Photos insert at the writing cursor. Manage attachments offers an optional Use as cover action, which moves the photo out of the body to avoid showing it twice. Images use fit rather than destructive crop. There is no new required image dimension.
 
 These are targets to measure on an agreed midrange physical Android phone in a release build, not claims about current results:
 
@@ -110,3 +110,5 @@ Rust improves control over core work; it does not remove network latency, databa
 On 2026-10-30: web/API production compilation, 44 API checks, five Rust isolation/cache checks, Rust-to-API social/media/messaging integration, Android APK compilation, and the native Android UI journey passed. Native UI verification used an ARM64 Android 16 emulator. All packaged native libraries and APK entries were checked for 16 KB alignment. These functional checks do not establish real-device release performance.
 
 On 2026-11-02: Android 0.4.0 compiled and both native instrumentation scenarios passed against an isolated local API/database. Checks covered publishing a Post and Press release, shared drafts and preview, sign-in/session recreation, connection requests/chat, profile editing/invitations, 48 dp primary actions, phone bottom navigation, tablet navigation rail with an exact 720 dp feed, and 1.3× Compose font scaling. The emulator returned to its original display settings. These remain functional emulator checks, not physical-device performance measurements.
+
+On 2026-11-02, the 0.5.0 update passed the integrated native editor, navigation, recovery, publishing and interaction journeys against an isolated API/database. The new reaction/comment scenario covers emoji search and chip toggling, company attribution, replies to replies, deleted-parent preservation, drafts surviving sheet dismissal, and failed-send recovery. Web/API validation additionally covers reply pagination, blocking, legacy Celebrate compatibility, and delayed mutation responses.

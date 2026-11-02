@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -100,6 +101,40 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
     var auth by rememberSaveable { mutableStateOf(false) }
     var security by rememberSaveable { mutableStateOf(false) }
     var setupCompany by rememberSaveable { mutableStateOf(false) }
+    var createPost by rememberSaveable { mutableStateOf(false) }
+    var pendingCreate by rememberSaveable { mutableStateOf(false) }
+    var publishingNotice by rememberSaveable { mutableStateOf("") }
+    fun requestCreate() {
+        if (model.booting) return
+        when {
+            !model.signedIn -> {
+                pendingCreate = true
+                auth = true
+            }
+            model.individual -> {
+                pendingCreate = false
+                publishingNotice = "Posts and press releases come from company profiles. You can follow companies, leave a customer review, and start a conversation with this account."
+            }
+            model.company == null -> {
+                pendingCreate = true
+                setupCompany = true
+            }
+            !model.admin -> {
+                pendingCreate = false
+                publishingNotice = "A company owner or administrator can publish updates. Ask an administrator at your company to update your access."
+            }
+            else -> {
+                pendingCreate = false
+                createPost = true
+            }
+        }
+    }
+    LaunchedEffect(model.booting, model.signedIn, model.needsOnboarding, setupCompany, pendingCreate) {
+        if (!model.booting && pendingCreate && model.signedIn && !model.needsOnboarding && !setupCompany) requestCreate()
+    }
+    LaunchedEffect(model.booting, model.signedIn, model.company?.text("id"), model.admin) {
+        if (!model.booting && (!model.signedIn || !model.admin)) createPost = false
+    }
     val welcomePrefs =
         LocalContext.current.getSharedPreferences(
             "connect-intro",
@@ -121,12 +156,18 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
     var employeeAccess by remember { mutableStateOf(false) }
     if (employeeAccess && model.admin) EmployeeAccess(model) { employeeAccess = false }
     val screenStates = rememberSaveableStateHolder()
-    val tabs = Tab.entries.filter { !model.individual || it != Tab.Network }
+    val tabs = remember(model.individual) {
+        Tab.entries.filter { !model.individual || it != Tab.Network }
+    }
     val pager =
-        rememberPagerState(
-            initialPage = tabs.indexOf(model.tab).coerceAtLeast(0),
-            pageCount = { tabs.size },
-        )
+        key(tabs) {
+            // An account change can remove Network. Replace the state and lazy provider
+            // together so neither observes an old page count with a new destination list.
+            rememberPagerState(
+                initialPage = tabs.indexOf(model.tab).coerceAtLeast(0),
+                pageCount = { tabs.size },
+            )
+        }
     LaunchedEffect(model.tab, tabs) {
         val index = tabs.indexOf(model.tab)
         if (index >= 0 && pager.currentPage != index) pager.animateScrollToPage(index)
@@ -168,6 +209,7 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
                 model.logout()
                 auth = false
                 setupCompany = false
+                pendingCreate = false
             },
             onComplete = {
                 setupCompany = false
@@ -185,14 +227,18 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
             initialAuthMode,
             onClose = {
                 auth = false
+                pendingCreate = false
+                afterSignIn = null
                 initialAuthMode = "login"
                 model.dismissError()
             },
             onSignedIn = {
                 auth = false
                 initialAuthMode = "login"
-                if (!model.needsOnboarding) afterSignIn?.invoke()
-                afterSignIn = null
+                if (!model.needsOnboarding) {
+                    afterSignIn?.invoke()
+                    afterSignIn = null
+                }
             },
         )
         return
@@ -220,8 +266,24 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
     val detail = model.profileId != null || model.chatCompany != null || personalThread != null
     val goBack = { if (personalThread != null) personalThread = null else model.back() }
     BackHandler(detail) { goBack() }
+    if (publishingNotice.isNotBlank()) {
+        AlertDialog(
+            onDismissRequest = { publishingNotice = "" },
+            title = { Text("Publishing with your company") },
+            text = { Text(publishingNotice) },
+            confirmButton = { TextButton(onClick = { publishingNotice = "" }) { Text("Got it") } },
+        )
+    }
+    if (createPost && model.admin) {
+        PublicationComposer(model, null, { createPost = false }) {
+            model.pages.keys.filter { it.startsWith("/feed?") && !it.contains("before=") }.toList()
+                .forEach { model.load(it, true) }
+            model.refreshCompany()
+        }
+    }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wideNavigation = maxWidth >= 840.dp
+        val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
         fun select(tab: Tab) {
             if (!model.signedIn && tab in listOf(Tab.Network, Tab.Messages)) {
                 afterSignIn = { model.selectTab(tab) }
@@ -342,47 +404,8 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
                 )
             },
             bottomBar = {
-                if (!detail && !wideNavigation)
-                    NavigationBar(
-                        containerColor = Color.White,
-                        windowInsets = WindowInsets(0, 0, 0, 0),
-                        modifier =
-                            Modifier.navigationBarsPadding()
-                                .padding(horizontal = 12.dp, vertical = 8.dp)
-                                .clip(ConnectPillShape),
-                    ) {
-                        tabs.forEach { tab ->
-                            NavigationBarItem(
-                                selected = tab == model.tab,
-                                onClick = { select(tab) },
-                                icon = {
-                                    val icon =
-                                        when (tab) {
-                                            Tab.Home -> Icons.Outlined.Home
-                                            Tab.Companies -> Icons.Outlined.Business
-                                            Tab.Network -> Icons.Outlined.People
-                                            Tab.Messages -> Icons.AutoMirrored.Outlined.Chat
-                                        }
-                                    if (tab == Tab.Messages && model.incoming.isNotEmpty())
-                                        BadgedBox(
-                                            badge = {
-                                                Badge { Text(model.incoming.size.toString()) }
-                                            }
-                                        ) {
-                                            Icon(icon, null)
-                                        }
-                                    else Icon(icon, null)
-                                },
-                                label = { Text(tab.name) },
-                                colors =
-                                    NavigationBarItemDefaults.colors(
-                                        selectedIconColor = Ink,
-                                        selectedTextColor = Ink,
-                                        indicatorColor = Orange,
-                                    ),
-                            )
-                        }
-                    }
+                if (!detail && !wideNavigation && !keyboardVisible)
+                    FloatingConnectNavigation(tabs, model.tab, model.incoming.size, ::select, ::requestCreate)
             },
         ) { padding ->
             Row(Modifier.fillMaxSize().padding(padding).imePadding()) {
@@ -392,6 +415,8 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
                         modifier = Modifier.fillMaxHeight().width(96.dp).testTag("navigation-rail"),
                     ) {
                         Spacer(Modifier.height(12.dp))
+                        CreatePostButton(::requestCreate)
+                        Spacer(Modifier.height(20.dp))
                         tabs.forEach { tab ->
                             NavigationRailItem(
                                 selected = tab == model.tab,
@@ -485,7 +510,7 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
                                         else ChatScreen(model)
                                 }
                             }
-                        } else
+                        } else key(tabs) {
                             HorizontalPager(
                                 state = pager,
                                 modifier = Modifier.weight(1f).testTag("main-tabs"),
@@ -517,6 +542,7 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
                                                     model,
                                                     homeScroll,
                                                     onSignIn = { auth = true },
+                                                    onCreate = ::requestCreate,
                                                 )
                                             Tab.Companies -> DirectoryScreen(model, directoryScroll)
                                             Tab.Network -> NetworkScreen(model, networkScroll)
@@ -550,6 +576,7 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
                                         }
                                 }
                             }
+                        }
                     }
                 }
             }
@@ -873,11 +900,12 @@ private fun MessagesScreen(model: CommunityModel, scroll: LazyListState) {
 }
 
 @Composable
-private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: () -> Unit) {
+private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: () -> Unit, onCreate: () -> Unit) {
     var following by rememberSaveable { mutableStateOf(false) }
     var format by rememberSaveable { mutableStateOf("all") }
-    var compose by rememberSaveable { mutableStateOf(false) }
-    var commentPost by remember { mutableStateOf<String?>(null) }
+    val commentIdentity = "${model.session?.optJSONObject("user")?.text("id")}:${model.company?.text("id")}"
+    var commentPost by remember(commentIdentity) { mutableStateOf<String?>(null) }
+    var commentDrafts by rememberSaveable(commentIdentity) { mutableStateOf("{}") }
     var readPost by remember { mutableStateOf<JSONObject?>(null) }
     var drafts by rememberSaveable { mutableStateOf(false) }
     val firstPath =
@@ -971,7 +999,7 @@ private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: (
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    ConnectButton(onClick = { compose = true }, modifier = Modifier.weight(1f)) {
+                    ConnectButton(onClick = onCreate, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Outlined.Add, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text("Share an update")
@@ -1040,42 +1068,7 @@ private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: (
                         )
                         Icon(Icons.Outlined.ArrowOutward, null, Modifier.size(18.dp))
                     }
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceAround,
-                ) {
-                    TextButton(
-                        enabled = !model.busy && !model.individual,
-                        onClick = {
-                            if (!model.signedIn) onSignIn()
-                            else
-                                model.mutate(
-                                    "/posts/${post.optString("id")}/like",
-                                    JSONObject().put("liked", !post.optBoolean("liked")),
-                                ) {
-                                    model.load(
-                                        paths.first { page ->
-                                            model.pages[page]?.optJSONArray("posts").objects().any {
-                                                it.optString("id") == post.optString("id")
-                                            }
-                                        },
-                                        true,
-                                    )
-                                }
-                        },
-                    ) {
-                        Icon(Icons.Outlined.Celebration, null, Modifier.size(17.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            "${post.optInt("like_count")} ${if (post.optBoolean("liked")) "Celebrated" else "Celebrate"}"
-                        )
-                    }
-                    TextButton(onClick = { commentPost = post.optString("id") }) {
-                        Icon(Icons.Outlined.ChatBubbleOutline, null, Modifier.size(17.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("${post.optInt("comment_count")} Comments")
-                    }
-                }
+                PostSocialActions(model, post, comments = { commentPost = post.text("id") }, signIn = onSignIn)
             }
         }
         if (result == null)
@@ -1104,11 +1097,6 @@ private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: (
                 }
             }
     }
-    if (compose)
-        PublicationComposer(model, null, { compose = false }) {
-            paths = listOf(firstPath)
-            model.load(firstPath, true)
-        }
     if (drafts) PublicationDrafts(model) { drafts = false }
     readPost?.let { post ->
         WorkSheet(model, publicationLabel(post.text("kind")), { readPost = null }) {
@@ -1116,7 +1104,12 @@ private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: (
         }
     }
     commentPost?.let { id ->
-        CommentsDialog(model, id, onClose = { commentPost = null }, onSignIn = onSignIn)
+        PostCommentsSheet(model, id, close = { commentPost = null }, signIn = onSignIn,
+            savedDraft = JSONObject(commentDrafts).optJSONObject(id)?.toString(),
+            saveDraft = { body, target ->
+                commentDrafts = JSONObject(commentDrafts).put(id, JSONObject().put("body", body)
+                    .put("target", target ?: JSONObject.NULL)).toString()
+            })
     }
 }
 
@@ -1634,67 +1627,4 @@ private fun AttachmentPicker(
             )
         }
     }
-}
-
-@Composable
-private fun CommentsDialog(
-    model: CommunityModel,
-    id: String,
-    onClose: () -> Unit,
-    onSignIn: () -> Unit,
-) {
-    val path = "/posts/$id/comments"
-    var text by rememberSaveable { mutableStateOf("") }
-    LaunchedEffect(id) { model.load(path) }
-    AlertDialog(
-        onDismissRequest = onClose,
-        title = { Text("Comments") },
-        text = {
-            Column {
-                LazyColumn(
-                    Modifier.heightIn(max = 280.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(
-                        model.pages[path]?.optJSONArray("comments").objects(),
-                        key = { it.optString("id") },
-                    ) { comment ->
-                        Column {
-                            Text(
-                                comment.optString("author_name"),
-                                style = MaterialTheme.typography.labelMedium,
-                            )
-                            Text(
-                                comment.optString("body"),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        }
-                    }
-                }
-                if (model.signedIn)
-                    OutlinedTextField(
-                        text,
-                        { text = it.take(2000) },
-                        placeholder = { Text("Add a comment…") },
-                        modifier = Modifier.padding(top = 16.dp),
-                    )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                enabled = !model.busy && (!model.signedIn || text.isNotBlank()),
-                onClick = {
-                    if (!model.signedIn) onSignIn()
-                    else
-                        model.mutate(path, JSONObject().put("body", text)) {
-                            text = ""
-                            model.load(path, true)
-                        }
-                },
-            ) {
-                Text(if (model.signedIn) "Comment" else "Sign in")
-            }
-        },
-        dismissButton = { TextButton(onClick = onClose) { Text("Close") } },
-    )
 }

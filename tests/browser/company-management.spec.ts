@@ -120,6 +120,12 @@ for (const size of [
         .getByLabel("Story title")
         .fill("How we built a better rooftop");
       await dialog
+        .getByRole("button", { name: "More formatting", exact: true })
+        .click();
+      await dialog
+        .getByRole("button", { name: "Add summary", exact: true })
+        .click();
+      await dialog
         .getByLabel("Story subtitle")
         .fill("A practical story from our latest installation.");
       await dialog
