@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash, createDecipheriv, randomUUID } from 'node:crypto';
 import pg from 'pg';
 const db = new pg.Pool({connectionString:process.env.DATABASE_URL});
+const companyName = 'Verified Solar ' + randomUUID().slice(0,8);
 const base = process.env.API_TEST_URL + '/api';
 const secret = createHash('sha256').update(process.env.AUTH_TOKEN_SECRET).digest();
 const address = `account-${randomUUID()}@accounts.test`;
@@ -29,7 +30,7 @@ test('verified account lifecycle, recovery and device access', async t => {
   const a = client(), b = client(), outsider = client();
   let challengeId, userId;
   await t.test('registration queues encrypted email and gates company writes',async()=>{
-    const r = await a('/auth/register',{name:'Account Owner',email:address,password,companyName:'Verified Solar'});
+    const r = await a('/auth/register',{name:'Account Owner',email:address,password,companyName});
     assert.equal(r.status,201); challengeId=r.data.challengeId; userId=r.data.user.id;
     assert.equal(r.data.verificationRequired,true);
     assert.equal(r.data.user.email_verified_at,null);
@@ -49,7 +50,7 @@ test('verified account lifecycle, recovery and device access', async t => {
     assert.equal((await a('/auth/verification/confirm',{challengeId,code:await code()})).status,400);
   });
   await t.test('company onboarding persists its profile and completion',async()=>{
-    const r=await a('/onboarding/company',{name:'Verified Solar',type:'EPC',location:'Austin, TX',services:['Installation'],serviceAreas:['Texas']});
+    const r=await a('/onboarding/company',{name:companyName,type:'EPC',location:'Austin, TX',services:['Installation'],serviceAreas:['Texas']});
     assert.equal(r.status,200); assert.equal(r.data.companies[0].type,'EPC');
     assert.ok((await a('/onboarding/complete',{})).data.user.onboarding_completed_at);
   });

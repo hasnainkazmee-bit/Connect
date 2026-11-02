@@ -23,6 +23,16 @@ Chats are stored in PostgreSQL and delivered in-app. SMTP is exclusively for ver
 
 No production data or accounts are seeded automatically. `npm run seed` is a development-only fixture command; it is not part of the deployment startup.
 
+## Public company directory
+
+After deploying the directory migration and assets, explicitly import the curated listings:
+
+```sh
+docker compose --env-file .env.production -f compose.production.yaml exec -T app node apps/api/dist/import-directory.js
+```
+
+This creates 12 unclaimed listings, never users or demo content. Existing profiles are preserved. Companies that join normally already appear in the same directory. Source records and the operator-only manual-claim review commands are documented in [DIRECTORY.md](DIRECTORY.md). Monitor pending claims regularly; no automatic email or external notification is sent to the operator. Real SMTP delivery must work for new claimants to verify their email.
+
 ## Backups and recovery
 
 Run `tools/backup-production.sh` from the deployed release. It briefly stops only Connect's app and Garage, dumps PostgreSQL, snapshots the stopped object store and legacy attachment volume, checks archive readability, creates checksums, and restarts Connect even if a backup fails. Backups are private in `.backups/`. Protect a separate copy of `.env.production`; its keys are required to restore encrypted pending email and Garage configuration. Keep backup access as restricted as database access.

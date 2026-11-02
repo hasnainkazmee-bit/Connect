@@ -1,3 +1,10 @@
+import {
+  directoryRoutes,
+  directorySearch,
+  preventDuplicateCompany,
+  requireManagedCompany,
+} from "./directory.js";
+import { publicPages } from "./public-pages.js";
 import { employeeInvitationRoutes } from "./employee-invitations.js";
 import { androidRelease } from "./mobile-release.js";
 import express from "express";
@@ -149,6 +156,7 @@ app.get("/api/session", async (req, res) => {
 app.use("/api/auth", authLimit);
 app.use("/api", accountRoutes());
 app.use("/api", profileRoutes());
+app.use("/api", directoryRoutes());
 app.use("/api", personalMessagesRoutes());
 app.post("/api/auth/logout", async (req, res) => {
   if (req.auth)
@@ -176,31 +184,7 @@ app.post("/api/session/company", requireAuth, async (req, res) => {
   res.json(await mePayload(req.auth!.userId, companyId));
 });
 app.get("/api/companies", async (req, res) => {
-  const query = str(req.query.q).slice(0, 100),
-    type = str(req.query.type).slice(0, 80),
-    service = str(req.query.service).slice(0, 80),
-    area = str(req.query.area).slice(0, 60),
-    office = str(req.query.office).slice(0, 100),
-    page = z.coerce
-      .number()
-      .int()
-      .min(1)
-      .max(100000)
-      .parse(req.query.page || 1);
-  const { rows } = await pool.query(
-    `WITH filtered AS (
-       SELECT c.* FROM companies c WHERE
-       ($1='' OR concat_ws(' ',name,tagline,location,array_to_string(services,' '),array_to_string(service_areas,' ')) ILIKE '%'||$1||'%')
-       AND ($2='' OR type=$2) AND ($3='' OR $3=ANY(services)) AND ($4='' OR $4=ANY(service_areas))
-       AND ($5='' OR location ILIKE '%'||$5||'%')
-     ), paged AS (SELECT * FROM filtered ORDER BY name,id LIMIT 24 OFFSET $6)
-     SELECT COALESCE((SELECT json_agg(paged ORDER BY name,id) FROM paged),'[]') AS companies,
-       (SELECT count(*)::int FROM filtered) AS total,
-       ARRAY(SELECT DISTINCT unnest(services) AS value FROM companies ORDER BY value) AS services,
-       ARRAY(SELECT DISTINCT unnest(service_areas) AS value FROM companies ORDER BY value) AS areas`,
-    [query, type, service, area, office, (page - 1) * 24],
-  );
-  res.json({ ...rows[0], page, pageSize: 24 });
+  res.json(await directorySearch(req.query));
 });
 app.get("/api/companies/:id", async (req, res) => {
   const company = (
@@ -295,20 +279,23 @@ app.patch("/api/companies/current", requireAdmin, async (req, res) => {
       ]),
     })
     .parse(req.body);
-  const { rows } = await pool.query(
-    "UPDATE companies SET name=$1,tagline=$2,description=$3,type=$4,location=$5,service_areas=$6,services=$7,website=$8 WHERE id=$9 RETURNING *",
-    [
-      body.name,
-      body.tagline,
-      body.description,
-      body.type,
-      body.location,
-      body.service_areas,
-      body.services,
-      body.website,
-      req.auth!.companyId,
-    ],
-  );
+  const { rows } = await tx(async (db) => {
+    await preventDuplicateCompany(db, body.name, req.auth!.companyId!);
+    return db.query(
+      "UPDATE companies SET name=$1,tagline=$2,description=$3,type=$4,location=$5,service_areas=$6,services=$7,website=$8 WHERE id=$9 RETURNING *",
+      [
+        body.name,
+        body.tagline,
+        body.description,
+        body.type,
+        body.location,
+        body.service_areas,
+        body.services,
+        body.website,
+        req.auth!.companyId,
+      ],
+    );
+  });
   res.json(rows[0]);
 });
 app.post("/api/companies", requireVerified, async (req, res) => {
@@ -321,6 +308,7 @@ app.post("/api/companies", requireVerified, async (req, res) => {
     .object({ name: z.string().trim().min(2).max(120) })
     .parse(req.body);
   const company = await tx(async (db) => {
+    await preventDuplicateCompany(db, name);
     const slug =
       name.toLowerCase().replace(/[^a-z0-9]+/g, "-") +
       "-" +
@@ -387,6 +375,7 @@ app.post("/api/requests", requireAdmin, async (req, res) => {
   const request = await tx(async (db) => {
     await lockPair(db, actor, companyId);
     await companyExists(db, companyId);
+    await requireManagedCompany(db, companyId);
     await noBlock(db, actor, companyId);
     const [a, b] = pair(actor, companyId);
     if (
@@ -773,15 +762,13 @@ app.post(
       )
     ).rows[0];
     broadcast(c.company_a, c.company_b);
-    res
-      .status(duplicate ? 200 : 201)
-      .json({
-        ok: true,
-        id: saved.id,
-        sequence: saved.sequence,
-        clientId,
-        duplicate,
-      });
+    res.status(duplicate ? 200 : 201).json({
+      ok: true,
+      id: saved.id,
+      sequence: saved.sequence,
+      clientId,
+      duplicate,
+    });
   },
 );
 app.get("/api/attachments/:id", requireCompany, async (req, res) => {
@@ -924,12 +911,10 @@ app.post("/api/team/invites", requireAdmin, async (req, res) => {
     company.username = await ensureUsername(db, company.id, company.name);
     return company;
   });
-  res
-    .status(201)
-    .json({
-      url: `${origin}/join/${company.username || company.slug}`,
-      expiresIn: "3 days",
-    });
+  res.status(201).json({
+    url: `${origin}/join/${company.username || company.slug}`,
+    expiresIn: "3 days",
+  });
 });
 app.post(
   "/api/team/invites/:token/accept",
@@ -1011,10 +996,8 @@ app.use("/api", publishingRoutes(uploadDir));
 app.use("/api", (_req, _res, next) =>
   next(new HttpError(404, "API endpoint not found.")),
 );
-app.use(express.static(path.join(root, "apps/web/dist")));
-app.get("/{*path}", (_req, res) =>
-  res.sendFile(path.join(root, "apps/web/dist/index.html")),
-);
+app.use(express.static(path.join(root, "apps/web/dist"), { index: false }));
+app.use(publicPages());
 app.use(
   (
     error: any,

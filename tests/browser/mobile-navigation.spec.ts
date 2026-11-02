@@ -14,7 +14,7 @@ test("phone bottom navigation and deliberate swipes preserve form gestures", asy
       name: "Mobile Owner",
       email: `navigation-${Date.now()}@example.test`,
       password: "ConnectNavigation123!",
-      companyName: "Mobile Studio",
+      companyName: "Mobile Studio " + Date.now(),
     },
   });
   const page = await context.newPage();

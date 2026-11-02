@@ -7,6 +7,7 @@ import type { PoolClient } from "pg";
 import { pool, tx, HttpError } from "./db.js";
 import { requireAdmin, requireVerified } from "./auth.js";
 import { checkQuota, storeBuffer, sendStored, deferDelete } from "./storage.js";
+import { preventDuplicateCompany } from "./directory.js";
 
 const uuid = z.string().uuid();
 const reserved = new Set([
@@ -62,6 +63,9 @@ const reserved = new Set([
   "test",
   "staging",
   "localhost",
+  "claim",
+  "sitemap.xml",
+  "robots.txt",
 ]);
 export const usernameSchema = z
   .string()
@@ -193,6 +197,16 @@ export function profileRoutes() {
         location: z.string().trim().max(160),
         services: z.array(z.string().trim().min(1).max(80)).max(30),
         service_areas: z.array(z.string().trim().min(1).max(60)).max(30),
+        audiences: z
+          .array(z.enum(["Residential", "Commercial", "Utility-scale"]))
+          .max(3)
+          .optional(),
+        phone: z
+          .string()
+          .trim()
+          .max(40)
+          .regex(/^[+\d\s().-]*$/, "Use a phone number.")
+          .optional(),
         website: z
           .string()
           .max(2000)
@@ -218,6 +232,7 @@ export function profileRoutes() {
       })
       .parse(req.body);
     await tx(async (db) => {
+      await preventDuplicateCompany(db, b.name, req.auth!.companyId!);
       await db.query("SELECT id FROM companies WHERE id=$1 FOR UPDATE", [
         req.auth!.companyId,
       ]);
@@ -237,6 +252,10 @@ export function profileRoutes() {
           b.established,
           req.auth!.companyId,
         ],
+      );
+      await db.query(
+        "UPDATE companies SET audiences=COALESCE($1::text[],audiences),phone=COALESCE($2,phone) WHERE id=$3",
+        [b.audiences ?? null, b.phone ?? null, req.auth!.companyId],
       );
     });
     res.json({ ok: true });

@@ -80,6 +80,7 @@ try {
     "tests/accounts.test.mjs",
     "tests/session-persistence.test.mjs",
     "tests/publishing-profiles.test.mjs",
+    "tests/directory.test.mjs",
   ]) {
     env.REQUIRE_EMAIL_VERIFICATION = suite === "tests/accounts.test.mjs" ? "true" : "false";
     await startServer();

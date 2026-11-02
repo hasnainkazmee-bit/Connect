@@ -13,6 +13,8 @@
     "start": "npm run start -w apps/api",
     "migrate": "npm run migrate -w apps/api",
     "seed": "npm run seed -w apps/api",
+    "directory:import": "node apps/api/dist/import-directory.js",
+    "directory:claims": "node apps/api/dist/review-claims.js",
     "test": "node tests/run.mjs",
     "test:ui": "node tests/run.mjs --ui",
     "test:android-core": "node tests/run.mjs --rust",

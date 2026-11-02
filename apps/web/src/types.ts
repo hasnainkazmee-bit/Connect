@@ -17,6 +17,15 @@ export type Company = {
   established?: number;
   role?: "owner" | "admin" | "member";
   title?: string;
+  listing_status?: "unclaimed" | "managed";
+  audiences?: string[];
+  phone?: string;
+  source_url?: string;
+  source_checked_at?: string;
+  ownership_verified_at?: string;
+  is_demo?: boolean;
+  rating_average?: number | null;
+  review_count?: number;
 };
 export type Session = {
   user: null | {

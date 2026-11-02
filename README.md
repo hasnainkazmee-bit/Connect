@@ -1,6 +1,6 @@
 # Connect
 
-A custom full-stack social network for solar companies: public posts, follows, company discovery, connections, and shared messaging.
+A custom full-stack directory and social network for solar companies. Visitors find businesses by service and coverage; signed-in members publish, follow and message through the same company profiles.
 
 ## Run locally
 
@@ -18,6 +18,8 @@ npm run dev
 Open **http://localhost:5173**. The API runs on port 4100 and PostgreSQL on localhost:5438. Vite proxies `/api` to the API, including the live event stream.
 
 The seed is optional, idempotent, and intended for local development. All seeded companies, people, projects, and account credentials are demonstration data.
+
+To add the curated real-world directory instead, run `npm run build` and `npm run directory:import`. This explicitly adds 12 sourced, unclaimed company listings and creates no accounts, reviews or posts. Repeating the import preserves existing profiles. See [directory sources and ownership operations](infra/DIRECTORY.md).
 
 | Company            | Email                  | Password       |
 | ------------------ | ---------------------- | -------------- |
@@ -46,13 +48,15 @@ The Compose defaults are for local use. Set your own database password, exact pu
 
 ## Implemented
 
-- A social homepage at `/`, with the searchable company directory at `/directory`.
+- A public discovery homepage at `/` for visitors and a social feed at the same address after sign-in. The directory remains available at `/directory`.
 - Public text posts, photo galleries, playable MP4/WebM video, and PDF attachments. Up to four JPG/PNG/WebP photos (10 MB each), one video (100 MB), or one PDF (20 MB) per post.
 - Upload previews, image descriptions, real upload progress, saved text drafts, and administrator post deletion.
 - Company follows, an All posts feed, a Following feed, and company Updates tabs. Follows are unilateral; they do not create connections or unlock messaging.
 - Persistent company likes and attributed comments, comment removal, shareable post URLs, and stable feed pagination.
 
-- Public directory with company, service, and service-area search and filters.
+- Public directory with company, service, audience and service-area filters; curated city landing pages; public HTML, canonical URLs and a sitemap. Location searches use service coverage, separately from the company's office. City/state search is supported; ZIP-radius search is not.
+- Unclaimed listings with official website/phone contacts and a company claim flow. Verified company-domain emails can claim the existing profile; other requests require an operator review. Claiming preserves the URL, reviews and followers. Imported listings cannot receive unattended Connect message requests.
+- New company signup checks for existing listings. Creating or editing a managed company updates its public directory profile directly, without a second listing or synchronization job.
 - Company profiles with services, projects, team, and editable company details.
 - Registration, password sign-in, persisted sessions, and company switching.
 - My Network shows accepted connections grouped by business type, with live counts, type filters, and search. Requests are accessible from notifications; blocked companies are in company settings.
@@ -106,7 +110,7 @@ npm run test:ui
 
 The app covers social posts → follows → company discovery → connections → shared messaging. Audio Spaces, Sunhub SSO, marketplace links, and sales portal integration remain outside the current release.
 
-Email verification and recovery are implemented. Independent company ownership review, a complete moderation workflow, and operational monitoring remain deployment considerations. Company registration currently records the registrant as owner without independently verifying their business authority. Credentials are not verified or presented as verified. Company logos, covers, and portfolio photos support uploads; seeded photos remain illustrative. Attachment signatures are validated, but malware scanning is not implemented.
+Email verification and recovery are implemented. Curated listing claims require a verified email on an operator-sourced company domain or an operator-approved manual claim. New company registration still records the registrant as owner without independently verifying their business authority. Account ownership is separate from contractor licensing or credential verification. A complete moderation workflow and operational monitoring remain deployment considerations. Company logos, covers, and portfolio photos support uploads; demo photos remain illustrative. Attachment signatures are validated, but malware scanning is not implemented.
 
 Stock-photo credits are available in the app: solar photography by Siwawut Phoophinyo on Unsplash, and office photography by Jakub Zerdzicki on Pexels. Illustrative company data is separate from any existing Sunhub production system.
 

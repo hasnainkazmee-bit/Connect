@@ -21,6 +21,7 @@ import { useApp } from "./context";
 import { Logo } from "./identity";
 import type { Company, Session } from "./types";
 import { UsernameField } from "./management";
+import { CompanyMatches } from "./company-matches";
 import "./accounts.css";
 
 function useAction() {
@@ -104,9 +105,11 @@ export function AccountLayout({ children }: { children: ReactNode }) {
 export function AuthExperience({
   initialMode = "login",
   onSuccess,
+  companyOnly = false,
 }: {
   initialMode?: "login" | "register";
   onSuccess: (session: Session) => void;
+  companyOnly?: boolean;
 }) {
   const [mode, setMode] = useState<"login" | "register" | "forgot" | "reset">(
       initialMode,
@@ -178,7 +181,7 @@ export function AuthExperience({
           });
         }}
       >
-        {mode === "register" && (
+        {mode === "register" && !companyOnly && (
           <fieldset className="account-type">
             <legend>I’m here as</legend>
             <div>
@@ -323,13 +326,21 @@ const services = [
   "Energy storage",
   "Equipment supply",
 ];
-export function Onboarding({ onDone }: { onDone: () => void }) {
-  const { session, company, setSession, refresh } = useApp();
+export function Onboarding({
+  onDone,
+  verificationOnly = false,
+}: {
+  onDone: () => void;
+  verificationOnly?: boolean;
+}) {
+  const { session, company, setSession, refresh, close } = useApp();
   const task = useAction();
   const individual = session.user?.account_type === "individual";
   const [username, setUsername] = useState(company?.username || "");
+  const [companyName, setCompanyName] = useState(company?.name || "");
   const needsVerification =
-    session.verificationRequired !== false && !session.user?.email_verified_at;
+    (verificationOnly || session.verificationRequired !== false) &&
+    !session.user?.email_verified_at;
   const [step, setStep] = useState<"company" | "follow">(
       individual ? "follow" : "company",
     ),
@@ -410,12 +421,12 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               e.preventDefault();
               const code = new FormData(e.currentTarget).get("code");
               void task.run(async () => {
-                setSession(
-                  await post("/auth/verification/confirm", {
-                    challengeId,
-                    code,
-                  }),
-                );
+                const verified = await post("/auth/verification/confirm", {
+                  challengeId,
+                  code,
+                });
+                setSession(verified);
+                if (verificationOnly) onDone();
               });
             }}
           >
@@ -497,13 +508,19 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               <input
                 name="name"
                 autoComplete="organization"
-                defaultValue={company?.name}
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
                 minLength={2}
                 maxLength={120}
                 required
                 placeholder="Your company’s name"
               />
             </label>
+            <CompanyMatches
+              name={companyName}
+              exceptId={company?.id}
+              onSelect={close}
+            />
             <UsernameField
               value={username}
               onChange={setUsername}
@@ -562,6 +579,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               </div>
             </fieldset>
             <ErrorMessage message={task.error} />
+            <p className="account-note">
+              Your company gets a public directory profile. Add the services and
+              areas you cover so people can find you.
+            </p>
             <button className="account-primary" disabled={task.busy}>
               {task.busy ? "Saving…" : "Continue"}
               <ArrowRight size={18} />

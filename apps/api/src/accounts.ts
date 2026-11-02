@@ -18,6 +18,7 @@ import {
 } from "./auth.js";
 import { codeHash, queueCode, flushMail } from "./mail.js";
 import { claimUsername, ensureUsername, usernameSchema } from "./profiles.js";
+import { preventDuplicateCompany } from "./directory.js";
 
 const email = z.string().trim().toLowerCase().max(254).pipe(z.email());
 const password = z.string().min(12, "Use at least 12 characters.").max(128);
@@ -161,6 +162,8 @@ export function accountRoutes() {
     await limit(`register:${b.email}`, 5);
     const hashed = await hashPassword(b.password);
     const result = await tx(async (db) => {
+      if (b.companyName && b.accountType === "company")
+        await preventDuplicateCompany(db, b.companyName);
       const user = (
         await db.query(
           "INSERT INTO users(name,email,password_hash,account_type) VALUES($1,$2,$3,$4) RETURNING id",
@@ -198,12 +201,10 @@ export function accountRoutes() {
       req.get("user-agent"),
     );
     void flushMail().catch(() => {});
-    res
-      .status(201)
-      .json({
-        ...(await sessionPayload(result.userId, result.companyId)),
-        challengeId: result.challengeId,
-      });
+    res.status(201).json({
+      ...(await sessionPayload(result.userId, result.companyId)),
+      challengeId: result.challengeId,
+    });
   });
   router.post("/auth/login", async (req, res) => {
     const b = z
@@ -426,6 +427,7 @@ export function accountRoutes() {
         )
       ).rows[0];
       const existing = membership?.company_id;
+      await preventDuplicateCompany(db, b.name, existing);
       let id = existing;
       if (existing && !["owner", "admin"].includes(membership.role || ""))
         throw new HttpError(

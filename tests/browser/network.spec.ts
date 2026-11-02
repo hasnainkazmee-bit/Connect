@@ -15,14 +15,14 @@ test("network groups active connections by business type and keeps requests sepa
         email:
           name.toLowerCase().replaceAll(" ", "") + suffix + "@example.test",
         password: "NetworkTest123!",
-        companyName: name,
+        companyName: name + " " + suffix,
       },
     });
     expect(response.status()).toBe(201);
     const session = await response.json();
     const update = await context.request.patch("/api/companies/current", {
       data: {
-        name,
+        name: name + " " + suffix,
         type,
         location,
         tagline: "",
@@ -130,7 +130,7 @@ test("network groups active connections by business type and keeps requests sepa
   await filters.getByRole("button", { name: "EPCs 1", exact: true }).click();
   await expect(page.locator(".connection-row")).toHaveCount(1);
   await expect(
-    page.getByRole("heading", { name: "HelioWorks Solar" }),
+    page.getByRole("heading", { name: "HelioWorks Solar " + suffix }),
   ).toBeVisible();
   await filters.getByRole("button", { name: "All 3", exact: true }).click();
   await page
@@ -138,7 +138,7 @@ test("network groups active connections by business type and keeps requests sepa
     .fill("Denver");
   await expect(page.locator(".connection-row")).toHaveCount(1);
   await expect(
-    page.getByRole("heading", { name: "Alpine Solar" }),
+    page.getByRole("heading", { name: "Alpine Solar " + suffix }),
   ).toBeVisible();
   await expect(
     filters.getByRole("button", { name: "Installers 2", exact: true }),
@@ -165,7 +165,10 @@ test("network groups active connections by business type and keeps requests sepa
     ),
   ).toBe(true);
   await expect(
-    page.getByRole("link", { name: "Message Alpine Solar", exact: true }),
+    page.getByRole("link", {
+      name: "Message Alpine Solar " + suffix,
+      exact: true,
+    }),
   ).toBeVisible();
   await page.screenshot({
     path: "test-results/network-mobile.png",
@@ -179,7 +182,7 @@ test("network groups active connections by business type and keeps requests sepa
     .getByRole("link", { name: "Connection requests 1", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Pending Developer" }),
+    page.getByRole("heading", { name: "Pending Developer " + suffix }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Decline", exact: true }).click();
   await expect(
@@ -189,7 +192,9 @@ test("network groups active connections by business type and keeps requests sepa
   await expect(page).toHaveURL(/\/requests$/);
 
   await page.goto("/network/connections");
-  await page.getByLabel("Actions for Alpine Solar", { exact: true }).click();
+  await page
+    .getByLabel("Actions for Alpine Solar " + suffix, { exact: true })
+    .click();
   await page.getByRole("button", { name: "Disconnect", exact: true }).click();
   await page
     .getByRole("dialog")
@@ -207,7 +212,7 @@ test("network groups active connections by business type and keeps requests sepa
   ).toBeVisible();
   await page.goto("/settings/blocked");
   await expect(
-    page.getByRole("heading", { name: "Blocked Distributor" }),
+    page.getByRole("heading", { name: "Blocked Distributor " + suffix }),
   ).toBeVisible();
   for (const context of contexts) await context.close();
 });

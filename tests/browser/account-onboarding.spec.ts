@@ -27,7 +27,7 @@ test.describe('verified onboarding', () => {
     await page.getByLabel('Verification code').fill(await mailCode('Verify your Connect email'));
     await page.getByRole('button',{name:'Verify email',exact:true}).click();
     await expect(page.getByRole('heading',{name:'Introduce your company.'})).toBeVisible();
-    await page.getByLabel('Company name').fill('Connect UI Solar');
+    await page.getByLabel('Company name').fill('Connect UI Solar '+Date.now()+' '+mobile);
     await page.getByRole('button',{name:'EPC',exact:true}).click();
     await page.getByLabel('Based in').fill('Austin, TX');
     await page.getByRole('button',{name:'Installation',exact:true}).click();

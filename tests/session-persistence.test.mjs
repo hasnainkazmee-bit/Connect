@@ -31,7 +31,7 @@ test("Connect sessions persist independently of other Sunhub cookies", async (t)
     name: "Session Owner",
     email,
     password,
-    companyName: "Session Solar",
+    companyName: "Session Solar " + randomUUID().slice(0, 8),
   });
   assert.equal(registered.status, 201);
   const owner = registered.data,
@@ -95,7 +95,7 @@ test("Connect sessions persist independently of other Sunhub cookies", async (t)
         name: "Other Owner",
         email: `other-${randomUUID()}@example.test`,
         password,
-        companyName: "Other Solar",
+        companyName: "Other Solar " + randomUUID().slice(0, 8),
       });
       const legacy = token(other);
       const cookie = `connect_session=${foreign}; sunhub_session=${legacy}`;

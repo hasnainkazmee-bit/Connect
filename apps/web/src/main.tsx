@@ -78,6 +78,9 @@ import {
   PersonalMessageButton,
 } from "./personal-messages";
 import { JoinCompanyPage } from "./join-company";
+import { Directory } from "./directory";
+import { ClaimCompanyPage } from "./claim-company";
+import { CompanyMatches } from "./company-matches";
 import { CompanyProfileView } from "./company-profile";
 import { CompanySettings, EmployeeInvite } from "./management";
 import "./styles.css";
@@ -274,6 +277,7 @@ function App() {
   const incompleteAccount =
     session.user &&
     session.verificationRequired !== false &&
+    !/^\/claim(?:\/|$)/.test(location.pathname) &&
     (!session.user.email_verified_at ||
       (!session.user.onboarding_completed_at &&
         !/^\/(invite|join)\//.test(location.pathname)));
@@ -539,7 +543,9 @@ function App() {
                 {!sessionExpired && (
                   <button
                     className="button ghost"
-                    onClick={() => setModal(<AuthModal initialMode="register" />)}
+                    onClick={() =>
+                      setModal(<AuthModal initialMode="register" />)
+                    }
                   >
                     Join Connect
                   </button>
@@ -565,8 +571,13 @@ function App() {
       >
         <ErrorBox message={startupError} />
         <Routes>
-          <Route path="/" element={<HomeFeed />} />
+          <Route
+            path="/"
+            element={session.user ? <HomeFeed /> : <Directory home />}
+          />
           <Route path="/directory" element={<Directory />} />
+          <Route path="/directory/installers/:place" element={<Directory />} />
+          <Route path="/claim/:username?" element={<ClaimCompanyPage />} />
           <Route path="/posts/:id" element={<PostPage />} />
           <Route path="/company/:id" element={<CompanyProfile />} />
           <Route
@@ -720,7 +731,7 @@ function App() {
           <Onboarding
             onDone={() => {
               setModal(null);
-              navigate("/");
+              refresh();
             }}
           />
         </ModalFrame>
@@ -881,6 +892,7 @@ function AuthModal({
 function NewCompany() {
   const { setSession, close, refresh, toast } = useApp();
   const task = useTask();
+  const [name, setName] = useState("");
   return (
     <>
       <h2>Create your company</h2>
@@ -904,8 +916,15 @@ function NewCompany() {
       >
         <label>
           Company name
-          <input name="name" required minLength={2} />
+          <input
+            name="name"
+            required
+            minLength={2}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
         </label>
+        <CompanyMatches name={name} onSelect={close} />
         <ErrorBox message={task.error} />
         <button className="button primary" disabled={task.busy}>
           Create company
@@ -915,240 +934,6 @@ function NewCompany() {
   );
 }
 
-function Directory() {
-  const [params, setParams] = useSearchParams();
-  const q = params.get("q") || "",
-    type = params.get("type") || "",
-    service = params.get("service") || "",
-    area = params.get("area") || "";
-  const { data, error, loading } = useResource<{
-    companies: Company[];
-    total: number;
-    services: string[];
-    areas: string[];
-    page: number;
-    pageSize: number;
-  }>("/companies?" + params.toString());
-  const [more, setMore] = useState(false);
-  const change = (key: string, value: string) => {
-    const next = new URLSearchParams(params);
-    if (key !== "page") next.delete("page");
-    value ? next.set(key, value) : next.delete(key);
-    setParams(next);
-  };
-  return (
-    <>
-      <div className="page-heading">
-        <div>
-          <h1>Discover companies</h1>
-          <p>Find the right expertise. Start the right conversation.</p>
-        </div>
-      </div>
-      <section className="directory-toolbar">
-        <form
-          className="directory-search"
-          onSubmit={(e) => {
-            e.preventDefault();
-            change("q", String(new FormData(e.currentTarget).get("q") || ""));
-          }}
-        >
-          <Search size={19} />
-          <input
-            key={q}
-            name="q"
-            defaultValue={q}
-            placeholder="Search companies, services, or locations…"
-            aria-label="Search directory"
-          />
-          <button className="icon-button" aria-label="Search">
-            <ArrowRight size={18} />
-          </button>
-        </form>
-        <div className="filter-row">
-          <label className="filter-select">
-            <Building2 size={16} />
-            <select
-              aria-label="Company type"
-              value={type}
-              onChange={(e) => change("type", e.target.value)}
-            >
-              <option value="">Company type</option>
-              {[
-                "Installer",
-                "EPC",
-                "Developer",
-                "Distributor",
-                "Manufacturer",
-                "Service provider",
-              ].map((x) => (
-                <option key={x}>{x}</option>
-              ))}
-            </select>
-          </label>
-          <label className="filter-select">
-            <Users size={16} />
-            <select
-              aria-label="Services"
-              value={service}
-              onChange={(e) => change("service", e.target.value)}
-            >
-              <option value="">Services</option>
-              {(data?.services || []).map((x) => (
-                <option key={x}>{x}</option>
-              ))}
-            </select>
-          </label>
-          <label className="filter-select">
-            <MapPin size={16} />
-            <select
-              aria-label="Service area"
-              value={area}
-              onChange={(e) => change("area", e.target.value)}
-            >
-              <option value="">Service area</option>
-              {(data?.areas || []).map((x) => (
-                <option key={x}>{x}</option>
-              ))}
-            </select>
-          </label>
-          <button
-            className={"button small " + (more ? "selected" : "")}
-            aria-expanded={more}
-            onClick={() => setMore(!more)}
-          >
-            <SlidersHorizontal size={15} />
-            Filters
-          </button>
-          {params.size > 0 && (
-            <button className="text-button" onClick={() => setParams({})}>
-              Clear all
-            </button>
-          )}
-        </div>
-        {more && (
-          <form
-            className="extra-filters"
-            onSubmit={(e) => {
-              e.preventDefault();
-              change(
-                "office",
-                String(new FormData(e.currentTarget).get("office") || ""),
-              );
-            }}
-          >
-            <label>
-              Office location
-              <input
-                key={params.get("office") || ""}
-                name="office"
-                defaultValue={params.get("office") || ""}
-                placeholder="City or state, e.g. Austin"
-              />
-            </label>
-            <button className="button small">Apply</button>
-            <span>
-              Service area is where they work. Office location is where they’re
-              based.
-            </span>
-          </form>
-        )}
-      </section>
-      <ErrorBox message={error} />
-      {loading ? (
-        <Loading />
-      ) : (
-        <>
-          <div className="results-heading">
-            <span>
-              {data?.total || 0} companies
-              {q && (
-                <>
-                  {" "}
-                  matching <strong>“{q}”</strong>
-                </>
-              )}
-            </span>
-            <span>Explore the industry</span>
-          </div>
-          <div className="directory-layout">
-            <section className="company-list">
-              {data?.companies.length ? (
-                data.companies.map((c) => (
-                  <CompanyCard key={c.id} company={c} />
-                ))
-              ) : (
-                <Empty
-                  icon={<Search />}
-                  title="No companies found."
-                  action={
-                    <button
-                      className="button primary"
-                      onClick={() => setParams({})}
-                    >
-                      Clear filters
-                    </button>
-                  }
-                >
-                  Try another company name or a broader service area.
-                </Empty>
-              )}
-              {data && data.total > data.pageSize && (
-                <div className="directory-pagination">
-                  <button
-                    className="button small"
-                    disabled={data.page === 1}
-                    onClick={() => change("page", String(data.page - 1))}
-                  >
-                    Previous
-                  </button>
-                  <span>
-                    Page {data.page} of {Math.ceil(data.total / data.pageSize)}
-                  </span>
-                  <button
-                    className="button small"
-                    disabled={data.page * data.pageSize >= data.total}
-                    onClick={() => change("page", String(data.page + 1))}
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
-            </section>
-            <aside className="directory-aside">
-              <div className="join-card">
-                <div className="sun-orbit">
-                  <Sun size={34} />
-                </div>
-                <h2>Great projects begin with a connection.</h2>
-                <p>Meet the companies moving solar forward.</p>
-                <div className="join-rule" />
-                <span>
-                  <Check size={15} />
-                  Find complementary expertise
-                </span>
-                <span>
-                  <Check size={15} />
-                  Connect company to company
-                </span>
-                <span>
-                  <Check size={15} />
-                  Keep your team in the loop
-                </span>
-              </div>
-              <div className="aside-note">
-                <ShieldCheck size={18} />
-                <p>
-                  Your company owns its relationships. Your people make them
-                  happen.
-                </p>
-              </div>
-            </aside>
-          </div>
-        </>
-      )}
-    </>
-  );
-}
 function CompanyCard({
   company: c,
   children,
@@ -1193,6 +978,17 @@ function ConnectButton({ profile }: { profile: Profile }) {
   const { session, company, admin, open } = useApp();
   const navigate = useNavigate();
   const { relationship: r, company: c } = profile;
+  if (c.listing_status === "unclaimed")
+    return (
+      <a
+        className="button primary"
+        href={c.website}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Visit website <ExternalLink size={15} />
+      </a>
+    );
   if (r.status === "self")
     return (
       <Link className="button primary" to="/settings">
@@ -2393,6 +2189,28 @@ function MessageRequestConversation({
   useEffect(() => {
     sessionStorage.setItem(draftKey, draft);
   }, [draftKey, draft]);
+  if (c.listing_status === "unclaimed")
+    return (
+      <div className="first-message">
+        <Logo company={c} />
+        <h2>{c.name} hasn’t joined Connect yet.</h2>
+        <p>
+          Contact the company through its official website. Messaging opens when
+          its team claims this profile.
+        </p>
+        <a
+          className="button primary"
+          href={c.website}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Visit website <ExternalLink size={15} />
+        </a>
+        <Link className="text-button" to={"/" + (c.username || c.slug)}>
+          View company profile
+        </Link>
+      </div>
+    );
   return (
     <>
       <header className="conversation-header">

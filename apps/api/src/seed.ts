@@ -122,6 +122,9 @@ await tx(async (db) => {
       )
     ).rows[0];
     if (!company) continue;
+    await db.query("UPDATE companies SET is_demo=true WHERE id=$1", [
+      company.id,
+    ]);
     const user = (
       await db.query(
         "INSERT INTO users(name,email,password_hash) VALUES($1,$2,$3) ON CONFLICT(email) DO UPDATE SET name=EXCLUDED.name RETURNING id",

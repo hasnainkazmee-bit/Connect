@@ -1,5 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Link, useParams, useSearchParams, useNavigate, useLocation } from "react-router-dom";
+import {
+  Link,
+  useParams,
+  useSearchParams,
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -17,6 +23,8 @@ import {
   Plus,
   Share2,
   Star,
+  ShieldCheck,
+  Phone,
   Trash2,
   UserPlus,
   Users,
@@ -95,15 +103,23 @@ export function CompanyProfileView({
   controls: (profile: Profile) => ReactNode;
   username?: string;
 }) {
-  const navigate = useNavigate(), location = useLocation();
+  const navigate = useNavigate(),
+    location = useLocation();
   const { id } = useParams(),
     [params, setParams] = useSearchParams();
   const { company, session, admin, open, revision } = useApp();
   const [data, setData] = useState<Profile | null>(null),
     [error, setError] = useState(""),
     [preview, setPreview] = useState(false);
+  const visibleTabs =
+    data?.company.listing_status === "unclaimed"
+      ? tabs.filter((t) => t === "About" || t === "Reviews")
+      : tabs;
   const tab =
-    tabs.find((t) => t.toLowerCase() === params.get("tab")) || "Updates";
+    visibleTabs.find((t) => t.toLowerCase() === params.get("tab")) ||
+    (data?.company.listing_status === "unclaimed" || !session.user
+      ? "About"
+      : "Updates");
   useEffect(() => {
     let cancel = false;
     setError("");
@@ -111,8 +127,15 @@ export function CompanyProfileView({
       .then((d) => {
         if (!cancel) {
           setData(d);
-          if (d.company.username && location.pathname !== "/" + d.company.username)
-            navigate("/" + d.company.username + location.search + location.hash, { replace: true });
+          document.title = d.company.name + " | Connect";
+          if (
+            d.company.username &&
+            location.pathname !== "/" + d.company.username
+          )
+            navigate(
+              "/" + d.company.username + location.search + location.hash,
+              { replace: true },
+            );
         }
       })
       .catch((e) => {
@@ -121,7 +144,16 @@ export function CompanyProfileView({
     return () => {
       cancel = true;
     };
-  }, [id, username, revision, company?.id, location.pathname, location.search, location.hash, navigate]);
+  }, [
+    id,
+    username,
+    revision,
+    company?.id,
+    location.pathname,
+    location.search,
+    location.hash,
+    navigate,
+  ]);
   if (error)
     return (
       <div className="profile-not-found">
@@ -144,9 +176,12 @@ export function CompanyProfileView({
     owner = company?.id === c.id,
     editable = owner && admin && !preview;
   const setTab = (value: typeof tab) =>
-    setParams(value === "Updates" ? {} : { tab: value.toLowerCase() }, {
-      replace: true,
-    });
+    setParams(
+      { tab: value.toLowerCase() },
+      {
+        replace: true,
+      },
+    );
   const edit = (label: string, fn: () => void) =>
     editable ? (
       <button
@@ -312,7 +347,30 @@ export function CompanyProfileView({
               !owner && (
                 <>
                   <FollowButton target={c} />
-                  {controls(data)}
+                  {c.listing_status === "unclaimed" ? (
+                    <div className="directory-profile-actions">
+                      {c.phone && (
+                        <a
+                          className="button"
+                          href={"tel:" + c.phone.replace(/[^+\d]/g, "")}
+                        >
+                          <Phone size={15} />
+                          Call
+                        </a>
+                      )}
+                      <a
+                        className="button primary"
+                        href={c.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Visit website
+                        <ArrowUpRight size={15} />
+                      </a>
+                    </div>
+                  ) : (
+                    controls(data)
+                  )}
                 </>
               )
             )}
@@ -356,6 +414,15 @@ export function CompanyProfileView({
             )}
           </div>
           <div className="company-social-line">
+            {c.ownership_verified_at && (
+              <span
+                className="profile-ownership"
+                title="Company account ownership confirmed. Contractor qualifications are not verified by this badge."
+              >
+                <ShieldCheck size={14} />
+                Ownership confirmed
+              </span>
+            )}
             <SocialStats companyId={c.id} />
             <button
               className="profile-rating"
@@ -377,7 +444,7 @@ export function CompanyProfileView({
           </div>
         </div>
         <nav className="company-sections" aria-label="Company profile sections">
-          {tabs.map((t) => (
+          {visibleTabs.map((t) => (
             <button
               key={t}
               aria-current={t === tab ? "page" : undefined}
@@ -394,6 +461,22 @@ export function CompanyProfileView({
           ))}
         </nav>
       </article>
+      {c.listing_status === "unclaimed" && (
+        <aside className="listing-notice">
+          <div>
+            <strong>Own this business?</strong>
+            <p>
+              This public listing was added from the company’s official website.
+              Its team hasn’t claimed it yet. Claim it to update details,
+              publish your work and receive messages.
+            </p>
+          </div>
+          <Link className="button" to={"/claim/" + (c.username || c.slug)}>
+            Claim this profile
+            <ArrowUpRight size={15} />
+          </Link>
+        </aside>
+      )}
       {editable && (!c.username || !c.description || !c.logo_url) && (
         <div className="profile-nudge">
           <span>
@@ -569,6 +652,22 @@ export function CompanyProfileView({
                     </dd>
                   </div>
                 )}
+                {!!c.audiences?.length && (
+                  <div>
+                    <dt>Projects we support</dt>
+                    <dd>{c.audiences.join(" · ")}</dd>
+                  </div>
+                )}
+                {c.phone && (
+                  <div>
+                    <dt>Business phone</dt>
+                    <dd>
+                      <a href={"tel:" + c.phone.replace(/[^+\d]/g, "")}>
+                        {c.phone}
+                      </a>
+                    </dd>
+                  </div>
+                )}
               </dl>
               <h3>What we do</h3>
               <div className="company-service-tags">
@@ -586,8 +685,40 @@ export function CompanyProfileView({
                   <p className="muted">Contact us about your location.</p>
                 )}
               </div>
+              {c.source_url && (
+                <div className="listing-sources">
+                  {c.listing_status === "unclaimed"
+                    ? "Listing information from"
+                    : "Original listing sourced from"}{" "}
+                  <a
+                    href={c.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    the company’s official website
+                  </a>
+                  .{" "}
+                  {c.source_checked_at && (
+                    <>
+                      Checked{" "}
+                      {new Date(c.source_checked_at).toLocaleDateString(
+                        undefined,
+                        {
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
+                          timeZone: "UTC",
+                        },
+                      )}
+                      .{" "}
+                    </>
+                  )}
+                  Contact the company to confirm coverage and availability.
+                  Logos belong to their respective companies.
+                </div>
+              )}
             </section>
-            {achievements}
+            {(editable || !!data.achievements?.length) && achievements}
           </div>
         ) : tab === "Portfolio" ? (
           <section className="profile-card portfolio-section">

@@ -32,7 +32,7 @@ test('Docker mail and S3 storage integrate with verified company chat',async t=>
    const register=async(cli,name)=>{const email=`storage-${randomUUID()}@services.test`; const r=await cli('/auth/register',{name,email,password:'StorageConnect123!'}); assert.equal(r.status,201);
     const code=await verification(email); assert.equal((await cli('/auth/verification/confirm',{challengeId:r.data.challengeId,code})).status,200);
     const outbox=(await db.query('SELECT sent_at,payload_encrypted FROM email_outbox WHERE recipient=$1',[email])).rows[0];assert.ok(outbox.sent_at);assert.equal(outbox.payload_encrypted,null);
-    const profile=await cli('/onboarding/company',{name,type:'Installer',location:'Austin, TX'});assert.equal(profile.status,200);return profile.data;};
+    const profile=await cli('/onboarding/company',{name:name+' '+randomUUID().slice(0,8),type:'Installer',location:'Austin, TX'});assert.equal(profile.status,200);return profile.data;};
    A=await register(a,'Storage Test A'); B=await register(b,'Storage Test B');
    assert.equal((await a('/ready')).status,200);
   });

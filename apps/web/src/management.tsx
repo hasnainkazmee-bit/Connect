@@ -416,6 +416,7 @@ export function ProfileEditor({ target }: { target: Company }) {
   const [username, setUsername] = useState(target.username || ""),
     [services, setServices] = useState(target.services),
     [areas, setAreas] = useState(target.service_areas),
+    [audiences, setAudiences] = useState(target.audiences || []),
     [dirty, setDirty] = useState(false);
   const guard = useUnsavedChanges(dirty, task.busy);
   return (
@@ -439,6 +440,7 @@ export function ProfileEditor({ target }: { target: Company }) {
                 username: username || undefined,
                 services,
                 service_areas: areas,
+                audiences,
                 established: data.established ? Number(data.established) : null,
               }),
             });
@@ -560,6 +562,39 @@ export function ProfileEditor({ target }: { target: Company }) {
               />
             </label>
           </div>
+          <label>
+            Public business phone
+            <input
+              name="phone"
+              type="tel"
+              defaultValue={target.phone || ""}
+              maxLength={40}
+              placeholder="e.g. +1 512 555 0100"
+            />
+            <small>Shown on your public directory profile.</small>
+          </label>
+          <fieldset>
+            <legend>Projects you support</legend>
+            <div className="service-choices">
+              {["Residential", "Commercial", "Utility-scale"].map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={audiences.includes(value)}
+                  onClick={() => {
+                    setAudiences((a) =>
+                      a.includes(value)
+                        ? a.filter((v) => v !== value)
+                        : [...a, value],
+                    );
+                    setDirty(true);
+                  }}
+                >
+                  {audiences.includes(value) && <Check size={13} />} {value}
+                </button>
+              ))}
+            </div>
+          </fieldset>
           <TagInput
             label="Services"
             values={services}

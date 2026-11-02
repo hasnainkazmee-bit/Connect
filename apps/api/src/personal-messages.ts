@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { pool, tx, HttpError } from "./db.js";
 import { requireVerified, type Auth } from "./auth.js";
+import { requireManagedCompany } from "./directory.js";
 const uuid = z.string().uuid();
 function side(t: any, a: Auth) {
   if (a.accountType === "individual" && t.user_id === a.userId)
@@ -53,6 +54,7 @@ export function personalMessagesRoutes() {
       })
       .parse(req.body);
     const thread = await tx(async (db) => {
+      await requireManagedCompany(db, b.companyId);
       await db.query("SELECT id FROM users WHERE id=$1 FOR UPDATE", [
         req.auth!.userId,
       ]);
