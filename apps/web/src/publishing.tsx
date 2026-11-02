@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import ImageExtension from "@tiptap/extension-image";
@@ -6,22 +6,13 @@ import Placeholder from "@tiptap/extension-placeholder";
 import {
   Bold,
   Italic,
-  Underline,
   Heading2,
   List,
-  ListOrdered,
   Quote,
   Link2,
-  Minus,
-  Undo2,
-  Redo2,
   Image,
   Video,
   FileText,
-  Newspaper,
-  BookOpen,
-  BriefcaseBusiness,
-  MessageSquare,
   Globe,
   Check,
   LoaderCircle,
@@ -41,6 +32,7 @@ import "./publishing.css";
 import {
   formats,
   RichDocument,
+  publicationLabel,
   type PublicationKind,
 } from "./publication-content";
 type Media = {
@@ -63,6 +55,17 @@ type Draft = {
   media: Media[];
 };
 const emptyDoc = { type: "doc", content: [{ type: "paragraph" }] };
+const documentFromText = (text: string) => ({
+  type: "doc",
+  content: text.split("\n").map((line) => ({
+    type: "paragraph",
+    content: line ? [{ type: "text", text: line }] : [],
+  })),
+});
+const hasRichContent = (node: any): boolean =>
+  !!node?.marks?.length ||
+  (!!node?.type && !["doc", "paragraph", "text"].includes(node.type)) ||
+  (node?.content || []).some(hasRichContent);
 export function Publisher({
   initialKind = "post",
   initialMedia,
@@ -74,7 +77,7 @@ export function Publisher({
   publicationId?: string;
   onPublished?: () => void;
 }) {
-  const { company, session, close, refresh, toast } = useApp();
+  const { company, close, refresh, toast } = useApp();
   const [kind, setKind] = useState<PublicationKind>(initialKind),
     [title, setTitle] = useState(""),
     [subtitle, setSubtitle] = useState(""),
@@ -92,6 +95,18 @@ export function Publisher({
     [linkOpen, setLinkOpen] = useState(false),
     [link, setLink] = useState(""),
     [mediaKind, setMediaKind] = useState(initialMedia || "image");
+  const [uploadName, setUploadName] = useState("");
+  const [confirmPost, setConfirmPost] = useState(false);
+  const uploadIntent = useRef<"attachment" | "cover" | "inline">("attachment");
+  const uploadAction = useRef<
+    (files: File[], intent?: "attachment" | "cover" | "inline") => void
+  >(() => {});
+  const mediaQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const pendingDescriptions = useRef(
+    new Map<string, { media: Media; alt: string }>(),
+  );
+  const uploadLock = useRef(false);
+  const [mediaSaving, setMediaSaving] = useState(false);
   const draft = useRef<{
       id: string;
       version: number;
@@ -121,7 +136,7 @@ export function Publisher({
       ImageExtension,
       Placeholder.configure({
         placeholder:
-          "Tell the story. Add a heading, a quote, or an image when you need one.",
+          "Share the announcement, the people behind it, and what happens next…",
       }),
     ],
     content: emptyDoc,
@@ -132,10 +147,33 @@ export function Publisher({
         "aria-multiline": "true",
         class: "story-editor",
       },
+      handlePaste: (_view, event) => {
+        const files = [...(event.clipboardData?.files || [])].filter((f) =>
+          f.type.startsWith("image/"),
+        );
+        if (!files.length) return false;
+        event.preventDefault();
+        uploadAction.current(files, "inline");
+        return true;
+      },
+      handleDrop: (_view, event) => {
+        const files = [...(event.dataTransfer?.files || [])].filter((f) =>
+          f.type.startsWith("image/"),
+        );
+        if (!files.length) return false;
+        event.preventDefault();
+        uploadAction.current(files, "inline");
+        return true;
+      },
     },
     onUpdate: ({ editor }) => {
-      setDoc(editor.getJSON());
-      setBody(editor.getText({ blockSeparator: "\n" }));
+      const document = editor.getJSON(),
+        text = editor.getText({ blockSeparator: "\n" });
+      setDoc(document);
+      if (latest.current.kind !== "post") {
+        setBody(text);
+        latest.current = { ...latest.current, document, body: text };
+      }
       setError("");
     },
   });
@@ -151,6 +189,7 @@ export function Publisher({
     api<Draft>("/posts/" + publicationId)
       .then((p) => {
         if (cancelled) return;
+        const loadedDocument = p.document || documentFromText(p.body);
         draft.current = {
           id: p.id,
           version: p.version,
@@ -160,28 +199,17 @@ export function Publisher({
         setTitle(p.title);
         setSubtitle(p.subtitle);
         setBody(p.body);
-        setDoc(p.document || emptyDoc);
+        setDoc(loadedDocument);
         setMedia(p.media || []);
         setCover(p.cover_media_id);
-        editor?.commands.setContent(
-          p.document || {
-            type: "doc",
-            content: p.body
-              .split("\n")
-              .map((t) => ({
-                type: "paragraph",
-                content: t ? [{ type: "text", text: t }] : [],
-              })),
-          },
-          { emitUpdate: false },
-        );
+        editor?.commands.setContent(loadedDocument, { emitUpdate: false });
         setSaved(
           JSON.stringify({
             kind: p.kind,
             title: p.title,
             subtitle: p.subtitle,
             body: p.body,
-            document: p.kind === "post" ? null : p.document || emptyDoc,
+            document: p.kind === "post" ? null : loadedDocument,
             coverMediaId: p.cover_media_id,
           }),
         );
@@ -253,32 +281,76 @@ export function Publisher({
   }, [fingerprint, saved, loading, busy, error]);
   useEffect(() => {
     const prevent = (e: BeforeUnloadEvent) => {
-      if (fingerprint !== saved && (body || title)) {
+      if (
+        busy ||
+        mediaSaving ||
+        pendingDescriptions.current.size ||
+        (fingerprint !== saved && (body || title))
+      ) {
         e.preventDefault();
       }
     };
     window.addEventListener("beforeunload", prevent);
     return () => window.removeEventListener("beforeunload", prevent);
-  }, [fingerprint, saved, body, title]);
-  async function upload(files: File[]) {
-    if (!files.length || busy) return;
+  }, [fingerprint, saved, body, title, busy, mediaSaving]);
+  async function upload(files: File[], intent = uploadIntent.current) {
+    if (!files.length || busy || uploadLock.current) return;
+    if (
+      kind === "post" &&
+      (media.length + files.length > 4 ||
+        ((media.some((m) => !m.mime.startsWith("image/")) ||
+          files.some((f) => !f.type.startsWith("image/"))) &&
+          media.length + files.length > 1))
+    ) {
+      setError(
+        "Add up to 4 photos, or one video or PDF. Choose Press release to share more.",
+      );
+      return;
+    }
+    if (media.length + files.length > 20) {
+      setError("A press release can include up to 20 attachments.");
+      return;
+    }
+    const oversized = files.find(
+      (f) =>
+        f.size >
+        (f.type.startsWith("image/")
+          ? 10
+          : f.type === "application/pdf"
+            ? 20
+            : 100) *
+          1024 *
+          1024,
+    );
+    if (oversized) {
+      setError(
+        "Use photos under 10 MB, videos under 100 MB, and PDFs under 20 MB.",
+      );
+      return;
+    }
+    uploadLock.current = true;
     setBusy(true);
     setError("");
     try {
       await persist();
       for (const f of files) {
+        setUploadName(f.name);
+        setProgress(0);
         const form = new FormData();
         form.set("file", f);
         const m = await new Promise<Media>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
           xhr.open("POST", "/api/publications/" + draft.current!.id + "/media");
+          xhr.timeout = 120000;
           xhr.upload.onprogress = (e) =>
             e.lengthComputable &&
             setProgress(Math.round((e.loaded / e.total) * 100));
           xhr.onload = () => {
             try {
               const d = JSON.parse(xhr.responseText);
-              xhr.status < 300
+              if (xhr.status === 401)
+                window.dispatchEvent(new Event("connect:session-expired"));
+              xhr.status >= 200 && xhr.status < 300
                 ? resolve(d)
                 : reject(new Error(d.error || "Could not upload this file."));
             } catch {
@@ -291,57 +363,104 @@ export function Publisher({
                 "Upload interrupted. Your story is saved. Try this file again.",
               ),
             );
+          xhr.ontimeout = () =>
+            reject(
+              new Error(
+                "This upload is taking too long. Your draft is saved; try the file again.",
+              ),
+            );
           xhr.send(form);
         });
         setMedia((old) => [...old, m]);
-        if (kind !== "post" && !cover && m.mime.startsWith("image/"))
+        if (intent === "cover" && m.mime.startsWith("image/")) {
           setCover(m.id);
+          latest.current = { ...latest.current, coverMediaId: m.id };
+        }
+        if (intent === "inline" && m.mime.startsWith("image/"))
+          editor
+            ?.chain()
+            .focus()
+            .setImage({ src: m.url, alt: m.alt })
+            .createParagraphNear()
+            .run();
+        // Save each completed placement before attempting the next file.
+        // A failed later upload must not lose an earlier cover or inline photo.
+        await persist();
       }
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
+      uploadLock.current = false;
       setProgress(null);
+      setUploadName("");
     }
   }
-  const choose = (type: "image" | "video" | "document") => {
+  uploadAction.current = (files, intent) => {
+    void upload(files, intent);
+  };
+  const choose = (
+    type: "image" | "video" | "document",
+    intent: "attachment" | "cover" | "inline" = "attachment",
+  ) => {
+    uploadIntent.current = intent;
     setMediaKind(type);
     setTimeout(() => input.current?.click(), 0);
   };
-  function changeKind(value: PublicationKind) {
+  function changeKind(value: PublicationKind, confirmed = false) {
+    if (
+      value === "post" &&
+      (body.length > 4000 ||
+        media.length > 4 ||
+        (media.some((m) => !m.mime.startsWith("image/")) && media.length > 1))
+    ) {
+      setError(
+        "This update needs the extra room of a press release. A post allows 4,000 characters and up to 4 photos, or one video or PDF.",
+      );
+      return;
+    }
+    if (
+      value === "post" &&
+      kind !== "post" &&
+      !confirmed &&
+      (title || subtitle || hasRichContent(doc))
+    ) {
+      setConfirmPost(true);
+      return;
+    }
+    setConfirmPost(false);
     setKind(value);
+    latest.current = {
+      ...latest.current,
+      kind: value,
+      document: value === "post" ? null : doc,
+    };
     setError("");
     if (
       value !== "post" &&
       body &&
-      !doc.content?.some((n: any) => n.content?.length)
+      body !== editor?.getText({ blockSeparator: "\n" })
     ) {
-      const content = {
-        type: "doc",
-        content: body
-          .split("\n")
-          .map((t) => ({
-            type: "paragraph",
-            content: t ? [{ type: "text", text: t }] : [],
-          })),
-      };
+      const content = documentFromText(body);
       editor?.commands.setContent(content);
       setDoc(content);
     }
   }
   useEffect(() => {
     const closeRequest = (event: Event) => {
-      if (busy) {
+      if (busy || mediaSaving) {
         event.preventDefault();
         return;
       }
       if (
-        (body.trim() || title.trim() || draft.current) &&
-        fingerprint !== saved
+        pendingDescriptions.current.size ||
+        ((body.trim() || title.trim() || draft.current) &&
+          fingerprint !== saved)
       ) {
         event.preventDefault();
         const finish = (event as CustomEvent).detail.close;
-        void persist()
+        void flushMediaSaves()
+          .then(() => persist())
           .then(finish)
           .catch(() => {});
       }
@@ -349,7 +468,7 @@ export function Publisher({
     window.addEventListener("connect:modal-close", closeRequest);
     return () =>
       window.removeEventListener("connect:modal-close", closeRequest);
-  }, [busy, body, title, fingerprint, saved]);
+  }, [busy, mediaSaving, body, title, fingerprint, saved]);
   if (!company)
     return (
       <div className="publisher-empty">
@@ -364,6 +483,51 @@ export function Publisher({
       </div>
     );
   const wordCount = body.trim().split(/\s+/).filter(Boolean).length;
+  const coverPhoto = media.find((m) => m.id === cover);
+  const charLimit = kind === "post" ? 4000 : 50000;
+  const inlineIds = new Set<string>();
+  function collectImages(node: any) {
+    if (node?.type === "image") inlineIds.add(node.attrs?.src);
+    node?.content?.forEach(collectImages);
+  }
+  collectImages(doc);
+  async function saveAlt(m: Media, alt: string) {
+    pendingDescriptions.current.set(m.id, { media: m, alt });
+    setMediaSaving(true);
+    const job = mediaQueue.current
+      .catch(() => {})
+      .then(async () => {
+        await api("/publications/" + draft.current!.id + "/media/" + m.id, {
+          method: "PATCH",
+          body: JSON.stringify({ alt }),
+        });
+        if (editor) {
+          const transaction = editor.state.tr;
+          editor.state.doc.descendants((node, pos) => {
+            if (node.type.name === "image" && node.attrs.src === m.url)
+              transaction.setNodeMarkup(pos, undefined, { ...node.attrs, alt });
+          });
+          editor.view.dispatch(transaction);
+        }
+        setMedia((all) => all.map((v) => (v.id === m.id ? { ...v, alt } : v)));
+        if (pendingDescriptions.current.get(m.id)?.alt === alt)
+          pendingDescriptions.current.delete(m.id);
+      });
+    mediaQueue.current = job;
+    try {
+      await job;
+    } catch (e) {
+      setError((e as Error).message);
+      throw e;
+    } finally {
+      setMediaSaving(false);
+    }
+  }
+  async function flushMediaSaves() {
+    await mediaQueue.current.catch(() => {});
+    for (const { media, alt } of [...pendingDescriptions.current.values()])
+      await saveAlt(media, alt);
+  }
   return (
     <div
       className={
@@ -372,26 +536,27 @@ export function Publisher({
     >
       <header className="publisher-top">
         <div>
-          <span className="publisher-eyebrow">YOUR COMPANY’S VOICE</span>
+          <span className="publisher-eyebrow">CONNECT. TALK. CELEBRATE.</span>
           <h2>
             {preview
               ? "Preview"
               : publicationId
-                ? "Edit your story"
-                : "Create a post"}
+                ? "Edit your update"
+                : "Share what’s happening"}
           </h2>
         </div>
         <button
           className="publisher-drafts"
           onClick={() => {
-            void persist()
+            void flushMediaSaves()
+              .then(() => persist())
               .then(() => {
                 close();
                 toast("Draft saved. Find it in Drafts.");
               })
               .catch(() => {});
           }}
-          disabled={busy || saving}
+          disabled={busy || saving || mediaSaving}
         >
           <Bookmark size={16} />
           Save & close
@@ -399,39 +564,70 @@ export function Publisher({
       </header>
       <div
         className="publisher-formats"
-        role="tablist"
+        role="group"
         aria-label="Publication format"
       >
         {formats.map((f) => (
           <button
             key={f.value}
-            role="tab"
-            aria-selected={kind === f.value}
+            aria-pressed={
+              kind === f.value ||
+              (f.value === "press_release" && kind !== "post")
+            }
             onClick={() => changeKind(f.value)}
             disabled={busy}
           >
             <f.icon size={17} />
-            <span>{f.label}</span>
+            <span>
+              <strong>{f.label}</strong>
+              <small>{f.description}</small>
+            </span>
           </button>
         ))}
       </div>
+      {confirmPost && (
+        <div className="publisher-format-confirm" role="alert">
+          <strong>Switch to a simple post?</strong>
+          <p>
+            Your text and attachments will stay. The headline, rich formatting,
+            and photo placement won’t appear in the post.
+          </p>
+          <div>
+            <button className="button" onClick={() => setConfirmPost(false)}>
+              Keep current format
+            </button>
+            <button
+              className="button primary"
+              onClick={() => changeKind("post", true)}
+            >
+              Switch to Post
+            </button>
+          </div>
+        </div>
+      )}
       <div className="publisher-identity">
         <Logo company={company} />
         <div>
           <strong>{company.name}</strong>
           <span>
             <Globe size={12} />
-            Public · {formats.find((f) => f.value === kind)?.label}
+            Public · {publicationLabel(kind)}
           </span>
         </div>
         <span className="publisher-save" role="status">
-          {saving ? (
+          {saving || mediaSaving ? (
             <>
               <LoaderCircle size={13} className="spin" />
               Saving…
             </>
           ) : error ? (
-            <button onClick={() => void persist().catch(() => {})}>
+            <button
+              onClick={() =>
+                void flushMediaSaves()
+                  .then(() => persist())
+                  .catch(() => {})
+              }
+            >
               Retry saving
             </button>
           ) : saved && fingerprint === saved ? (
@@ -446,55 +642,136 @@ export function Publisher({
       </div>
       {preview ? (
         <article className="publisher-preview">
-          {cover && (
+          {kind !== "post" && coverPhoto && (
             <img
               className="story-cover"
-              src={media.find((m) => m.id === cover)?.url}
-              alt="Story cover"
+              src={coverPhoto.url}
+              alt={coverPhoto.alt || "Press release cover"}
             />
           )}
-          {title && <h1>{title}</h1>}
-          {subtitle && <p className="story-subtitle">{subtitle}</p>}
+          {kind !== "post" && title && <h1>{title}</h1>}
+          {kind !== "post" && subtitle && (
+            <p className="story-subtitle">{subtitle}</p>
+          )}
           {kind === "post" ? (
             <p style={{ whiteSpace: "pre-wrap" }}>{body}</p>
           ) : (
             <RichDocument document={doc} />
           )}
+          <div
+            className={
+              "publisher-preview-media " +
+              (kind === "post" && media.length > 1 ? "preview-gallery" : "")
+            }
+          >
+            {media
+              .filter(
+                (m) =>
+                  kind === "post" || (m.id !== cover && !inlineIds.has(m.url)),
+              )
+              .map((m) =>
+                m.mime.startsWith("image/") ? (
+                  <img key={m.id} src={m.url} alt={m.alt || "Company photo"} />
+                ) : m.mime.startsWith("video/") ? (
+                  <video key={m.id} src={m.url} controls preload="metadata" />
+                ) : (
+                  <a
+                    className="publisher-file"
+                    key={m.id}
+                    href={m.url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <FileText size={20} />
+                    {m.name}
+                  </a>
+                ),
+              )}
+          </div>
         </article>
       ) : (
         <>
           {kind !== "post" && (
-            <div className="story-titles">
-              <input
-                aria-label="Story title"
-                placeholder={
-                  kind === "press_release"
-                    ? "Your headline"
-                    : "Give your story a title"
+            <>
+              <div
+                className={
+                  "publisher-cover-slot " + (coverPhoto ? "has-cover" : "")
                 }
-                value={title}
-                maxLength={180}
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                  setError("");
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  void upload(
+                    [...e.dataTransfer.files]
+                      .filter((f) => f.type.startsWith("image/"))
+                      .slice(0, 1),
+                    "cover",
+                  );
                 }}
-              />
-              <textarea
-                aria-label="Story subtitle"
-                placeholder="A short introduction (optional)"
-                rows={2}
-                maxLength={300}
-                value={subtitle}
-                onChange={(e) => setSubtitle(e.target.value)}
-              />
-            </div>
+              >
+                {coverPhoto ? (
+                  <>
+                    <img
+                      src={coverPhoto.url}
+                      alt={coverPhoto.alt || "Press release cover"}
+                    />
+                    <div>
+                      <button
+                        className="button"
+                        disabled={busy}
+                        onClick={() => choose("image", "cover")}
+                      >
+                        <Image size={17} />
+                        Change cover
+                      </button>
+                      <button
+                        className="button"
+                        disabled={busy}
+                        onClick={() => setCover(null)}
+                      >
+                        Remove cover
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <button
+                    disabled={busy}
+                    onClick={() => choose("image", "cover")}
+                  >
+                    <Image size={25} />
+                    <strong>Add a cover photo</strong>
+                    <span>Choose or drop a photo · recommended 1600 × 900</span>
+                    <small>Optional. Your full image stays visible.</small>
+                  </button>
+                )}
+              </div>
+              <div className="story-titles">
+                <input
+                  aria-label="Story title"
+                  placeholder="What’s the news?"
+                  value={title}
+                  maxLength={180}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    setError("");
+                  }}
+                />
+                <textarea
+                  aria-label="Story subtitle"
+                  placeholder="The key news in a sentence (optional)"
+                  rows={2}
+                  maxLength={300}
+                  value={subtitle}
+                  onChange={(e) => setSubtitle(e.target.value)}
+                />
+              </div>
+            </>
           )}
           {kind === "post" ? (
             <textarea
               className="quick-post-input"
               autoFocus
               aria-label="Post text"
-              placeholder="What would you like to share?"
+              placeholder="A project taking shape. A milestone reached. What’s new at your company?"
               value={body}
               maxLength={4000}
               onChange={(e) => {
@@ -523,12 +800,6 @@ export function Publisher({
                     "italic",
                   ],
                   [
-                    "Underline",
-                    Underline,
-                    () => editor?.chain().focus().toggleUnderline().run(),
-                    "underline",
-                  ],
-                  [
                     "Heading",
                     Heading2,
                     () =>
@@ -542,22 +813,10 @@ export function Publisher({
                     "bulletList",
                   ],
                   [
-                    "Numbered list",
-                    ListOrdered,
-                    () => editor?.chain().focus().toggleOrderedList().run(),
-                    "orderedList",
-                  ],
-                  [
                     "Quote",
                     Quote,
                     () => editor?.chain().focus().toggleBlockquote().run(),
                     "blockquote",
-                  ],
-                  [
-                    "Divider",
-                    Minus,
-                    () => editor?.chain().focus().setHorizontalRule().run(),
-                    "horizontalRule",
                   ],
                   [
                     "Link",
@@ -567,18 +826,6 @@ export function Publisher({
                       setLinkOpen(!linkOpen);
                     },
                     "link",
-                  ],
-                  [
-                    "Undo",
-                    Undo2,
-                    () => editor?.chain().focus().undo().run(),
-                    "",
-                  ],
-                  [
-                    "Redo",
-                    Redo2,
-                    () => editor?.chain().focus().redo().run(),
-                    "",
                   ],
                 ].map(([label, Icon, action, active]: any) => (
                   <button
@@ -593,6 +840,16 @@ export function Publisher({
                     <Icon size={17} />
                   </button>
                 ))}
+                <button
+                  className="editor-insert-photo"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => choose("image", "inline")}
+                  aria-label="Insert photo"
+                >
+                  <Image size={17} />
+                  <span>Photo</span>
+                </button>
               </div>
               {linkOpen && (
                 <form
@@ -633,11 +890,14 @@ export function Publisher({
                 </form>
               )}
               <EditorContent editor={editor} />
+              <p className="editor-photo-hint">
+                Drop or paste a photo into your release, or use Photo above.
+              </p>
             </>
           )}
         </>
       )}
-      {!!media.length && (
+      {!preview && !!media.length && (
         <div className="publisher-media">
           {media.map((m) => (
             <figure key={m.id}>
@@ -658,19 +918,9 @@ export function Publisher({
                   placeholder="Describe this photo for accessibility"
                   defaultValue={m.alt}
                   maxLength={250}
-                  onBlur={async (e) => {
-                    const alt = e.target.value;
-                    try {
-                      await api(
-                        "/publications/" + draft.current!.id + "/media/" + m.id,
-                        { method: "PATCH", body: JSON.stringify({ alt }) },
-                      );
-                      setMedia((all) =>
-                        all.map((v) => (v.id === m.id ? { ...v, alt } : v)),
-                      );
-                    } catch (e) {
-                      setError((e as Error).message);
-                    }
+                  onBlur={(e) => {
+                    if (e.target.value !== m.alt)
+                      void saveAlt(m, e.target.value).catch(() => {});
                   }}
                 />
               )}
@@ -693,7 +943,7 @@ export function Publisher({
                           .run()
                       }
                     >
-                      Insert in story
+                      Insert in release
                     </button>
                   </>
                 )}
@@ -701,11 +951,36 @@ export function Publisher({
                   aria-label={"Remove " + m.name}
                   onClick={async () => {
                     try {
+                      if (cover === m.id) {
+                        setCover(null);
+                        latest.current = {
+                          ...latest.current,
+                          coverMediaId: null,
+                        };
+                      }
+                      if (editor) {
+                        const positions: { from: number; to: number }[] = [];
+                        editor.state.doc.descendants((node, pos) => {
+                          if (
+                            node.type.name === "image" &&
+                            node.attrs.src === m.url
+                          )
+                            positions.push({
+                              from: pos,
+                              to: pos + node.nodeSize,
+                            });
+                        });
+                        const transaction = editor.state.tr;
+                        for (const position of positions.reverse())
+                          transaction.delete(position.from, position.to);
+                        editor.view.dispatch(transaction);
+                      }
                       await persist();
                       await api(
                         "/publications/" + draft.current!.id + "/media/" + m.id,
                         { method: "DELETE" },
                       );
+                      pendingDescriptions.current.delete(m.id);
                       setMedia((old) => old.filter((v) => v.id !== m.id));
                       if (cover === m.id) setCover(null);
                     } catch (e) {
@@ -720,7 +995,7 @@ export function Publisher({
           ))}
         </div>
       )}
-      {initialMedia && !media.length && (
+      {!preview && initialMedia && !media.length && kind === "post" && (
         <button
           className="publisher-drop"
           disabled={busy}
@@ -747,7 +1022,7 @@ export function Publisher({
         ref={input}
         type="file"
         hidden
-        multiple={mediaKind === "image"}
+        multiple={mediaKind === "image" && uploadIntent.current !== "cover"}
         accept={
           mediaKind === "image"
             ? ".jpg,.jpeg,.png,.webp"
@@ -774,35 +1049,64 @@ export function Publisher({
           aria-valuemax={100}
         >
           <span style={{ width: progress + "%" }} />
-          <small>Uploading {progress}%</small>
+          <small>
+            {progress === 100 ? "Finishing upload" : `Uploading ${progress}%`} ·{" "}
+            {uploadName}
+          </small>
         </div>
       )}
       <footer className="publisher-bottom">
-        <div className="publisher-add">
-          <button onClick={() => choose("image")} disabled={busy}>
-            <Image size={18} />
-            <span>Photo</span>
-          </button>
-          <button onClick={() => choose("video")} disabled={busy}>
-            <Video size={18} />
-            <span>Video</span>
-          </button>
-          <button onClick={() => choose("document")} disabled={busy}>
-            <FileText size={18} />
-            <span>Document</span>
-          </button>
-        </div>
+        {!preview && (
+          <div className="publisher-add">
+            <button onClick={() => choose("image")} disabled={busy}>
+              <Image size={18} />
+              <span>Photo</span>
+            </button>
+            <button onClick={() => choose("video")} disabled={busy}>
+              <Video size={18} />
+              <span>Video</span>
+            </button>
+            <button onClick={() => choose("document")} disabled={busy}>
+              <FileText size={18} />
+              <span>Document</span>
+            </button>
+          </div>
+        )}
+        {!preview && (
+          <p className="publisher-media-guide">
+            {kind === "post"
+              ? "Up to 4 photos (1080 × 1080 or 1080 × 1350), or one video or PDF."
+              : "Up to 20 attachments. Cover: 1600 × 900. Photos in your release keep their original proportions."}{" "}
+            <span>Photos 10 MB · Videos 100 MB · PDFs 20 MB</span>
+          </p>
+        )}
         <div className="publisher-submit">
-          {kind !== "post" && (
-            <span className="word-count">
-              {wordCount} words · {Math.max(1, Math.ceil(wordCount / 200))} min
-              read
-            </span>
-          )}
+          <span
+            className={
+              "word-count " + (body.length > charLimit ? "over-limit" : "")
+            }
+            aria-live="polite"
+          >
+            {body.length.toLocaleString()} / {charLimit.toLocaleString()}
+            {kind !== "post" && (
+              <small>
+                {wordCount} words · {Math.max(1, Math.ceil(wordCount / 200))}{" "}
+                min read
+              </small>
+            )}
+          </span>
           <button
             className="button"
             disabled={busy}
-            onClick={() => setPreview(!preview)}
+            onClick={async () => {
+              try {
+                await flushMediaSaves();
+                if (!preview) await persist();
+                setPreview(!preview);
+              } catch (e) {
+                setError((e as Error).message);
+              }
+            }}
           >
             {preview ? <ArrowLeft size={16} /> : <Eye size={16} />}
             <span>{preview ? "Edit" : "Preview"}</span>
@@ -811,6 +1115,7 @@ export function Publisher({
             className="button primary publish-button"
             disabled={
               busy ||
+              body.length > charLimit ||
               (!body.trim() && !media.length) ||
               (kind !== "post" && title.trim().length < 3)
             }
@@ -818,10 +1123,11 @@ export function Publisher({
               setBusy(true);
               published.current = true;
               try {
+                await flushMediaSaves();
                 await persist("published");
                 refresh();
                 close();
-                toast("Published. Your story is now on your company profile.");
+                toast("Published. Your update is now on your company profile.");
                 onPublished?.();
               } catch {
                 published.current = false;
@@ -830,7 +1136,13 @@ export function Publisher({
               }
             }}
           >
-            {busy ? "Publishing…" : kind === "post" ? "Post" : "Publish"}
+            {busy
+              ? uploadName
+                ? "Uploading…"
+                : "Publishing…"
+              : kind === "post"
+                ? "Post"
+                : "Publish"}
             <ArrowUpRight size={17} />
           </button>
         </div>
@@ -851,7 +1163,7 @@ export function DraftsDialog() {
   }, []);
   return (
     <section className="drafts-dialog">
-      <span className="publisher-eyebrow">ROOM FOR YOUR NEXT IDEA</span>
+      <span className="publisher-eyebrow">YOUR COMPANY NEWSROOM</span>
       <h2>Your company’s drafts</h2>
       <p>Pick up where you or a teammate left off.</p>
       {error && <p role="alert">{error}</p>}
@@ -869,12 +1181,9 @@ export function DraftsDialog() {
               <strong>
                 {d.title ||
                   d.body.slice(0, 65) ||
-                  "Untitled " +
-                    formats
-                      .find((f) => f.value === d.kind)
-                      ?.label.toLowerCase()}
+                  "Untitled " + publicationLabel(d.kind).toLowerCase()}
               </strong>
-              <small>{formats.find((f) => f.value === d.kind)?.label}</small>
+              <small>{publicationLabel(d.kind)}</small>
             </span>
             <ArrowUpRight size={18} />
           </button>

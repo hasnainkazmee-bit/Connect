@@ -49,71 +49,76 @@ internal fun WorkSheet(
             DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         BackHandler { if (!model.busy) close() }
-        Scaffold(
-            modifier = Modifier.fillMaxSize().systemBarsPadding().imePadding(),
-            containerColor = Color.White,
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            title,
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(enabled = !model.busy, onClick = close) {
-                            Icon(Icons.Outlined.Close, "Close")
-                        }
-                    },
-                    actions = {
-                        if (secondaryAction != null)
-                            TextButton(enabled = !model.busy, onClick = secondary) {
-                                Text(secondaryAction)
+        Box(
+            Modifier.fillMaxSize().systemBarsPadding().imePadding(),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            Scaffold(
+                modifier = Modifier.widthIn(max = WorkspaceWidthDp.dp).fillMaxSize(),
+                containerColor = Color.White,
+                topBar = {
+                    TopAppBar(
+                        title = {
+                            Text(
+                                title,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            )
+                        },
+                        navigationIcon = {
+                            IconButton(enabled = !model.busy, onClick = close) {
+                                Icon(Icons.Outlined.Close, "Close")
                             }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Pale),
-                )
-            },
-            bottomBar = {
-                if (action != null)
-                    Surface(shadowElevation = 5.dp) {
-                        Column(Modifier.padding(16.dp)) {
-                            Button(
-                                onClick = save,
-                                enabled = enabled && !model.busy,
-                                modifier = Modifier.fillMaxWidth().height(50.dp),
-                                shape = RoundedCornerShape(12.dp),
-                            ) {
-                                if (model.busy) {
-                                    CircularProgressIndicator(
-                                        Modifier.size(18.dp),
-                                        strokeWidth = 2.dp,
-                                    )
-                                    Spacer(Modifier.width(10.dp))
+                        },
+                        actions = {
+                            if (secondaryAction != null)
+                                TextButton(enabled = !model.busy, onClick = secondary) {
+                                    Text(secondaryAction)
                                 }
-                                Text(if (model.busy) "Saving…" else action)
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = Pale),
+                    )
+                },
+                bottomBar = {
+                    if (action != null)
+                        Surface(shadowElevation = 5.dp) {
+                            Column(Modifier.padding(16.dp)) {
+                                ConnectButton(
+                                    onClick = save,
+                                    enabled = enabled && !model.busy,
+                                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                ) {
+                                    if (model.busy) {
+                                        CircularProgressIndicator(
+                                            Modifier.size(18.dp),
+                                            strokeWidth = 2.dp,
+                                        )
+                                        Spacer(Modifier.width(10.dp))
+                                    }
+                                    Text(if (model.busy) "Saving…" else action)
+                                }
                             }
                         }
+                },
+            ) { padding ->
+                Column(
+                    Modifier.fillMaxSize()
+                        .padding(padding)
+                        .verticalScroll(rememberScrollState())
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    model.error?.let {
+                        Text(
+                            it,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                     }
-            },
-        ) { padding ->
-            Column(
-                Modifier.fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                model.error?.let {
-                    Text(
-                        it,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    content()
                 }
-                content()
             }
         }
     }
@@ -387,7 +392,7 @@ internal fun CompanyPhoto(model: CommunityModel, c: JSONObject, slot: String, cl
                 Modifier.fillMaxWidth().height(if (slot == "logo") 240.dp else 190.dp),
                 contentScale = if (slot == "logo") ContentScale.Fit else ContentScale.Crop,
             )
-        OutlinedButton(
+        ConnectOutlinedButton(
             onClick = { picker.launch(arrayOf("image/jpeg", "image/png", "image/webp")) },
             enabled = !model.busy,
             modifier = Modifier.fillMaxWidth(),
@@ -491,7 +496,7 @@ internal fun EmployeeAccess(model: CommunityModel, close: () -> Unit) {
                     label = { Text("Invitation link") },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Button(
+                ConnectButton(
                     onClick = {
                         clipboard.setText(AnnotatedString(url))
                         copied = true
@@ -508,7 +513,7 @@ internal fun EmployeeAccess(model: CommunityModel, close: () -> Unit) {
             }
         } else {
             Text("Your people. One shared profile.", style = MaterialTheme.typography.headlineSmall)
-            Button(
+            ConnectButton(
                 onClick = {
                     invite = true
                     email = ""
@@ -722,7 +727,7 @@ internal fun PortfolioForm(
                     Modifier.fillMaxWidth().height(170.dp),
                     contentScale = ContentScale.Crop,
                 )
-            OutlinedButton(
+            ConnectOutlinedButton(
                 onClick = { picker.launch(arrayOf("image/jpeg", "image/png", "image/webp")) },
                 modifier = Modifier.fillMaxWidth(),
             ) {

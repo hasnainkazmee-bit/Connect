@@ -69,7 +69,7 @@ export async function socialRoutes(uploadDir: string) {
         "Sign in with your company to see its following feed.",
       );
     const { rows } = await pool.query(
-      `${projection("$6")} WHERE ${visible} AND p.status='published' AND ($2::uuid IS NULL OR p.company_id=$2) AND ($5::text IS NULL OR p.kind=$5)
+      `${projection("$6")} WHERE ${visible} AND p.status='published' AND ($2::uuid IS NULL OR p.company_id=$2) AND ($5::text IS NULL OR p.kind=$5 OR ($5='post' AND p.kind IN ('article','case_study')))
     AND ($3::bigint IS NULL OR p.sequence<$3) AND ($4='all' OR p.company_id=$1 OR EXISTS(SELECT 1 FROM company_follows f WHERE f.follower_id=$1 AND f.followed_id=p.company_id) OR ($1::uuid IS NULL AND EXISTS(SELECT 1 FROM individual_follows f WHERE f.user_id=$6 AND f.company_id=p.company_id)))
     ORDER BY p.sequence DESC LIMIT 21`,
       [actor, company, before, scope, kind, req.auth?.userId || null],
@@ -83,7 +83,7 @@ export async function socialRoutes(uploadDir: string) {
     const actor = req.auth?.companyId || null;
     const { rows } = await pool.query(
       `SELECT c.*,((SELECT count(*)::int FROM company_follows f WHERE f.followed_id=c.id)+(SELECT count(*)::int FROM individual_follows f WHERE f.company_id=c.id)) AS followers
-     FROM companies c WHERE ($1::uuid IS NULL OR c.id<>$1) AND NOT EXISTS(SELECT 1 FROM company_follows f WHERE f.follower_id=$1 AND f.followed_id=c.id) AND ($1::uuid IS NOT NULL OR NOT EXISTS(SELECT 1 FROM individual_follows f WHERE f.user_id=$2 AND f.company_id=c.id))
+     FROM companies c WHERE NOT c.is_demo AND ($1::uuid IS NULL OR c.id<>$1) AND NOT EXISTS(SELECT 1 FROM company_follows f WHERE f.follower_id=$1 AND f.followed_id=c.id) AND ($1::uuid IS NOT NULL OR NOT EXISTS(SELECT 1 FROM individual_follows f WHERE f.user_id=$2 AND f.company_id=c.id))
      AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_id=$1 AND b.blocked_id=c.id) OR (b.blocked_id=$1 AND b.blocker_id=c.id)) ORDER BY followers DESC,c.name LIMIT 5`,
       [actor, req.auth?.userId || null],
     );

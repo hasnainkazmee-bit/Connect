@@ -44,7 +44,9 @@ test("company publishes photos and video, another follows and comments", async (
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await login(owner.user.email);
-  await page.getByRole("button", { name: "Photo / video", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Photo / video", exact: true })
+    .click();
   await page.getByLabel("Post text").fill("New installation milestone " + id);
   await page
     .getByRole("dialog")
@@ -66,7 +68,9 @@ test("company publishes photos and video, another follows and comments", async (
       exact: true,
     }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Photo / video", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Photo / video", exact: true })
+    .click();
   await page.getByLabel("Post text").fill("Video site update " + id);
   await page
     .getByRole("dialog")
@@ -95,7 +99,9 @@ test("company publishes photos and video, another follows and comments", async (
   await page.getByLabel("Account and company menu").click();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   // Wait for the server to clear the session before navigation can cancel logout.
-  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Sign in", exact: true }),
+  ).toBeVisible();
   await login(follower.user.email);
   await page.goto("/company/" + owner.activeCompanyId);
   await page
@@ -113,9 +119,11 @@ test("company publishes photos and video, another follows and comments", async (
   await page.getByRole("link", { name: "Home", exact: true }).click();
   await page.getByRole("tab", { name: "Following", exact: true }).click();
   await expect(photoPost).toBeVisible();
-  await photoPost.getByRole("button", { name: "Like", exact: true }).click();
+  await photoPost
+    .getByRole("button", { name: "Celebrate", exact: true })
+    .click();
   await expect(
-    photoPost.getByRole("button", { name: "Liked", exact: true }),
+    photoPost.getByRole("button", { name: "Celebrated", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await photoPost.getByRole("button", { name: "Comment", exact: true }).click();
   await photoPost

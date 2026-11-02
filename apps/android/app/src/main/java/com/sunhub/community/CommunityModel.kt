@@ -502,14 +502,21 @@ constructor(application: Application, apiUrl: String = BuildConfig.API_URL) :
         }
     }
 
-    fun pickMedia(uris: List<Uri>, post: Boolean, done: (List<UploadFile>) -> Unit) =
+    fun pickMedia(
+        uris: List<Uri>,
+        post: Boolean,
+        publication: Boolean = false,
+        done: (List<UploadFile>) -> Unit,
+    ) =
         viewModelScope.launch {
             if (uris.isEmpty() || busy) return@launch
             busy = true
             val capturedEpoch = epoch
             try {
                 val selected =
-                    withContext(Dispatchers.IO) { MediaFiles.import(getApplication(), uris, post) }
+                    withContext(Dispatchers.IO) {
+                        MediaFiles.import(getApplication(), uris, post, publication)
+                    }
                 if (capturedEpoch == epoch) done(selected)
                 else withContext(Dispatchers.IO) { MediaFiles.discard(selected) }
             } catch (e: Exception) {

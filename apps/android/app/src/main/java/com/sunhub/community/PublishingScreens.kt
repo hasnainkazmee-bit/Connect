@@ -5,12 +5,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -28,16 +31,11 @@ import coil3.compose.AsyncImage
 import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 
-private val formats =
-    listOf(
-        "post" to "Post",
-        "article" to "Article",
-        "press_release" to "Press release",
-        "case_study" to "Case study",
-    )
+private val formats = listOf("post" to "Post", "press_release" to "Press release")
 
 private fun paragraph() = JSONObject().put("type", "paragraph").put("content", JSONArray())
 
@@ -251,6 +249,7 @@ internal fun PublicationComposer(
             .put("subtitle", subtitle)
             .put("body", body)
             .put("document", if (kind == "post") JSONObject.NULL else JSONObject(doc))
+            .put("cover_media_id", cover)
             .put("media", JSONArray(mediaJson))
     suspend fun draft(): JSONObject {
         saved?.let {
@@ -280,16 +279,51 @@ internal fun PublicationComposer(
     val picker =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
             if (uris.isNotEmpty())
-                model.pickMedia(uris, true) { files ->
+                model.pickMedia(uris, true, publication = kind != "post") { files ->
                     model.perform({
                         try {
+                            val existing = JSONArray(mediaJson).objects()
+                            if (existing.size + files.size > if (kind == "post") 4 else 20)
+                                error(
+                                    if (kind == "post")
+                                        "Choose up to 4 photos, or one video or PDF."
+                                    else "A press release can include up to 20 attachments."
+                                )
+                            if (kind == "post") {
+                                val mimeTypes =
+                                    existing.map { it.text("mime") } + files.map { it.mime }
+                                if (
+                                    mimeTypes.any { !it.startsWith("image/") } && mimeTypes.size > 1
+                                )
+                                    error("Choose up to 4 photos, or one video or PDF.")
+                            }
                             val d = draft()
                             val added = JSONArray(mediaJson)
                             for (file in files) {
-                                added.put(
+                                val uploaded =
                                     model.uploadOne("/publications/${d.text("id")}/media", file)
-                                )
+                                added.put(uploaded)
                                 mediaJson = added.toString()
+                                if (uploaded.text("mime").startsWith("image/")) {
+                                    if (cover.isBlank()) cover = uploaded.text("id")
+                                    else if (kind != "post") {
+                                        val updated = JSONObject(doc)
+                                        updated
+                                            .getJSONArray("content")
+                                            .put(
+                                                JSONObject()
+                                                    .put("type", "image")
+                                                    .put(
+                                                        "attrs",
+                                                        JSONObject()
+                                                            .put("src", uploaded.text("url"))
+                                                            .put("alt", uploaded.text("alt")),
+                                                    )
+                                            )
+                                        updated.getJSONArray("content").put(paragraph())
+                                        doc = updated.toString()
+                                    }
+                                }
                             }
                             d
                         } finally {
@@ -306,7 +340,8 @@ internal fun PublicationComposer(
         else title.trim().length >= 3 && plain(JSONObject(doc)).trim().length >= 20
     WorkSheet(
         model,
-        if (preview) "Preview" else if (initial == null) "Create a post" else "Continue your draft",
+        if (preview) "Preview"
+        else if (initial == null) "Share company news" else "Continue your draft",
         leave,
         if (kind == "post") "Post" else "Publish",
         canPublish,
@@ -371,6 +406,35 @@ internal fun PublicationComposer(
                     )
                 }
             }
+            if (kind in listOf("article", "case_study"))
+                Text(
+                    "Company update · your existing format is preserved.",
+                    color = Muted,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            Text(
+                if (kind == "post") "A project milestone, a team moment, or a quick update."
+                else "An announcement with a headline, photos and room for the details.",
+                color = Muted,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            if (kind != "post") {
+                media.firstOrNull { it.text("id") == cover }?.let { PostMedia(model, it, 16f / 9f) }
+                ConnectOutlinedButton(
+                    enabled = !model.busy && media.size < 20,
+                    onClick = { picker.launch(arrayOf("image/jpeg", "image/png", "image/webp")) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Outlined.AddPhotoAlternate, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (cover.isBlank()) "Add cover photo" else "Add more photos")
+                }
+                Text(
+                    "Cover: 1600 × 900 recommended. Your full image is kept.",
+                    color = Muted,
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
             if (kind == "post")
                 OutlinedTextField(
                     body,
@@ -382,10 +446,11 @@ internal fun PublicationComposer(
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 5,
                     shape = RoundedCornerShape(12.dp),
+                    supportingText = { Text("${body.length} / 4,000") },
                 )
             else {
                 WorkField(
-                    "Story title",
+                    "Headline",
                     title,
                     {
                         title = it
@@ -394,7 +459,7 @@ internal fun PublicationComposer(
                     limit = 180,
                 )
                 WorkField(
-                    "Story subtitle",
+                    "Summary",
                     subtitle,
                     {
                         subtitle = it
@@ -415,7 +480,7 @@ internal fun PublicationComposer(
                             "link" to "Link",
                         )
                     ) { (command, label) ->
-                        OutlinedButton(
+                        ConnectOutlinedButton(
                             enabled = formatSelection != null,
                             onClick = {
                                 if (command == "link") link = "https://"
@@ -427,7 +492,7 @@ internal fun PublicationComposer(
                     }
                 }
                 Text(
-                    "Select text to format it. Add a paragraph as your story grows.",
+                    "Select text to format it. Add photos between paragraphs below.",
                     color = Muted,
                     style = MaterialTheme.typography.labelSmall,
                 )
@@ -458,8 +523,8 @@ internal fun PublicationComposer(
                     Text("Add paragraph")
                 }
             }
-            OutlinedButton(
-                enabled = !model.busy && media.size < 12,
+            ConnectOutlinedButton(
+                enabled = !model.busy && media.size < if (kind == "post") 4 else 20,
                 onClick = {
                     picker.launch(
                         arrayOf(
@@ -478,6 +543,13 @@ internal fun PublicationComposer(
                 Spacer(Modifier.width(8.dp))
                 Text("Add photos, video, or a document")
             }
+            Text(
+                if (kind == "post")
+                    "Up to 4 photos, or one video or PDF. Photos: 1080 × 1080 or 1080 × 1350. Nothing is cropped."
+                else "Up to 20 attachments. Photos up to 10 MB, videos 100 MB, PDFs 20 MB.",
+                color = Muted,
+                style = MaterialTheme.typography.labelSmall,
+            )
             if (model.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             media.forEach { m ->
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -528,6 +600,7 @@ internal fun PublicationComposer(
                         }
                         if (kind != "post")
                             TextButton(
+                                enabled = !doc.contains(m.text("url")),
                                 onClick = {
                                     val d = JSONObject(doc)
                                     d.getJSONArray("content")
@@ -543,9 +616,12 @@ internal fun PublicationComposer(
                                         )
                                     doc = d.toString()
                                     dirty = true
-                                }
+                                },
                             ) {
-                                Text("Place in story")
+                                Text(
+                                    if (doc.contains(m.text("url"))) "In press release ✓"
+                                    else "Insert into press release"
+                                )
                             }
                     }
                     TextButton(
@@ -771,7 +847,7 @@ internal fun PublicationDrafts(model: CommunityModel, close: () -> Unit) {
             OutlinedCard(onClick = { editing = d }, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text(
-                        formats.find { it.first == d.text("kind") }?.second ?: "Post",
+                        publicationLabel(d.text("kind")),
                         color = Muted,
                         style = MaterialTheme.typography.labelSmall,
                     )
@@ -794,22 +870,42 @@ internal fun PublicationDrafts(model: CommunityModel, close: () -> Unit) {
 }
 
 @Composable
-internal fun PublicationHeading(post: JSONObject, modifier: Modifier = Modifier) {
+internal fun PublicationHeading(
+    post: JSONObject,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
+) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
-            formats.find { it.first == post.text("kind") }?.second.orEmpty().uppercase(),
+            publicationLabel(post.text("kind")).uppercase(),
             color = Muted,
             style = MaterialTheme.typography.labelSmall,
         )
-        Text(post.text("title"), style = MaterialTheme.typography.headlineSmall)
+        Text(
+            post.text("title"),
+            style = MaterialTheme.typography.headlineSmall,
+            maxLines = if (compact) 3 else Int.MAX_VALUE,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+        )
         if (post.text("subtitle").isNotBlank())
-            Text(post.text("subtitle"), style = MaterialTheme.typography.bodyLarge, color = Muted)
+            Text(
+                post.text("subtitle"),
+                style = MaterialTheme.typography.bodyLarge,
+                color = Muted,
+                maxLines = if (compact) 2 else Int.MAX_VALUE,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
     }
 }
 
 @Composable
 internal fun PublicationBody(model: CommunityModel, post: JSONObject) {
     if (post.text("kind") != "post" && post.text("title").isNotBlank()) PublicationHeading(post)
+    val cover =
+        post.optJSONArray("media").objects().firstOrNull {
+            it.text("id") == post.text("cover_media_id") && it.text("mime").startsWith("image/")
+        }
+    if (post.text("kind") != "post" && cover != null) PostMedia(model, cover, 16f / 9f)
     val doc = post.optJSONObject("document")
     if (doc != null) ReadBlock(model, doc)
     else Text(post.text("body"), style = MaterialTheme.typography.bodyLarge)
@@ -817,8 +913,68 @@ internal fun PublicationBody(model: CommunityModel, post: JSONObject) {
     post
         .optJSONArray("media")
         .objects()
-        .filter { !inline.contains(it.text("url")) }
+        .filter {
+            !inline.contains(it.text("url")) &&
+                (post.text("kind") == "post" || it.text("id") != cover?.text("id"))
+        }
         .forEach { PostMedia(model, it) }
+}
+
+/** One predictable media stage per feed card. Original files remain available on tap. */
+@Composable
+internal fun PublicationMediaGallery(
+    model: CommunityModel,
+    post: JSONObject,
+    compactRelease: Boolean = false,
+) {
+    val media = post.optJSONArray("media").objects()
+    val images = media.filter { it.text("mime").startsWith("image/") }
+    val release = post.text("kind") == "press_release"
+    val shown =
+        if (release && compactRelease)
+            listOfNotNull(
+                images.find { it.text("id") == post.text("cover_media_id") } ?: images.firstOrNull()
+            )
+        else images
+    if (shown.isNotEmpty()) {
+        val pager = rememberPagerState(pageCount = { shown.size })
+        val scope = rememberCoroutineScope()
+        Column {
+            HorizontalPager(pager, key = { shown[it].text("id") }) { page ->
+                PostMedia(model, shown[page], if (release) 16f / 9f else 1f)
+            }
+            if (shown.size > 1)
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    IconButton(
+                        enabled = pager.currentPage > 0,
+                        onClick = {
+                            scope.launch { pager.animateScrollToPage(pager.currentPage - 1) }
+                        },
+                    ) {
+                        Icon(Icons.Outlined.ChevronLeft, "Previous photo")
+                    }
+                    Text(
+                        "${pager.currentPage + 1} of ${shown.size} photos",
+                        color = Muted,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                    IconButton(
+                        enabled = pager.currentPage < shown.lastIndex,
+                        onClick = {
+                            scope.launch { pager.animateScrollToPage(pager.currentPage + 1) }
+                        },
+                    ) {
+                        Icon(Icons.Outlined.ChevronRight, "Next photo")
+                    }
+                }
+        }
+    }
+    if (!release || !compactRelease)
+        media.filter { !it.text("mime").startsWith("image/") }.forEach { PostMedia(model, it) }
 }
 
 @Composable
@@ -882,6 +1038,11 @@ private fun ReadBlock(model: CommunityModel, node: JSONObject) {
 
 @Composable
 internal fun PublicationCard(model: CommunityModel, post: JSONObject) {
+    var reading by rememberSaveable(post.text("id")) { mutableStateOf(false) }
+    if (reading)
+        WorkSheet(model, publicationLabel(post.text("kind")), { reading = false }) {
+            PublicationBody(model, post)
+        }
     Card(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         shape = RoundedCornerShape(15.dp),
@@ -893,7 +1054,21 @@ internal fun PublicationCard(model: CommunityModel, post: JSONObject) {
                 color = Muted,
                 style = MaterialTheme.typography.labelMedium,
             )
-            PublicationBody(model, post)
+            if (post.text("kind") != "post") PublicationHeading(post, compact = true)
+            if (post.text("body").isNotBlank())
+                Text(
+                    post.text("body"),
+                    maxLines = 5,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            PublicationMediaGallery(model, post, compactRelease = true)
+            TextButton(onClick = { reading = true }) {
+                Text(
+                    if (post.text("kind") == "press_release") "Read press release"
+                    else "Open update"
+                )
+            }
         }
     }
 }

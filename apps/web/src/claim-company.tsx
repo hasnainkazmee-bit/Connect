@@ -194,7 +194,7 @@ export function ClaimCompanyPage() {
             </li>
             <li>
               <FileText size={18} />
-              Publish projects, articles and company news.
+              Share project updates and press releases.
             </li>
             <li>
               <MessageSquare size={18} />

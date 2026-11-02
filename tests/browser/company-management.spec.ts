@@ -114,7 +114,7 @@ for (const size of [
       await dialog.getByRole("button", { name: "Done", exact: true }).click();
       await page
         .getByRole("region", { name: "Create a post" })
-        .getByRole("button", { name: "Article", exact: true })
+        .getByRole("button", { name: "Press release", exact: true })
         .click();
       await dialog
         .getByLabel("Story title")

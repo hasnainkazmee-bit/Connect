@@ -329,7 +329,7 @@ internal fun PersonalChat(
                             ) {
                                 Text("Decline")
                             }
-                            Button(
+                            ConnectButton(
                                 enabled = !model.busy,
                                 onClick = {
                                     model.mutate(

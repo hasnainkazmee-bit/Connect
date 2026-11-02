@@ -60,10 +60,10 @@ test("publishing, company profiles, customer accounts, and employee access", asy
     const r = await a(
       "/publications/" + draft.id,
       {
-        kind: "article",
+        kind: "press_release",
         title: "A better rooftop story",
         subtitle: "Lessons from the field",
-        body: "This is a detailed article about solar installation.",
+        body: "This is an announcement about our latest solar installation.",
         status: "draft",
         version: draft.version,
         ...data,
@@ -192,7 +192,7 @@ test("publishing, company profiles, customer accounts, and employee access", asy
   await t.test(
     "drafts and attachments stay private; editing detects conflicting versions",
     async () => {
-      const r = await a("/publications", { kind: "article" });
+      const r = await a("/publications", { kind: "press_release" });
       assert.equal(r.status, 201, JSON.stringify(r.data));
       draft = r.data;
       assert.equal((await patch({})).status, 200);
@@ -314,15 +314,18 @@ test("publishing, company profiles, customer accounts, and employee access", asy
         200,
       );
       const published = await anon("/posts/" + draft.id);
-      assert.equal(published.data.kind, "article");
+      assert.equal(published.data.kind, "press_release");
       assert.equal(
         published.data.document.content[1].content[0].marks[0].type,
         "bold",
       );
       assert.equal((await anon("/post-media/" + media.id)).status, 200);
       assert.equal(
-        (await anon("/feed?companyId=" + A.activeCompanyId + "&kind=article"))
-          .data.posts.length,
+        (
+          await anon(
+            "/feed?companyId=" + A.activeCompanyId + "&kind=press_release",
+          )
+        ).data.posts.length,
         1,
       );
       assert.equal(
@@ -339,6 +342,127 @@ test("publishing, company profiles, customer accounts, and employee access", asy
           )
         ).status,
         409,
+      );
+    },
+  );
+  await t.test(
+    "retired formats remain readable and editable while new old-client writing becomes a press release",
+    async () => {
+      assert.ok(new URL(process.env.DATABASE_URL).pathname.endsWith("_test"));
+      const db = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+      try {
+        for (const kind of ["article", "case_study"]) {
+          const created = await a("/publications", { kind });
+          assert.equal(created.status, 201);
+          assert.equal(created.data.kind, "press_release");
+          const published = await a(
+            "/publications/" + created.data.id,
+            {
+              kind,
+              title: "Legacy client company news",
+              body: "Our solar team has completed another community installation.",
+              status: "published",
+              version: created.data.version,
+            },
+            "PATCH",
+          );
+          assert.equal(published.status, 200);
+          assert.equal(published.data.kind, "press_release");
+          // Recreate a historical record; no migration rewrites its format or URL.
+          await db.query("UPDATE posts SET kind=$1 WHERE id=$2", [
+            kind,
+            created.data.id,
+          ]);
+          const edited = await a(
+            "/publications/" + created.data.id,
+            {
+              kind,
+              title: "Historical update, corrected",
+              body: "Our company corrected the date of its community installation.",
+              status: "published",
+              version: published.data.version,
+            },
+            "PATCH",
+          );
+          assert.equal(edited.status, 200);
+          assert.equal(edited.data.kind, kind);
+          assert.equal(
+            (await anon("/posts/" + created.data.id)).data.kind,
+            kind,
+          );
+          assert.ok(
+            (
+              await anon("/feed?companyId=" + A.activeCompanyId + "&kind=post")
+            ).data.posts.some((p) => p.id === created.data.id),
+          );
+          assert.ok(
+            (
+              await anon(
+                "/feed?companyId=" + A.activeCompanyId + "&kind=" + kind,
+              )
+            ).data.posts.some((p) => p.id === created.data.id),
+          );
+        }
+      } finally {
+        await db.end();
+      }
+    },
+  );
+  await t.test(
+    "post media limits match the quick composer and release images preserve descriptions",
+    async () => {
+      const quick = (await a("/publications", { kind: "post" })).data;
+      const upload = async (id, name = "solar.jpg", bytes) => {
+        const form = new FormData();
+        form.set(
+          "file",
+          new Blob([
+            bytes || (await fs.readFile("apps/web/public/assets/solar.jpg")),
+          ]),
+          name,
+        );
+        return a("/publications/" + id + "/media", form);
+      };
+      for (let i = 0; i < 3; i++)
+        assert.equal((await upload(quick.id)).status, 201);
+      const finalSlots = await Promise.all([
+        upload(quick.id),
+        upload(quick.id),
+      ]);
+      assert.deepEqual(finalSlots.map((r) => r.status).sort(), [201, 400]);
+      assert.equal((await upload(quick.id)).status, 400);
+      assert.equal(
+        (await upload(quick.id, "brief.pdf", Buffer.from("%PDF-1.4\n%%EOF")))
+          .status,
+        400,
+      );
+      const tooLong = await a(
+        "/publications/" + quick.id,
+        {
+          kind: "post",
+          body: "x".repeat(4001),
+          status: "published",
+          version: quick.version,
+        },
+        "PATCH",
+      );
+      assert.equal(tooLong.status, 400);
+      assert.match(tooLong.data.error, /press release/i);
+      assert.equal(
+        (
+          await a(
+            "/publications/" + draft.id + "/media/" + media.id,
+            { alt: "Engineers inspecting the finished rooftop array" },
+            "PATCH",
+          )
+        ).status,
+        200,
+      );
+      assert.equal(
+        (await anon("/posts/" + draft.id)).data.media.find(
+          (m) => m.id === media.id,
+        ).alt,
+        "Engineers inspecting the finished rooftop array",
       );
     },
   );

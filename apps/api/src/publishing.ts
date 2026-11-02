@@ -33,7 +33,11 @@ export function publishingRoutes(uploadDir: string) {
       .parse(req.body);
     const { rows } = await pool.query(
       "INSERT INTO posts(company_id,author_id,status,kind) VALUES($1,$2,'draft',$3) RETURNING *",
-      [req.auth!.companyId, req.auth!.userId, kind],
+      [
+        req.auth!.companyId,
+        req.auth!.userId,
+        kind === "post" ? "post" : "press_release",
+      ],
     );
     res.status(201).json({ ...rows[0], media: [] });
   });
@@ -61,6 +65,13 @@ export function publishingRoutes(uploadDir: string) {
         )
       ).rows[0];
       if (!current) throw new HttpError(404, "Draft not found.");
+      // Old clients may still send retired formats. Preserve historical rows,
+      // but all new long-form writing uses the press-release format.
+      const kind = ["article", "case_study"].includes(b.kind)
+        ? current.kind === b.kind
+          ? b.kind
+          : "press_release"
+        : b.kind;
       if (current.version !== b.version)
         throw new HttpError(
           409,
@@ -72,7 +83,10 @@ export function publishingRoutes(uploadDir: string) {
         ])
       ).rows;
       if (
-        doc.mediaIds.some((m) => !media.some((f) => f.id === m)) ||
+        doc.mediaIds.some(
+          (m) =>
+            !media.some((f) => f.id === m && f.mime_type.startsWith("image/")),
+        ) ||
         (b.coverMediaId &&
           !media.some(
             (f) => f.id === b.coverMediaId && f.mime_type.startsWith("image/"),
@@ -80,17 +94,28 @@ export function publishingRoutes(uploadDir: string) {
       )
         throw new HttpError(400, "Choose media uploaded to this story.");
       if (b.status === "published") {
-        if (b.kind === "post" && !body && !media.length)
+        if (kind === "post" && !body && !media.length)
           throw new HttpError(
             400,
             "Write something or add a photo, video, or document.",
           );
-        if (b.kind === "post" && body.length > 4000)
+        if (kind === "post" && body.length > 4000)
           throw new HttpError(
             400,
-            "Switch to an article for stories longer than 4,000 characters.",
+            "Use a press release for updates longer than 4,000 characters.",
           );
-        if (b.kind !== "post" && (b.title.length < 3 || body.length < 20))
+        if (
+          kind === "post" &&
+          (current.status !== "published" || current.kind !== "post") &&
+          (media.length > 4 ||
+            (media.some((m) => !m.mime_type.startsWith("image/")) &&
+              media.length > 1))
+        )
+          throw new HttpError(
+            400,
+            "A post can include up to 4 photos, or one video or PDF. Use a press release for more attachments.",
+          );
+        if (kind !== "post" && (b.title.length < 3 || body.length < 20))
           throw new HttpError(
             400,
             "Add a title and at least 20 characters to your story.",
@@ -100,7 +125,7 @@ export function publishingRoutes(uploadDir: string) {
         await db.query(
           `UPDATE posts SET kind=$1,title=$2,subtitle=$3,body=$4,document=$5,status=$6,cover_media_id=$7,version=version+1,updated_at=now(),published_at=CASE WHEN $6='published' THEN COALESCE(published_at,now()) ELSE published_at END,sequence=CASE WHEN status='draft' AND $6='published' THEN nextval('posts_sequence_seq') ELSE sequence END WHERE id=$8 RETURNING *`,
           [
-            b.kind,
+            kind,
             b.title,
             b.subtitle,
             body,
@@ -149,11 +174,28 @@ export function publishingRoutes(uploadDir: string) {
         const row = await tx(async (db) => {
           const p = (
             await db.query(
-              "SELECT id FROM posts WHERE id=$1 AND company_id=$2 FOR UPDATE",
+              "SELECT id,kind FROM posts WHERE id=$1 AND company_id=$2 FOR UPDATE",
               [id, req.auth!.companyId],
             )
           ).rows[0];
           if (!p) throw new HttpError(404, "Story not found.");
+          const attachments = (
+            await db.query(
+              "SELECT mime_type FROM post_media WHERE post_id=$1",
+              [id],
+            )
+          ).rows;
+          if (
+            p.kind === "post" &&
+            (attachments.length >= 4 ||
+              (attachments.length > 0 &&
+                (!type.mime.startsWith("image/") ||
+                  attachments.some((m) => !m.mime_type.startsWith("image/")))))
+          )
+            throw new HttpError(
+              400,
+              "A post can include up to 4 photos, or one video or PDF. Use a press release for more attachments.",
+            );
           if (
             Number(
               (

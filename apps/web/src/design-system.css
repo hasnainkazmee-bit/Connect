@@ -1,0 +1,833 @@
+/* Connect's shared foundation. Import after feature styles; keep feature layout
+   rules in their owning stylesheet and use these semantic tokens there. */
+:root {
+  font-size: 16px;
+  color: #203342;
+  background: #f2f7fc;
+  --brand: #ff8a24;
+  --brand-hover: #f47b13;
+  --on-brand: #1c2d3a;
+  --brand-ink: #974100;
+  --brand-soft: #fff0e2;
+  --surface: #fff;
+  --surface-muted: #edf4fa;
+  --ink: #203342;
+  --muted: #586d7f;
+  --line: #dbe5ed;
+  --control-height: 44px;
+  --radius-control: 10px;
+  --radius-card: 16px;
+  --page-gutter: clamp(16px, 2.4vw, 32px);
+  --content-width: 1184px;
+  --feed-width: 720px;
+  --rail-width: 280px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --focus: #244b68;
+  /* Compatibility aliases: primary text needs contrast on white; filled
+     controls explicitly use --brand and --on-brand below. */
+  --primary: var(--brand-ink);
+  --primary-hover: #783300;
+  --primary-soft: var(--brand-soft);
+  --accent: var(--brand);
+  --paper: var(--surface);
+  --workspace: var(--surface-muted);
+  --connect-wash: var(--surface-muted);
+  --connect-line: var(--line);
+  --connect-muted: var(--muted);
+  --connect-orange: var(--brand);
+}
+
+html {
+  scroll-padding-top: 88px;
+  scroll-padding-bottom: 100px;
+}
+
+body {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+h1 {
+  font-size: clamp(1.625rem, 1.4rem + 0.65vw, 2rem);
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+}
+
+.app-main {
+  width: auto;
+  padding-inline: var(--page-gutter);
+}
+
+.app-main > *,
+.header-inner > *,
+.manage-grid > *,
+.security-grid > *,
+.claim-layout > * {
+  min-width: 0;
+}
+
+/* One control family. A small visual variant keeps the same hit area. */
+.button,
+.button.small,
+.header-actions .button,
+.manage-footer .button,
+.claim-content .claim-action,
+.people-compose .button,
+.profile-section-heading .button {
+  min-height: var(--control-height);
+  min-width: var(--control-height);
+  padding: 10px 16px;
+  border-radius: var(--radius-control);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.35;
+  gap: 8px;
+  white-space: normal;
+  text-align: center;
+}
+
+.button {
+  color: var(--ink);
+  border-color: var(--line);
+  background: var(--surface);
+}
+
+.button:hover:not(:disabled) {
+  background: var(--surface-muted);
+  border-color: #bacbd8;
+}
+
+.button.primary,
+.account-experience .account-primary,
+.send-button {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--on-brand);
+  box-shadow: none;
+}
+
+.button.primary:hover:not(:disabled),
+.account-experience .account-primary:hover:not(:disabled),
+.send-button:hover:not(:disabled) {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+  color: var(--on-brand);
+  transform: none;
+}
+
+.button.ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.button.danger {
+  color: #fff;
+  background: #ad3434;
+  border-color: #ad3434;
+}
+
+.button.danger:hover:not(:disabled) {
+  background: #8e2929;
+  border-color: #8e2929;
+}
+
+.button.selected {
+  color: var(--brand-ink);
+  background: var(--brand-soft);
+  border-color: #e9bb94;
+}
+
+.button > svg {
+  width: 18px;
+  height: 18px;
+}
+
+.icon-button,
+.primary-nav .icon-button,
+.primary-nav .notifications .icon-button,
+.send-button,
+.account-menu > summary,
+.password-field button {
+  width: var(--control-height);
+  height: var(--control-height);
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  border-radius: var(--radius-control);
+}
+
+.account-menu > summary {
+  display: grid;
+  place-items: center;
+}
+
+.icon-button:hover {
+  background: var(--surface-muted);
+}
+
+.text-button,
+.account-link,
+.claim-back,
+.load-older,
+.older-messages {
+  min-height: var(--control-height);
+  min-width: var(--control-height);
+  align-items: center;
+  font-size: 0.8125rem;
+  color: var(--brand-ink);
+}
+
+.text-button,
+.account-link,
+.claim-back {
+  display: inline-flex;
+}
+
+.dropdown > a,
+.dropdown > button {
+  min-height: var(--control-height);
+  font-size: 0.875rem;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+.account-experience button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+/* Navigation keeps its own selection state; it is not a row of primary CTAs. */
+.site-header {
+  height: 76px;
+  background: #f2f7fc;
+}
+
+.header-inner {
+  height: 100%;
+  grid-template-columns: minmax(144px, 1fr) auto minmax(144px, 1fr);
+  padding-inline: var(--page-gutter);
+  gap: 20px;
+}
+
+.brand > img {
+  width: 152px;
+}
+
+.header-inner .primary-nav {
+  height: 56px;
+  padding: 5px;
+  gap: 3px;
+}
+
+.header-inner .primary-nav > a {
+  height: auto;
+  min-height: var(--control-height);
+  min-width: var(--control-height);
+  padding: 10px 14px;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  color: var(--muted);
+  gap: 8px;
+}
+
+.header-inner .primary-nav > a svg {
+  width: 18px;
+  height: 18px;
+}
+
+.header-inner .primary-nav > a:hover {
+  color: var(--ink);
+  background: var(--surface-muted);
+}
+
+.header-inner .primary-nav > a.active,
+.header-inner .primary-nav > a.active:hover {
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+  box-shadow: none;
+}
+
+.header-actions {
+  gap: 12px;
+}
+
+.my-company-link {
+  min-height: var(--control-height);
+}
+
+.notification-count,
+.primary-nav .count {
+  background: var(--brand);
+  color: var(--on-brand);
+}
+
+/* Fields never become tiny on a narrow screen. Text inputs use 16px to keep
+   mobile browser focus from zooming the page just to edit a field. */
+.form-stack input:not([type="checkbox"]):not([type="radio"]),
+.form-stack select,
+.form-stack textarea,
+.manage-form input:not([type="checkbox"]):not([type="radio"]),
+.manage-form select,
+.manage-form textarea,
+.account-experience .account-form input,
+.share-address input,
+.request-compose-label textarea,
+.people-search input,
+.people-compose textarea,
+.message-composer textarea,
+.compact-search input {
+  min-height: var(--control-height);
+  font-size: 1rem;
+  line-height: 1.5;
+  border-radius: var(--radius-control);
+}
+
+.form-stack label,
+.form-grid label,
+.manage-form label,
+.account-form label,
+.account-type legend,
+.invite-roles legend,
+.tag-field legend {
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+
+.manage-form small,
+.account-form small,
+.profile-address,
+.manage-heading p,
+.account-heading p {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.account-experience .account-primary {
+  height: auto;
+  min-height: 48px;
+  padding: 12px 18px;
+  font-size: 0.875rem;
+  border-radius: var(--radius-control);
+}
+
+.account-experience .account-panel {
+  width: min(470px, 100%);
+  max-width: 100%;
+}
+
+.account-form > *,
+.account-heading,
+.account-type button {
+  min-width: 0;
+}
+
+.password-field button {
+  top: 2px;
+  right: 2px;
+}
+
+.business-choices button,
+.service-choices button,
+.onboarding-companies button,
+.tag-suggestions button,
+.tag-input button,
+.connection-filters button,
+.discovery-categories button,
+.discovery-selects select,
+.inbox-filters button,
+.inbox-channels > a,
+.people-list-tabs button,
+.company-sections button,
+.profile-tabs > button {
+  min-height: var(--control-height);
+  min-width: var(--control-height);
+  font-size: 0.8125rem;
+}
+
+.business-choices button[aria-pressed="true"],
+.service-choices button[aria-pressed="true"],
+.connection-filters button[aria-pressed="true"],
+.discovery-categories button[aria-pressed="true"] {
+  color: var(--brand-ink);
+  background: var(--brand-soft);
+  border-color: #e9bb94;
+}
+
+.manage-form .tag-input input {
+  min-width: min(170px, 100%);
+}
+
+.modal:not(:has(.account-experience)):not(:has(.publisher)) {
+  max-height: calc(100dvh - 32px);
+  border-radius: var(--radius-card);
+}
+
+.modal:has(.manage-dialog) .modal-close {
+  top: 12px;
+  right: 12px;
+}
+
+.manage-heading {
+  padding-right: 64px;
+}
+
+.manage-heading h2 {
+  padding-right: 0;
+  font-size: clamp(1.375rem, 1.2rem + 0.5vw, 1.625rem);
+}
+
+/* Public discovery adapts by available card width, not device identity. */
+.discovery {
+  max-width: 1200px;
+}
+
+.discovery-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+}
+
+.discovery-intro h1,
+.discovery-home .discovery-intro h1 {
+  font-size: clamp(1.875rem, 1.3rem + 2vw, 2.625rem);
+}
+
+.discovery-intro p {
+  font-size: 0.9375rem;
+}
+
+.discovery-search input {
+  font-size: 1rem;
+  height: 28px;
+}
+
+.discovery-search > label {
+  min-height: 60px;
+}
+
+.discovery-search > .button {
+  height: auto;
+  min-height: 48px;
+  font-size: 0.875rem;
+}
+
+.discovery-search b,
+.discovery-type,
+.discovery-tags > span,
+.discovery-card-footer,
+.discovery-source-note,
+.discovery-eyebrow {
+  font-size: 0.75rem;
+}
+
+.discovery-card h2 {
+  font-size: 1.0625rem;
+}
+
+.discovery-tagline,
+.discovery-facts,
+.discovery-owner p,
+.listing-notice p,
+.listing-sources,
+.claim-content label,
+.claim-context li,
+.discovery-places a {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.discovery-selects select {
+  border-radius: var(--radius-control);
+}
+
+.discovery-categories button {
+  flex-shrink: 0;
+}
+
+.discovery-places a {
+  min-height: var(--control-height);
+}
+
+.discovery-owner > div > div {
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+/* Profile content has the same reading sizes on a phone and a desktop. */
+.company-home {
+  max-width: var(--content-width);
+}
+
+.company-headline,
+.profile-about-full,
+.customer-review > p,
+.portfolio-grid p {
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  color: var(--muted);
+}
+
+.company-key-info,
+.company-key-info a,
+.company-key-info button,
+.profile-details dd,
+.company-social-line .social-stats,
+.profile-rating {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.company-top-actions .button,
+.company-top-actions .follow-control .follow-button {
+  min-height: var(--control-height);
+  font-size: 0.875rem;
+  padding: 10px 14px;
+}
+
+.profile-details dt,
+.customer-review header small,
+.review-experience {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.company-sections {
+  gap: 24px;
+  overflow-x: auto;
+}
+
+.company-sections button {
+  flex-shrink: 0;
+}
+
+.company-sections button.active {
+  color: var(--brand-ink);
+  border-bottom-color: var(--brand);
+}
+
+.customer-review footer button,
+.portfolio-grid footer button,
+.portfolio-grid footer a,
+.cover-edit,
+.review-rating-input label {
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  font-size: 0.8125rem;
+}
+
+.review-rating-input label {
+  display: grid;
+  place-items: center;
+}
+
+.review-rating-input > div {
+  gap: 4px;
+}
+
+/* Message text remains readable; inactive secondary panels collapse first. */
+.message-bubble,
+.people-message > p {
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: var(--ink);
+}
+
+.message-sender,
+.conversation-preview,
+.people-thread p,
+.people-chat-header span,
+.request-response p,
+.people-consent,
+.people-start p {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.conversation-header h2,
+.people-chat-header strong,
+.people-thread strong {
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+
+.conversation-header > a:has(h2) {
+  flex: 1;
+  min-width: 0;
+}
+
+.message-composer .composer-input textarea {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+
+.sending-as {
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 721px) and (max-width: 1100px) {
+  .site-header {
+    height: 132px;
+  }
+  .header-inner {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 64px 60px;
+    gap: 0 16px;
+  }
+  .header-actions {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .header-inner .primary-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: center;
+    width: max-content;
+    max-width: 100%;
+  }
+  .header-inner .primary-nav > a {
+    padding-inline: 14px;
+  }
+  .app-main {
+    min-height: calc(100dvh - 198px);
+  }
+  .app-main.workspace-view,
+  .messaging-panel,
+  .people-inbox,
+  .people-inbox.has-chat {
+    height: calc(100dvh - 208px);
+    min-height: 360px;
+  }
+}
+
+@media (max-width: 720px) {
+  .site-header {
+    height: 64px;
+  }
+  .header-inner {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 64px;
+    gap: 0;
+  }
+  .brand > img {
+    width: clamp(120px, 33vw, 148px);
+  }
+  .header-inner .primary-nav {
+    height: calc(72px + env(safe-area-inset-bottom, 0px));
+    gap: 4px;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+  .header-inner .primary-nav > a {
+    min-width: 0;
+    min-height: 58px;
+    height: auto;
+    padding: 6px 2px;
+    gap: 5px;
+    font-size: 0.6875rem;
+    line-height: 1.2;
+  }
+  .header-inner .primary-nav > a svg {
+    width: 22px;
+    height: 22px;
+  }
+  .primary-nav .notifications {
+    top: 10px;
+    right: 64px;
+  }
+  .primary-nav .notifications-panel {
+    top: 70px;
+    max-height: calc(100dvh - 160px);
+  }
+  .app-main {
+    padding-inline: var(--page-gutter);
+  }
+  .discovery-search > label,
+  .discovery-search > label + label {
+    flex-basis: 100%;
+  }
+  .discovery-search > .button {
+    width: 100%;
+    margin: 4px 0 0;
+  }
+  .discovery-search > .button > span {
+    font-size: 0.875rem;
+  }
+  .discovery-search > .button > svg {
+    display: block;
+  }
+  .discovery-selects select {
+    flex: 1;
+    min-width: 0;
+    max-width: calc(50% - 4px);
+    font-size: 0.8125rem;
+  }
+  .discovery-selects select:first-child {
+    display: block;
+    flex-basis: 100%;
+    max-width: 100%;
+  }
+  .discovery-places {
+    column-gap: 16px;
+  }
+  .discovery-places a {
+    font-size: 0.8125rem;
+    gap: 8px;
+  }
+  .company-intro {
+    display: flex;
+    flex-direction: column;
+  }
+  .company-logo-wrap {
+    align-self: flex-start;
+  }
+  .company-intro .company-top-actions {
+    position: relative;
+    inset: auto;
+    float: none;
+    order: 1;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 20px;
+    padding-top: 0;
+  }
+  .company-top-actions .company-menu {
+    position: static;
+  }
+  .company-top-actions .company-menu .dropdown {
+    position: fixed;
+    left: var(--page-gutter);
+    right: var(--page-gutter);
+    top: auto;
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    min-width: 0;
+    width: auto;
+  }
+  .company-top-actions:has(.button.primary)
+    .button:not(.primary):not(.icon-button) {
+    font-size: 0.875rem;
+    gap: 8px;
+  }
+  .company-top-actions .button svg {
+    width: 18px;
+    height: 18px;
+  }
+  .company-name h1 {
+    font-size: 1.625rem;
+  }
+  .profile-nudge {
+    flex-wrap: wrap;
+  }
+  .profile-nudge button {
+    font-size: 0.875rem;
+    gap: 8px;
+  }
+  .business-choices {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .account-experience .account-panel {
+    padding-inline: var(--page-gutter);
+  }
+  .claim-content .account-experience .account-panel {
+    padding: 0;
+  }
+  .session-recovery-notice {
+    flex-wrap: wrap;
+  }
+  .manage-footer {
+    flex-wrap: wrap;
+  }
+  .manage-footer > span {
+    flex-basis: 100%;
+    max-width: none;
+  }
+  .people-compose,
+  .message-composer {
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  }
+  .app-main.workspace-view {
+    min-height: calc(100dvh - 146px - env(safe-area-inset-bottom, 0px));
+  }
+  .messaging-panel,
+  .people-inbox {
+    height: calc(100dvh - 196px - env(safe-area-inset-bottom, 0px));
+    min-height: 320px;
+  }
+  .people-inbox.has-chat {
+    height: calc(100dvh - 150px - env(safe-area-inset-bottom, 0px));
+    min-height: 320px;
+  }
+}
+
+@media (max-width: 380px) {
+  .manage-grid,
+  .profile-details,
+  .account-type > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .claim-context,
+  .claim-content {
+    padding: 24px 16px;
+  }
+  .connections-results {
+    padding-inline: 12px;
+  }
+  .connection-row {
+    flex-wrap: wrap;
+  }
+  .connection-identity {
+    flex-basis: calc(100% - 56px);
+  }
+  .connection-message {
+    margin-left: 57px;
+  }
+  .discovery-places {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* A short landscape viewport must be scrollable, including dialogs and chat.
+   Do not lock a page to the physical device height or disable browser zoom. */
+@media (max-height: 500px) {
+  .site-header {
+    position: static;
+  }
+  .modal:has(.account-experience) .modal-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+  }
+  .account-panel {
+    margin-block: 0;
+  }
+  .manage-footer {
+    position: static;
+  }
+  .messaging-panel,
+  .people-inbox,
+  .people-inbox.has-chat {
+    height: 420px;
+    min-height: 420px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button,
+  .account-primary,
+  .discovery-card {
+    transition: none;
+  }
+}

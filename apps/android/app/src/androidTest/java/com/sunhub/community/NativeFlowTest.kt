@@ -2,8 +2,10 @@ package com.sunhub.community
 
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
 import com.sunhub.core.CommunityClient
+import java.io.FileInputStream
 import org.json.JSONObject
 import org.junit.Rule
 import org.junit.Test
@@ -50,9 +52,45 @@ class NativeFlowTest {
         }
     }
 
+    private fun shell(command: String): String =
+        InstrumentationRegistry.getInstrumentation()
+            .uiAutomation
+            .executeShellCommand(command)
+            .use { descriptor ->
+                FileInputStream(descriptor.fileDescriptor).use { String(it.readBytes()) }
+            }
+
+    private fun adaptiveLayout() {
+        val oldSize =
+            Regex("Override size: (\\S+)").find(shell("wm size"))?.groupValues?.get(1) ?: "reset"
+        val oldDensity =
+            Regex("Override density: (\\S+)").find(shell("wm density"))?.groupValues?.get(1)
+                ?: "reset"
+        try {
+            ui.onNodeWithTag("news-feed").performScrollToIndex(0)
+            ui.onNodeWithTag("navigation-rail").assertDoesNotExist()
+            ui.onNodeWithText("Share an update").assertHeightIsAtLeast(48.dp)
+            capture("native-adaptive-phone")
+            shell("wm size 1600x1200")
+            shell("wm density 160")
+            ui.waitUntil(20_000) {
+                ui.onAllNodesWithTag("navigation-rail").fetchSemanticsNodes().isNotEmpty()
+            }
+            ui.onNodeWithTag("content-lane").assertWidthIsEqualTo(720.dp)
+            ui.onNodeWithText("Share an update").assertIsDisplayed()
+            capture("native-adaptive-tablet")
+        } finally {
+            shell("wm density $oldDensity")
+            shell("wm size $oldSize")
+        }
+        ui.waitUntil(20_000) {
+            ui.onAllNodesWithTag("navigation-rail").fetchSemanticsNodes().isEmpty()
+        }
+    }
+
     @Test
     fun companyDiscovery_requestAcceptance_chatAndPublishing() {
-        check(BuildConfig.API_URL == "http://10.0.2.2:4101") {
+        check(BuildConfig.API_URL in setOf("http://10.0.2.2:4101", "http://10.0.2.2:4102")) {
             "Build instrumentation with -PsunhubApiUrl=http://10.0.2.2:4101 and run the isolated test API."
         }
         val suffix = System.currentTimeMillis().toString()
@@ -175,12 +213,12 @@ class NativeFlowTest {
         ui.onNodeWithContentDescription("Back").performClick()
         click("Home")
         click("Share an update")
-        click("Article")
+        click("Press release")
         visible("Tell your story…")
-        ui.onNodeWithText("Story title").performTextInput("Android field notes $suffix")
+        ui.onNodeWithText("Headline").performTextInput("Android field notes $suffix")
         ui.onNodeWithText("Tell your story…")
             .performScrollTo()
-            .performTextInput("A thoughtful solar project starts with listening to the community.")
+            .performTextInput("A thoughtful solar project starts with listening to the community. $suffix")
         ui.onNodeWithText("Save & close").assertIsDisplayed()
         capture("native-publication-editor")
         click("Save & close")
@@ -193,7 +231,7 @@ class NativeFlowTest {
         ui.onNodeWithText("Save & close").assertIsDisplayed()
         click("Preview")
         ui.onNode(hasText("Preview") and hasClickAction()).assertIsSelected()
-        ui.onNodeWithText("A thoughtful solar project starts with listening to the community.")
+        ui.onNodeWithText("A thoughtful solar project starts with listening to the community. $suffix")
             .assertIsDisplayed()
         visible("Android field notes $suffix")
         capture("native-publication-preview")
@@ -207,10 +245,11 @@ class NativeFlowTest {
                     "/feed?companyId=" + JSONObject(a.get("/session")).getString("activeCompanyId")
                 )
             )
-        check(feed.getJSONArray("posts").getJSONObject(0).getString("kind") == "article")
+        check(feed.getJSONArray("posts").getJSONObject(0).getString("kind") == "press_release")
         // A real activity recreation must preserve the signed-in company and saved session.
         ui.activityRule.scenario.recreate()
         visible("Share an update")
+        adaptiveLayout()
         ui.onNodeWithContentDescription("Account and company").performClick()
         click("Sign out")
         visible("Sign in")

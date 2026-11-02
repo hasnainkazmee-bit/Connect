@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   Image as ImageIcon,
-  Video,
   FileText,
   Globe,
-  ThumbsUp,
+  PartyPopper,
+  ChevronLeft,
+  ChevronRight,
   MessageCircle,
   Share2,
   Plus,
@@ -15,7 +16,6 @@ import {
   X,
   ArrowLeft,
   ArrowRight,
-  Users,
   LoaderCircle,
   Send,
   RefreshCw,
@@ -30,6 +30,7 @@ import {
   DraftsDialog,
   formats,
   RichDocument,
+  publicationLabel,
   type PublicationKind,
 } from "./composer";
 
@@ -275,7 +276,7 @@ function DeletePost({
     <>
       <h2>Delete this post?</h2>
       <p className="modal-description">
-        The post, its attachments, likes, and comments will be removed.
+        The post, its attachments, celebrations, and comments will be removed.
       </p>
       <ErrorNote error={error} />
       <div className="row">
@@ -303,6 +304,162 @@ function DeletePost({
         </button>
       </div>
     </>
+  );
+}
+function MediaGallery({
+  media,
+  companyName,
+}: {
+  media: Media[];
+  companyName: string;
+}) {
+  const { open } = useApp();
+  const track = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(0);
+  const [ratio, setRatio] = useState("1 / 1");
+  const photos = media.filter((m) => m.mime.startsWith("image/"));
+  const go = (index: number, moveFocus = false) => {
+    const el = track.current;
+    if (!el) return;
+    const reduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    if (moveFocus)
+      (el.children[index] as HTMLElement | undefined)?.focus({
+        preventScroll: true,
+      });
+    el.scrollTo({
+      left: index * el.clientWidth,
+      behavior: reduced ? "instant" : "smooth",
+    });
+  };
+  return (
+    <div className="post-media">
+      {photos.length > 0 && (
+        <div
+          className="photo-gallery"
+          role="region"
+          aria-roledescription="carousel"
+          aria-label={`Photos from ${companyName}`}
+        >
+          <div
+            className="photo-track"
+            ref={track}
+            style={{ aspectRatio: ratio }}
+            onScroll={(event) => {
+              const el = event.currentTarget;
+              setActive(
+                Math.round(el.scrollLeft / Math.max(1, el.clientWidth)),
+              );
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+                event.preventDefault();
+                go(
+                  Math.min(
+                    photos.length - 1,
+                    Math.max(0, active + (event.key === "ArrowRight" ? 1 : -1)),
+                  ),
+                  true,
+                );
+              }
+            }}
+          >
+            {photos.map((m, index) => (
+              <button
+                className="post-photo"
+                key={m.id}
+                tabIndex={active === index ? 0 : -1}
+                aria-label={
+                  "View " + (m.alt || `photo ${index + 1} from ${companyName}`)
+                }
+                onClick={() =>
+                  open(
+                    <div className="post-lightbox">
+                      <img
+                        src={m.url}
+                        alt={m.alt || "Photo shared by " + companyName}
+                      />
+                      {m.alt && <p>{m.alt}</p>}
+                    </div>,
+                  )
+                }
+              >
+                <img
+                  src={m.url}
+                  alt={m.alt || "Photo shared by " + companyName}
+                  loading="lazy"
+                  decoding="async"
+                  onLoad={(event) => {
+                    if (index === 0) {
+                      const img = event.currentTarget;
+                      const r =
+                        img.naturalWidth / Math.max(1, img.naturalHeight);
+                      setRatio(
+                        r < 0.9 ? "4 / 5" : r > 1.3 ? "16 / 9" : "1 / 1",
+                      );
+                    }
+                  }}
+                />
+              </button>
+            ))}
+          </div>
+          {photos.length > 1 && (
+            <div className="photo-pagination">
+              <button
+                className="icon-button"
+                aria-label="Previous photo"
+                disabled={active === 0}
+                onClick={() => go(active - 1)}
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <span role="status" aria-live="polite">
+                {active + 1} / {photos.length}
+              </span>
+              <div className="photo-dots" aria-hidden="true">
+                {photos.map((m, index) => (
+                  <i key={m.id} className={active === index ? "active" : ""} />
+                ))}
+              </div>
+              <button
+                className="icon-button"
+                aria-label="Next photo"
+                disabled={active === photos.length - 1}
+                onClick={() => go(active + 1)}
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+      {media
+        .filter((m) => !m.mime.startsWith("image/"))
+        .map((m) =>
+          m.mime.startsWith("video/") ? (
+            <video
+              key={m.id}
+              src={m.url}
+              controls
+              playsInline
+              preload="metadata"
+              aria-label={"Video from " + companyName}
+            />
+          ) : (
+            <a key={m.id} href={m.url} className="post-document">
+              <FileText size={28} />
+              <div>
+                <strong>{m.name}</strong>
+                <small>
+                  PDF · {(m.size / 1024 / 1024).toFixed(1)} MB · Download
+                </small>
+              </div>
+              <ArrowRight size={19} />
+            </a>
+          ),
+        )}
+    </div>
   );
 }
 function PostCard({
@@ -413,9 +570,7 @@ function PostCard({
           }
         >
           <span className="publication-label">
-            {formats.find((f) => f.value === item.kind)?.label} ·{" "}
-            {Math.max(1, Math.ceil(item.body.split(/\s+/).length / 200))} min
-            read
+            <FileText size={14} /> {publicationLabel(item.kind)}
           </span>
           <h2>
             <Link to={"/posts/" + item.id}>{item.title}</Link>
@@ -427,6 +582,8 @@ function PostCard({
             <Link to={"/posts/" + item.id}>
               <img
                 className="publication-cover"
+                loading="lazy"
+                decoding="async"
                 src={item.media.find((m) => m.id === item.cover_media_id)?.url}
                 alt={
                   item.media.find((m) => m.id === item.cover_media_id)?.alt ||
@@ -456,10 +613,7 @@ function PostCard({
                 {item.body.length > 210 ? "…" : ""}
               </p>
               <Link className="publication-read" to={"/posts/" + item.id}>
-                Read{" "}
-                {formats
-                  .find((f) => f.value === item.kind)
-                  ?.label.toLowerCase()}
+                Read {publicationLabel(item.kind).toLowerCase()}
                 <ArrowRight size={15} />
               </Link>
             </>
@@ -488,90 +642,37 @@ function PostCard({
           )}
         </>
       )}
-      {item.media.length > 0 &&
-        (!item.kind || item.kind === "post" || reading) && (
-          <div className={"post-media media-count-" + item.media.length}>
-            {item.media
-              .filter(
-                (m) =>
-                  !item.kind ||
-                  item.kind === "post" ||
-                  !m.mime.startsWith("image/") ||
-                  (!JSON.stringify(item.document).includes(m.id) &&
-                    m.id !== item.cover_media_id),
-              )
-              .map((m) =>
-                m.mime.startsWith("image/") ? (
-                  <button
-                    className="post-photo"
-                    key={m.id}
-                    onClick={() =>
-                      open(
-                        <div className="post-lightbox">
-                          <img
-                            src={m.url}
-                            alt={
-                              m.alt || "Photo shared by " + item.company.name
-                            }
-                          />
-                          {m.alt && <p>{m.alt}</p>}
-                        </div>,
-                      )
-                    }
-                    aria-label={
-                      "View " + (m.alt || "photo from " + item.company.name)
-                    }
-                  >
-                    <img
-                      src={m.url}
-                      alt={m.alt || "Photo shared by " + item.company.name}
-                      loading="lazy"
-                    />
-                  </button>
-                ) : m.mime.startsWith("video/") ? (
-                  <video
-                    key={m.id}
-                    src={m.url}
-                    controls
-                    playsInline
-                    preload="metadata"
-                    aria-label={"Video from " + item.company.name}
-                  />
-                ) : (
-                  <a key={m.id} href={m.url} className="post-document">
-                    <span>
-                      <FileText size={28} />
-                    </span>
-                    <div>
-                      <strong>{m.name}</strong>
-                      <small>
-                        PDF · {(m.size / 1024 / 1024).toFixed(1)} MB · Download
-                      </small>
-                    </div>
-                    <ArrowRight size={19} />
-                  </a>
-                ),
-              )}
-          </div>
-        )}
-      <div className="post-engagement">
-        <span>
-          {item.like_count > 0 ? (
-            <>
-              <span className="like-dot">
-                <ThumbsUp size={10} />
-              </span>
-              {item.like_count} {item.like_count === 1 ? "like" : "likes"}
-            </>
-          ) : (
-            "Be the first to like this"
+      {item.media.length > 0 && (item.kind === "post" || reading) && (
+        <MediaGallery
+          companyName={item.company.name}
+          media={item.media.filter(
+            (m) =>
+              item.kind === "post" ||
+              !m.mime.startsWith("image/") ||
+              (!JSON.stringify(item.document).includes(m.id) &&
+                m.id !== item.cover_media_id),
           )}
-        </span>
-        <button onClick={() => setCommentsOpen(!commentsOpen)}>
-          {item.comment_count}{" "}
-          {item.comment_count === 1 ? "comment" : "comments"}
-        </button>
-      </div>
+        />
+      )}
+      {(item.like_count > 0 || item.comment_count > 0) && (
+        <div className="post-engagement">
+          <span>
+            {item.like_count > 0 && (
+              <>
+                <PartyPopper size={15} />
+                {item.like_count}{" "}
+                {item.like_count === 1 ? "celebration" : "celebrations"}
+              </>
+            )}
+          </span>
+          {item.comment_count > 0 && (
+            <button onClick={() => setCommentsOpen(!commentsOpen)}>
+              {item.comment_count}{" "}
+              {item.comment_count === 1 ? "comment" : "comments"}
+            </button>
+          )}
+        </div>
+      )}
       <div className="post-actions">
         <button
           className={item.liked ? "is-liked" : ""}
@@ -594,8 +695,8 @@ function PostCard({
             }
           }}
         >
-          <ThumbsUp size={18} />
-          <span>{item.liked ? "Liked" : "Like"}</span>
+          <PartyPopper size={18} />
+          <span>{item.liked ? "Celebrated" : "Celebrate"}</span>
         </button>
         <button
           onClick={() => {
@@ -756,25 +857,32 @@ function Feed({
     scope +
     (companyId ? "&companyId=" + companyId : "") +
     (kind ? "&kind=" + kind : "");
+  const generation = useRef(0);
   useEffect(() => {
-    let cancel = false;
+    const current = ++generation.current;
+    const controller = new AbortController();
     setLoading(true);
     setError("");
-    api<{ posts: Post[]; nextCursor: string | null }>(query)
+    api<{ posts: Post[]; nextCursor: string | null }>(query, {
+      signal: controller.signal,
+    })
       .then((r) => {
-        if (!cancel) {
+        if (generation.current === current && !controller.signal.aborted) {
           setPosts(r.posts);
           setNext(r.nextCursor);
         }
       })
       .catch((e) => {
-        if (!cancel) setError(e.message);
+        if (generation.current === current && !controller.signal.aborted)
+          setError(e.message);
       })
       .finally(() => {
-        if (!cancel) setLoading(false);
+        if (generation.current === current && !controller.signal.aborted)
+          setLoading(false);
       });
     return () => {
-      cancel = true;
+      controller.abort();
+      generation.current++;
     };
   }, [query, revision, company?.id]);
   const update = (p: Post) =>
@@ -825,10 +933,12 @@ function Feed({
           disabled={more}
           onClick={async () => {
             setMore(true);
+            const current = generation.current;
             try {
               const r = await api<{ posts: Post[]; nextCursor: string | null }>(
                 query + "&before=" + next,
               );
+              if (current !== generation.current) return;
               setPosts((old) => [
                 ...old,
                 ...r.posts.filter((p) => !old.some((x) => x.id === p.id)),
@@ -864,8 +974,8 @@ function Suggestions() {
   return (
     <section className="feed-suggestions">
       <h2>Companies to follow</h2>
-      <p>Find your people in solar.</p>
-      {list.map((c) => (
+      <p>Meet the teams moving solar forward.</p>
+      {list.slice(0, 3).map((c) => (
         <div className="suggested-company" key={c.id}>
           <Link to={"/company/" + c.slug}>
             <Logo company={c} />
@@ -894,120 +1004,157 @@ function Suggestions() {
   );
 }
 export function HomeFeed() {
-  const { company, session, signIn, refresh } = useApp();
+  const { company, session, signIn, refresh, admin, open } = useApp();
   const [scope, setScope] = useState<"all" | "following">("all");
+  const [kind, setKind] = useState<PublicationKind | undefined>();
   useEffect(() => {
     if (!session.user) setScope("all");
   }, [session.user?.id]);
   return (
-    <div className="feed-layout">
-      <aside className="feed-left-rail">
-        {company ? (
-          <section className="feed-company-card">
-            <div className="feed-company-cover" />
-            <Link to={"/company/" + company.slug}>
-              <Logo company={company} />
-              <h2>{company.name}</h2>
-            </Link>
-            <p>{company.tagline || company.type}</p>
-            <SocialStats companyId={company.id} />
-            <Link
-              className="feed-company-profile"
-              to={"/company/" + company.slug}
-            >
-              View company profile
-              <ArrowRight size={14} />
-            </Link>
-          </section>
-        ) : (
-          <section className="feed-welcome">
-            <img src="/assets/connect-icon.png" alt="" />
-            <h2>
-              Your industry.
-              <br />
-              Your community.
-            </h2>
-            <p>Meet the teams building what’s next in solar.</p>
-            {session.user ? (
-              <Link className="button primary full" to="/messages">
-                Talk to a company
-              </Link>
-            ) : (
-              <button className="button primary full" onClick={signIn}>
-                Join the conversation
+    <div className="newsroom">
+      <header className="newsroom-heading">
+        <div>
+          <span className="newsroom-eyebrow">
+            <i /> CONNECT. TALK. CELEBRATE.
+          </span>
+          <h1>The industry, in motion.</h1>
+          <p>Project progress. Company news. Work worth celebrating.</p>
+        </div>
+        <Link className="newsroom-directory" to="/directory">
+          Discover companies <ArrowRight size={17} />
+        </Link>
+      </header>
+      <div className="feed-layout">
+        <section className="feed-stream" aria-label="Company feed">
+          <ComposerLauncher />
+          <div className="feed-controls">
+            <div className="feed-tabs">
+              <div
+                role="tablist"
+                aria-label="Feed"
+                onKeyDown={(event) => {
+                  if (
+                    !["ArrowLeft", "ArrowRight", "Home", "End"].includes(
+                      event.key,
+                    )
+                  )
+                    return;
+                  event.preventDefault();
+                  if (!session.user) return signIn();
+                  const nextScope =
+                    event.key === "Home"
+                      ? "all"
+                      : event.key === "End"
+                        ? "following"
+                        : scope === "all"
+                          ? "following"
+                          : "all";
+                  setScope(nextScope);
+                  document.getElementById(`feed-tab-${nextScope}`)?.focus();
+                }}
+              >
+                <button
+                  role="tab"
+                  id="feed-tab-all"
+                  aria-controls="feed-results"
+                  tabIndex={scope === "all" ? 0 : -1}
+                  aria-selected={scope === "all"}
+                  onClick={() => setScope("all")}
+                >
+                  All posts
+                </button>
+                <button
+                  role="tab"
+                  id="feed-tab-following"
+                  aria-controls="feed-results"
+                  tabIndex={scope === "following" ? 0 : -1}
+                  aria-selected={scope === "following"}
+                  onClick={() => {
+                    if (!session.user) return signIn();
+                    setScope("following");
+                  }}
+                >
+                  Following
+                </button>
+              </div>
+              <button
+                className="icon-button"
+                aria-label="Refresh feed"
+                title="Refresh feed"
+                onClick={refresh}
+              >
+                <RefreshCw size={17} />
               </button>
-            )}
-          </section>
-        )}
-        <nav className="feed-shortcuts" aria-label="Community shortcuts">
-          <Link to="/directory">
-            <Building2 size={17} />
-            Discover companies
-          </Link>
-          {session.user?.account_type !== "individual" && (
-            <Link to="/network/connections">
-              <Users size={17} />
-              My network
-            </Link>
-          )}
-          <Link to="/messages">
-            <MessageCircle size={17} />
-            Messages
-          </Link>
-        </nav>
-        <p className="feed-small-print">
-          Connect
-          <br />
-          Connect. Talk. Celebrate.
-        </p>
-      </aside>
-      <section className="feed-stream" aria-label="Company feed">
-        <ComposerLauncher />
-        <div className="feed-tabs">
-          <div role="tablist" aria-label="Feed">
-            <button
-              role="tab"
-              aria-selected={scope === "all"}
-              onClick={() => setScope("all")}
+            </div>
+            <div
+              className="publication-filters"
+              aria-label="Feed publication type"
             >
-              All posts
-            </button>
-            <button
-              role="tab"
-              aria-selected={scope === "following"}
-              onClick={() => {
-                if (!session.user) {
-                  signIn();
-                  return;
-                }
-                setScope("following");
-              }}
-            >
-              Following
-            </button>
+              <button aria-pressed={!kind} onClick={() => setKind(undefined)}>
+                Everything
+              </button>
+              <button
+                aria-pressed={kind === "post"}
+                onClick={() => setKind("post")}
+              >
+                Posts
+              </button>
+              <button
+                aria-pressed={kind === "press_release"}
+                onClick={() => setKind("press_release")}
+              >
+                Press releases
+              </button>
+            </div>
           </div>
-          <button
-            className="icon-button"
-            aria-label="Refresh feed"
-            title="Refresh feed"
-            onClick={refresh}
+          <div
+            id="feed-results"
+            role="tabpanel"
+            aria-labelledby={`feed-tab-${scope}`}
           >
-            <RefreshCw size={15} />
-          </button>
-        </div>
-        <Feed key={scope} scope={scope} />
-      </section>
-      <aside className="feed-right-rail">
-        <Suggestions />
-        <div className="feed-follow-note">
-          <Globe size={16} />
-          <p>
-            Follow for updates.
+            <Feed
+              key={`${scope}:${kind || "all"}:${company?.id || "guest"}`}
+              scope={scope}
+              kind={kind}
+            />
+          </div>
+        </section>
+        <aside className="feed-right-rail" aria-label="Around Connect">
+          {company && (
+            <section className="newsroom-workspace">
+              <span className="rail-eyebrow">YOUR COMPANY</span>
+              <Link
+                className="workspace-identity"
+                to={"/company/" + company.slug}
+              >
+                <Logo company={company} />
+                <div>
+                  <strong>{company.name}</strong>
+                  <span>
+                    View your public profile <ArrowRight size={14} />
+                  </span>
+                </div>
+              </Link>
+              {admin && (
+                <button
+                  className="workspace-drafts"
+                  onClick={() => open(<DraftsDialog />)}
+                >
+                  <FileText size={17} />
+                  Your drafts
+                  <ArrowRight size={15} />
+                </button>
+              )}
+            </section>
+          )}
+          <Suggestions />
+          <p className="feed-small-print">
+            A place for the people and companies
             <br />
-            Connect to start a conversation.
+            building what’s next in solar.
           </p>
-        </div>
-      </aside>
+        </aside>
+      </div>
     </div>
   );
 }
@@ -1033,12 +1180,15 @@ export function CompanyUpdates({
             aria-pressed={kind === f.value}
             onClick={() => setKind(f.value)}
           >
-            {f.label}
-            {f.value === "post" ? "s" : ""}
+            {f.label}s
           </button>
         ))}
       </div>
-      <Feed companyId={target.id} kind={kind} />
+      <Feed
+        key={`${target.id}:${kind || "all"}`}
+        companyId={target.id}
+        kind={kind}
+      />
     </div>
   );
 }

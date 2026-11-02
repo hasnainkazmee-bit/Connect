@@ -37,12 +37,13 @@ internal fun CompanyProfileScreen(
         return
     }
     val c = data.getJSONObject("company")
+    val unclaimed = c.text("listing_status") == "unclaimed"
     val own = model.company?.text("id") == c.text("id")
     val edit = own && model.admin
     val stats = model.pages["/social/companies/$id"]
     val context = LocalContext.current
     val uri = LocalUriHandler.current
-    var tab by rememberSaveable(id) { mutableStateOf("Updates") }
+    var tab by rememberSaveable(id) { mutableStateOf(if (unclaimed) "About" else "Updates") }
     var sheet by rememberSaveable(id) { mutableStateOf("") }
     var entry by remember { mutableStateOf<JSONObject?>(null) }
     var remove by remember { mutableStateOf<Pair<String, String>?>(null) }
@@ -145,19 +146,22 @@ internal fun CompanyProfileScreen(
                     )
                 if (edit)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { sheet = "profile" }) { Text("Edit profile") }
-                        OutlinedButton(onClick = { sheet = "employees" }) {
+                        ConnectButton(onClick = { sheet = "profile" }) { Text("Edit profile") }
+                        ConnectOutlinedButton(onClick = { sheet = "employees" }) {
                             Text("Invite employees")
                         }
                     }
                 else if (!own)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = { if (model.signedIn) model.chat(c) else onMessageSignIn(c) }
+                        ConnectButton(
+                            onClick = {
+                                if (unclaimed) uri.openUri(c.text("website"))
+                                else if (model.signedIn) model.chat(c) else onMessageSignIn(c)
+                            }
                         ) {
-                            Text("Message")
+                            Text(if (unclaimed) "Visit website" else "Message")
                         }
-                        OutlinedButton(
+                        ConnectOutlinedButton(
                             enabled =
                                 !model.busy && (!model.signedIn || model.admin || model.individual),
                             onClick = {
@@ -181,6 +185,25 @@ internal fun CompanyProfileScreen(
                             )
                         }
                     }
+                if (unclaimed)
+                    OutlinedCard(
+                        onClick = { uri.openUri(model.baseUrl + "/claim/" + c.text("username")) }
+                    ) {
+                        Column(
+                            Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(
+                                "Is this your company?",
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                "Claim this profile to publish updates and talk on Connect.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Muted,
+                            )
+                        }
+                    }
             }
         }
         item {
@@ -188,7 +211,10 @@ internal fun CompanyProfileScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(7.dp),
             ) {
-                items(listOf("Updates", "About", "Portfolio", "People", "Reviews")) { value ->
+                items(
+                    if (unclaimed) listOf("About", "Reviews")
+                    else listOf("Updates", "About", "Portfolio", "People", "Reviews")
+                ) { value ->
                     FilterChip(tab == value, { tab = value }, label = { Text(value) })
                 }
             }
@@ -201,7 +227,7 @@ internal fun CompanyProfileScreen(
                             Modifier.padding(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            Button(
+                            ConnectButton(
                                 onClick = { sheet = "publish" },
                                 modifier = Modifier.weight(1f),
                             ) {
@@ -209,7 +235,7 @@ internal fun CompanyProfileScreen(
                                 Spacer(Modifier.width(8.dp))
                                 Text("Share an update")
                             }
-                            OutlinedButton(onClick = { sheet = "drafts" }) { Text("Drafts") }
+                            ConnectOutlinedButton(onClick = { sheet = "drafts" }) { Text("Drafts") }
                         }
                     }
                 val posts =
@@ -308,7 +334,7 @@ internal fun CompanyProfileScreen(
             "Portfolio" -> {
                 if (edit)
                     item {
-                        OutlinedButton(
+                        ConnectOutlinedButton(
                             onClick = { add("project") },
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                         ) {
@@ -356,7 +382,7 @@ internal fun CompanyProfileScreen(
             "People" -> {
                 if (edit)
                     item {
-                        OutlinedButton(
+                        ConnectOutlinedButton(
                             onClick = { sheet = "employees" },
                             modifier = Modifier.padding(horizontal = 16.dp),
                         ) {
@@ -393,7 +419,7 @@ internal fun CompanyProfileScreen(
                             style = MaterialTheme.typography.titleMedium,
                         )
                         if (!own && r?.optBoolean("affiliated") != true)
-                            Button(
+                            ConnectButton(
                                 onClick = {
                                     if (!model.signedIn) onSignIn()
                                     else {

@@ -32,88 +32,94 @@ import org.json.JSONObject
 
 @Composable
 internal fun WelcomeScreen(onCreate: () -> Unit, onSignIn: () -> Unit, onBrowse: () -> Unit) {
-    Column(
-        Modifier.fillMaxSize()
-            .background(Pale)
-            .systemBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(28.dp),
-        verticalArrangement = Arrangement.spacedBy(22.dp),
-    ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Image(
-                painterResource(R.drawable.connect_logo),
-                "Connect",
-                Modifier.width(145.dp).height(32.dp),
+    Box(Modifier.fillMaxSize().background(Pale), contentAlignment = Alignment.TopCenter) {
+        Column(
+            Modifier.widthIn(max = 560.dp)
+                .fillMaxSize()
+                .background(Pale)
+                .systemBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(28.dp),
+            verticalArrangement = Arrangement.spacedBy(22.dp),
+        ) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    painterResource(R.drawable.connect_logo),
+                    "Connect",
+                    Modifier.width(145.dp).height(32.dp),
+                )
+                Spacer(Modifier.weight(1f))
+                ConnectButton(onClick = onSignIn) { Text("Sign in") }
+            }
+            Spacer(Modifier.height(56.dp))
+            Image(painterResource(R.drawable.connect_icon), null, Modifier.size(72.dp))
+            Text(
+                "Connect.\nTalk.\nCelebrate.",
+                fontSize = 48.sp,
+                lineHeight = 55.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = (-1.5).sp,
+                color = Ink,
             )
-            Spacer(Modifier.weight(1f))
-            TextButton(onClick = onSignIn) { Text("Sign in") }
-        }
-        Spacer(Modifier.height(56.dp))
-        Image(painterResource(R.drawable.connect_icon), null, Modifier.size(72.dp))
-        Text(
-            "Connect.\nTalk.\nCelebrate.",
-            fontSize = 48.sp,
-            lineHeight = 55.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = (-1.5).sp,
-            color = Ink,
-        )
-        Text(
-            "A place for the people and companies moving solar forward.",
-            color = Muted,
-            style = MaterialTheme.typography.bodyLarge,
-            lineHeight = 27.sp,
-        )
-        Spacer(Modifier.height(16.dp))
-        AccountButton("Create account", false, onClick = onCreate)
-        TextButton(onClick = onBrowse, modifier = Modifier.fillMaxWidth()) {
-            Text("Explore the community first")
+            Text(
+                "A place for the people and companies moving solar forward.",
+                color = Muted,
+                style = MaterialTheme.typography.bodyLarge,
+                lineHeight = 27.sp,
+            )
+            Spacer(Modifier.height(16.dp))
+            AccountButton("Create account", false, onClick = onCreate)
+            TextButton(onClick = onBrowse, modifier = Modifier.fillMaxWidth()) {
+                Text("Explore the community first")
+            }
         }
     }
 }
 
 @Composable
 private fun AccountShell(back: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
-    Column(
-        Modifier.fillMaxSize()
-            .background(Pale)
-            .systemBarsPadding()
-            .imePadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 26.dp)
-    ) {
-        Row(
-            Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 30.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    Box(Modifier.fillMaxSize().background(Pale), contentAlignment = Alignment.TopCenter) {
+        Column(
+            Modifier.widthIn(max = 520.dp)
+                .fillMaxSize()
+                .background(Pale)
+                .systemBarsPadding()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 26.dp)
         ) {
-            if (back != null) {
-                IconButton(onClick = back, modifier = Modifier.offset(x = (-12).dp)) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back")
+            Row(
+                Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 30.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (back != null) {
+                    IconButton(onClick = back, modifier = Modifier.offset(x = (-12).dp)) {
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back")
+                    }
+                    Spacer(Modifier.width(6.dp))
                 }
-                Spacer(Modifier.width(6.dp))
+                Image(
+                    painterResource(R.drawable.connect_logo),
+                    "Connect",
+                    Modifier.width(142.dp).height(32.dp),
+                    contentScale = ContentScale.Fit,
+                )
             }
-            Image(
-                painterResource(R.drawable.connect_logo),
-                "Connect",
-                Modifier.width(142.dp).height(32.dp),
-                contentScale = ContentScale.Fit,
-            )
-        }
-        content()
-        Spacer(Modifier.height(32.dp))
-        Row(
-            Modifier.fillMaxWidth().padding(bottom = 24.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Outlined.VerifiedUser, null, Modifier.size(14.dp), tint = Muted)
-            Spacer(Modifier.width(6.dp))
-            Text(
-                "Connect. Talk. Celebrate.",
-                style = MaterialTheme.typography.labelSmall,
-                color = Muted,
-            )
+            content()
+            Spacer(Modifier.height(32.dp))
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Outlined.VerifiedUser, null, Modifier.size(14.dp), tint = Muted)
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "Connect. Talk. Celebrate.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Muted,
+                )
+            }
         }
     }
 }
@@ -146,7 +152,7 @@ internal fun AccountButton(
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
-    Button(
+    ConnectButton(
         onClick = onClick,
         enabled = enabled && !busy,
         shape = RoundedCornerShape(13.dp),
@@ -154,11 +160,7 @@ internal fun AccountButton(
         contentPadding = PaddingValues(horizontal = 18.dp),
     ) {
         if (busy) {
-            CircularProgressIndicator(
-                Modifier.size(18.dp),
-                strokeWidth = 2.dp,
-                color = MaterialTheme.colorScheme.onPrimary,
-            )
+            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Ink)
             Spacer(Modifier.width(10.dp))
         }
         Text(if (busy) "Just a moment…" else text, fontWeight = FontWeight.SemiBold)
@@ -656,7 +658,7 @@ internal fun OnboardingScreen(
                                 color = Muted,
                             )
                         }
-                        OutlinedButton(
+                        ConnectOutlinedButton(
                             onClick = {
                                 follows = if (id in follows) follows - id else follows + id
                             },
@@ -812,7 +814,7 @@ internal fun SecurityScreen(model: CommunityModel, onClose: () -> Unit) {
             }
         }
         if (devices.size > 1)
-            OutlinedButton(
+            ConnectOutlinedButton(
                 enabled = !model.busy,
                 onClick = {
                     model.accountAction("/auth/sessions/revoke", JSONObject().put("others", true)) {

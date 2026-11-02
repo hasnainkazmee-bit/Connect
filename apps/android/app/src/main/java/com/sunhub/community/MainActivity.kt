@@ -13,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -42,6 +43,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -68,11 +71,11 @@ class MainActivity : ComponentActivity() {
             MaterialTheme(
                 colorScheme =
                     lightColorScheme(
-                        primary = Navy,
+                        primary = Ink,
                         onPrimary = Color.White,
                         primaryContainer = Pale,
-                        secondary = Orange,
-                        secondaryContainer = Color(0xFFFFE5D2),
+                        secondary = Ink,
+                        secondaryContainer = Pale,
                         onSecondaryContainer = Ink,
                         background = Pale,
                         surface = Color.White,
@@ -216,259 +219,332 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
     val detail = model.profileId != null || model.chatCompany != null || personalThread != null
     val goBack = { if (personalThread != null) personalThread = null else model.back() }
     BackHandler(detail) { goBack() }
-    Scaffold(
-        containerColor = Pale,
-        topBar = {
-            TopAppBar(
-                title = {
-                    if (detail)
-                        Text(
-                            if (model.profileId != null) "Company"
-                            else
-                                personalThread?.text("person_name")
-                                    ?: model.chatCompany?.optString("name").orEmpty(),
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    else
-                        Image(
-                            painterResource(R.drawable.connect_logo),
-                            "Connect",
-                            Modifier.width(160.dp).height(32.dp),
-                            contentScale = ContentScale.Fit,
-                        )
-                },
-                navigationIcon = {
-                    if (detail)
-                        IconButton(onClick = goBack) {
-                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back")
-                        }
-                },
-                actions = {
-                    if (model.signedIn)
-                        Box {
-                            IconButton(onClick = { account = true }) {
-                                Icon(Icons.Outlined.AccountCircle, "Account and company")
-                            }
-                            DropdownMenu(account, onDismissRequest = { account = false }) {
-                                model.companies.forEach { company ->
-                                    DropdownMenuItem(
-                                        text = { Text(company.optString("name")) },
-                                        enabled = !model.busy,
-                                        leadingIcon = {
-                                            if (
-                                                company.optString("id") ==
-                                                    model.company?.optString("id")
-                                            )
-                                                Icon(Icons.Outlined.Check, null)
-                                        },
-                                        onClick = {
-                                            account = false
-                                            model.switchCompany(company.optString("id"))
-                                        },
-                                    )
-                                }
-                                if (model.company == null && !model.individual)
-                                    DropdownMenuItem(
-                                        text = { Text("Set up company") },
-                                        onClick = {
-                                            account = false
-                                            setupCompany = true
-                                        },
-                                    )
-                                if (model.company != null)
-                                    DropdownMenuItem(
-                                        text = { Text("Company profile") },
-                                        onClick = {
-                                            account = false
-                                            model.profile(model.company!!.text("id"))
-                                        },
-                                    )
-                                if (model.admin)
-                                    DropdownMenuItem(
-                                        text = { Text("Employee access") },
-                                        onClick = {
-                                            account = false
-                                            employeeAccess = true
-                                        },
-                                    )
-                                DropdownMenuItem(
-                                    text = { Text("App updates") },
-                                    onClick = {
-                                        account = false
-                                        updateInfo = true
-                                        updates.check(true)
-                                    },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Account & security") },
-                                    onClick = {
-                                        account = false
-                                        security = true
-                                    },
-                                )
-                                DropdownMenuItem(
-                                    enabled = !model.busy,
-                                    text = { Text("Sign out") },
-                                    onClick = {
-                                        account = false
-                                        model.logout()
-                                    },
-                                )
-                            }
-                        }
-                    else TextButton(onClick = { auth = true }) { Text("Sign in") }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Pale),
-            )
-        },
-        bottomBar = {
-            if (!detail)
-                NavigationBar(containerColor = Color.White) {
-                    tabs.forEach { tab ->
-                        NavigationBarItem(
-                            selected = tab == model.tab,
-                            onClick = {
-                                if (!model.signedIn && tab in listOf(Tab.Network, Tab.Messages)) {
-                                    afterSignIn = { model.selectTab(tab) }
-                                    auth = true
-                                } else model.selectTab(tab)
-                            },
-                            icon = {
-                                val icon =
-                                    when (tab) {
-                                        Tab.Home -> Icons.Outlined.Home
-                                        Tab.Companies -> Icons.Outlined.Business
-                                        Tab.Network -> Icons.Outlined.People
-                                        Tab.Messages -> Icons.AutoMirrored.Outlined.Chat
-                                    }
-                                if (tab == Tab.Messages && model.incoming.isNotEmpty())
-                                    BadgedBox(
-                                        badge = { Badge { Text(model.incoming.size.toString()) } }
-                                    ) {
-                                        Icon(icon, null)
-                                    }
-                                else Icon(icon, null)
-                            },
-                            label = { Text(tab.name) },
-                            colors =
-                                NavigationBarItemDefaults.colors(
-                                    selectedIconColor = Ink,
-                                    indicatorColor = Orange.copy(alpha = .18f),
-                                ),
-                        )
-                    }
-                }
-        },
-    ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
-            UpdateBanner(updates) { updateInfo = true }
-            model.error?.let { error ->
-                Surface(color = MaterialTheme.colorScheme.errorContainer) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(error, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                        IconButton(onClick = model::dismissError) {
-                            Icon(Icons.Outlined.Close, "Dismiss error")
-                        }
-                    }
-                }
-            }
-            if (model.offline)
-                Row(
-                    Modifier.fillMaxWidth()
-                        .background(Color(0xFFFFF3D7))
-                        .padding(start = 16.dp, end = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        if (model.pages.isEmpty()) "Can’t connect right now"
-                        else "Offline · showing saved content",
-                        Modifier.weight(1f),
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                    TextButton(onClick = model::retryConnection) { Text("Retry") }
-                }
-            if (model.booting) LoadingScreen()
-            else if (detail) {
-                val screenKey =
-                    "detail:${model.session?.optJSONObject("user")?.text("id")}:${model.company?.text("id")}:${personalThread?.text("id")?:model.profileId?:model.chatCompany?.text("id")}"
-                screenStates.SaveableStateProvider(screenKey) {
-                    when {
-                        personalThread != null ->
-                            PersonalChat(model, threadId = personalThread!!.text("id"))
-                        model.profileId != null ->
-                            CompanyProfileScreen(
-                                model,
-                                model.profileId!!,
-                                onSignIn = { auth = true },
-                                onMessageSignIn = { company ->
-                                    afterSignIn = { model.chat(company) }
-                                    auth = true
-                                },
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val wideNavigation = maxWidth >= 840.dp
+        fun select(tab: Tab) {
+            if (!model.signedIn && tab in listOf(Tab.Network, Tab.Messages)) {
+                afterSignIn = { model.selectTab(tab) }
+                auth = true
+            } else model.selectTab(tab)
+        }
+        Scaffold(
+            containerColor = Pale,
+            topBar = {
+                TopAppBar(
+                    title = {
+                        if (detail)
+                            Text(
+                                if (model.profileId != null) "Company"
+                                else
+                                    personalThread?.text("person_name")
+                                        ?: model.chatCompany?.optString("name").orEmpty(),
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
-                        model.chatCompany != null ->
-                            if (model.individual) PersonalChat(model, company = model.chatCompany)
-                            else ChatScreen(model)
-                    }
-                }
-            } else
-                HorizontalPager(
-                    state = pager,
-                    modifier = Modifier.weight(1f).testTag("main-tabs"),
-                    key = { tabs[it].name },
-                ) { page ->
-                    val tab = tabs[page]
-                    screenStates.SaveableStateProvider(
-                        "tab:${model.session?.optJSONObject("user")?.text("id")}:${model.company?.text("id")}:${tab.name}"
-                    ) {
-                        if (!model.signedIn && tab in listOf(Tab.Network, Tab.Messages))
-                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Button(
-                                    onClick = {
-                                        afterSignIn = { model.selectTab(tab) }
-                                        auth = true
+                        else
+                            Image(
+                                painterResource(R.drawable.connect_logo),
+                                "Connect",
+                                Modifier.width(160.dp).height(32.dp),
+                                contentScale = ContentScale.Fit,
+                            )
+                    },
+                    navigationIcon = {
+                        if (detail)
+                            IconButton(onClick = goBack) {
+                                Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back")
+                            }
+                    },
+                    actions = {
+                        if (model.signedIn)
+                            Box {
+                                IconButton(onClick = { account = true }) {
+                                    Icon(Icons.Outlined.AccountCircle, "Account and company")
+                                }
+                                DropdownMenu(account, onDismissRequest = { account = false }) {
+                                    model.companies.forEach { company ->
+                                        DropdownMenuItem(
+                                            text = { Text(company.optString("name")) },
+                                            enabled = !model.busy,
+                                            leadingIcon = {
+                                                if (
+                                                    company.optString("id") ==
+                                                        model.company?.optString("id")
+                                                )
+                                                    Icon(Icons.Outlined.Check, null)
+                                            },
+                                            onClick = {
+                                                account = false
+                                                model.switchCompany(company.optString("id"))
+                                            },
+                                        )
                                     }
-                                ) {
-                                    Text("Sign in to ${tab.name.lowercase()}")
+                                    if (model.company == null && !model.individual)
+                                        DropdownMenuItem(
+                                            text = { Text("Set up company") },
+                                            onClick = {
+                                                account = false
+                                                setupCompany = true
+                                            },
+                                        )
+                                    if (model.company != null)
+                                        DropdownMenuItem(
+                                            text = { Text("Company profile") },
+                                            onClick = {
+                                                account = false
+                                                model.profile(model.company!!.text("id"))
+                                            },
+                                        )
+                                    if (model.admin)
+                                        DropdownMenuItem(
+                                            text = { Text("Employee access") },
+                                            onClick = {
+                                                account = false
+                                                employeeAccess = true
+                                            },
+                                        )
+                                    DropdownMenuItem(
+                                        text = { Text("App updates") },
+                                        onClick = {
+                                            account = false
+                                            updateInfo = true
+                                            updates.check(true)
+                                        },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Account & security") },
+                                        onClick = {
+                                            account = false
+                                            security = true
+                                        },
+                                    )
+                                    DropdownMenuItem(
+                                        enabled = !model.busy,
+                                        text = { Text("Sign out") },
+                                        onClick = {
+                                            account = false
+                                            model.logout()
+                                        },
+                                    )
                                 }
                             }
                         else
-                            when (tab) {
-                                Tab.Home ->
-                                    FeedScreen(model, homeScroll, onSignIn = { auth = true })
-                                Tab.Companies -> DirectoryScreen(model, directoryScroll)
-                                Tab.Network -> NetworkScreen(model, networkScroll)
-                                Tab.Messages ->
-                                    if (model.individual)
-                                        PersonalInbox(model) { personalThread = it }
-                                    else
-                                        Column {
-                                            Row(
-                                                Modifier.padding(horizontal = 16.dp),
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            ) {
-                                                FilterChip(
-                                                    !peopleInbox,
-                                                    { peopleInbox = false },
-                                                    label = { Text("Companies") },
-                                                )
-                                                FilterChip(
-                                                    peopleInbox,
-                                                    { peopleInbox = true },
-                                                    label = { Text("People") },
-                                                )
-                                            }
-                                            if (peopleInbox)
-                                                PersonalInbox(model) { personalThread = it }
-                                            else MessagesScreen(model, messagesScroll)
+                            ConnectButton(
+                                onClick = { auth = true },
+                                modifier = Modifier.padding(end = 12.dp),
+                            ) {
+                                Text("Sign in")
+                            }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Pale),
+                )
+            },
+            bottomBar = {
+                if (!detail && !wideNavigation)
+                    NavigationBar(containerColor = Color.White) {
+                        tabs.forEach { tab ->
+                            NavigationBarItem(
+                                selected = tab == model.tab,
+                                onClick = { select(tab) },
+                                icon = {
+                                    val icon =
+                                        when (tab) {
+                                            Tab.Home -> Icons.Outlined.Home
+                                            Tab.Companies -> Icons.Outlined.Business
+                                            Tab.Network -> Icons.Outlined.People
+                                            Tab.Messages -> Icons.AutoMirrored.Outlined.Chat
                                         }
+                                    if (tab == Tab.Messages && model.incoming.isNotEmpty())
+                                        BadgedBox(
+                                            badge = {
+                                                Badge { Text(model.incoming.size.toString()) }
+                                            }
+                                        ) {
+                                            Icon(icon, null)
+                                        }
+                                    else Icon(icon, null)
+                                },
+                                label = { Text(tab.name) },
+                                colors =
+                                    NavigationBarItemDefaults.colors(
+                                        selectedIconColor = Ink,
+                                        selectedTextColor = Ink,
+                                        indicatorColor = Orange,
+                                    ),
+                            )
+                        }
+                    }
+            },
+        ) { padding ->
+            Row(Modifier.fillMaxSize().padding(padding).imePadding()) {
+                if (wideNavigation && !detail)
+                    NavigationRail(
+                        containerColor = Pale,
+                        modifier = Modifier.fillMaxHeight().width(96.dp).testTag("navigation-rail"),
+                    ) {
+                        Spacer(Modifier.height(12.dp))
+                        tabs.forEach { tab ->
+                            NavigationRailItem(
+                                selected = tab == model.tab,
+                                onClick = { select(tab) },
+                                icon = {
+                                    Icon(
+                                        when (tab) {
+                                            Tab.Home -> Icons.Outlined.Home
+                                            Tab.Companies -> Icons.Outlined.Business
+                                            Tab.Network -> Icons.Outlined.People
+                                            Tab.Messages -> Icons.AutoMirrored.Outlined.Chat
+                                        },
+                                        null,
+                                    )
+                                },
+                                label = { Text(tab.name) },
+                                colors =
+                                    NavigationRailItemDefaults.colors(
+                                        selectedIconColor = Ink,
+                                        selectedTextColor = Ink,
+                                        indicatorColor = Orange,
+                                    ),
+                            )
+                            Spacer(Modifier.height(12.dp))
+                        }
+                    }
+                Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
+                    Column(
+                        Modifier.widthIn(
+                                max =
+                                    if (model.tab == Tab.Messages || detail) WorkspaceWidthDp.dp
+                                    else FeedWidthDp.dp
+                            )
+                            .fillMaxSize()
+                            .testTag("content-lane")
+                    ) {
+                        UpdateBanner(updates) { updateInfo = true }
+                        model.error?.let { error ->
+                            Surface(color = MaterialTheme.colorScheme.errorContainer) {
+                                Row(
+                                    Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        error,
+                                        Modifier.weight(1f),
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                    IconButton(onClick = model::dismissError) {
+                                        Icon(Icons.Outlined.Close, "Dismiss error")
+                                    }
+                                }
+                            }
+                        }
+                        if (model.offline)
+                            Row(
+                                Modifier.fillMaxWidth()
+                                    .background(Color(0xFFFFF3D7))
+                                    .padding(start = 16.dp, end = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    if (model.pages.isEmpty()) "Can’t connect right now"
+                                    else "Offline · showing saved content",
+                                    Modifier.weight(1f),
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                                TextButton(onClick = model::retryConnection) { Text("Retry") }
+                            }
+                        if (model.booting) LoadingScreen()
+                        else if (detail) {
+                            val screenKey =
+                                "detail:${model.session?.optJSONObject("user")?.text("id")}:${model.company?.text("id")}:${personalThread?.text("id")?:model.profileId?:model.chatCompany?.text("id")}"
+                            screenStates.SaveableStateProvider(screenKey) {
+                                when {
+                                    personalThread != null ->
+                                        PersonalChat(model, threadId = personalThread!!.text("id"))
+                                    model.profileId != null ->
+                                        CompanyProfileScreen(
+                                            model,
+                                            model.profileId!!,
+                                            onSignIn = { auth = true },
+                                            onMessageSignIn = { company ->
+                                                afterSignIn = { model.chat(company) }
+                                                auth = true
+                                            },
+                                        )
+                                    model.chatCompany != null ->
+                                        if (model.individual)
+                                            PersonalChat(model, company = model.chatCompany)
+                                        else ChatScreen(model)
+                                }
+                            }
+                        } else
+                            HorizontalPager(
+                                state = pager,
+                                modifier = Modifier.weight(1f).testTag("main-tabs"),
+                                verticalAlignment = Alignment.Top,
+                                key = { tabs[it].name },
+                            ) { page ->
+                                val tab = tabs[page]
+                                screenStates.SaveableStateProvider(
+                                    "tab:${model.session?.optJSONObject("user")?.text("id")}:${model.company?.text("id")}:${tab.name}"
+                                ) {
+                                    if (!model.signedIn && tab in listOf(Tab.Network, Tab.Messages))
+                                        Box(
+                                            Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            ConnectButton(
+                                                onClick = {
+                                                    afterSignIn = { model.selectTab(tab) }
+                                                    auth = true
+                                                }
+                                            ) {
+                                                Text("Sign in to ${tab.name.lowercase()}")
+                                            }
+                                        }
+                                    else
+                                        when (tab) {
+                                            Tab.Home ->
+                                                FeedScreen(
+                                                    model,
+                                                    homeScroll,
+                                                    onSignIn = { auth = true },
+                                                )
+                                            Tab.Companies -> DirectoryScreen(model, directoryScroll)
+                                            Tab.Network -> NetworkScreen(model, networkScroll)
+                                            Tab.Messages ->
+                                                if (model.individual)
+                                                    PersonalInbox(model) { personalThread = it }
+                                                else
+                                                    Column {
+                                                        Row(
+                                                            Modifier.padding(horizontal = 16.dp),
+                                                            horizontalArrangement =
+                                                                Arrangement.spacedBy(8.dp),
+                                                        ) {
+                                                            FilterChip(
+                                                                !peopleInbox,
+                                                                { peopleInbox = false },
+                                                                label = { Text("Companies") },
+                                                            )
+                                                            FilterChip(
+                                                                peopleInbox,
+                                                                { peopleInbox = true },
+                                                                label = { Text("People") },
+                                                            )
+                                                        }
+                                                        if (peopleInbox)
+                                                            PersonalInbox(model) {
+                                                                personalThread = it
+                                                            }
+                                                        else MessagesScreen(model, messagesScroll)
+                                                    }
+                                        }
+                                }
                             }
                     }
                 }
+            }
         }
     }
 }
@@ -791,11 +867,13 @@ private fun MessagesScreen(model: CommunityModel, scroll: LazyListState) {
 @Composable
 private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: () -> Unit) {
     var following by rememberSaveable { mutableStateOf(false) }
+    var format by rememberSaveable { mutableStateOf("all") }
     var compose by rememberSaveable { mutableStateOf(false) }
     var commentPost by remember { mutableStateOf<String?>(null) }
     var readPost by remember { mutableStateOf<JSONObject?>(null) }
     var drafts by rememberSaveable { mutableStateOf(false) }
-    val firstPath = "/feed?scope=${if (following) "following" else "all"}"
+    val firstPath =
+        "/feed?scope=${if (following) "following" else "all"}${if (format == "all") "" else "&kind=$format"}"
     var paths by rememberSaveable(firstPath) { mutableStateOf(listOf(firstPath)) }
     val path = paths.last()
     LaunchedEffect(path) { model.load(path) }
@@ -806,16 +884,38 @@ private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: (
             .distinctBy { it.optString("id") }
     LazyColumn(
         state = scroll,
+        modifier = Modifier.fillMaxSize().testTag("news-feed"),
         contentPadding = PaddingValues(bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        item {
+            Column(
+                Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    "The industry, in motion.",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    "Project progress. Company news. Work worth celebrating.",
+                    color = Muted,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
         item {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                FilterChip(!following, onClick = { following = false }, label = { Text("For you") })
+                FilterChip(
+                    !following,
+                    onClick = { following = false },
+                    label = { Text("All posts") },
+                )
                 FilterChip(
                     following,
                     onClick = {
@@ -836,23 +936,39 @@ private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: (
                 }
             }
         }
+        item {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(
+                    listOf(
+                        "all" to "Everything",
+                        "post" to "Posts",
+                        "press_release" to "Press releases",
+                    )
+                ) { (value, label) ->
+                    FilterChip(
+                        format == value,
+                        onClick = { format = value },
+                        label = { Text(label) },
+                    )
+                }
+            }
+        }
         if (model.admin)
             item {
-                Row {
-                    TextButton(
-                        onClick = { drafts = true },
-                        modifier = Modifier.padding(start = 12.dp),
-                    ) {
-                        Text("Drafts")
-                    }
-                    OutlinedButton(
-                        onClick = { compose = true },
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    ) {
-                        Icon(Icons.Outlined.Edit, null, Modifier.size(18.dp))
+                Row(
+                    Modifier.padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ConnectButton(onClick = { compose = true }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Outlined.Add, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text("Share an update")
                     }
+                    TextButton(onClick = { drafts = true }) { Text("Drafts") }
                 }
             }
         items(posts, key = { it.optString("id") }) { post ->
@@ -886,6 +1002,7 @@ private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: (
                     PublicationHeading(
                         post,
                         Modifier.padding(horizontal = 16.dp).clickable { readPost = post },
+                        compact = true,
                     )
                 if (post.optString("body").isNotBlank())
                     Text(
@@ -896,14 +1013,25 @@ private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: (
                         overflow = TextOverflow.Ellipsis,
                         onTextLayout = { if (!expanded) overflows = it.hasVisualOverflow },
                     )
-                if (overflows || expanded)
+                if ((overflows || expanded) && post.text("kind") == "post")
                     TextButton(
                         onClick = { expanded = !expanded },
                         modifier = Modifier.padding(horizontal = 4.dp),
                     ) {
                         Text(if (expanded) "Show less" else "Show more")
                     }
-                post.optJSONArray("media").objects().forEach { media -> PostMedia(model, media) }
+                PublicationMediaGallery(model, post, compactRelease = true)
+                if (post.text("kind") != "post")
+                    TextButton(
+                        onClick = { readPost = post },
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    ) {
+                        Text(
+                            if (post.text("kind") == "press_release") "Read press release"
+                            else "Read company update"
+                        )
+                        Icon(Icons.Outlined.ArrowOutward, null, Modifier.size(18.dp))
+                    }
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                     horizontalArrangement = Arrangement.SpaceAround,
@@ -928,10 +1056,10 @@ private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: (
                                 }
                         },
                     ) {
-                        Icon(Icons.Outlined.ThumbUp, null, Modifier.size(17.dp))
+                        Icon(Icons.Outlined.Celebration, null, Modifier.size(17.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            "${post.optInt("like_count")} ${if (post.optBoolean("liked")) "Liked" else "Like"}"
+                            "${post.optInt("like_count")} ${if (post.optBoolean("liked")) "Celebrated" else "Celebrate"}"
                         )
                     }
                     TextButton(onClick = { commentPost = post.optString("id") }) {
@@ -975,7 +1103,9 @@ private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: (
         }
     if (drafts) PublicationDrafts(model) { drafts = false }
     readPost?.let { post ->
-        WorkSheet(model, "Read story", { readPost = null }) { PublicationBody(model, post) }
+        WorkSheet(model, publicationLabel(post.text("kind")), { readPost = null }) {
+            PublicationBody(model, post)
+        }
     }
     commentPost?.let { id ->
         CommentsDialog(model, id, onClose = { commentPost = null }, onSignIn = onSignIn)
@@ -983,23 +1113,46 @@ private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: (
 }
 
 @Composable
-internal fun PostMedia(model: CommunityModel, media: JSONObject) {
+internal fun PostMedia(model: CommunityModel, media: JSONObject, ratio: Float = 1f) {
     val uri = mediaUrl(model, media.text("url"))
     val handler = LocalUriHandler.current
+    var fullImage by rememberSaveable(uri) { mutableStateOf(false) }
+    if (fullImage)
+        Dialog(
+            onDismissRequest = { fullImage = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            Box(Modifier.fillMaxSize().background(Ink)) {
+                AsyncImage(
+                    publicationImage(model, media.text("url")),
+                    media.text("alt").ifBlank { "Full size photo" },
+                    Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit,
+                )
+                FilledTonalIconButton(
+                    onClick = { fullImage = false },
+                    modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
+                ) {
+                    Icon(Icons.Outlined.Close, "Close photo")
+                }
+            }
+        }
     when {
         media.optString("mime").startsWith("image/") ->
             AsyncImage(
                 publicationImage(model, media.text("url")),
                 media.optString("alt").ifBlank { "Post image" },
-                Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 380.dp),
-                contentScale = ContentScale.FillWidth,
+                Modifier.fillMaxWidth().aspectRatio(ratio).background(Pale).clickable {
+                    fullImage = true
+                },
+                contentScale = ContentScale.Fit,
             )
         media.optString("mime").startsWith("video/") -> {
             var play by rememberSaveable(uri) { mutableStateOf(false) }
             if (play) NativeVideo(model, uri)
             else
                 Box(
-                    Modifier.fillMaxWidth().height(210.dp).background(Ink),
+                    Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Ink),
                     contentAlignment = Alignment.Center,
                 ) {
                     FilledTonalButton(onClick = { play = true }) {
@@ -1190,13 +1343,13 @@ private fun ChatScreen(model: CommunityModel) {
                     )
                     if (model.admin)
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            OutlinedButton(
+                            ConnectOutlinedButton(
                                 enabled = !model.busy,
                                 onClick = { model.respond(request, "decline") },
                             ) {
                                 Text("Decline")
                             }
-                            Button(
+                            ConnectButton(
                                 enabled = !model.busy,
                                 onClick = { model.respond(request, "accept") },
                             ) {

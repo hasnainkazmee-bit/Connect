@@ -1,12 +1,6 @@
 import { type ReactNode } from "react";
 import "./publication-content.css";
-import {
-  FileText,
-  MessageSquare,
-  BookOpen,
-  Newspaper,
-  BriefcaseBusiness,
-} from "lucide-react";
+import { FileText, MessageSquare, Newspaper } from "lucide-react";
 export type PublicationKind =
   "post" | "article" | "press_release" | "case_study";
 export const formats: {
@@ -18,28 +12,23 @@ export const formats: {
   {
     value: "post",
     label: "Post",
-    description: "A moment, an idea, a conversation.",
+    description: "Project progress, a milestone, a moment from your team.",
     icon: MessageSquare,
-  },
-  {
-    value: "article",
-    label: "Article",
-    description: "Give your ideas room to grow.",
-    icon: BookOpen,
   },
   {
     value: "press_release",
     label: "Press release",
-    description: "Share the news worth knowing.",
+    description: "Company news with a headline, photos, and the full story.",
     icon: Newspaper,
   },
-  {
-    value: "case_study",
-    label: "Case study",
-    description: "The challenge. The work. The result.",
-    icon: BriefcaseBusiness,
-  },
 ];
+export function publicationLabel(kind: PublicationKind) {
+  return kind === "post"
+    ? "Post"
+    : kind === "press_release"
+      ? "Press release"
+      : "Company update";
+}
 export function RichDocument({ document }: { document: any }) {
   const render = (n: any, i: number): ReactNode => {
     if (!n) return null;

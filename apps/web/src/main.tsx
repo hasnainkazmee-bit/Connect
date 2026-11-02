@@ -85,9 +85,10 @@ import { CompanyProfileView } from "./company-profile";
 import { CompanySettings, EmployeeInvite } from "./management";
 import "./styles.css";
 import "./shell.css";
-import "./social.css";
 import "./network.css";
 import "./messaging.css";
+import "./design-system.css";
+import "./social.css";
 
 const date = (s: string) =>
   new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric" });
