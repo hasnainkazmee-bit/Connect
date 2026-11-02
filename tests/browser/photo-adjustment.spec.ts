@@ -143,6 +143,9 @@ for (const width of [320, 390, 1440]) {
     await editor.getByRole("button", { name: "Cancel", exact: true }).click();
 
     await page.getByRole("button", { name: "Edit cover", exact: true }).click();
+    const coverPreview = editor.getByRole("img", { name: "Cover preview" });
+    const previousCover = await coverPreview.getAttribute("src");
+    await pixels(coverPreview);
     await editor
       .locator("input[type=file]")
       .setInputFiles(await fixture(page, 2400, 3000));
@@ -162,12 +165,50 @@ for (const width of [320, 390, 1440]) {
     await expect(
       coverAdjuster.getByRole("button", { name: "Portrait 4:5", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
+    // Export is asynchronous. Keep the existing cover visible until the new
+    // file is ready, and never mistake its loaded pixels for the crop result.
+    await page.evaluate(() => {
+      const original = HTMLCanvasElement.prototype.toBlob;
+      HTMLCanvasElement.prototype.toBlob = function (callback, ...args) {
+        HTMLCanvasElement.prototype.toBlob = original;
+        original.call(
+          this,
+          (blob) => {
+            (
+              window as typeof window & { finishCoverExport?: () => void }
+            ).finishCoverExport = () => callback(blob);
+          },
+          ...args,
+        );
+      };
+    });
     await coverAdjuster
       .getByRole("button", { name: "Use photo", exact: true })
       .click();
-    const cover = await pixels(
-      editor.getByRole("img", { name: "Cover preview" }),
-    );
+    await expect(
+      coverAdjuster.getByRole("button", { name: "Preparing…", exact: true }),
+    ).toBeDisabled();
+    await expect(coverPreview).toHaveAttribute("src", previousCover!);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            typeof (
+              window as typeof window & { finishCoverExport?: () => void }
+            ).finishCoverExport,
+        ),
+      )
+      .toBe("function");
+    await page.evaluate(() => {
+      const target = window as typeof window & {
+        finishCoverExport?: () => void;
+      };
+      target.finishCoverExport!();
+      delete target.finishCoverExport;
+    });
+    await expect(coverAdjuster).toHaveCount(0);
+    await expect(coverPreview).not.toHaveAttribute("src", previousCover!);
+    const cover = await pixels(coverPreview);
     expect(cover.width).toBe(1638);
     expect(cover.height).toBe(2048);
     await editor
