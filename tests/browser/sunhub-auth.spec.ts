@@ -1,4 +1,10 @@
-import { test, expect, type Page, type Locator } from "@playwright/test";
+import {
+  test,
+  expect,
+  type Page,
+  type Locator,
+  type BrowserContext,
+} from "@playwright/test";
 
 async function enabled(page: Page, value = true) {
   await page.route("**/api/auth/sunhub/config", (route) =>
@@ -8,6 +14,63 @@ async function enabled(page: Page, value = true) {
 async function destination(link: Locator) {
   return new URL((await link.getAttribute("href"))!, "http://localhost:4101");
 }
+
+async function popupProvider(context: BrowserContext) {
+  await context.route("**/api/auth/sunhub/start?**", (route) =>
+    route.fulfill({
+      contentType: "text/html",
+      body: "<!doctype html><title>Sunhub sign-in fixture</title><h1>Sunhub</h1>",
+    }),
+  );
+}
+async function openPopup(page: Page, name = "Sign in with Sunhub") {
+  const opened = page.waitForEvent("popup");
+  await page.getByRole("link", { name, exact: true }).click();
+  const popup = await opened;
+  await popup.waitForLoadState();
+  expect(new URL(popup.url()).searchParams.get("display")).toBe("popup");
+  expect(new URL(popup.url()).searchParams.get("popup_id")).toMatch(
+    /^[A-Za-z0-9_-]{43}$/,
+  );
+  return popup;
+}
+async function complete(
+  popup: Page,
+  status: "success" | "error" = "success",
+  error?: string,
+) {
+  await popup.evaluate(
+    ({ status, error }) => {
+      window.opener.postMessage(
+        {
+          type: "connect:sunhub:complete",
+          popupId: new URL(location.href).searchParams.get("popup_id"),
+          status,
+          error,
+          returnTo: "/",
+        },
+        location.origin,
+      );
+    },
+    { status, error },
+  );
+  await expect.poll(() => popup.isClosed()).toBe(true);
+}
+const onboardingSession = () => ({
+  user: {
+    id: "sunhub-new-user",
+    name: "Sunhub Owner",
+    email: "owner@example.test",
+    account_type: "company",
+    email_verified_at: new Date().toISOString(),
+    onboarding_completed_at: null,
+    sunhubLinked: true,
+    hasPassword: false,
+  },
+  companies: [],
+  activeCompanyId: null,
+  verificationRequired: true,
+});
 
 test("Connect email login and registration remain primary with optional Sunhub entry points", async ({
   page,
@@ -111,6 +174,7 @@ test("Sunhub availability never blocks Connect and navigation preserves the requ
 
 test("Sunhub preserves company invitations and claims, and callback errors use fixed safe messages", async ({
   page,
+  context,
 }) => {
   await enabled(page);
   const errors: string[] = [];
@@ -146,19 +210,14 @@ test("Sunhub preserves company invitations and claims, and callback errors use f
       ).searchParams.get("accountType"),
     ).toBe("company");
   }
-  await page.route("**/api/auth/sunhub/start?**", (route) =>
-    route.fulfill({
-      status: 302,
-      headers: { location: "/directory?source=welcome&sso_error=cancelled" },
-    }),
-  );
-  await page
-    .getByRole("link", { name: "Sign in with Sunhub", exact: true })
-    .click();
-  await expect(page.getByRole("alert")).toHaveText(
+  await popupProvider(context);
+  const parentUrl = page.url();
+  const popup = await openPopup(page);
+  await complete(popup, "error", "cancelled");
+  await expect(page.getByRole("dialog").getByRole("alert")).toHaveText(
     "Sunhub sign-in was canceled. You can try again whenever you’re ready.",
   );
-  await expect(page).toHaveURL(/\/directory\?source=welcome$/);
+  await expect(page).toHaveURL(parentUrl);
   await page.goto("/directory?sso_error=__proto__&source=welcome");
   await expect(page.getByRole("alert")).toHaveText(
     "We couldn’t complete Sunhub sign-in. Please try again.",
@@ -171,39 +230,90 @@ test("Sunhub preserves company invitations and claims, and callback errors use f
   expect(errors).toEqual([]);
 });
 
-test("verified Sunhub callback enters existing company onboarding", async ({
+test("popup accepts only its own origin, source and nonce before entering existing company onboarding", async ({
   page,
+  context,
 }) => {
-  await page.route("**/api/session", (route) =>
-    route.fulfill({
-      json: {
-        user: {
-          id: "sunhub-new-user",
-          name: "Sunhub Owner",
-          email: "owner@example.test",
-          account_type: "company",
-          email_verified_at: new Date().toISOString(),
-          onboarding_completed_at: null,
-          sunhubLinked: true,
-          hasPassword: false,
-        },
-        companies: [],
-        activeCompanyId: null,
-        verificationRequired: true,
-      },
-    }),
+  await enabled(page);
+  await popupProvider(context);
+  let signedIn = false,
+    sessionReads = 0;
+  await page.route("**/api/session", (route) => {
+    sessionReads++;
+    return route.fulfill({
+      json: signedIn
+        ? onboardingSession()
+        : { user: null, companies: [], activeCompanyId: null },
+    });
+  });
+  await page.goto("/directory?source=popup#companies");
+  await page.evaluate(() => {
+    (window as any).connectPageMarker = "preserved";
+    const original = window.open;
+    window.open = (...args) => {
+      const popup = original.apply(window, args);
+      (window as any).sunhubPopup = popup;
+      return popup;
+    };
+  });
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  const popup = await openPopup(page);
+  const startUrl = popup.url(),
+    popupId = new URL(startUrl).searchParams.get("popup_id")!;
+  const readsBefore = sessionReads;
+  await page.evaluate(
+    (popupId) =>
+      window.postMessage(
+        { type: "connect:sunhub:complete", popupId, status: "success" },
+        location.origin,
+      ),
+    popupId,
   );
-  await page.goto("/");
+  await popup.evaluate(() =>
+    window.opener.postMessage(
+      {
+        type: "connect:sunhub:complete",
+        popupId: "wrong-popup-id",
+        status: "success",
+      },
+      location.origin,
+    ),
+  );
+  await page.evaluate((popupId) => {
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        source: (window as any).sunhubPopup,
+        origin: "https://untrusted.example",
+        data: { type: "connect:sunhub:complete", popupId, status: "success" },
+      }),
+    );
+  }, popupId);
+  await expect(
+    page.getByText("Continue in the Sunhub window.", { exact: true }),
+  ).toBeVisible();
+  expect(sessionReads).toBe(readsBefore);
+  await expect(
+    page.getByRole("link", { name: "Sign in with Sunhub", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Show window", exact: true }).click();
+  expect(context.pages()).toHaveLength(2);
+  signedIn = true;
+  await complete(popup);
   await expect(
     page.getByRole("heading", { name: "Introduce your company.", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Check your inbox.", exact: true }),
   ).toHaveCount(0);
+  await expect(page).toHaveURL(/\/directory\?source=popup#companies$/);
+  expect(await page.evaluate(() => (window as any).connectPageMarker)).toBe(
+    "preserved",
+  );
 });
 
 test("linking Sunhub is explicit in Account settings and success reflects the actual session", async ({
   page,
+  context,
 }) => {
   const suffix = Date.now();
   const response = await page.request.post("/api/auth/register", {
@@ -238,7 +348,15 @@ test("linking Sunhub is explicit in Account settings and success reflects the ac
       },
     }),
   );
-  await page.goto("/account?sunhub_linked=1");
+  await popupProvider(context);
+  await page.evaluate(() => {
+    (window as any).connectPageMarker = "account retained";
+  });
+  const popup = await openPopup(page, "Link Sunhub account");
+  await complete(popup);
+  expect(await page.evaluate(() => (window as any).connectPageMarker)).toBe(
+    "account retained",
+  );
   await expect(
     page.getByText("Linked to Sunhub", { exact: true }),
   ).toBeVisible();
@@ -256,4 +374,105 @@ test("linking Sunhub is explicit in Account settings and success reflects the ac
     "Verify your email with Sunhub, then try again.",
   );
   await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("blocked and canceled popups keep local login details and allow a fresh attempt", async ({
+  page,
+  context,
+}) => {
+  await enabled(page);
+  await popupProvider(context);
+  await page.addInitScript(() => {
+    (window as any).realOpen = window.open;
+    window.open = () => null;
+  });
+  await page.goto("/directory");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "Work email", exact: true })
+    .fill("kept@example.test");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("UnsavedLocalPassword123!");
+  await page
+    .getByRole("link", { name: "Sign in with Sunhub", exact: true })
+    .click();
+  await expect(page.getByRole("alert")).toHaveText(
+    "Allow pop-ups for Connect, then try Sunhub sign-in again.",
+  );
+  await page.evaluate(() => {
+    window.open = (window as any).realOpen;
+  });
+  const popup = await openPopup(page);
+  const firstId = new URL(popup.url()).searchParams.get("popup_id");
+  for (const width of [320, 390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(
+      await page
+        .getByRole("dialog")
+        .evaluate((el) => el.scrollWidth <= el.clientWidth),
+    ).toBe(true);
+    await page.screenshot({
+      path: `test-results/sunhub-popup-waiting-${width}.png`,
+      fullPage: false,
+    });
+  }
+  await popup.close();
+  await expect(page.getByRole("alert")).toContainText(
+    "Sunhub sign-in was canceled.",
+  );
+  const retry = await openPopup(page, "Create a Sunhub account");
+  expect(new URL(retry.url()).searchParams.get("intent")).toBe("signup");
+  expect(new URL(retry.url()).searchParams.get("popup_id")).not.toBe(firstId);
+  await page
+    .getByRole("button", { name: "Cancel Sunhub sign-in", exact: true })
+    .click();
+  await expect.poll(() => retry.isClosed()).toBe(true);
+  await expect(
+    page.getByRole("textbox", { name: "Work email", exact: true }),
+  ).toHaveValue("kept@example.test");
+  await expect(page.getByLabel("Password", { exact: true })).toHaveValue(
+    "UnsavedLocalPassword123!",
+  );
+  const closing = await openPopup(page);
+  await page.getByRole("button", { name: "Close dialog", exact: true }).click();
+  await expect.poll(() => closing.isClosed()).toBe(true);
+  await expect(page).toHaveURL(/\/directory$/);
+});
+
+test("same-origin BroadcastChannel completes when the opener is unavailable and the popup closes first", async ({
+  page,
+  context,
+}) => {
+  await enabled(page);
+  await popupProvider(context);
+  let signedIn = false;
+  await page.route("**/api/session", (route) =>
+    route.fulfill({
+      json: signedIn
+        ? onboardingSession()
+        : { user: null, companies: [], activeCompanyId: null },
+    }),
+  );
+  await page.goto("/");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  const popup = await openPopup(page);
+  signedIn = true;
+  await popup.evaluate(() => {
+    window.opener = null;
+    const popupId = new URL(location.href).searchParams.get("popup_id");
+    const channel = new BroadcastChannel("connect-sunhub-" + popupId);
+    channel.postMessage({
+      type: "connect:sunhub:complete",
+      popupId,
+      status: "success",
+      returnTo: "/",
+    });
+    channel.close();
+    window.close();
+  });
+  await expect(
+    page.getByRole("heading", { name: "Introduce your company.", exact: true }),
+  ).toBeVisible();
+  await expect.poll(() => popup.isClosed()).toBe(true);
 });

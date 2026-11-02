@@ -97,3 +97,45 @@
 .security-page > .account-success {
   margin-bottom: 20px;
 }
+
+.sunhub-popup-state {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface-muted);
+  font-size: 13px;
+}
+.sunhub-popup-state p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.sunhub-popup-state p svg {
+  flex-shrink: 0;
+}
+.sunhub-popup-state p.sunhub-popup-error {
+  color: #943825;
+}
+.sunhub-popup-state > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 6px;
+}
+.sunhub-popup-state button {
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+}
+.sunhub-popup-state button:hover {
+  background: var(--surface);
+  border-color: var(--line);
+}

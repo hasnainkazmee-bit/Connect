@@ -25,6 +25,8 @@ import { UsernameField } from "./management";
 import { CompanyMatches } from "./company-matches";
 import {
   SunhubAuthLink,
+  SunhubPopupStatus,
+  useSunhubPopup,
   sunhubAuthError,
   sunhubReturnTo,
   useSunhubAuth,
@@ -136,6 +138,10 @@ export function AuthExperience({
   const [sunhubError, setSunhubError] = useState(
     sunhubErrorCode ? sunhubAuthError(sunhubErrorCode) : "",
   );
+  const sunhubPopup = useSunhubPopup({ onSuccess });
+  useEffect(() => {
+    if (sunhubPopup.pending) setSunhubError("");
+  }, [sunhubPopup.pending]);
   const destination = sunhubReturnTo(returnTo);
   const forCompany =
     companyOnly || /^\/(claim|invite|join)(?:\/|$)/.test(destination);
@@ -180,6 +186,7 @@ export function AuthExperience({
         key={mode}
         onSubmit={(e) => {
           e.preventDefault();
+          if (sunhubPopup.pending) return;
           const data = Object.fromEntries(new FormData(e.currentTarget));
           void task.run(async () => {
             if (mode === "forgot") {
@@ -202,7 +209,7 @@ export function AuthExperience({
         }}
       >
         {mode === "register" && !forCompany && (
-          <fieldset className="account-type">
+          <fieldset className="account-type" disabled={sunhubPopup.pending}>
             <legend>I’m here as</legend>
             <div>
               <button
@@ -278,6 +285,7 @@ export function AuthExperience({
           <button
             className="account-link forgot-link"
             type="button"
+            disabled={sunhubPopup.pending}
             onClick={() => change("forgot")}
           >
             Forgot password?
@@ -290,7 +298,10 @@ export function AuthExperience({
           </div>
         )}
         <ErrorMessage message={task.error} />
-        <button className="account-primary" disabled={task.busy}>
+        <button
+          className="account-primary"
+          disabled={task.busy || sunhubPopup.pending}
+        >
           {task.busy
             ? "Just a moment…"
             : mode === "login"
@@ -308,6 +319,7 @@ export function AuthExperience({
           {mode === "login" ? "New to Connect?" : "Already part of Connect?"}{" "}
           <button
             className="account-link"
+            disabled={sunhubPopup.pending}
             onClick={() => change(mode === "login" ? "register" : "login")}
           >
             {mode === "login" ? "Create an account" : "Sign in"}
@@ -325,19 +337,26 @@ export function AuthExperience({
       {sunhubEnabled && (mode === "login" || mode === "register") && (
         <div className="sunhub-auth-options">
           <div className="sunhub-auth-divider">or</div>
-          <SunhubAuthLink
-            intent="login"
-            accountType={forCompany ? "company" : accountType}
-            returnTo={destination}
-            disabled={task.busy}
-          />
-          <SunhubAuthLink
-            intent="signup"
-            accountType={forCompany ? "company" : accountType}
-            returnTo={destination}
-            disabled={task.busy}
-            subtle
-          />
+          {!sunhubPopup.pending && (
+            <>
+              <SunhubAuthLink
+                intent="login"
+                accountType={forCompany ? "company" : accountType}
+                returnTo={destination}
+                disabled={task.busy || sunhubPopup.pending}
+                popup={sunhubPopup}
+              />
+              <SunhubAuthLink
+                intent="signup"
+                accountType={forCompany ? "company" : accountType}
+                returnTo={destination}
+                disabled={task.busy || sunhubPopup.pending}
+                popup={sunhubPopup}
+                subtle
+              />
+            </>
+          )}
+          <SunhubPopupStatus popup={sunhubPopup} />
         </div>
       )}
       <div className="account-footnote">
@@ -708,22 +727,35 @@ type Device = {
   last_seen_at: string;
 };
 export function AccountSecurity() {
-  const { session, toast } = useApp(),
+  const { session, setSession, refresh, toast } = useApp(),
     task = useAction();
   const [devices, setDevices] = useState<Device[]>([]),
     [revision, setRevision] = useState(0);
   const location = useLocation(),
     navigate = useNavigate();
   const sunhubEnabled = useSunhubAuth();
-  const [sunhubError] = useState(() => {
+  const [sunhubError, setSunhubError] = useState(() => {
     const code = new URLSearchParams(location.search).get("sso_error");
     return code ? sunhubAuthError(code) : "";
   });
-  const [sunhubLinked] = useState(
+  const [sunhubLinked, setSunhubLinked] = useState(
     () =>
       new URLSearchParams(location.search).get("sunhub_linked") === "1" &&
       session.user?.sunhubLinked,
   );
+  const sunhubPopup = useSunhubPopup({
+    expectedUserId: session.user?.id,
+    onSuccess: (value) => {
+      setSession(value);
+      refresh();
+      setSunhubLinked(true);
+      setSunhubError("");
+      setRevision((v) => v + 1);
+    },
+  });
+  useEffect(() => {
+    if (sunhubPopup.pending) setSunhubError("");
+  }, [sunhubPopup.pending]);
   useEffect(() => {
     const query = new URLSearchParams(location.search);
     if (query.has("sso_error") || query.has("sunhub_linked"))
@@ -789,10 +821,12 @@ export function AccountSecurity() {
                     intent="link"
                     accountType={session.user.account_type || "company"}
                     returnTo="/account"
-                    disabled={task.busy}
+                    disabled={task.busy || sunhubPopup.pending}
+                    popup={sunhubPopup}
                   />
                 </>
               )}
+              <SunhubPopupStatus popup={sunhubPopup} />
             </div>
           )}
           {session.user.hasPassword === false ? (
@@ -810,6 +844,7 @@ export function AccountSecurity() {
                 className="account-form"
                 onSubmit={(e) => {
                   e.preventDefault();
+                  if (sunhubPopup.pending) return;
                   const form = e.currentTarget,
                     d = Object.fromEntries(new FormData(form));
                   void task.run(async () => {
@@ -825,7 +860,10 @@ export function AccountSecurity() {
                 <Password name="currentPassword" label="Current password" />
                 <Password creating label="New password" />
                 <ErrorMessage message={task.error} />
-                <button className="account-primary" disabled={task.busy}>
+                <button
+                  className="account-primary"
+                  disabled={task.busy || sunhubPopup.pending}
+                >
                   Update password
                 </button>
               </form>

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
-import { ArrowUpRight } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowUpRight, LoaderCircle } from "lucide-react";
 import { api } from "./api";
+import type { Session } from "./types";
 import "./sunhub-auth.css";
 
 export function useSunhubAuth() {
@@ -58,18 +59,247 @@ export function sunhubReturnTo(
   return url.pathname + url.search + url.hash;
 }
 
+type SunhubIntent = "login" | "signup" | "link";
+type PopupAttempt = {
+  window: Window | null;
+  controller: AbortController;
+  settling: boolean;
+  dispose: () => void;
+};
+
+/** A form shares one attempt across sign-in and signup; identity stays in cookies. */
+export function useSunhubPopup({
+  onSuccess,
+  expectedUserId,
+}: {
+  onSuccess: (session: Session) => void;
+  expectedUserId?: string;
+}) {
+  const active = useRef<PopupAttempt | null>(null);
+  const callbacks = useRef({ onSuccess, expectedUserId });
+  callbacks.current = { onSuccess, expectedUserId };
+  const [phase, setPhase] = useState<"idle" | "waiting" | "finishing">("idle");
+  const [error, setError] = useState("");
+  useEffect(
+    () => () => {
+      active.current?.dispose();
+      active.current = null;
+    },
+    [],
+  );
+
+  const start = (
+    intent: SunhubIntent,
+    accountType: "company" | "individual",
+    returnTo: string,
+  ) => {
+    if (active.current) {
+      active.current.window?.focus();
+      return;
+    }
+    const popupId = btoa(
+      String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))),
+    )
+      .replaceAll("+", "-")
+      .replaceAll("/", "_")
+      .replaceAll("=", "");
+    const query = new URLSearchParams({
+      intent,
+      accountType,
+      returnTo: sunhubReturnTo(returnTo),
+      display: "popup",
+      popup_id: popupId,
+    });
+    const origin = window.location.origin;
+    const linkingUserId = callbacks.current.expectedUserId;
+    const attempt: PopupAttempt = {
+      window: null,
+      controller: new AbortController(),
+      settling: false,
+      dispose: () => {},
+    };
+    let channel: BroadcastChannel | undefined;
+    let poll: number | undefined, closedTimer: number | undefined;
+    let expiry: number | undefined;
+    const closeWindow = () => {
+      try {
+        attempt.window?.close();
+      } catch {}
+    };
+    const stopListening = () => {
+      window.removeEventListener("message", onMessage);
+      clearInterval(poll);
+      clearTimeout(closedTimer);
+      clearTimeout(expiry);
+      channel?.close();
+    };
+    attempt.dispose = () => {
+      stopListening();
+      attempt.controller.abort();
+      closeWindow();
+    };
+    const finish = (message = "") => {
+      if (active.current !== attempt) return;
+      active.current = null;
+      attempt.dispose();
+      setPhase("idle");
+      setError(message);
+    };
+    const receive = async (value: unknown) => {
+      if (active.current !== attempt || attempt.settling) return;
+      if (!value || typeof value !== "object") return;
+      const data = value as Record<string, unknown>;
+      if (
+        data.type !== "connect:sunhub:complete" ||
+        data.popupId !== popupId ||
+        !["success", "error"].includes(data.status as string)
+      )
+        return;
+      attempt.settling = true;
+      stopListening();
+      closeWindow();
+      if (data.status === "error") {
+        finish(
+          sunhubAuthError(
+            typeof data.error === "string" ? data.error : "failed",
+          ),
+        );
+        return;
+      }
+      setPhase("finishing");
+      try {
+        const session = await api<Session>("/session", {
+          signal: attempt.controller.signal,
+        });
+        if (active.current !== attempt) return;
+        if (!session.user)
+          throw new Error(
+            "Connect couldn’t restore your sign-in. Please try again.",
+          );
+        if (
+          intent === "link" &&
+          (session.user.id !== linkingUserId ||
+            callbacks.current.expectedUserId !== linkingUserId ||
+            !session.user.sunhubLinked)
+        )
+          throw new Error(
+            "Your Connect account changed. Please try linking Sunhub again.",
+          );
+        finish();
+        callbacks.current.onSuccess(session);
+      } catch (cause) {
+        if (active.current === attempt)
+          finish((cause as Error).message || sunhubAuthError("failed"));
+      }
+    };
+    function onMessage(event: MessageEvent) {
+      if (event.origin === origin && event.source === attempt.window)
+        void receive(event.data);
+    }
+    active.current = attempt;
+    setError("");
+    setPhase("waiting");
+    window.addEventListener("message", onMessage);
+    try {
+      channel = new BroadcastChannel("connect-sunhub-" + popupId);
+      channel.onmessage = (event) => {
+        if (event.origin === origin) void receive(event.data);
+      };
+    } catch {
+      // postMessage remains available in browsers without BroadcastChannel.
+    }
+    const width = Math.min(500, screen.availWidth || 500);
+    const height = Math.min(680, screen.availHeight || 680);
+    try {
+      // Stay in this trusted click: awaiting a request first would block the popup.
+      attempt.window = window.open(
+        "/api/auth/sunhub/start?" + query,
+        "connect-sunhub-" + popupId,
+        `popup=yes,width=${width},height=${height},left=${Math.max(0, window.screenX + (window.outerWidth - width) / 2)},top=${Math.max(0, window.screenY + (window.outerHeight - height) / 2)},resizable=yes,scrollbars=yes`,
+      );
+    } catch {}
+    if (!attempt.window) {
+      finish("Allow pop-ups for Connect, then try Sunhub sign-in again.");
+      return;
+    }
+    poll = window.setInterval(() => {
+      if (attempt.window?.closed && !closedTimer) {
+        // Completion and window.close can arrive in either order.
+        closedTimer = window.setTimeout(() => {
+          if (!attempt.settling) finish(sunhubAuthError("cancelled"));
+        }, 750);
+      }
+    }, 400);
+    expiry = window.setTimeout(
+      () => finish(sunhubAuthError("expired")),
+      15 * 60 * 1000,
+    );
+    attempt.window.focus();
+  };
+  return {
+    pending: phase !== "idle",
+    phase,
+    error,
+    start,
+    focus: () => active.current?.window?.focus(),
+    cancel: () => {
+      active.current?.dispose();
+      active.current = null;
+      setPhase("idle");
+      setError(sunhubAuthError("cancelled"));
+    },
+  };
+}
+
+type SunhubPopup = ReturnType<typeof useSunhubPopup>;
+
+export function SunhubPopupStatus({ popup }: { popup: SunhubPopup }) {
+  if (!popup.pending && !popup.error) return null;
+  return (
+    <div className="sunhub-popup-state">
+      {popup.error && (
+        <p className="sunhub-popup-error" role="alert">
+          {popup.error}
+        </p>
+      )}
+      {popup.pending && (
+        <>
+          <p role="status">
+            <LoaderCircle size={16} className="spin" aria-hidden="true" />
+            {popup.phase === "finishing"
+              ? "Finishing your sign-in…"
+              : "Continue in the Sunhub window."}
+          </p>
+          <div>
+            {popup.phase === "waiting" && (
+              <button type="button" onClick={popup.focus}>
+                Show window
+              </button>
+            )}
+            <button type="button" onClick={popup.cancel}>
+              Cancel Sunhub sign-in
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function SunhubAuthLink({
   intent,
   accountType = "company",
   returnTo,
   disabled = false,
   subtle = false,
+  popup,
 }: {
-  intent: "login" | "signup" | "link";
+  intent: SunhubIntent;
   accountType?: "company" | "individual";
   returnTo?: string;
   disabled?: boolean;
   subtle?: boolean;
+  popup: SunhubPopup;
 }) {
   const query = new URLSearchParams({
     intent,
@@ -89,8 +319,11 @@ export function SunhubAuthLink({
       aria-disabled={disabled || undefined}
       tabIndex={disabled ? -1 : undefined}
       onClick={(event) => {
-        if (disabled) event.preventDefault();
+        event.preventDefault();
+        if (!disabled)
+          popup.start(intent, accountType, sunhubReturnTo(returnTo));
       }}
+      title="Opens a Sunhub sign-in window"
     >
       {!subtle && (
         <img src="/assets/sunhub-symbol.png" alt="" width="24" height="24" />
