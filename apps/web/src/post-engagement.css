@@ -386,6 +386,11 @@
   border-color: transparent;
   box-shadow: none;
 }
+.conversation-composer textarea:placeholder-shown {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
 .conversation-send {
   display: grid;
   place-items: center;

@@ -64,6 +64,24 @@ test("full emoji reactions, who reacted, and threaded comments persist with clea
   await expect(
     emptyComments.locator(".conversation-empty, .conversation-writing-as"),
   ).toHaveCount(0);
+  // System font metrics differ on Linux. A wide placeholder must not be
+  // mistaken for multiline user content by the textarea's autosizer.
+  const widerFont = await page.addStyleTag({
+    content:
+      ".conversation-composer textarea { font-family: monospace; letter-spacing: 1px; }",
+  });
+  await page.setViewportSize({ width: 321, height: 900 });
+  await expect
+    .poll(async () => (await input.boundingBox())!.height)
+    .toBeLessThanOrEqual(45);
+  expect(
+    await input.evaluate((element) => element.scrollHeight),
+  ).toBeLessThanOrEqual(45);
+  await input.fill("A longer comment still wraps and grows as I write it.");
+  expect((await input.boundingBox())!.height).toBeGreaterThan(44);
+  await input.fill("");
+  expect((await input.boundingBox())!.height).toBeLessThanOrEqual(45);
+  await widerFont.evaluate((element) => element.remove());
   for (const width of [320, 390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     const fieldBox = (await input.boundingBox())!;

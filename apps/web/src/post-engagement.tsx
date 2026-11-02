@@ -719,7 +719,10 @@ function CommentsPanel({
     if (!input || !expanded) return;
     const resize = () => {
       input.style.height = "auto";
-      input.style.height = Math.min(input.scrollHeight, 180) + "px";
+      // scrollHeight includes a wrapped placeholder in some system fonts.
+      // Only entered text should expand the one-row composer.
+      if (input.value)
+        input.style.height = Math.min(input.scrollHeight, 180) + "px";
     };
     resize();
     let width = input.clientWidth;
