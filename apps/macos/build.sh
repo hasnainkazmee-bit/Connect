@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Build a signed app bundle using the macOS Command Line Tools only.
-macos_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repo_dir="$(cd "$macos_dir/../.." && pwd)"
+macos_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+repo_dir="$(cd "$macos_dir/../.." && pwd -P)"
 build_dir="$macos_dir/.build"
 artifacts_dir="$macos_dir/artifacts"
 architecture=universal
@@ -31,7 +31,15 @@ case "$architecture" in
 esac
 [[ "$(uname -s)" == Darwin ]] || { printf 'A Mac with Apple Command Line Tools is required.\n' >&2; exit 1; }
 
-sdk_path="$(xcrun --sdk macosx --show-sdk-path)"
+sdk_path="$(cd "$(xcrun --sdk macosx --show-sdk-path)" && pwd -P)"
+sdk_version="$(xcrun --sdk macosx --show-sdk-version)"
+if [[ ! "$sdk_version" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]] || (( ${sdk_version%%.*} < 26 )); then
+  printf 'Connect requires the macOS 26 SDK or newer to build its native interface (selected SDK: %s).\n' "$sdk_version" >&2
+  exit 1
+fi
+normalise_version() {
+  /usr/bin/awk -F. '{ printf "%d.%d.%d", $1, $2, $3 }' <<< "$1"
+}
 swift_compiler="$(xcrun --find swiftc)"
 shopt -s nullglob
 sources=("$macos_dir"/Sources/*.swift)
@@ -62,12 +70,22 @@ for arch in "${architectures[@]}"; do
   printf 'Compiling Connect for %s (macOS 13+)…\n' "$arch"
   arch_dir="$build_dir/$arch"
   mkdir -p "$arch_dir/module-cache"
-  "$swift_compiler" -sdk "$sdk_path" -target "$arch-apple-macosx13.0" \
+  # Swift's -sdk selects headers/modules; Clang also needs SDKROOT to encode
+  # that SDK in LC_BUILD_VERSION instead of falling back to the minimum OS.
+  SDKROOT="$sdk_path" "$swift_compiler" -sdk "$sdk_path" -target "$arch-apple-macosx13.0" \
     -module-cache-path "$arch_dir/module-cache" \
     -swift-version 6 -warnings-as-errors -O -whole-module-optimization \
     -framework AppKit -framework WebKit -framework Foundation \
     -framework UniformTypeIdentifiers \
     "${sources[@]}" -o "$arch_dir/Connect"
+  build_metadata="$(xcrun vtool -show-build "$arch_dir/Connect")"
+  embedded_sdk="$(/usr/bin/awk '$1 == "sdk" {print $2; exit}' <<< "$build_metadata")"
+  embedded_minimum="$(/usr/bin/awk '$1 == "minos" {print $2; exit}' <<< "$build_metadata")"
+  if [[ "$(normalise_version "$embedded_sdk")" != "$(normalise_version "$sdk_version")" || "$(normalise_version "$embedded_minimum")" != "13.0.0" ]]; then
+    printf 'Unexpected %s binary metadata: SDK %s / minimum %s; expected SDK %s / minimum 13.0.\n' "$arch" "$embedded_sdk" "$embedded_minimum" "$sdk_version" >&2
+    exit 1
+  fi
+  printf 'Verified %s metadata: SDK %s, minimum macOS %s.\n' "$arch" "$embedded_sdk" "$embedded_minimum"
   binaries+=("$arch_dir/Connect")
 done
 if [[ ${#binaries[@]} -eq 2 ]]; then

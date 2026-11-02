@@ -108,8 +108,46 @@ private final class SmokeRunner: NSObject, NSApplicationDelegate {
             return
         }
 
-        guard let compose = main.window?.toolbar?.items.first(where: { $0.itemIdentifier.rawValue == "compose" })?.view as? NSButton else {
-            throw SmokeFailure("Native New post toolbar button is missing")
+        guard let mainWindow = main.window else { throw SmokeFailure("Main window is missing") }
+        let previousAppearance = ConnectAppearance.selectedChoice
+        ConnectAppearance.setChoice(.light)
+        _ = try await js(main.webView, "window.appearanceDraft = 'Keep this draft'; 'ready'")
+        ConnectAppearance.setChoice(.dark)
+        try await wait("native Dark appearance reaches WebKit") {
+            (try? await self.js(main.webView, "String(matchMedia('(prefers-color-scheme: dark)').matches)")) == "true"
+        }
+        try check(try await js(main.webView, "appearanceDraft") == "Keep this draft",
+                  "Dark appearance reaches web content without reloading or losing drafts")
+        ConnectAppearance.setChoice(.light)
+        try await wait("native Light appearance reaches WebKit") {
+            (try? await self.js(main.webView, "String(matchMedia('(prefers-color-scheme: dark)').matches)")) == "false"
+        }
+        try check(true, "Light appearance restores the web color scheme")
+        ConnectAppearance.setChoice(previousAppearance)
+        let originalFrame = mainWindow.frame
+        for size in [NSSize(width: 1180, height: 800), NSSize(width: 760, height: 650)] {
+            mainWindow.setFrame(NSRect(origin: originalFrame.origin, size: size), display: false)
+            mainWindow.contentView?.layoutSubtreeIfNeeded()
+            let contentFrame = main.webView.convert(main.webView.bounds, to: nil)
+            try check(contentFrame.maxY <= mainWindow.contentLayoutRect.maxY + 1 && contentFrame.height > 400,
+                      "workspace stays below native titlebar at \(Int(size.width))pt")
+        }
+        let sidebarVisibleWidth = main.webView.bounds.width
+        main.toggleSidebar(nil)
+        mainWindow.contentView?.layoutSubtreeIfNeeded()
+        try check(main.webView.bounds.width > sidebarVisibleWidth + 180,
+                  "hiding sidebar expands workspace without a reserved toolbar column")
+        main.toggleSidebar(nil)
+        try await Task.sleep(for: .milliseconds(250))
+        mainWindow.contentView?.layoutSubtreeIfNeeded()
+        try check(abs(main.webView.bounds.width - sidebarVisibleWidth) <= 1,
+                  "restoring sidebar preserves its width")
+        mainWindow.setFrame(originalFrame, display: false)
+        mainWindow.contentView?.layoutSubtreeIfNeeded()
+        try check(mainWindow.subtitle.isEmpty, "native workspace title stays on one line")
+
+        guard let compose = mainWindow.toolbar?.items.first(where: { $0.itemIdentifier.rawValue == "compose" }) else {
+            throw SmokeFailure("Native New post toolbar item is missing")
         }
         try check(!compose.isEnabled, "native New post starts disabled before authenticated bridge state")
         _ = try await js(main.webView, """
@@ -130,7 +168,8 @@ private final class SmokeRunner: NSObject, NSApplicationDelegate {
             (try? await self.js(main.webView, "String(nativeCommands.at(-1)?.type === 'navigate' && nativeCommands.at(-1)?.path === '/directory')")) == "true"
         }
         try check(try await js(main.webView, "nativeDocumentMarker") == "same-document" && main.webView.url?.path == "/", "native navigation dispatches a router command without reloading the page")
-        compose.performClick(nil)
+        guard let composeAction = compose.action else { throw SmokeFailure("Native New post action is missing") }
+        NSApp.sendAction(composeAction, to: compose.target, from: compose)
         try await wait("native New post command") {
             (try? await self.js(main.webView, "nativeCommands.at(-1)?.type")) == "compose"
         }

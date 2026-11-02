@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var checkingTermination = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        ConnectAppearance.applySavedChoice()
         installMenus()
         browser = BrowserWindowController()
         let policy = NavigationPolicy()
@@ -54,6 +55,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     @objc private func find(_ sender: Any?) { activeBrowser.showFind() }
     @objc private func compose(_ sender: Any?) { showConnect(nil); browser.compose(nil) }
     @objc private func sidebar(_ sender: Any?) { browser.toggleSidebar(nil) }
+    @objc private func selectAppearance(_ sender: NSMenuItem) {
+        guard let value = sender.representedObject as? String,
+              let choice = ConnectAppearance.Choice(rawValue: value) else { return }
+        ConnectAppearance.setChoice(choice)
+    }
     @objc private func updates(_ sender: Any?) {
         let alert = NSAlert()
         alert.messageText = "Connect stays current"
@@ -76,6 +82,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(selectAppearance(_:)) {
+            menuItem.state = menuItem.representedObject as? String == ConnectAppearance.selectedChoice.rawValue ? .on : .off
+        }
         if menuItem.representedObject as? String == "/network" { return browser?.canUseNetwork ?? true }
         return true
     }
@@ -135,6 +144,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         item(view, "Zoom In", #selector(zoomIn), "+", target: self)
         item(view, "Zoom Out", #selector(zoomOut), "-", target: self)
         item(view, "Actual Size", #selector(actualSize), "0", target: self)
+        view.addItem(.separator())
+        let appearanceItem = NSMenuItem(title: "Appearance", action: nil, keyEquivalent: "")
+        let appearanceMenu = NSMenu(title: "Appearance")
+        for choice in ConnectAppearance.Choice.allCases {
+            let entry = item(appearanceMenu, choice.title, #selector(selectAppearance(_:)), target: self)
+            entry.representedObject = choice.rawValue
+            entry.state = choice == ConnectAppearance.selectedChoice ? .on : .off
+        }
+        appearanceItem.submenu = appearanceMenu
+        view.addItem(appearanceItem)
         view.addItem(.separator())
         let fullscreen = item(view, "Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f")
         fullscreen.keyEquivalentModifierMask = [.command, .control]

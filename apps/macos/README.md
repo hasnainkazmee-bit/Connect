@@ -1,12 +1,14 @@
 # Connect for macOS
 
-Connect for macOS uses a native AppKit sidebar and workspace controls around live Connect content from `https://connect.sunhubapp.com`. The native sidebar, context Back action, new-post control, notifications, and account controls give the Mac app its own navigation. Content and workflow improvements arrive through the shared web app; changes to the native host require a new app build. An internet connection is required.
+Connect for macOS uses a native AppKit sidebar and workspace controls around live Connect content from `https://connect.sunhubapp.com`. The unified native title bar aligns its traffic lights and sidebar toggle with the left pane, places Back above the content pane, and keeps notification and compose icons on the right. The selected sidebar row supplies workspace context; the duplicate window title is visually hidden and there is no marketing subtitle. The underlying window title still tracks the route for the Window menu and accessibility. The native sidebar, context Back action, notifications, and account controls give the Mac app its own navigation. Content and workflow improvements arrive through the shared web app; changes to the native host require a new app build. An internet connection is required.
 
-The app supports macOS 13 or later. The default universal build runs on Apple silicon and Intel Macs. It uses the existing Connect artwork without cropping or stretching it.
+Version 0.1.1 (build 2) supports macOS 13 or later. The default universal build runs on Apple silicon and Intel Macs. It uses the existing Connect artwork without cropping or stretching it.
 
 ## Using the app
 
 Use the native sidebar to move between Home, Directory, My Network, and Messages. The native account/company control opens the existing account and company-switch workflow, preserving the same permissions and membership checks as the web app.
+
+The sidebar and title bar use AppKit's system materials, including the current glass treatment on macOS 26 and the native fallback on earlier supported versions. Connect's controls use the same palette as the web app. Choose **View → Appearance → System, Light, or Dark** to set a saved device preference; changing it updates the native controls and live content without reloading the page.
 
 Connect has its own persistent WebKit session store, separate from Safari. Sunhub sign-in opens in a native child window and returns to Connect. System file pickers handle attachments, and authenticated downloads use a native Save dialog.
 
@@ -27,7 +29,7 @@ This version does not provide native push notifications, offline operation, or a
 
 ## Build with Command Line Tools
 
-Full Xcode is not required for building and packaging. Install Apple's Command Line Tools if they are missing (`xcode-select --install`). The build has been prepared for Apple Swift 6; the development machine uses Swift 6.3.2.
+Full Xcode is not required for building and packaging. Install Apple's current Command Line Tools if they are missing (`xcode-select --install`). Building requires Swift 6 and the macOS 26 SDK or newer; the development machine uses Swift 6.3.2 and SDK 26.5. The app still targets macOS 13 or later. Each architecture's embedded SDK and deployment target are verified before signing, so an older compatibility setting cannot silently disable the current native appearance.
 
 From the repository root:
 
@@ -42,13 +44,13 @@ Or build and package in one command:
 ./apps/macos/package.sh
 ```
 
-The scripts use `swiftc`, `lipo`, `sips`, `iconutil`, `codesign`, `ditto`, and `hdiutil` supplied by macOS and its developer tools. Compilation uses a writable module cache inside `.build`. Bundle and installer staging uses the system temporary directory, keeping File Provider metadata from synced project folders out of signed archive payloads. No JavaScript package installation or web build is needed to package this live host.
+The scripts use `swiftc`, `lipo`, `vtool`, `sips`, `iconutil`, `codesign`, `ditto`, and `hdiutil` supplied by macOS and its developer tools. Compilation uses a writable module cache inside `.build`. Bundle and installer staging uses the system temporary directory, keeping File Provider metadata from synced project folders out of signed archive payloads. No JavaScript package installation or web build is needed to package this live host.
 
 Outputs are ignored by Git:
 
 - `apps/macos/artifacts/Connect.app`
-- `apps/macos/artifacts/Connect-0.1.0-macos-universal.dmg`
-- `apps/macos/artifacts/Connect-0.1.0-macos-universal.zip`
+- `apps/macos/artifacts/Connect-0.1.1-macos-universal.dmg`
+- `apps/macos/artifacts/Connect-0.1.1-macos-universal.zip`
 
 For a single architecture, use `--arch arm64` or `--arch x86_64` on either script. The archive filename reflects the actual binary architectures. A failed cross-compile stops the universal build rather than delivering an incomplete universal app. `--skip-build` packages the existing signed app and derives its architecture from that binary.
 
@@ -97,10 +99,12 @@ The native host must keep its URL allowlist and external-link handling in place 
 ```sh
 xcrun lipo -archs apps/macos/artifacts/Connect.app/Contents/MacOS/Connect
 codesign --verify --strict --verbose=2 apps/macos/artifacts/Connect.app
-hdiutil verify apps/macos/artifacts/Connect-0.1.0-macos-universal.dmg
+hdiutil verify apps/macos/artifacts/Connect-0.1.1-macos-universal.dmg
 ```
 
 An ad-hoc build is expected to fail Gatekeeper's public-distribution assessment. For a Developer ID build intended for distribution, additionally verify its notarization ticket and Gatekeeper assessment before sharing it.
+
+The macOS CI workflow uses GitHub's standard `macos-26` runner and reports the selected Xcode, Swift, and SDK versions. The build enforces SDK 26 or newer. GitHub documents this runner as generally available in its [macOS 26 runner announcement](https://github.blog/changelog/2026-02-26-macos-26-is-now-generally-available-for-github-hosted-runners/).
 
 ## Local regression checks
 

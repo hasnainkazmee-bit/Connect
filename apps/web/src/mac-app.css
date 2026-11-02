@@ -1,14 +1,16 @@
 /* The native titlebar/sidebar sit outside this viewport. Keep these overrides
    scoped so normal browsers retain their existing responsive shell. */
 html.connect-mac {
+  color-scheme: light;
+  --mac-canvas: #f2f7fc;
   scroll-padding: 16px;
-  background: var(--surface);
+  background: var(--mac-canvas);
 }
 .connect-mac body {
   padding: 0;
   min-width: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: var(--surface);
+  background: var(--mac-canvas);
 }
 .connect-mac .mac-app {
   width: 100%;
@@ -238,5 +240,708 @@ html.connect-mac {
   }
   .connect-mac .account-experience .account-panel {
     padding: 48px 24px 24px;
+  }
+}
+
+/* AppKit controls the effective appearance. WebKit propagates that choice as
+   prefers-color-scheme, including changes while this React session is open.
+   These aliases keep new token-based features in sync; the targeted rules below
+   cover older screens that still carry literal light-theme colors. */
+@media (prefers-color-scheme: dark) {
+  html.connect-mac {
+    color-scheme: dark;
+    --mac-canvas: #1c2d3a;
+    --surface: #203342;
+    --surface-muted: color-mix(in srgb, #dbe5ed 7%, #203342);
+    --ink: #f2f7fc;
+    --muted: color-mix(in srgb, #dbe5ed 78%, #203342);
+    --line: color-mix(in srgb, #dbe5ed 18%, #203342);
+    --brand: #ff6b0b;
+    --brand-hover: #ff791f;
+    --on-brand: #1c2d3a;
+    --brand-ink: #ff791f;
+    --brand-soft: color-mix(in srgb, #ff6b0b 12%, #203342);
+    --primary: var(--brand-ink);
+    --primary-hover: var(--brand-hover);
+    --primary-soft: var(--brand-soft);
+    --accent: var(--brand);
+    --paper: var(--surface);
+    --workspace: var(--mac-canvas);
+    --connect-wash: var(--surface-muted);
+    --connect-line: var(--line);
+    --connect-muted: var(--muted);
+    --connect-orange: var(--brand);
+    --focus: #dbe5ed;
+    --shadow: 0 6px 25px #1c2d3a40;
+    --shadow-chrome: 0 1px 3px #1c2d3a80;
+    color: var(--ink);
+  }
+  html.connect-mac body {
+    color: var(--ink);
+  }
+
+  /* Content remains opaque and readable; only sheets use subtle translucency. */
+  .connect-mac
+    :is(
+      .panel,
+      .dropdown,
+      .company-card,
+      .profile-panel,
+      .workspace-panel,
+      .connections-page,
+      .requests-page,
+      .discovery-card,
+      .discovery-search,
+      .discovery-empty,
+      .claim-layout,
+      .profile-card,
+      .settings-company,
+      .team-manager,
+      .security-grid > section,
+      .company-welcome,
+      .messaging-panel,
+      .people-inbox,
+      .conversation-pane,
+      .people-chat,
+      .request-response,
+      .manage-dialog,
+      .modal,
+      .discard-confirmation,
+      .manage-confirm,
+      .comment-sign-in,
+      .web-update-notice
+    ) {
+    background: var(--surface);
+    color: var(--ink);
+    border-color: var(--line);
+  }
+  .connect-mac
+    :is(
+      .profile-nudge,
+      .company-matches,
+      .listing-notice,
+      .claim-context,
+      .welcome-company,
+      .welcome-access,
+      .welcome-feedback,
+      .team-permissions,
+      .manage-footer,
+      .project-upload,
+      .shared-notice,
+      .conversation-paused,
+      .post-comments,
+      .post-conversation,
+      .people-consent,
+      .join-card,
+      .connection-parties,
+      .tip-panel,
+      .invite-url,
+      .setup-reminder,
+      .filter-help,
+      .service-grid > div,
+      .project-placeholder,
+      .customer-review blockquote
+    ) {
+    background: var(--surface-muted);
+    color: var(--ink);
+    border-color: var(--line);
+  }
+  .connect-mac
+    :is(.message-history, .people-message-history, .unclaimed-conversation) {
+    background: var(--mac-canvas);
+  }
+  .connect-mac :is(.conversation-list, .company-details-panel, .people-list) {
+    background: var(--surface);
+    border-color: var(--line);
+  }
+  .connect-mac .modal:has(.account-experience),
+  .connect-mac .account-experience {
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .connect-mac
+    :is(
+      .modal,
+      .discard-confirmation,
+      .reaction-picker-dialog,
+      .photo-adjuster
+    )::backdrop {
+    background: #1c2d3a80;
+    backdrop-filter: blur(4px);
+  }
+  .connect-mac .modal:has(.mac-action-panel) {
+    background: color-mix(in srgb, #203342 96%, transparent);
+    border: 1px solid var(--line);
+    box-shadow: 0 20px 70px #1c2d3a80;
+  }
+  .connect-mac
+    :is(
+      .dropdown,
+      .reaction-picker-dialog,
+      .discard-confirmation,
+      .photo-adjuster
+    ) {
+    box-shadow: 0 20px 70px #1c2d3a80;
+  }
+
+  /* Inputs use the same surface family, including dialogs rendered in portals. */
+  .connect-mac :is(input, textarea, select) {
+    color: var(--ink);
+    caret-color: var(--brand);
+  }
+  .connect-mac
+    :is(
+      .form-stack input,
+      .form-stack textarea,
+      .form-stack select,
+      .manage-form input,
+      .manage-form textarea,
+      .manage-form select,
+      .manage-form .input-prefix,
+      .share-address input,
+      .account-form input,
+      .account-experience .account-form input,
+      .account-experience .account-form .input-prefix,
+      .extra-filters input,
+      .filter-select,
+      .discovery-selects select,
+      .conversation-list > .compact-search,
+      .people-search,
+      .people-compose,
+      .message-composer-inner,
+      .message-composer .composer-input,
+      .composer-input textarea,
+      .request-compose-label textarea,
+      .publisher-media .media-alt,
+      .editor-link input,
+      .conversation-input
+    ) {
+    background: var(--surface);
+    color: var(--ink);
+    border-color: var(--line);
+  }
+  .connect-mac :is(input, textarea)::placeholder,
+  .connect-mac .account-experience .account-form input::placeholder,
+  .connect-mac .manage-form :is(input, textarea)::placeholder {
+    color: var(--muted);
+    opacity: 1;
+  }
+  .connect-mac
+    :is(
+      .account-form input:focus,
+      .manage-form input:focus,
+      .manage-form textarea:focus,
+      .manage-form select:focus,
+      .input-prefix:focus-within,
+      .conversation-input:focus-within,
+      .publisher-media .media-alt:focus
+    ) {
+    border-color: var(--focus);
+    box-shadow: 0 0 0 2px #dbe5ed26;
+    background: var(--surface);
+  }
+  .connect-mac
+    :is(
+      input:not([type="checkbox"]):not([type="radio"]),
+      textarea,
+      select
+    ):focus-visible {
+    border-color: var(--focus);
+    box-shadow: 0 0 0 2px #dbe5ed26;
+  }
+  .connect-mac .conversation-composer textarea:focus-visible {
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  /* Legacy explicit text colors: titles remain bright; supporting text recedes
+     by contrast rather than by swapping to a different hue. */
+  .connect-mac
+    :is(
+      .discovery-intro h1,
+      .discovery-card h2,
+      .discovery-results-heading strong,
+      .discovery-search b,
+      .discovery-empty h2,
+      .account-heading p strong,
+      .account-type strong,
+      .device-list strong,
+      .people-chat-header strong,
+      .people-thread strong,
+      .people-start h2,
+      .people-chat-empty h2,
+      .message-author strong,
+      .sending-as strong,
+      .profile-facts span,
+      .profile-nudge strong,
+      .side-rating > strong,
+      .about-main > h3,
+      .achievement h3,
+      .portfolio-grid h3,
+      .company-people h3,
+      .profile-empty h3,
+      .rating-total > strong,
+      .customer-review header strong,
+      .customer-review h3,
+      .customer-review blockquote strong,
+      .team-permissions h3,
+      .team-permissions strong,
+      .settings-security strong,
+      .web-update-notice strong,
+      .manage-form label,
+      .share-address,
+      .username-field,
+      .tag-field legend,
+      .invite-roles legend,
+      .account-form label,
+      .account-form legend,
+      .review-rating-input legend,
+      .people-consent.incoming strong
+    ) {
+    color: var(--ink);
+  }
+  .connect-mac
+    :is(
+      .icon-button,
+      .menu-heading,
+      .modal-description,
+      .form-stack small,
+      .account-brand p,
+      .account-eyebrow,
+      .account-heading p,
+      .account-form small,
+      .account-switch,
+      .account-footnote,
+      .account-note,
+      .password-field button,
+      .account-type small,
+      .account-experience .account-footnote,
+      .onboarding-progress > span,
+      .onboarding-companies small,
+      .security-grid p,
+      .device-list > div,
+      .settings-heading p,
+      .settings-company p,
+      .settings-company small,
+      .manage-section-heading p,
+      .manage-heading > span,
+      .section-kicker,
+      .manage-heading p,
+      .manage-form small,
+      .manage-footer > span,
+      .manage-help,
+      .input-prefix > span,
+      .invite-summary small,
+      .invite-detail,
+      .access-person strong small,
+      .access-person > span,
+      .pending-empty,
+      .team-permissions > div,
+      .team-permissions p,
+      .settings-security,
+      .settings-security small,
+      .manage-loading,
+      .session-recovery-message,
+      .web-update-notice span,
+      .discovery-eyebrow,
+      .discovery-intro p,
+      .discovery-search > label,
+      .discovery-results-heading,
+      .discovery-facts,
+      .discovery-facts svg,
+      .discovery-categories button,
+      .discovery-card h2 > svg,
+      .discovery-card-footer,
+      .discovery-card-footer > span:last-child,
+      .discovery-owner > svg,
+      .discovery-empty,
+      .discovery-loading,
+      .company-matches > p,
+      .company-matches small,
+      .claim-context > p,
+      .claim-content > p,
+      .claim-content .claim-attest,
+      .welcome-company small,
+      .welcome-eyebrow,
+      .welcome-body > p,
+      .welcome-access p,
+      .welcome-security,
+      .profile-section-heading p,
+      .section-edit,
+      .profile-about-short,
+      .profile-facts,
+      .profile-facts small,
+      .profile-nudge small,
+      .featured-work p,
+      .profile-about-full,
+      .profile-details dt,
+      .profile-details dd,
+      .achievement small,
+      .achievement p,
+      .entry-actions,
+      .profile-empty,
+      .profile-empty > svg,
+      .portfolio-grid small,
+      .portfolio-grid p,
+      .company-people p,
+      .company-people .icon-button,
+      .profile-not-found,
+      .rating-total > span:last-child,
+      .rating-distribution > div > span,
+      .rating-distribution small,
+      .rating-summary > p,
+      .customer-review header small,
+      .customer-review > p,
+      .review-experience,
+      .customer-review blockquote,
+      .review-pagination,
+      .manage-form .review-attestation,
+      .company-copy p,
+      .company-location,
+      .card-arrow,
+      .request-top p,
+      .request-top small,
+      .request-top time,
+      .request-message,
+      .inbox-empty > svg,
+      .inbox-empty p,
+      .inbox-filters button,
+      .conversation-link time,
+      .conversation-header p,
+      .message-receipt,
+      .message-author,
+      .date-divider,
+      .conversation-start,
+      .sending-as,
+      .attachment-help,
+      .company-details-placeholder p,
+      .company-details-identity p,
+      .company-details-panel dt,
+      .company-details-panel h3,
+      .details-connection-note,
+      .people-list header p,
+      .people-list-tabs button,
+      .people-day,
+      .people-message > small,
+      .people-message > span,
+      .people-start,
+      .people-chat-empty,
+      .people-no-chats,
+      .inbox-channels > a,
+      .people-page button,
+      .conversation-send:disabled
+    ) {
+    color: var(--muted);
+  }
+  .connect-mac
+    :is(
+      .profile-text-link,
+      .profile-nudge button,
+      .side-rating > button,
+      .achievement a,
+      .portfolio-grid footer a,
+      .portfolio-grid footer button,
+      .customer-review footer button,
+      .welcome-profile,
+      .publication-read,
+      .account-link,
+      .tag-suggestions button,
+      .tag-input button,
+      .setup-reminder button,
+      .web-update-notice button
+    ) {
+    color: var(--ink);
+  }
+
+  /* Neutral badges and hover states share the inset surface. Orange is reserved
+     for deliberate actions and selected navigation, never substituted on media. */
+  .connect-mac
+    :is(
+      .pill,
+      .tags > span,
+      .discovery-type,
+      .discovery-tags > span,
+      .company-service-tags > span,
+      .company-presence .company-service-tags > span,
+      .project-capacity,
+      .tag-input > span,
+      .access-role,
+      .pending-invites h3 span,
+      .pending-icon,
+      .file-chips > span,
+      .avatar,
+      .message.own > .avatar,
+      .company-details-panel .tags > span,
+      .inbox-filters span,
+      .people-list-tabs b,
+      .conversation-start span,
+      .people-chat-empty > span,
+      .account-symbol,
+      .current-device,
+      .success-check,
+      .claim-success-icon,
+      .connection-filters button,
+      .business-choices button,
+      .service-choices button,
+      .onboarding-companies button,
+      .account-type button,
+      .publication-filters button,
+      .attachment,
+      .older-messages,
+      .company-matches > a
+    ) {
+    background: var(--surface-muted);
+    color: var(--ink);
+    border-color: var(--line);
+    box-shadow: none;
+  }
+  .connect-mac
+    :is(
+      .dropdown > a:hover,
+      .dropdown > button:hover,
+      .section-edit:hover,
+      .connection-filters button:hover,
+      .conversation-link:hover,
+      .people-thread:hover,
+      .publisher-drafts:hover,
+      .editor-toolbar button:hover,
+      .editor-toolbar button[aria-pressed="true"],
+      .publication-filters button[aria-pressed="true"],
+      .onboarding-companies button[aria-pressed="true"],
+      .account-type button[aria-pressed="true"],
+      .manage-form .invite-roles .selected
+    ) {
+    background: var(--surface-muted);
+    color: var(--ink);
+    border-color: var(--muted);
+    box-shadow: none;
+  }
+  .connect-mac .message-bubble,
+  .connect-mac .people-message > p {
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .connect-mac .message.own .message-bubble,
+  .connect-mac .people-message.mine > p {
+    background: var(--surface-muted);
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  .connect-mac .conversation-link.active,
+  .connect-mac .people-thread.active {
+    background: var(--surface-muted);
+    border-color: var(--line);
+    box-shadow: inset 3px 0 var(--brand);
+  }
+  .connect-mac
+    :is(
+      .button.selected,
+      .business-choices button[aria-pressed="true"],
+      .service-choices button[aria-pressed="true"],
+      .connection-filters button[aria-pressed="true"],
+      .discovery-categories button[aria-pressed="true"],
+      .inbox-channels > a.active,
+      .inbox-filters button.active,
+      .inbox-filters button[aria-pressed="true"],
+      .people-list-tabs button[aria-pressed="true"],
+      .company-sections button[aria-current="page"],
+      .profile-tabs > button.active
+    ) {
+    background: var(--brand);
+    color: var(--on-brand);
+    border-color: transparent;
+  }
+  .connect-mac :is(.unread-badge, .inbox-channels b, .people-thread > b) {
+    background: var(--brand);
+    color: var(--on-brand);
+  }
+  .connect-mac
+    :is(
+      .discovery-categories small,
+      .inbox-filters button[aria-pressed="true"] span
+    ) {
+    background: #1c2d3a14;
+    color: inherit;
+  }
+  .connect-mac
+    :is(
+      .review-stars,
+      .review-rating-input label,
+      .achievement-icon,
+      .verified-label,
+      .profile-ownership,
+      .input-prefix > svg,
+      .onboarding-progress .current,
+      .onboarding-progress .done,
+      .account-type button[aria-pressed="true"] svg
+    ) {
+    color: var(--brand-hover);
+  }
+  .connect-mac .achievement-icon {
+    background: var(--brand-soft);
+  }
+  .connect-mac
+    :is(.empty-star, .rating-distribution > div > div, .onboarding-progress b) {
+    color: var(--line);
+    background: var(--surface-muted);
+  }
+  .connect-mac
+    :is(
+      .rating-distribution i,
+      .discovery-online,
+      .status-dot,
+      .people-request-dot
+    ) {
+    background: var(--brand);
+  }
+
+  /* Preserve the meaning of errors with their labels/icons and a clear orange
+     border, using only Connect's established palette. */
+  .connect-mac
+    :is(
+      .error,
+      .account-error,
+      .account-success,
+      .manage-error,
+      .publisher-error,
+      .social-error,
+      .conversation-error,
+      .invite-success,
+      .discard-prompt,
+      .info-banner
+    ) {
+    background: var(--brand-soft);
+    color: var(--ink);
+    border-color: var(--brand);
+  }
+  .connect-mac
+    :is(
+      .danger-text,
+      .manage-form .field-warning,
+      .publisher-save button,
+      .word-count.over-limit,
+      .photo-adjuster-error,
+      .sunhub-popup-state p.sunhub-popup-error,
+      .discard-prompt small
+    ) {
+    color: var(--brand-hover);
+  }
+  .connect-mac .button.danger {
+    background: var(--brand-soft);
+    border-color: var(--brand);
+    color: var(--ink);
+  }
+  .connect-mac .button.danger:hover:not(:disabled) {
+    background: var(--brand);
+    color: var(--on-brand);
+  }
+  .connect-mac .account-primary {
+    background: var(--brand);
+    color: var(--on-brand);
+    box-shadow: none;
+  }
+  .connect-mac .account-primary:hover:not(:disabled) {
+    background: var(--brand-hover);
+    color: var(--on-brand);
+    transform: none;
+  }
+  /* The supplied wordmark contains black lettering. Keep its original pixels
+     on a pale brand plate instead of inverting the orange icon with a filter. */
+  .connect-mac .account-wordmark {
+    box-sizing: content-box;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: #f2f7fc;
+  }
+  .connect-mac .button:not(.primary):not(.danger):hover:not(:disabled) {
+    border-color: var(--muted);
+  }
+  .connect-mac .account-experience button:focus-visible {
+    outline-color: var(--focus);
+  }
+  .connect-mac .sunhub-auth-action {
+    background: var(--surface-muted);
+    border-color: var(--line);
+    color: var(--ink);
+  }
+  .connect-mac .sunhub-auth-action:hover:not([aria-disabled="true"]) {
+    background: var(--brand-soft);
+    border-color: var(--brand);
+  }
+  .connect-mac .toast {
+    color: var(--ink);
+    background: var(--surface);
+    border-color: var(--line);
+    box-shadow: 0 10px 35px #1c2d3a80;
+  }
+  .connect-mac .toast > button {
+    color: var(--muted);
+  }
+  .connect-mac .reaction-chip[aria-pressed="true"] {
+    border-color: var(--brand);
+  }
+  .connect-mac .reaction-picker-host em-emoji-picker {
+    --rgb-background: 32, 51, 66;
+    --rgb-color: 242, 247, 252;
+    --rgb-input: 45, 63, 78;
+    --rgb-accent: 255, 121, 31;
+    --rgb-color-border: 66, 83, 97;
+  }
+  .connect-mac
+    :is(
+      .discovery-search > label + label,
+      .discovery-categories,
+      .discovery-card-footer,
+      .listing-sources,
+      .claim-email,
+      .presence-services > span,
+      .portfolio-grid > article,
+      .portfolio-grid footer,
+      .company-people article,
+      .achievement,
+      .rating-summary,
+      .customer-review,
+      .manage-section,
+      .tag-input,
+      .branding-preview,
+      .manage-form .invite-roles label,
+      .access-row,
+      .device-list > div,
+      .onboarding-companies > div,
+      .connection-row,
+      .company-card-actions,
+      .people-list-tabs,
+      .people-thread,
+      .people-chat-header,
+      .company-details-placeholder,
+      .conversation-replies,
+      .publisher-cover-slot,
+      .publisher-drop,
+      .branding-preview > span
+    ) {
+    border-color: var(--line);
+  }
+  .connect-mac :is(.branding-preview > span, .project-upload:has(img) span) {
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .connect-mac .share-profile .manage-heading {
+    background: var(--surface);
+  }
+  .connect-mac .status-dot.gray {
+    background: var(--muted);
+  }
+  .connect-mac .discovery-eyebrow > span {
+    background: var(--brand);
+  }
+  .connect-mac .modal-icon.red {
+    background: var(--brand-soft);
+    color: var(--brand-hover);
+  }
+  .connect-mac .photo-adjuster-stage {
+    background: var(--mac-canvas);
+  }
+  .connect-mac .photo-adjuster-stage > span {
+    color: var(--ink);
   }
 }

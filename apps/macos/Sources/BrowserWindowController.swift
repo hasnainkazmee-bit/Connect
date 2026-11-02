@@ -2,7 +2,7 @@ import AppKit
 import WebKit
 
 @MainActor
-final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate, NSToolbarDelegate, NSSplitViewDelegate {
+final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate, NSToolbarDelegate {
     let webView: WKWebView
     let policy: NavigationPolicy
     let authentication: Bool
@@ -14,17 +14,18 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
     private var initialURL: URL?
     private var observations: [NSKeyValueObservation] = []
     private let progress = NSProgressIndicator()
-    private let recovery = NSView()
+    private let recovery = RecoverySurface()
     private let recoveryTitle = NSTextField(labelWithString: "Connect is taking a moment")
     private let recoveryBody = NSTextField(wrappingLabelWithString: "Check your connection, then try again. Your account hasn’t been signed out.")
     private let sidebar = MacSidebar()
-    private let splitView = NSSplitView()
+    private let splitController = NSSplitViewController()
+    private var splitView: NSSplitView { splitController.splitView }
+    private var sidebarItem: NSSplitViewItem?
     private let workspace = NSView()
-    private var sidebarWidth: CGFloat = 224
     private var workspaceReady = false
     private var pendingCommand: [String: String]?
     private var bridge: MacWorkspaceBridge?
-    private var composeButton: NSButton?
+    private var composeItem: NSToolbarItem?
     private var backItem: NSToolbarItem?
     private var notificationItem: NSToolbarItem?
     private var downloads: DownloadCoordinator!
@@ -46,17 +47,23 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
         }
         webView = WKWebView(frame: .zero, configuration: settings)
         webView.allowsBackForwardNavigationGestures = true
-        webView.underPageBackgroundColor = NSColor(red: 0.95, green: 0.97, blue: 0.99, alpha: 1)
+        webView.underPageBackgroundColor = ConnectAppearance.windowBackground
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: authentication ? 500 : 1180, height: authentication ? 680 : 800),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = authentication ? "Sunhub Account" : "Connect"
-        window.subtitle = authentication ? (policy.ssoOrigin.host ?? "") : "Connect. Talk. Celebrate."
+        window.subtitle = authentication ? (policy.ssoOrigin.host ?? "") : ""
         window.minSize = authentication ? NSSize(width: 390, height: 560) : NSSize(width: 720, height: 580)
         window.isReleasedWhenClosed = false
-        window.backgroundColor = webView.underPageBackgroundColor
+        window.backgroundColor = ConnectAppearance.windowBackground
         window.tabbingMode = .disallowed
-        window.appearance = NSAppearance(named: .aqua)
-        window.toolbarStyle = .unifiedCompact
+        if !authentication {
+            window.styleMask.insert(.fullSizeContentView)
+            window.toolbarStyle = .unified
+            window.titlebarSeparatorStyle = .none
+            // The selected sidebar row supplies the workspace name. Hiding
+            // the duplicate title keeps native controls aligned to each pane.
+            window.titleVisibility = .hidden
+        }
         super.init(window: window)
         window.delegate = self
         webView.navigationDelegate = self
@@ -99,18 +106,32 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
         let container: NSView
         if authentication { container = root }
         else {
-            splitView.frame = root.bounds
-            splitView.autoresizingMask = [.width, .height]
             splitView.isVertical = true
             splitView.dividerStyle = .thin
-            splitView.delegate = self
-            sidebar.frame = NSRect(x: 0, y: 0, width: sidebarWidth, height: root.bounds.height)
-            workspace.frame = NSRect(x: sidebarWidth + 1, y: 0, width: root.bounds.width - sidebarWidth - 1, height: root.bounds.height)
-            splitView.addArrangedSubview(sidebar)
-            splitView.addArrangedSubview(workspace)
-            splitView.setHoldingPriority(.defaultHigh, forSubviewAt: 0)
-            root.addSubview(splitView)
-            splitView.adjustSubviews()
+            let navigationController = NSViewController()
+            navigationController.view = sidebar
+            let navigationItem = NSSplitViewItem(sidebarWithViewController: navigationController)
+            navigationItem.minimumThickness = 188
+            navigationItem.maximumThickness = 270
+            navigationItem.canCollapseFromWindowResize = false
+            navigationItem.holdingPriority = .defaultHigh
+            navigationItem.collapseBehavior = .preferResizingSiblingsWithFixedSplitView
+            navigationItem.titlebarSeparatorStyle = .none
+            sidebarItem = navigationItem
+            let contentController = NSViewController()
+            contentController.view = workspace
+            let contentItem = NSSplitViewItem(viewController: contentController)
+            contentItem.minimumThickness = 480
+            contentItem.titlebarSeparatorStyle = .none
+            splitController.addSplitViewItem(navigationItem)
+            splitController.addSplitViewItem(contentItem)
+            let preferredWidth = sidebar.widthAnchor.constraint(equalToConstant: 224)
+            preferredWidth.priority = .defaultLow
+            preferredWidth.isActive = true
+            // AppKit supplies its current sidebar glass and owns resizing and
+            // collapse restoration. A custom visual-effect fill masks it.
+            splitController.view.frame = root.bounds
+            window?.contentViewController = splitController
             sidebar.onNavigate = { [weak self] path in self?.navigate(to: path) }
             sidebar.onCompose = { [weak self] in self?.compose(nil) }
             sidebar.onAccount = { [weak self] in self?.sendWorkspaceCommand(["type": "account"]) }
@@ -129,7 +150,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
         searchField.action = #selector(findNext)
         searchField.sendsSearchStringImmediately = false
         searchField.widthAnchor.constraint(equalToConstant: 260).isActive = true
-        findStatus.textColor = .secondaryLabelColor
+        findStatus.textColor = ConnectAppearance.secondaryText
         findStatus.font = .systemFont(ofSize: 12)
         let next = NSButton(title: "Next", target: self, action: #selector(findNext))
         next.bezelStyle = .rounded
@@ -140,14 +161,15 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
         findBar.isHidden = true
         NSLayoutConstraint.activate([
             findBar.leadingAnchor.constraint(equalTo: container.leadingAnchor), findBar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            findBar.topAnchor.constraint(equalTo: container.topAnchor), findHeight,
+            // The split panes extend beneath native window chrome, but their
+            // interactive content starts below it, including after resizing.
+            findBar.topAnchor.constraint(equalTo: container.safeAreaLayoutGuide.topAnchor), findHeight,
             webView.leadingAnchor.constraint(equalTo: container.leadingAnchor), webView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             webView.topAnchor.constraint(equalTo: findBar.bottomAnchor), webView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
             recovery.leadingAnchor.constraint(equalTo: webView.leadingAnchor), recovery.trailingAnchor.constraint(equalTo: webView.trailingAnchor),
             recovery.topAnchor.constraint(equalTo: webView.topAnchor), recovery.bottomAnchor.constraint(equalTo: webView.bottomAnchor),
         ])
         recovery.wantsLayer = true
-        recovery.layer?.backgroundColor = window?.backgroundColor.cgColor
         recovery.isHidden = true
         let emblem = NSImageView(image: NSImage(named: NSImage.applicationIconName) ?? NSImage())
         emblem.imageScaling = .scaleProportionallyUpOrDown
@@ -156,13 +178,14 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
         recoveryTitle.font = .systemFont(ofSize: 23, weight: .semibold)
         recoveryTitle.alignment = .center
         recoveryBody.font = .systemFont(ofSize: 14)
-        recoveryBody.textColor = .secondaryLabelColor
+        recoveryTitle.textColor = ConnectAppearance.text
+        recoveryBody.textColor = ConnectAppearance.secondaryText
         recoveryBody.alignment = .center
         recoveryBody.maximumNumberOfLines = 4
         let retry = NSButton(title: authentication ? "Close sign-in" : "Try again", target: self, action: #selector(retryConnection))
         retry.bezelStyle = .rounded
         retry.controlSize = .large
-        retry.bezelColor = NSColor.systemOrange
+        retry.bezelColor = ConnectAppearance.accent
         let stack = NSStackView(views: [emblem, recoveryTitle, recoveryBody, retry])
         stack.orientation = .vertical
         stack.alignment = .centerX
@@ -178,10 +201,14 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { toolbarDefaultItemIdentifiers(toolbar) }
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.init("sidebar"), .init("back"), .flexibleSpace, .init("loading"), .init("notifications"), .init("compose")]
+        [.init("sidebar"), .init("sidebarSeparator"), .init("back"), .flexibleSpace, .init("loading"), .init("notifications"), .init("compose")]
     }
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        if identifier.rawValue == "sidebarSeparator" {
+            return NSTrackingSeparatorToolbarItem(identifier: identifier, splitView: splitView, dividerIndex: 0)
+        }
         let item = NSToolbarItem(itemIdentifier: identifier)
+        item.isBordered = identifier.rawValue != "loading"
         switch identifier.rawValue {
         case "back":
             item.label = "Back"
@@ -198,19 +225,23 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
             item.image = NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: item.label)
             item.target = self
             item.action = #selector(toggleSidebar)
+            item.isNavigational = true
         case "compose":
             item.label = "New Post"
-            let button = NSButton(title: "New post", target: self, action: #selector(compose))
-            button.bezelStyle = .rounded
-            button.bezelColor = NSColor(red: 1, green: 0.43, blue: 0.08, alpha: 1)
-            button.image = NSImage(systemSymbolName: "square.and.pencil", accessibilityDescription: nil)
-            button.imagePosition = .imageLeading
-            button.toolTip = "Create a post or press release (⌘N)"
-            button.isEnabled = false
-            composeButton = button
-            item.view = button
+            item.image = NSImage(systemSymbolName: "square.and.pencil", accessibilityDescription: "New post")
+            item.toolTip = "Create a post or press release (⌘N)"
+            item.target = self
+            item.action = #selector(compose)
+            item.autovalidates = false
+            item.isEnabled = false
+            if #available(macOS 26.0, *) {
+                item.style = .prominent
+                item.backgroundTintColor = ConnectAppearance.accent
+            }
+            composeItem = item
         case "notifications":
             item.label = "Notifications"
+            item.toolTip = "Notifications"
             item.image = NSImage(systemSymbolName: "bell", accessibilityDescription: "Notifications")
             item.target = self
             item.action = #selector(showNotifications)
@@ -260,29 +291,24 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
         else if path.hasPrefix("/account") { title = "Account" }
         else { title = "Connect" }
         window?.title = title
-        window?.subtitle = title == "Connect" ? "Connect. Talk. Celebrate." : "Connect"
+        window?.subtitle = ""
     }
 
     @objc func compose(_ sender: Any?) { sendWorkspaceCommand(["type": "compose"]) }
     @objc func showNotifications(_ sender: Any?) { sendWorkspaceCommand(["type": "notifications"]) }
     @objc func toggleSidebar(_ sender: Any?) {
-        guard !authentication else { return }
-        if !sidebar.isHidden { sidebarWidth = min(270, max(188, sidebar.frame.width)) }
-        sidebar.isHidden.toggle()
-        splitView.adjustSubviews()
+        guard !authentication, let sidebarItem else { return }
+        sidebarItem.isCollapsed.toggle()
+        splitController.view.layoutSubtreeIfNeeded()
+        updateSidebarToolbar()
     }
 
-    func splitView(_ splitView: NSSplitView, canCollapseSubview subview: NSView) -> Bool { subview === sidebar }
-    func splitView(_ splitView: NSSplitView, constrainMinCoordinate proposedMinimumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat { 188 }
-    func splitView(_ splitView: NSSplitView, constrainMaxCoordinate proposedMaximumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat { min(270, splitView.bounds.width - 480) }
-    func splitView(_ splitView: NSSplitView, resizeSubviewsWithOldSize oldSize: NSSize) {
-        let width: CGFloat = sidebar.isHidden ? 0 : min(270, max(188, sidebarWidth))
-        let divider: CGFloat = sidebar.isHidden ? 0 : splitView.dividerThickness
-        sidebar.frame = NSRect(x: 0, y: 0, width: width, height: splitView.bounds.height)
-        workspace.frame = NSRect(x: width + divider, y: 0, width: splitView.bounds.width - width - divider, height: splitView.bounds.height)
-    }
-    func splitViewDidResizeSubviews(_ notification: Notification) {
-        if !sidebar.isHidden { sidebarWidth = min(270, max(188, sidebar.frame.width)) }
+    private func updateSidebarToolbar() {
+        guard let toolbar = window?.toolbar else { return }
+        let identifier = NSToolbarItem.Identifier("sidebarSeparator")
+        let index = toolbar.items.firstIndex { $0.itemIdentifier == identifier }
+        if sidebarItem?.isCollapsed == true, let index { toolbar.removeItem(at: index) }
+        else if sidebarItem?.isCollapsed == false, index == nil { toolbar.insertItem(withItemIdentifier: identifier, at: 1) }
     }
 
     private func sendWorkspaceCommand(_ command: [String: String]) {
@@ -308,7 +334,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
         let name = signedIn ? (state["userName"] as? String).map { String($0.prefix(160)) } : nil
         let company = signedIn ? (state["companyName"] as? String).map { String($0.prefix(160)) } : nil
         sidebar.setAccount(name: name, company: company, canPublish: canPublish)
-        composeButton?.isEnabled = canPublish
+        composeItem?.isEnabled = canPublish
         notificationItem?.isEnabled = signedIn
         let unread = max(0, min(999, state["unreadCount"] as? Int ?? 0))
         notificationItem?.image = NSImage(systemSymbolName: unread > 0 ? "bell.badge" : "bell", accessibilityDescription: unread > 0 ? "\(unread) unread notifications" : "Notifications")
@@ -442,7 +468,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
     }
     private func showRecovery(processEnded: Bool = false) {
         workspaceReady = false
-        composeButton?.isEnabled = false
+        composeItem?.isEnabled = false
         notificationItem?.isEnabled = false
         recoveryTitle.stringValue = processEnded ? "Let’s reopen Connect" : "Connect is taking a moment"
         recoveryBody.stringValue = authentication ? "Close this window and start Sunhub sign-in again from Connect." : (processEnded ? "Your session is saved. Reload to get back to Connect." : "Check your connection, then try again. Your account hasn’t been signed out.")
@@ -524,6 +550,19 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
 }
 
 private extension Double { var nonzero: Double? { self == 0 ? nil : self } }
+
+@MainActor
+private final class RecoverySurface: NSView {
+    override var isOpaque: Bool { true }
+    override func draw(_ dirtyRect: NSRect) {
+        ConnectAppearance.windowBackground.setFill()
+        bounds.fill()
+    }
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
+    }
+}
 
 @MainActor
 private final class MacWorkspaceBridge: NSObject, WKScriptMessageHandler {

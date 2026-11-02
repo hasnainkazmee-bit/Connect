@@ -17,9 +17,14 @@ permissions:
   contents: read
 jobs:
   macos:
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
+      - name: Verify selected Apple toolchain
+        run: |
+          xcodebuild -version
+          xcrun swiftc --version
+          xcrun --sdk macosx --show-sdk-version
       - name: Check navigation and restoration boundaries
         run: ./apps/macos/test-policy.sh
       - name: Build universal local-test app and installer

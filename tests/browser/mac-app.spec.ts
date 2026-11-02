@@ -1,4 +1,11 @@
-import { test, expect, type Browser, type Page } from "@playwright/test";
+import {
+  test,
+  expect,
+  type Browser,
+  type Page,
+  type Locator,
+} from "@playwright/test";
+import fs from "node:fs/promises";
 
 const baseURL = process.env.API_TEST_URL || "http://localhost:4101";
 const macUA =
@@ -57,8 +64,13 @@ for (const setup of [
   }) => {
     const context = await contextFor(browser, setup.bridge, setup.mac);
     const page = await context.newPage();
+    await page.emulateMedia({ colorScheme: "dark" });
     await page.goto("/directory");
     await expect(page.locator(".site-header")).toBeVisible();
+    await expect(page.locator(".discovery-card").first()).toHaveCSS(
+      "background-color",
+      "rgb(255, 255, 255)",
+    );
     await expect(page.locator(".app-main")).not.toHaveClass(/mac-app/);
     await command(page, { type: "compose" });
     await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -297,5 +309,355 @@ test("native individual account can message but cannot open a publisher", async 
   expect(
     await page.evaluate(() => (window as any).macStates.at(-1)?.accountType),
   ).toBe("individual");
+  await context.close();
+});
+
+async function expectReadable(locator: Locator, minimum = 4.5) {
+  const contrast = await locator.evaluate((element) => {
+    // Canvas resolves CSS color-mix()/color() to pixels in Chromium and WebKit.
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 1;
+    const context = canvas.getContext("2d")!;
+    const rgba = (color: string) => {
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = color;
+      context.fillRect(0, 0, 1, 1);
+      return Array.from(context.getImageData(0, 0, 1, 1).data);
+    };
+    const layers: number[][] = [];
+    for (let node: Element | null = element; node; node = node.parentElement)
+      layers.unshift(rgba(getComputedStyle(node).backgroundColor));
+    let background = [255, 255, 255];
+    for (const layer of layers)
+      background = background.map(
+        (value, i) =>
+          layer[i] * (layer[3] / 255) + value * (1 - layer[3] / 255),
+      );
+    const ink = rgba(getComputedStyle(element).color);
+    const foreground = background.map(
+      (value, i) => ink[i] * (ink[3] / 255) + value * (1 - ink[3] / 255),
+    );
+    const luminance = (rgb: number[]) =>
+      rgb
+        .map((value) => {
+          const srgb = value / 255;
+          return srgb <= 0.04045
+            ? srgb / 12.92
+            : ((srgb + 0.055) / 1.055) ** 2.4;
+        })
+        .reduce(
+          (total, value, i) => total + value * [0.2126, 0.7152, 0.0722][i],
+          0,
+        );
+    const a = luminance(foreground),
+      b = luminance(background);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  });
+  expect(contrast, `Readable text for ${locator}`).toBeGreaterThanOrEqual(
+    minimum,
+  );
+}
+
+test("Mac appearance follows live system changes across content, editing and company chat", async ({
+  browser,
+}) => {
+  test.setTimeout(90000);
+  const context = await contextFor(browser);
+  const partner = await browser.newContext({ baseURL });
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const register = async (client: typeof context, name: string) => {
+    const response = await client.request.post("/api/auth/register", {
+      data: {
+        name,
+        email: `${name.replaceAll(" ", "-")}-${suffix}@example.test`,
+        password: "ConnectMacDark123!",
+        companyName: `${name} Solar ${suffix}`,
+      },
+    });
+    expect(response.status()).toBe(201);
+    return response.json();
+  };
+  await register(context, "Mac Appearance");
+  const companyB = await register(partner, "Daylight Partner");
+  const connectionRequest = await context.request.post("/api/requests", {
+    data: {
+      companyId: companyB.activeCompanyId,
+      note: "Plan our next installation.",
+    },
+  });
+  expect(connectionRequest.status()).toBe(201);
+  const accepted = await partner.request.post(
+    `/api/requests/${(await connectionRequest.json()).id}/respond`,
+    {
+      data: { action: "accept" },
+    },
+  );
+  expect(accepted.ok()).toBe(true);
+  const { connectionId } = await accepted.json();
+  for (const [client, body] of [
+    [partner, "The installation is ready for your review."],
+    [context, "Thanks. I’ll share the final photos today."],
+  ] as const) {
+    expect(
+      (
+        await client.request.post(
+          `/api/conversations/${connectionId}/messages`,
+          {
+            multipart: { body },
+          },
+        )
+      ).status(),
+    ).toBe(201);
+  }
+  const photo = await context.request.post("/api/posts", {
+    multipart: {
+      body: `A brighter day for our community. Project progress ${suffix}`,
+      files: {
+        name: "solar-rooftop.jpg",
+        mimeType: "image/jpeg",
+        buffer: await fs.readFile("apps/web/public/assets/solar.jpg"),
+      },
+      alts: JSON.stringify(["Our completed rooftop installation"]),
+    },
+  });
+  expect(photo.status()).toBe(201);
+  const post = await photo.json();
+  expect(
+    (
+      await partner.request.post(`/api/posts/${post.id}/comments`, {
+        data: { body: "A great milestone for the whole team." },
+      })
+    ).status(),
+  ).toBe(201);
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/");
+  const card = page.locator(`#post-${post.id}`);
+  await expect(card).toBeVisible();
+  await expect(page.locator("body")).toHaveCSS(
+    "background-color",
+    "rgb(242, 247, 252)",
+  );
+  await expect(card).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await page.evaluate(() => {
+    (window as any).appearanceSessionMarker = "same-page";
+  });
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect(page.locator("body")).toHaveCSS(
+    "background-color",
+    "rgb(28, 45, 58)",
+  );
+  await expect(card).toHaveCSS("background-color", "rgb(32, 51, 66)");
+  await expectReadable(card.locator(".post-body"));
+  const image = card.getByRole("img", {
+    name: "Our completed rooftop installation",
+  });
+  await expect(image).toHaveCSS("filter", "none");
+  await expect(image).toHaveCSS("object-fit", "contain");
+  await expect
+    .poll(() =>
+      image.evaluate((node) => (node as HTMLImageElement).naturalWidth),
+    )
+    .toBeGreaterThan(0);
+  await capture(page, "test-results/mac-dark-feed.png");
+  await card.getByRole("button", { name: "Comment", exact: true }).click();
+  await expect(
+    card.getByText("A great milestone for the whole team.", { exact: true }),
+  ).toBeVisible();
+  await expectReadable(
+    card.locator(".conversation-comment-content > p").first(),
+  );
+  await capture(page, "test-results/mac-dark-comments.png");
+
+  await command(page, { type: "account" });
+  await expect(page.locator(".mac-action-panel")).toBeVisible();
+  await expectReadable(page.locator(".mac-action-panel h2"));
+  await capture(page, "test-results/mac-dark-account.png");
+  await page.getByRole("button", { name: "Close dialog", exact: true }).click();
+  await command(page, { type: "compose" });
+  const editor = page.getByRole("textbox", { name: "Update content" });
+  await editor.fill(
+    "Project progress, in every light.\nOur team has completed another community rooftop installation.",
+  );
+  await expectReadable(editor);
+  await expectReadable(
+    page.getByRole("button", { name: "Publish", exact: true }),
+  );
+  await capture(page, "test-results/mac-dark-publisher.png");
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator(".publisher")).toHaveCSS(
+    "background-color",
+    "rgb(255, 255, 255)",
+  );
+  await expect(editor).toContainText("Project progress, in every light.");
+  expect(
+    await page.evaluate(() => (window as any).appearanceSessionMarker),
+  ).toBe("same-page");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await command(page, { type: "navigate", path: "/messages" });
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page
+    .getByRole("textbox", { name: "Search companies" })
+    .fill(companyB.companies[0].name);
+  await page
+    .locator(".conversation-link")
+    .filter({ hasText: companyB.companies[0].name })
+    .click();
+  await expect(page.getByLabel("Message", { exact: true })).toBeVisible();
+  await expectReadable(page.locator(".message-bubble").first());
+  await expectReadable(page.locator(".message.own .message-bubble").first());
+  await expectReadable(page.locator(".conversation-preview").first());
+  await expect(page.locator(".message-history")).toHaveCSS(
+    "background-color",
+    "rgb(28, 45, 58)",
+  );
+  await capture(page, "test-results/mac-dark-messages.png");
+  await command(page, { type: "navigate", path: "/directory" });
+  await expect(page.locator(".discovery-card").first()).toHaveCSS(
+    "background-color",
+    "rgb(32, 51, 66)",
+  );
+  await expectReadable(page.locator(".discovery-card h2").first());
+  await expectReadable(page.locator(".discovery-facts").first());
+  await expectReadable(
+    page.locator('.discovery-categories button[aria-pressed="false"]').first(),
+  );
+  await capture(page, "test-results/mac-dark-directory.png");
+  await command(page, { type: "profile" });
+  await expect(
+    page.getByRole("button", { name: "Edit profile", exact: true }),
+  ).toBeVisible();
+  await capture(page, "test-results/mac-dark-profile.png");
+  await page.getByRole("button", { name: "Edit profile", exact: true }).click();
+  await expect(page.locator(".manage-dialog")).toHaveCSS(
+    "background-color",
+    "rgb(32, 51, 66)",
+  );
+  await expectReadable(
+    page.getByRole("dialog").getByLabel("Headline", { exact: false }),
+  );
+  await capture(page, "test-results/mac-dark-profile-editor.png");
+  await page.getByRole("button", { name: "Close dialog", exact: true }).click();
+  await command(page, { type: "account" });
+  await page
+    .getByRole("dialog")
+    .getByRole("link", { name: "Account & security" })
+    .click();
+  await expect(page.locator(".security-grid")).toBeVisible();
+  await expectReadable(page.locator(".security-grid p").first());
+  await expect(page.getByLabel("Current password", { exact: true })).toHaveCSS(
+    "background-color",
+    "rgb(32, 51, 66)",
+  );
+  await page
+    .getByLabel("Current password", { exact: true })
+    .fill("preview-only");
+  await expectReadable(page.getByLabel("Current password", { exact: true }));
+  await expectReadable(
+    page.getByRole("button", { name: "Update password", exact: true }),
+  );
+  await capture(page, "test-results/mac-dark-security.png");
+  expect(errors).toEqual([]);
+  await context.close();
+  await partner.close();
+});
+
+test("Mac dark sign-in and individual inbox retain readable native surfaces", async ({
+  browser,
+}) => {
+  const context = await contextFor(browser, true, true, 760);
+  const page = await context.newPage();
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/directory");
+  await command(page, { type: "account" });
+  const email = page.getByRole("dialog").getByLabel("Work email");
+  await expect(email).toHaveCSS("background-color", "rgb(32, 51, 66)");
+  await email.fill("local-preview@example.test");
+  await expectReadable(email);
+  await expectReadable(
+    page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Sign in", exact: true }),
+  );
+  await expect(page.locator(".account-wordmark")).toHaveCSS(
+    "background-color",
+    "rgb(242, 247, 252)",
+  );
+  await expect(page.locator(".account-wordmark")).toHaveCSS("filter", "none");
+  await capture(page, "test-results/mac-dark-sign-in.png");
+  await page.getByRole("button", { name: "Close dialog", exact: true }).click();
+  const response = await context.request.post("/api/auth/register", {
+    data: {
+      name: "Mac Dark Customer",
+      email: `dark-person-${Date.now()}@example.test`,
+      password: "ConnectMacDark123!",
+      accountType: "individual",
+    },
+  });
+  expect(response.status()).toBe(201);
+  await page.goto("/messages");
+  await expect(page.locator(".people-inbox")).toBeVisible();
+  await expect(page.locator(".people-inbox")).toHaveCSS(
+    "background-color",
+    "rgb(32, 51, 66)",
+  );
+  await expectReadable(page.locator(".people-chat-empty h2"));
+  await capture(page, "test-results/mac-dark-people-inbox.png");
+  const company = await browser.newContext({ baseURL });
+  const companyResponse = await company.request.post("/api/auth/register", {
+    data: {
+      name: "Mac Customer Support",
+      email: `dark-company-${Date.now()}@example.test`,
+      password: "ConnectMacDark123!",
+      companyName: `Mac Daylight Support ${Date.now()}`,
+    },
+  });
+  expect(companyResponse.status()).toBe(201);
+  const companyAccount = await companyResponse.json();
+  const threadResponse = await context.request.post("/api/personal-inbox", {
+    data: {
+      companyId: companyAccount.activeCompanyId,
+      body: "Can you help with our rooftop?",
+      clientId: crypto.randomUUID(),
+    },
+  });
+  expect(threadResponse.status()).toBe(201);
+  const thread = await threadResponse.json();
+  expect(
+    (
+      await company.request.post(`/api/personal-inbox/${thread.id}/respond`, {
+        data: { accept: true },
+      })
+    ).ok(),
+  ).toBe(true);
+  expect(
+    (
+      await company.request.post(`/api/personal-inbox/${thread.id}/messages`, {
+        data: {
+          body: "Absolutely. Let’s talk about your project.",
+          clientId: crypto.randomUUID(),
+        },
+      })
+    ).ok(),
+  ).toBe(true);
+  await page.reload();
+  await page.getByRole("button", { name: "My chats", exact: true }).click();
+  await page
+    .locator(".people-thread")
+    .filter({ hasText: "Mac Daylight Support" })
+    .click();
+  await expect(
+    page
+      .locator(".people-message")
+      .getByText("Absolutely. Let’s talk about your project.", {
+        exact: true,
+      }),
+  ).toBeVisible();
+  await expectReadable(page.locator(".people-message.mine > p").first());
+  await expectReadable(page.locator(".people-message:not(.mine) > p").first());
+  await capture(page, "test-results/mac-dark-people-chat.png");
+  await company.close();
   await context.close();
 });

@@ -30,28 +30,22 @@ final class MacSidebar: NSView {
     }
 
     private func configure() {
-        wantsLayer = true
-        layer?.backgroundColor = NSColor(srgbRed: 0.93, green: 0.955, blue: 0.98, alpha: 1).cgColor
         setAccessibilityElement(false)
         setAccessibilityLabel("Connect sidebar")
 
         let brand: NSView
         if let image = NSImage(named: "ConnectWordmark") {
-            let wordmark = NSImageView(image: image)
-            wordmark.imageScaling = .scaleProportionallyUpOrDown
-            wordmark.imageAlignment = .alignLeft
-            wordmark.setAccessibilityLabel("Connect")
-            brand = wordmark
+            brand = WordmarkView(image: image)
         } else {
             let wordmark = NSTextField(labelWithString: "Connect")
             wordmark.font = .systemFont(ofSize: 23, weight: .semibold)
-            wordmark.textColor = .labelColor
+            wordmark.textColor = ConnectAppearance.text
             brand = wordmark
         }
 
         let section = NSTextField(labelWithString: "Workspace")
         section.font = .systemFont(ofSize: 11, weight: .semibold)
-        section.textColor = .secondaryLabelColor
+        section.textColor = ConnectAppearance.secondaryText
         section.setAccessibilityElement(false)
 
         let navigation = NSStackView()
@@ -98,10 +92,11 @@ final class MacSidebar: NSView {
             addSubview(view)
         }
         NSLayoutConstraint.activate([
-            brand.topAnchor.constraint(equalTo: topAnchor, constant: 24),
+            brand.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor, constant: 18),
             brand.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 22),
-            brand.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -22),
-            brand.heightAnchor.constraint(equalToConstant: 34),
+            brand.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -18),
+            brand.widthAnchor.constraint(equalToConstant: 144),
+            brand.heightAnchor.constraint(equalToConstant: 36),
 
             section.topAnchor.constraint(equalTo: brand.bottomAnchor, constant: 24),
             section.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 24),
@@ -143,13 +138,13 @@ final class MacSidebar: NSView {
         paragraph.lineSpacing = 3
         let text = NSMutableAttributedString(string: title, attributes: [
             .font: NSFont.systemFont(ofSize: 13, weight: .medium),
-            .foregroundColor: NSColor.labelColor,
+            .foregroundColor: ConnectAppearance.text,
             .paragraphStyle: paragraph,
         ])
         if name != nil {
             text.append(NSAttributedString(string: "\n" + (company ?? "Personal account"), attributes: [
                 .font: NSFont.systemFont(ofSize: 11),
-                .foregroundColor: NSColor.secondaryLabelColor,
+                .foregroundColor: ConnectAppearance.secondaryText,
                 .paragraphStyle: paragraph,
             ]))
         }
@@ -169,6 +164,34 @@ final class MacSidebar: NSView {
         onNavigate?(path)
     }
     @objc private func account() { onAccount?() }
+}
+
+/// Preserve the supplied artwork, including its orange symbol. A small plate
+/// in the existing pale-blue color keeps its black lettering legible at night.
+@MainActor
+private final class WordmarkView: NSView {
+    init(image: NSImage) {
+        super.init(frame: .zero)
+        let imageView = NSImageView(image: image)
+        imageView.imageScaling = .scaleProportionallyUpOrDown
+        imageView.setAccessibilityLabel("Connect")
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(imageView)
+        NSLayoutConstraint.activate([
+            imageView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+            imageView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            imageView.topAnchor.constraint(equalTo: topAnchor, constant: 6),
+            imageView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6),
+        ])
+    }
+    required init?(coder: NSCoder) { fatalError("Use init(image:)") }
+    override func draw(_ dirtyRect: NSRect) {
+        if effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+            NSColor(srgbRed: 237 / 255, green: 244 / 255, blue: 250 / 255, alpha: 1).setFill()
+            NSBezierPath(roundedRect: bounds, xRadius: 9, yRadius: 9).fill()
+        }
+    }
+    override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
 }
 
 /// A native button retains macOS keyboard/VoiceOver behavior. Only its spacing
@@ -207,13 +230,14 @@ private final class SidebarButton: NSButton {
     }
     override func mouseEntered(with event: NSEvent) { pointerInside = true; updateAppearance() }
     override func mouseExited(with event: NSEvent) { pointerInside = false; updateAppearance() }
+    override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); updateAppearance() }
 
     private func updateAppearance() {
         let fill = isCurrentRoute
-            ? NSColor(srgbRed: 1, green: 0.42, blue: 0.043, alpha: 0.14)
-            : (pointerInside ? NSColor.labelColor.withAlphaComponent(0.045) : NSColor.clear)
-        layer?.backgroundColor = fill.cgColor
-        contentTintColor = isCurrentRoute ? NSColor(srgbRed: 0.43, green: 0.22, blue: 0.08, alpha: 1) : .labelColor
+            ? ConnectAppearance.selection
+            : (pointerInside ? ConnectAppearance.text.withAlphaComponent(0.06) : NSColor.clear)
+        effectiveAppearance.performAsCurrentDrawingAppearance { layer?.backgroundColor = fill.cgColor }
+        contentTintColor = isCurrentRoute ? ConnectAppearance.selectionText : ConnectAppearance.text
         needsDisplay = true
     }
 }
