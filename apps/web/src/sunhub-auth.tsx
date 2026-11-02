@@ -126,12 +126,12 @@ export function useSunhubPopup({
         attempt.window?.close();
       } catch {}
     };
-    const stopListening = () => {
+    const stopListening = (closeChannel = true) => {
       window.removeEventListener("message", onMessage);
       clearInterval(poll);
       clearTimeout(closedTimer);
       clearTimeout(expiry);
-      channel?.close();
+      if (closeChannel) channel?.close();
     };
     attempt.dispose = () => {
       stopListening();
@@ -145,6 +145,38 @@ export function useSunhubPopup({
       setPhase("idle");
       setError(message);
     };
+    const handoff = (
+      status: "success" | "error",
+      message = "",
+      session?: Session,
+    ) => {
+      if (active.current !== attempt) return;
+      // Successful authentication can unmount this form. The callback owns its
+      // final transition; unmount cleanup must not close that window early.
+      active.current = null;
+      stopListening(false);
+      attempt.controller.abort();
+      setPhase("idle");
+      setError(message);
+      try {
+        if (session) callbacks.current.onSuccess(session);
+      } catch {
+        status = "error";
+        setError(sunhubAuthError("failed"));
+      }
+      // Give React a turn to commit the destination before acknowledging it.
+      // Unlike requestAnimationFrame, this also runs in an unfocused opener.
+      window.setTimeout(() => {
+        const ready = { type: "connect:sunhub:ready", popupId, status };
+        try {
+          attempt.window?.postMessage(ready, origin);
+        } catch {}
+        try {
+          channel?.postMessage(ready);
+        } catch {}
+        channel?.close();
+      }, 80);
+    };
     const receive = async (value: unknown) => {
       if (active.current !== attempt || attempt.settling) return;
       if (!value || typeof value !== "object") return;
@@ -156,10 +188,10 @@ export function useSunhubPopup({
       )
         return;
       attempt.settling = true;
-      stopListening();
-      closeWindow();
+      stopListening(false);
       if (data.status === "error") {
-        finish(
+        handoff(
+          "error",
           sunhubAuthError(
             typeof data.error === "string" ? data.error : "failed",
           ),
@@ -185,11 +217,13 @@ export function useSunhubPopup({
           throw new Error(
             "Your Connect account changed. Please try linking Sunhub again.",
           );
-        finish();
-        callbacks.current.onSuccess(session);
+        handoff("success", "", session);
       } catch (cause) {
         if (active.current === attempt)
-          finish((cause as Error).message || sunhubAuthError("failed"));
+          handoff(
+            "error",
+            (cause as Error).message || sunhubAuthError("failed"),
+          );
       }
     };
     function onMessage(event: MessageEvent) {

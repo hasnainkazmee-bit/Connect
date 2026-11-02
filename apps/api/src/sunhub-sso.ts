@@ -130,7 +130,7 @@ type Flow = {
   expires_at?: Date;
 };
 function returnToPopup(res: Response, flow: Flow, error?: string) {
-  const target = new URL(flow.return_to, origin());
+  const target = new URL(safeReturnTo(flow.return_to), origin());
   if (!error && flow.link_user_id)
     target.searchParams.set("sunhub_linked", "1");
   const result = {
@@ -142,12 +142,45 @@ function returnToPopup(res: Response, flow: Flow, error?: string) {
   };
   // Only a completion signal crosses windows. Sessions stay in HttpOnly cookies.
   const payload = JSON.stringify(result).replace(/</g, "\\u003c");
-  res.set("Referrer-Policy", "no-referrer");
-  res
-    .type("html")
-    .send(
-      `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${error ? "Return to Connect" : "Signed in · Connect"}</title><style>body{margin:0;background:#f2f7fc;color:#203444;font:16px system-ui,sans-serif;min-height:100dvh;display:grid;place-items:center}main{padding:32px;text-align:center;max-width:360px}img{width:160px;height:auto}h1{font-size:26px;letter-spacing:-.5px;margin-top:32px}p{color:#62748a;line-height:1.6}button{border:0;background:#ff710d;color:#142a38;padding:14px 26px;border-radius:999px;font:inherit;font-weight:600;cursor:pointer}button:focus-visible{outline:3px solid #203444;outline-offset:4px}</style></head><body><main><img src="/assets/connect-logo.png" alt="Connect"><h1>${error ? "Let’s return to Connect." : "You’re signed in."}</h1><p>${error ? "You can continue or try again in your Connect window." : "Your Connect window is ready. You can close this window."}</p><button id="close-sunhub-window" type="button">Close window</button></main><script type="application/json" id="sunhub-result">${payload}</script><script src="/api/auth/sunhub/popup.js"></script></body></html>`,
+  const fallbackTarget = new URL(target);
+  if (error)
+    fallbackTarget.searchParams.set(
+      "sso_error",
+      [
+        "unavailable",
+        "cancelled",
+        "expired",
+        "failed",
+        "account_conflict",
+        "email_unverified",
+      ].includes(error)
+        ? error
+        : "failed",
     );
+  const href = (
+    fallbackTarget.pathname +
+    fallbackTarget.search +
+    fallbackTarget.hash
+  )
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;");
+  res.set("Referrer-Policy", "no-referrer");
+  res.type("html").send(`<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Returning to Connect · Sunhub</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#fff;color:#203342;font:14px system-ui,-apple-system,sans-serif;min-height:100vh;min-height:100dvh;opacity:1;transition:opacity 160ms ease}body.is-leaving{opacity:0}
+.provider-bar{display:flex;align-items:center;gap:9px;height:44px;padding:0 16px;border-bottom:1px solid #dbe5ed;font-size:13px}.provider-bar img{width:20px;height:20px;object-fit:contain}
+main{max-width:464px;margin:auto;padding:48px 32px 32px}h1{font-size:28px;line-height:1.3;font-weight:500;letter-spacing:-.5px;margin:22px 0 12px}p{margin:0;color:#586d7f;line-height:1.65}
+.status-mark{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:#fff4eb;color:#974100}.status-mark svg{display:none;width:24px;height:24px}.spinner{width:22px;height:22px;border:2px solid #f3d4b9;border-top-color:#b9540a;border-radius:50%;animation:turn 900ms linear infinite}@keyframes turn{to{transform:rotate(360deg)}}
+body[data-state="success"] .spinner,body[data-state="return"] .spinner,body[data-state="fallback"] .spinner{display:none}body[data-state="success"] .check-icon,body[data-state="return"] .return-icon,body[data-state="fallback"] .return-icon{display:block}
+.fallback-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}.fallback-actions[hidden]{display:none}button,a{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:12px 20px;border:1px solid #dba77d;border-radius:999px;background:#fff;color:#974100;font:inherit;font-weight:600;text-decoration:none;cursor:pointer}button:hover,a:hover{background:#fff4eb}button:focus-visible,a:focus-visible{outline:2px solid #70889a;outline-offset:3px}
+@media(max-width:420px){main{padding:40px 24px 28px}}@media(prefers-reduced-motion:reduce){body{transition:none}.spinner{animation:none}}
+</style></head><body data-state="waiting"><header class="provider-bar"><img src="/assets/sunhub-symbol.png" alt=""><span>Sign in with Sunhub</span></header>
+<main><div class="status-mark" aria-hidden="true"><span class="spinner"></span><svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4 10-10"/></svg><svg class="return-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6-6 6 6 6M4 12h16"/></svg></div>
+<div role="status" aria-live="polite" aria-atomic="true"><h1 id="sunhub-status-title">${error ? "Returning to Connect…" : "Signing you in…"}</h1><p id="sunhub-status-message">Getting your Connect window ready.</p></div>
+<div class="fallback-actions" id="sunhub-fallback" hidden><a id="return-to-connect" href="${href}">Return to Connect</a><button id="retry-sunhub-handoff" type="button">Try again</button></div><noscript><p><a href="${href}">Return to Connect</a></p></noscript></main>
+<script type="application/json" id="sunhub-result">${payload}</script><script src="/api/auth/sunhub/popup.js"></script></body></html>`);
 }
 function returnToApp(res: Response, target: URL) {
   const href = target.href
@@ -267,14 +300,79 @@ export function sunhubSsoRoutes() {
   const router = Router();
   router.get("/auth/sunhub/popup.js", (_req, res) => {
     res.type("application/javascript").send(`
-const result = JSON.parse(document.getElementById("sunhub-result").textContent);
-const notify = () => {
-  try { if (window.opener) window.opener.postMessage(result, window.location.origin); } catch {}
-  try { const channel = new BroadcastChannel("connect-sunhub-" + result.popupId); channel.postMessage(result); channel.close(); } catch {}
-};
-notify();
-document.getElementById("close-sunhub-window").addEventListener("click", () => { notify(); window.close(); });
-window.close();
+(() => {
+  const result = JSON.parse(document.getElementById("sunhub-result").textContent);
+  const origin = window.location.origin;
+  const opener = window.opener;
+  const title = document.getElementById("sunhub-status-title");
+  const message = document.getElementById("sunhub-status-message");
+  const actions = document.getElementById("sunhub-fallback");
+  const retry = document.getElementById("retry-sunhub-handoff");
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let channel, timeout, settleTimer, closeTimer, blockedCloseTimer;
+  let settled = false, disposed = false;
+  const show = (state, heading, detail) => {
+    document.body.dataset.state = state;
+    title.textContent = heading;
+    message.textContent = detail;
+  };
+  const fallback = () => {
+    if (disposed || settled) return;
+    show("fallback", result.status === "success" ? "We’re still connecting." : "Let’s return to Connect.", "Open Connect to continue, or try the handoff again.");
+    actions.hidden = false;
+  };
+  const cleanup = () => {
+    disposed = true;
+    clearTimeout(timeout); clearTimeout(settleTimer); clearTimeout(closeTimer); clearTimeout(blockedCloseTimer);
+    window.removeEventListener("message", onMessage);
+    window.removeEventListener("pagehide", cleanup);
+    retry.removeEventListener("click", notify);
+    channel?.close();
+  };
+  const ready = (value) => {
+    if (disposed || settled || !value || typeof value !== "object" || value.type !== "connect:sunhub:ready" || value.popupId !== result.popupId || !["success", "error"].includes(value.status)) return;
+    settled = true;
+    clearTimeout(timeout);
+    actions.hidden = true;
+    const success = result.status === "success" && value.status === "success";
+    show(success ? "success" : "return", success ? "You’re in." : "Back to Connect.", success ? "Returning to Connect…" : "You can continue or try again in your Connect window.");
+    settleTimer = setTimeout(() => {
+      document.body.classList.add("is-leaving");
+      closeTimer = setTimeout(() => {
+        try { window.close(); } catch {}
+        if (disposed) return;
+        // Some browsers disallow closing a tab opened outside a script.
+        blockedCloseTimer = setTimeout(() => {
+          document.body.classList.remove("is-leaving");
+          actions.hidden = false;
+          retry.hidden = true;
+          message.textContent = "Return to Connect to continue.";
+          cleanup();
+        }, 250);
+      }, reducedMotion ? 0 : 160);
+    }, 600);
+  };
+  function onMessage(event) {
+    if (opener && event.source === opener && event.origin === origin) ready(event.data);
+  }
+  function notify() {
+    if (disposed || settled) return;
+    clearTimeout(timeout);
+    actions.hidden = true;
+    show("waiting", result.status === "success" ? "Signing you in…" : "Returning to Connect…", "Getting your Connect window ready.");
+    timeout = setTimeout(fallback, 8000);
+    try { if (opener) opener.postMessage(result, origin); } catch {}
+    try { channel?.postMessage(result); } catch {}
+  }
+  window.addEventListener("message", onMessage);
+  window.addEventListener("pagehide", cleanup);
+  retry.addEventListener("click", notify);
+  try {
+    channel = new BroadcastChannel("connect-sunhub-" + result.popupId);
+    channel.onmessage = (event) => { if (event.origin === origin) ready(event.data); };
+  } catch {}
+  notify();
+})();
 `);
   });
   router.get("/auth/sunhub/return.js", (_req, res) => {

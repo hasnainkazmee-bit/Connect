@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
+import vm from "node:vm";
 import {
   generateKeyPairSync,
   sign,
@@ -126,6 +127,155 @@ function popupResult(result) {
       /<script type="application\/json" id="sunhub-result">([^<]+)<\/script>/,
     )[1],
   );
+}
+// Exercise the served callback script with deterministic time and window identities.
+function popupHarness(
+  script,
+  {
+    status = "success",
+    error,
+    reducedMotion = false,
+    hasOpener = true,
+    blockedClose = false,
+  } = {},
+) {
+  const origin = "https://connect.example.test",
+    popupId = random();
+  const result = {
+    type: "connect:sunhub:complete",
+    popupId,
+    status,
+    ...(error ? { error } : {}),
+    returnTo: "/directory?from=popup",
+  };
+  const nodes = new Map(),
+    events = new Map(),
+    timers = new Map(),
+    classes = new Set();
+  const sent = [],
+    channels = [];
+  let time = 0,
+    timerId = 0,
+    closes = 0;
+  function node(id) {
+    if (!nodes.has(id))
+      nodes.set(id, {
+        textContent: id === "sunhub-result" ? JSON.stringify(result) : "",
+        hidden: id === "sunhub-fallback",
+        listeners: new Map(),
+        addEventListener(type, fn) {
+          this.listeners.set(type, fn);
+        },
+        removeEventListener(type) {
+          this.listeners.delete(type);
+        },
+      });
+    return nodes.get(id);
+  }
+  const opener = {
+    postMessage(data, target) {
+      sent.push({ data: structuredClone(data), target });
+    },
+  };
+  const dispatch = (type, event) => {
+    for (const listener of [...(events.get(type) || [])]) listener(event);
+  };
+  const body = {
+    dataset: {},
+    classList: {
+      add: (value) => classes.add(value),
+      remove: (value) => classes.delete(value),
+    },
+  };
+  const window = {
+    location: { origin },
+    opener: hasOpener ? opener : null,
+    matchMedia: () => ({ matches: reducedMotion }),
+    addEventListener(type, fn) {
+      if (!events.has(type)) events.set(type, new Set());
+      events.get(type).add(fn);
+    },
+    removeEventListener(type, fn) {
+      events.get(type)?.delete(fn);
+    },
+    close() {
+      closes++;
+      if (!blockedClose) dispatch("pagehide");
+    },
+  };
+  class Channel {
+    constructor(name) {
+      this.name = name;
+      this.closed = false;
+      this.sent = [];
+      channels.push(this);
+    }
+    postMessage(data) {
+      this.sent.push(structuredClone(data));
+    }
+    close() {
+      this.closed = true;
+    }
+  }
+  vm.runInNewContext(script, {
+    document: { getElementById: node, body },
+    window,
+    BroadcastChannel: Channel,
+    setTimeout(fn, delay) {
+      const id = ++timerId;
+      timers.set(id, { at: time + delay, fn });
+      return id;
+    },
+    clearTimeout(id) {
+      timers.delete(id);
+    },
+  });
+  return {
+    result,
+    origin,
+    opener,
+    sent,
+    channels,
+    body,
+    node,
+    classes,
+    timers,
+    events,
+    closes: () => closes,
+    advance(ms) {
+      const until = time + ms;
+      for (;;) {
+        const next = [...timers].sort((a, b) => a[1].at - b[1].at)[0];
+        if (!next || next[1].at > until) break;
+        time = next[1].at;
+        timers.delete(next[0]);
+        next[1].fn();
+      }
+      time = until;
+    },
+    ack({
+      via = "opener",
+      eventOrigin = origin,
+      source = opener,
+      id = popupId,
+      status = "success",
+      type = "connect:sunhub:ready",
+    } = {}) {
+      const event = {
+        origin: eventOrigin,
+        source,
+        data: { type, popupId: id, status },
+      };
+      if (via === "channel") channels[0].onmessage(event);
+      else dispatch("message", event);
+    },
+    retry() {
+      node("retry-sunhub-handoff").listeners.get("click")();
+    },
+    unload() {
+      dispatch("pagehide");
+    },
+  };
 }
 function appReturn(result) {
   assert.equal(result.status, 200);
@@ -262,12 +412,133 @@ test("Sunhub is an optional verified OIDC sign-in, independent of Connect passwo
       assert.ok(!result.text.includes(sessionCookie(result).split("=")[1]));
       assert.ok(!result.text.includes("access_token"));
       assert.ok(!result.text.includes("id_token"));
-      const script = await request("/api/auth/sunhub/popup.js");
+      assert.match(result.text, /id="sunhub-status-title">Signing you in…/);
+      assert.ok(!result.text.includes("You’re in."));
       assert.match(
-        script.text,
-        /postMessage\(result, window.location.origin\)/,
+        result.text,
+        /id="return-to-connect" href="\/invite\/solar-team\?from=invite"/,
       );
+      assert.match(result.text, /prefers-reduced-motion/);
+      const script = await request("/api/auth/sunhub/popup.js");
+      assert.match(script.text, /postMessage\(result, origin\)/);
       assert.match(script.text, /BroadcastChannel/);
+    },
+  );
+  await t.test(
+    "popup waits for a matching parent acknowledgment before success and a gentle close",
+    async () => {
+      const script = (await request("/api/auth/sunhub/popup.js")).text;
+      const popup = popupHarness(script);
+      assert.equal(popup.body.dataset.state, "waiting");
+      assert.equal(
+        popup.node("sunhub-status-title").textContent,
+        "Signing you in…",
+      );
+      assert.deepEqual(popup.sent, [
+        { data: popup.result, target: popup.origin },
+      ]);
+      assert.equal(
+        popup.channels[0].name,
+        "connect-sunhub-" + popup.result.popupId,
+      );
+      assert.deepEqual(popup.channels[0].sent, [popup.result]);
+      assert.equal(popup.channels[0].closed, false);
+      for (const forged of [
+        { eventOrigin: "https://elsewhere.example" },
+        { source: {} },
+        { id: random() },
+        { type: "connect:sunhub:complete" },
+        { status: "unknown" },
+        { via: "channel", eventOrigin: "https://elsewhere.example" },
+        { via: "channel", id: random() },
+      ])
+        popup.ack(forged);
+      popup.advance(7999);
+      assert.equal(popup.closes(), 0);
+      assert.equal(popup.body.dataset.state, "waiting");
+      popup.ack();
+      assert.equal(popup.node("sunhub-status-title").textContent, "You’re in.");
+      assert.equal(
+        popup.node("sunhub-status-message").textContent,
+        "Returning to Connect…",
+      );
+      popup.advance(599);
+      assert.equal(popup.closes(), 0);
+      assert.equal(popup.classes.has("is-leaving"), false);
+      popup.ack({ status: "error" }); // A duplicate signal cannot replace accepted success.
+      popup.advance(1);
+      assert.equal(popup.classes.has("is-leaving"), true);
+      popup.advance(159);
+      assert.equal(popup.closes(), 0);
+      popup.advance(1);
+      assert.equal(popup.closes(), 1);
+      assert.equal(popup.channels[0].closed, true);
+      assert.equal(popup.timers.size, 0);
+      assert.equal(popup.events.get("message").size, 0);
+    },
+  );
+  await t.test(
+    "slow or missing parent stays usable without false success and can retry over BroadcastChannel",
+    async () => {
+      const script = (await request("/api/auth/sunhub/popup.js")).text;
+      const popup = popupHarness(script, {
+        hasOpener: false,
+        reducedMotion: true,
+      });
+      popup.advance(8000);
+      assert.equal(popup.closes(), 0);
+      assert.equal(popup.body.dataset.state, "fallback");
+      assert.equal(
+        popup.node("sunhub-status-title").textContent,
+        "We’re still connecting.",
+      );
+      assert.equal(popup.node("sunhub-fallback").hidden, false);
+      assert.equal(popup.channels[0].closed, false);
+      popup.retry();
+      assert.equal(popup.body.dataset.state, "waiting");
+      assert.equal(popup.node("sunhub-fallback").hidden, true);
+      assert.equal(popup.channels[0].sent.length, 2);
+      popup.ack({ via: "channel" });
+      popup.advance(599);
+      assert.equal(popup.closes(), 0);
+      popup.advance(1); // Reduced motion preserves the reading pause but skips the fade.
+      assert.equal(popup.closes(), 1);
+      assert.equal(popup.channels[0].closed, true);
+    },
+  );
+  await t.test(
+    "failed handoffs remain calm, and closing or leaving releases all callback listeners",
+    async () => {
+      const script = (await request("/api/auth/sunhub/popup.js")).text;
+      for (const options of [
+        { status: "error", error: "cancelled" },
+        { status: "success" },
+      ]) {
+        const popup = popupHarness(script, options);
+        popup.ack({ status: "error" });
+        assert.equal(popup.body.dataset.state, "return");
+        assert.equal(
+          popup.node("sunhub-status-title").textContent,
+          "Back to Connect.",
+        );
+        popup.advance(760);
+        assert.equal(popup.closes(), 1);
+        assert.equal(popup.timers.size, 0);
+      }
+      const left = popupHarness(script);
+      left.unload();
+      left.ack();
+      left.advance(10000);
+      assert.equal(left.closes(), 0);
+      assert.equal(left.channels[0].closed, true);
+      assert.equal(left.timers.size, 0);
+      const blocked = popupHarness(script, { blockedClose: true });
+      blocked.ack();
+      blocked.advance(1010);
+      assert.equal(blocked.node("sunhub-fallback").hidden, false);
+      assert.equal(blocked.node("retry-sunhub-handoff").hidden, true);
+      assert.equal(blocked.classes.has("is-leaving"), false);
+      assert.equal(blocked.channels[0].closed, true);
     },
   );
   await t.test(
@@ -275,7 +546,11 @@ test("Sunhub is an optional verified OIDC sign-in, independent of Connect passwo
     async () => {
       for (const scenario of ["failed", "expired"]) {
         const popupId = random();
-        const flow = await start({ display: "popup", popup_id: popupId });
+        const flow = await start({
+          display: "popup",
+          popup_id: popupId,
+          returnTo: "/directory?from=popup#companies",
+        });
         if (scenario === "expired")
           await db.query(
             "UPDATE oidc_flows SET expires_at=now()-interval '1 second' WHERE state_hash=$1",
@@ -288,8 +563,19 @@ test("Sunhub is an optional verified OIDC sign-in, independent of Connect passwo
           popupId,
           status: "error",
           error: scenario,
-          returnTo: "/",
+          returnTo: "/directory?from=popup#companies",
         });
+        const fallback = new URL(
+          result.text
+            .match(/id="return-to-connect" href="([^"]+)"/)[1]
+            .replaceAll("&amp;", "&"),
+          base,
+        );
+        assert.equal(fallback.origin, new URL(base).origin);
+        assert.equal(fallback.pathname, "/directory");
+        assert.equal(fallback.searchParams.get("from"), "popup");
+        assert.equal(fallback.searchParams.get("sso_error"), scenario);
+        assert.equal(fallback.hash, "#companies");
         assert.equal(sessionCookie(result), "");
         if (scenario === "expired") assert.equal(exchanges, before);
         assert.match((await callback(flow)).location, /sso_error=expired/);

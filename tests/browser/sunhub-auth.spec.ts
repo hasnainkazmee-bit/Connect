@@ -19,7 +19,21 @@ async function popupProvider(context: BrowserContext) {
   await context.route("**/api/auth/sunhub/start?**", (route) =>
     route.fulfill({
       contentType: "text/html",
-      body: "<!doctype html><title>Sunhub sign-in fixture</title><h1>Sunhub</h1>",
+      body: `<!doctype html><title>Sunhub sign-in fixture</title><h1>Sunhub</h1><script>
+const popupId = new URL(location.href).searchParams.get("popup_id");
+window.acknowledgements = [];
+const ready = (data) => {
+  if (data?.type !== "connect:sunhub:ready" || data.popupId !== popupId || window.acknowledgements.length) return;
+  window.acknowledgements.push(data);
+  window.appReadyAtAcknowledgement = !!window.opener?.document.body.textContent.includes("Introduce your company.");
+  if (!window.holdClose) setTimeout(() => window.close(), 200);
+};
+window.addEventListener("message", event => {
+  if (event.origin === location.origin && event.source === window.opener) ready(event.data);
+});
+const channel = new BroadcastChannel("connect-sunhub-" + popupId);
+channel.onmessage = event => { if (event.origin === location.origin) ready(event.data); };
+</script>`,
     }),
   );
 }
@@ -38,6 +52,7 @@ async function complete(
   popup: Page,
   status: "success" | "error" = "success",
   error?: string,
+  waitForClose = true,
 ) {
   await popup.evaluate(
     ({ status, error }) => {
@@ -54,7 +69,7 @@ async function complete(
     },
     { status, error },
   );
-  await expect.poll(() => popup.isClosed()).toBe(true);
+  if (waitForClose) await expect.poll(() => popup.isClosed()).toBe(true);
 }
 const onboardingSession = () => ({
   user: {
@@ -309,6 +324,119 @@ test("popup accepts only its own origin, source and nonce before entering existi
   expect(await page.evaluate(() => (window as any).connectPageMarker)).toBe(
     "preserved",
   );
+});
+
+for (const transport of ["opener", "broadcast"] as const) {
+  test(`popup waits for the verified session and survives form unmount before ${transport} acknowledgment`, async ({
+    page,
+    context,
+  }) => {
+    await enabled(page);
+    await popupProvider(context);
+    let finishing = false;
+    let sessionRequested = false;
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route("**/api/session", async (route) => {
+      if (finishing) {
+        sessionRequested = true;
+        await released;
+      }
+      await route.fulfill({
+        json: finishing
+          ? onboardingSession()
+          : { user: null, companies: [], activeCompanyId: null },
+      });
+    });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    const popup = await openPopup(page);
+    await popup.evaluate(() => {
+      (window as any).holdClose = true;
+    });
+    finishing = true;
+    if (transport === "opener")
+      await complete(popup, "success", undefined, false);
+    else
+      await popup.evaluate(() => {
+        window.opener = null;
+        const popupId = new URL(location.href).searchParams.get("popup_id");
+        const channel = new BroadcastChannel("connect-sunhub-" + popupId);
+        channel.postMessage({
+          type: "connect:sunhub:complete",
+          popupId,
+          status: "success",
+        });
+      });
+    await expect.poll(() => sessionRequested).toBe(true);
+    await expect(
+      page.getByText("Finishing your sign-in…", { exact: true }),
+    ).toBeVisible();
+    expect(popup.isClosed()).toBe(false);
+    expect(
+      await popup.evaluate(() => (window as any).acknowledgements),
+    ).toEqual([]);
+    release();
+    await expect(
+      page.getByRole("heading", {
+        name: "Introduce your company.",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect
+      .poll(() => popup.evaluate(() => (window as any).acknowledgements.length))
+      .toBe(1);
+    expect(popup.isClosed()).toBe(false);
+    const ready = await popup.evaluate(
+      () => (window as any).acknowledgements[0],
+    );
+    expect(ready).toEqual({
+      type: "connect:sunhub:ready",
+      popupId: new URL(popup.url()).searchParams.get("popup_id"),
+      status: "success",
+    });
+    if (transport === "opener")
+      expect(
+        await popup.evaluate(() => (window as any).appReadyAtAcknowledgement),
+      ).toBe(true);
+    await popup.close();
+  });
+}
+
+test("failed session validation acknowledges an error without showing success", async ({
+  page,
+  context,
+}) => {
+  await enabled(page);
+  await popupProvider(context);
+  await page.route("**/api/session", (route) =>
+    route.fulfill({
+      json: { user: null, companies: [], activeCompanyId: null },
+    }),
+  );
+  await page.goto("/");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  const popup = await openPopup(page);
+  await popup.evaluate(() => {
+    (window as any).holdClose = true;
+  });
+  await complete(popup, "success", undefined, false);
+  await expect(page.getByRole("alert")).toContainText(
+    "Connect couldn’t restore your sign-in.",
+  );
+  await expect
+    .poll(() => popup.evaluate(() => (window as any).acknowledgements.length))
+    .toBe(1);
+  expect(
+    await popup.evaluate(() => (window as any).acknowledgements[0].status),
+  ).toBe("error");
+  await expect(
+    page.getByRole("heading", { name: "Introduce your company.", exact: true }),
+  ).toHaveCount(0);
+  expect(popup.isClosed()).toBe(false);
+  await popup.close();
 });
 
 test("linking Sunhub is explicit in Account settings and success reflects the actual session", async ({
