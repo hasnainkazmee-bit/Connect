@@ -28,8 +28,8 @@ const verifiedRequired = () =>
 export async function sessionPayload(userId: string, companyId: string | null) {
   const user = (
     await pool.query(
-      "SELECT id,name,email,account_type,email_verified_at,onboarding_completed_at FROM users WHERE id=$1",
-      [userId],
+      'SELECT id,name,email,account_type,email_verified_at,onboarding_completed_at,(password_hash NOT LIKE \'external:%\') AS "hasPassword",EXISTS(SELECT 1 FROM external_identities e WHERE e.user_id=users.id AND e.issuer=$2) AS "sunhubLinked" FROM users WHERE id=$1',
+      [userId, (process.env.SUNHUB_SSO_ISSUER || "").replace(/\/$/, "")],
     )
   ).rows[0];
   const companies = (
@@ -215,7 +215,12 @@ export function accountRoutes() {
       await pool.query("SELECT * FROM users WHERE email=$1", [b.email])
     ).rows[0];
     const fake = "scrypt-v2:" + "00".repeat(16) + ":" + "00".repeat(64);
-    const valid = await verifyPassword(b.password, user?.password_hash || fake);
+    const valid = await verifyPassword(
+      b.password,
+      user?.password_hash?.startsWith("external:")
+        ? fake
+        : user?.password_hash || fake,
+    );
     if (!user || !valid)
       throw new HttpError(401, "Email or password is incorrect.");
     const companyId = await tx(async (db) => {

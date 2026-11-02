@@ -41,6 +41,23 @@ constructor(application: Application, apiUrl: String = BuildConfig.API_URL) :
     AndroidViewModel(application) {
     val baseUrl = apiUrl.trimEnd('/')
     private val store = SessionStore(application)
+    private val sunhubBrowser = SunhubBrowserSignIn(application, baseUrl)
+    var sunhubEnabled by mutableStateOf(false)
+        private set
+
+    var sunhubWaiting by mutableStateOf(false)
+        private set
+
+    var sunhubReturnReady by mutableStateOf(false)
+        private set
+
+    fun acknowledgeSunhubReturn() {
+        sunhubReturnReady = false
+    }
+
+    private var sunhubConfigJob: Job? = null
+    private var sunhubCallbackJob: Job? = null
+    private var sunhubLaunchJob: Job? = null
     private var client: CommunityClient? = null
     val pages = mutableStateMapOf<String, JSONObject>()
     private val loads = mutableMapOf<String, Job>()
@@ -288,6 +305,97 @@ constructor(application: Application, apiUrl: String = BuildConfig.API_URL) :
         loads.keys.toList().takeLast(8).forEach { load(it, true) }
     }
 
+    fun loadSunhubConfiguration() {
+        sunhubConfigJob?.cancel()
+        sunhubConfigJob =
+            viewModelScope.launch {
+                try {
+                    sunhubEnabled = fetchJson("/auth/sunhub/config").optBoolean("enabled", false)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    sunhubEnabled = false
+                }
+            }
+    }
+
+    fun startSunhubSignIn(intent: String, accountType: String) {
+        if (busy || booting || !sunhubEnabled || sunhubLaunchJob?.isActive == true) return
+        error = null
+        sunhubLaunchJob =
+            viewModelScope.launch {
+                try {
+                    val uri =
+                        withContext(Dispatchers.IO) { sunhubBrowser.begin(intent, accountType) }
+                    getApplication<Application>()
+                        .startActivity(
+                            Intent(Intent.ACTION_VIEW, uri)
+                                .addCategory(Intent.CATEGORY_BROWSABLE)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    sunhubWaiting = true
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    sunhubBrowser.cancel()
+                    sunhubWaiting = false
+                    error = "Couldn’t open your browser. You can still use your Connect login."
+                }
+            }
+    }
+
+    fun cancelSunhubSignIn() {
+        sunhubLaunchJob?.cancel()
+        sunhubBrowser.cancel()
+        sunhubWaiting = false
+    }
+
+    fun handleSunhubCallback(uri: Uri?) {
+        if (!sunhubBrowser.isCallback(uri) || sunhubCallbackJob?.isActive == true) return
+        sunhubCallbackJob =
+            viewModelScope.launch {
+                // A browser return may create a fresh Activity before the Rust session client is
+                // ready.
+                while (booting) delay(25)
+                if (client == null) return@launch
+                val callbackEpoch = epoch
+                when (val result = withContext(Dispatchers.IO) { sunhubBrowser.accept(uri!!) }) {
+                    SunhubBrowserSignIn.Callback.Ignore -> Unit
+                    is SunhubBrowserSignIn.Callback.Failure -> {
+                        sunhubReturnReady = true
+                        sunhubWaiting = false
+                        error = SunhubBrowserSignIn.message(result.reason)
+                    }
+                    is SunhubBrowserSignIn.Callback.Exchange -> {
+                        sunhubReturnReady = true
+                        sunhubWaiting = false
+                        // serialize with any in-flight local account action; never drop a valid
+                        // return.
+                        while (busy) delay(25)
+                        if (callbackEpoch != epoch) return@launch
+                        mutate(
+                            "/auth/sunhub/mobile/exchange",
+                            JSONObject().put("code", result.code).put("verifier", result.verifier),
+                            ::authenticated,
+                        )
+                    }
+                }
+            }
+    }
+
+    private fun authenticated(response: JSONObject) {
+        resetContent()
+        session = response
+        verificationChallenge =
+            response.optString("challengeId").takeUnless { it == "null" }.orEmpty()
+        viewModelScope.launch(Dispatchers.IO) { store.save(client!!.sessionCookie()) }
+        loadSession()
+        if (company != null) load("/network")
+        load("/feed?scope=all")
+        observe(foreground)
+        profileId?.let { profile(it) }
+    }
+
     fun authenticate(
         email: String,
         password: String,
@@ -295,21 +403,11 @@ constructor(application: Application, apiUrl: String = BuildConfig.API_URL) :
         companyName: String? = null,
         accountType: String = "company",
     ) {
+        cancelSunhubSignIn()
         val data = JSONObject().put("email", email.trim()).put("password", password)
         if (name != null)
             data.put("name", name).put("companyName", companyName).put("accountType", accountType)
-        mutate(if (name == null) "/auth/login" else "/auth/register", data) { response ->
-            resetContent()
-            session = response
-            verificationChallenge =
-                response.optString("challengeId").takeUnless { it == "null" }.orEmpty()
-            viewModelScope.launch(Dispatchers.IO) { store.save(client!!.sessionCookie()) }
-            loadSession()
-            if (company != null) load("/network")
-            load("/feed?scope=all")
-            observe(foreground)
-            profileId?.let { profile(it) }
-        }
+        mutate(if (name == null) "/auth/login" else "/auth/register", data, ::authenticated)
     }
 
     fun switchCompany(id: String) =
@@ -350,6 +448,7 @@ constructor(application: Application, apiUrl: String = BuildConfig.API_URL) :
     }
 
     private suspend fun clearLocalSession() {
+        cancelSunhubSignIn()
         resetContent()
         watchJob?.cancel()
         pollJob?.cancel()

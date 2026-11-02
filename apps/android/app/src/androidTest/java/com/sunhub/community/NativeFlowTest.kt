@@ -156,7 +156,11 @@ class NativeFlowTest {
         click("Message")
         visible("Say hello…")
         ui.onNodeWithText("Say hello…").performTextInput("Can you help with a solar installation?")
-        ui.onNodeWithContentDescription("Send request").performClick()
+        ui.onNodeWithContentDescription("Send request").assertIsEnabled().performSemanticsAction(
+            androidx.compose.ui.semantics.SemanticsActions.OnClick
+        ) {
+            it()
+        }
         visible("Request sent. You can chat once they accept.")
         val incoming = JSONObject(b.get("/network")).getJSONArray("incoming").getJSONObject(0)
         b.postJson("/requests/${incoming.getString("id")}/respond", "{\"action\":\"accept\"}")

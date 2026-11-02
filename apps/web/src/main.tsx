@@ -63,6 +63,7 @@ import {
 import { AppContext, useApp } from "./context";
 import { Logo, Avatar } from "./identity";
 import { AuthExperience, Onboarding, AccountSecurity } from "./accounts";
+import { sunhubReturnTo } from "./sunhub-auth";
 import {
   HomeFeed,
   PostPage,
@@ -271,10 +272,27 @@ function App() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [location.pathname]);
-  const auth = (after?: () => void) =>
+  useEffect(() => {
+    if (!ready || (location.pathname === "/account" && session.user)) return;
+    const code = new URLSearchParams(location.search).get("sso_error");
+    if (!code) return;
+    const returnTo = sunhubReturnTo(
+      location.pathname + location.search + location.hash,
+    );
+    setModal(<AuthModal sunhubErrorCode={code} returnTo={returnTo} />);
+    navigate(returnTo, { replace: true });
+  }, [
+    ready,
+    location.pathname,
+    location.search,
+    location.hash,
+    session.user?.id,
+    navigate,
+  ]);
+  const auth = (after?: () => void, returnTo?: string) =>
     sessionExpired
       ? setReauthenticate(true)
-      : setModal(<AuthModal after={after} />);
+      : setModal(<AuthModal after={after} returnTo={returnTo} />);
   const incompleteAccount =
     session.user &&
     session.verificationRequired !== false &&
@@ -359,7 +377,10 @@ function App() {
                 onClick={(e) => {
                   if (!session.user) {
                     e.preventDefault();
-                    auth(() => navigate("/network/connections"));
+                    auth(
+                      () => navigate("/network/connections"),
+                      "/network/connections",
+                    );
                   }
                 }}
               >
@@ -372,7 +393,7 @@ function App() {
               onClick={(e) => {
                 if (!session.user) {
                   e.preventDefault();
-                  auth(() => navigate("/messages"));
+                  auth(() => navigate("/messages"), "/messages");
                 }
               }}
             >
@@ -873,14 +894,20 @@ function ModalFrame({
 function AuthModal({
   after,
   initialMode = "login",
+  returnTo,
+  sunhubErrorCode,
 }: {
   after?: () => void;
   initialMode?: "login" | "register";
+  returnTo?: string;
+  sunhubErrorCode?: string;
 }) {
   const { setSession, close, refresh } = useApp();
   return (
     <AuthExperience
       initialMode={initialMode}
+      returnTo={returnTo}
+      sunhubErrorCode={sunhubErrorCode}
       onSuccess={(value) => {
         setSession(value);
         refresh();

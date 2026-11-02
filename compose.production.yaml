@@ -43,6 +43,8 @@ services:
       UPLOAD_DIR: /app/uploads
       AUTH_TOKEN_SECRET: ${AUTH_TOKEN_SECRET:?Set account token secret}
       REQUIRE_EMAIL_VERIFICATION: "true"
+      SUNHUB_SSO_ISSUER: ${SUNHUB_SSO_ISSUER:-}
+      SUNHUB_SSO_CLIENT_ID: ${SUNHUB_SSO_CLIENT_ID:-sunhub-connect}
       SMTP_HOST: ${SMTP_HOST:?Set the account email provider}
       SMTP_PORT: ${SMTP_PORT:-465}
       SMTP_SECURE: ${SMTP_SECURE:-true}

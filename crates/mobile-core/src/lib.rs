@@ -322,6 +322,7 @@ impl CommunityClient {
             matches!(
                 path.as_str(),
                 "/auth/login"
+                    | "/auth/sunhub/mobile/exchange"
                     | "/auth/register"
                     | "/auth/logout"
                     | "/session/company"

@@ -148,3 +148,47 @@ fn authorization_errors_remove_previously_cached_private_responses() {
     assert!(core.cached("/network".into()).unwrap().is_none());
     server.join().unwrap();
 }
+
+#[test]
+fn sunhub_handoff_adopts_session_and_removes_previous_identity_cache() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}/", listener.local_addr().unwrap());
+    let next = format!("sunhub_session={}", "d".repeat(64));
+    let response_cookie = next.clone();
+    let server = thread::spawn(move || {
+        for exchange in [false, true] {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0; 8192];
+            let count = stream.read(&mut request).unwrap();
+            if exchange {
+                assert!(String::from_utf8_lossy(&request[..count])
+                    .starts_with("POST /api/auth/sunhub/mobile/exchange "));
+            }
+            let body = if exchange {
+                r#"{"user":{"name":"Sunhub Member"}}"#
+            } else {
+                r#"{"private":"previous company"}"#
+            };
+            let cookie = if exchange {
+                format!("Set-Cookie: {response_cookie}; HttpOnly; SameSite=Lax\r\n")
+            } else {
+                String::new()
+            };
+            write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n{cookie}Connection: close\r\n\r\n{body}", body.len()).unwrap();
+        }
+    });
+    let core = CommunityClient::new(url, ":memory:".into(), true).unwrap();
+    let previous = format!("sunhub_session={}", "a".repeat(64));
+    core.restore_session(previous.clone()).unwrap();
+    core.get("/network".into()).unwrap();
+    assert!(core.cached("/network".into()).unwrap().is_some());
+    core.post_json(
+        "/auth/sunhub/mobile/exchange".into(),
+        r#"{"code":"one-use-handoff","verifier":"device-secret"}"#.into(),
+    )
+    .unwrap();
+    assert_eq!(core.session_cookie().unwrap(), next);
+    core.restore_session(previous).unwrap();
+    assert!(core.cached("/network".into()).unwrap().is_none());
+    server.join().unwrap();
+}

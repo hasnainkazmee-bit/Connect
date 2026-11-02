@@ -35,6 +35,8 @@ export type Session = {
     account_type?: "company" | "individual";
     email_verified_at?: string | null;
     onboarding_completed_at?: string | null;
+    sunhubLinked?: boolean;
+    hasPassword?: boolean;
   };
   verificationRequired?: boolean;
   challengeId?: string;

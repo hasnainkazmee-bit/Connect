@@ -247,6 +247,7 @@ internal fun AuthScreen(
     var challenge by rememberSaveable { mutableStateOf("") }
     var notice by rememberSaveable { mutableStateOf("") }
     LaunchedEffect(model.signedIn) { if (model.signedIn) onSignedIn() }
+    LaunchedEffect(Unit) { model.loadSunhubConfiguration() }
     val back = {
         if (mode == "forgot" || mode == "reset") {
             mode = "login"
@@ -401,6 +402,44 @@ internal fun AuthScreen(
                         if (mode == "register") name else null,
                         accountType = accountType,
                     )
+            }
+        }
+        if (mode in setOf("login", "register") && model.sunhubEnabled) {
+            Spacer(Modifier.height(22.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                HorizontalDivider(Modifier.weight(1f))
+                Text("or", style = MaterialTheme.typography.labelSmall, color = Muted)
+                HorizontalDivider(Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(18.dp))
+            ConnectOutlinedButton(
+                enabled = !model.busy,
+                onClick = {
+                    model.startSunhubSignIn(
+                        if (mode == "register") "signup" else "login",
+                        accountType,
+                    )
+                },
+                modifier = Modifier.fillMaxWidth().height(54.dp),
+            ) {
+                Image(painterResource(R.drawable.connect_icon), null, Modifier.size(24.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    if (mode == "register") "Create account with Sunhub" else "Sign in with Sunhub",
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            if (model.sunhubWaiting) {
+                Text(
+                    "Finish signing in with Sunhub in your browser.",
+                    Modifier.padding(top = 10.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Muted,
+                )
+                TextButton(onClick = model::cancelSunhubSignIn) { Text("Cancel Sunhub sign-in") }
             }
         }
         if (mode == "login" || mode == "register")

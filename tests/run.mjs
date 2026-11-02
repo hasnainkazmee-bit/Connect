@@ -79,15 +79,20 @@ try {
     "tests/message-requests.test.mjs",
     "tests/accounts.test.mjs",
     "tests/session-persistence.test.mjs",
+    "tests/sunhub-sso.test.mjs",
     "tests/publishing-profiles.test.mjs",
     "tests/directory.test.mjs",
   ]) {
-    env.REQUIRE_EMAIL_VERIFICATION = suite === "tests/accounts.test.mjs" ? "true" : "false";
+    env.REQUIRE_EMAIL_VERIFICATION =
+      suite === "tests/accounts.test.mjs" ? "true" : "false";
+    env.SUNHUB_SSO_ISSUER =
+      suite === "tests/sunhub-sso.test.mjs" ? "http://127.0.0.1:4103" : "";
     await startServer();
     await run(process.execPath, ["--test", suite]);
     await stopServer();
   }
   env.REQUIRE_EMAIL_VERIFICATION = "false";
+  env.SUNHUB_SSO_ISSUER = "";
   if (process.argv.includes("--services")) {
     // Earlier API suites intentionally queue mail with SMTP disabled. Delivery
     // scenarios start with their own outbox in this dedicated test database.
@@ -96,11 +101,28 @@ try {
     await mailDb.end();
     const local = dotenv.parse(await fs.readFile(".env"));
     const saved = { ...env };
-    for (const key of ["S3_ENDPOINT", "S3_REGION", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "SMTP_HOST", "SMTP_PORT", "SMTP_REQUIRE_TLS", "MAIL_FROM"]) env[key] = local[key];
-    env.STORAGE_BACKEND = "s3"; env.REQUIRE_EMAIL_VERIFICATION = "true";
-    await startServer(); await run(process.execPath, ["--test", "tests/services.test.mjs"]);
+    for (const key of [
+      "S3_ENDPOINT",
+      "S3_REGION",
+      "S3_BUCKET",
+      "S3_ACCESS_KEY_ID",
+      "S3_SECRET_ACCESS_KEY",
+      "SMTP_HOST",
+      "SMTP_PORT",
+      "SMTP_REQUIRE_TLS",
+      "MAIL_FROM",
+    ])
+      env[key] = local[key];
+    env.STORAGE_BACKEND = "s3";
+    env.REQUIRE_EMAIL_VERIFICATION = "true";
+    await startServer();
+    await run(process.execPath, ["--test", "tests/services.test.mjs"]);
     env.CONNECT_ACCOUNT_E2E = "true";
-    await run(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "tests/browser/account-onboarding.spec.ts"]);
+    await run(process.execPath, [
+      "node_modules/@playwright/test/cli.js",
+      "test",
+      "tests/browser/account-onboarding.spec.ts",
+    ]);
     env.CONNECT_ACCOUNT_E2E = "false";
     await stopServer();
     Object.assign(env, saved);
@@ -108,11 +130,15 @@ try {
   if (process.argv.includes("--ui")) {
     // Each independent browser suite gets a fresh rate-limit window. Recovery
     // tests deliberately sign in repeatedly; production limits stay unchanged.
-    const suites = (await fs.readdir("tests/browser")).filter(name => name.endsWith(".spec.ts")).sort();
+    const suites = (await fs.readdir("tests/browser"))
+      .filter((name) => name.endsWith(".spec.ts"))
+      .sort();
     for (const suite of suites) {
       await startServer();
       await run(process.execPath, [
-        "node_modules/@playwright/test/cli.js", "test", "tests/browser/" + suite,
+        "node_modules/@playwright/test/cli.js",
+        "test",
+        "tests/browser/" + suite,
         "--output=test-results/browser/" + suite.replace(".spec.ts", ""),
       ]);
       await stopServer();
@@ -120,15 +146,34 @@ try {
   }
   if (process.argv.includes("--rust")) {
     await startServer();
-    await run("cargo", ["test", "-p", "sunhub-mobile-core", "--test", "api", "--", "--ignored"]);
+    await run("cargo", [
+      "test",
+      "-p",
+      "sunhub-mobile-core",
+      "--test",
+      "api",
+      "--",
+      "--ignored",
+    ]);
     await stopServer();
   }
   if (process.argv.includes("--android")) {
     await startServer();
     await run("apps/android/with-local-tools.sh", [
-      "./gradlew", "connectedDebugAndroidTest", "-PsunhubApiUrl=http://10.0.2.2:4101", "--console=plain",
-      ...(process.env.CONNECT_ANDROID_INIT_SCRIPT ? ["--init-script",process.env.CONNECT_ANDROID_INIT_SCRIPT,"--no-daemon"] : []),
-      ...(process.env.ANDROID_EVENT_POLLING === "true" ? ["-PsunhubEventPolling=true"] : []),
+      "./gradlew",
+      "connectedDebugAndroidTest",
+      "-PsunhubApiUrl=http://10.0.2.2:4101",
+      "--console=plain",
+      ...(process.env.CONNECT_ANDROID_INIT_SCRIPT
+        ? [
+            "--init-script",
+            process.env.CONNECT_ANDROID_INIT_SCRIPT,
+            "--no-daemon",
+          ]
+        : []),
+      ...(process.env.ANDROID_EVENT_POLLING === "true"
+        ? ["-PsunhubEventPolling=true"]
+        : []),
     ]);
   }
 } finally {

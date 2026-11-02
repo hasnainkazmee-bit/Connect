@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowRight,
@@ -22,6 +23,12 @@ import { Logo } from "./identity";
 import type { Company, Session } from "./types";
 import { UsernameField } from "./management";
 import { CompanyMatches } from "./company-matches";
+import {
+  SunhubAuthLink,
+  sunhubAuthError,
+  sunhubReturnTo,
+  useSunhubAuth,
+} from "./sunhub-auth";
 import "./accounts.css";
 
 function useAction() {
@@ -106,10 +113,14 @@ export function AuthExperience({
   initialMode = "login",
   onSuccess,
   companyOnly = false,
+  returnTo,
+  sunhubErrorCode = "",
 }: {
   initialMode?: "login" | "register";
   onSuccess: (session: Session) => void;
   companyOnly?: boolean;
+  returnTo?: string;
+  sunhubErrorCode?: string;
 }) {
   const [mode, setMode] = useState<"login" | "register" | "forgot" | "reset">(
       initialMode,
@@ -121,10 +132,18 @@ export function AuthExperience({
     "company",
   );
   const task = useAction();
+  const sunhubEnabled = useSunhubAuth();
+  const [sunhubError, setSunhubError] = useState(
+    sunhubErrorCode ? sunhubAuthError(sunhubErrorCode) : "",
+  );
+  const destination = sunhubReturnTo(returnTo);
+  const forCompany =
+    companyOnly || /^\/(claim|invite|join)(?:\/|$)/.test(destination);
   const change = (value: typeof mode) => {
     setMode(value);
     task.setError("");
     setNotice("");
+    setSunhubError("");
   };
   return (
     <AccountLayout>
@@ -155,6 +174,7 @@ export function AuthExperience({
                 : `If an account exists for ${email}, a code is on its way.`}
         </p>
       </div>
+      {sunhubError && <ErrorMessage message={sunhubError} />}
       <form
         className="account-form"
         key={mode}
@@ -181,7 +201,7 @@ export function AuthExperience({
           });
         }}
       >
-        {mode === "register" && !companyOnly && (
+        {mode === "register" && !forCompany && (
           <fieldset className="account-type">
             <legend>I’m here as</legend>
             <div>
@@ -301,6 +321,24 @@ export function AuthExperience({
           <ArrowLeft size={15} />
           Back to sign in
         </button>
+      )}
+      {sunhubEnabled && (mode === "login" || mode === "register") && (
+        <div className="sunhub-auth-options">
+          <div className="sunhub-auth-divider">or</div>
+          <SunhubAuthLink
+            intent="login"
+            accountType={forCompany ? "company" : accountType}
+            returnTo={destination}
+            disabled={task.busy}
+          />
+          <SunhubAuthLink
+            intent="signup"
+            accountType={forCompany ? "company" : accountType}
+            returnTo={destination}
+            disabled={task.busy}
+            subtle
+          />
+        </div>
       )}
       <div className="account-footnote">
         <ShieldCheck size={15} />
@@ -674,6 +712,26 @@ export function AccountSecurity() {
     task = useAction();
   const [devices, setDevices] = useState<Device[]>([]),
     [revision, setRevision] = useState(0);
+  const location = useLocation(),
+    navigate = useNavigate();
+  const sunhubEnabled = useSunhubAuth();
+  const [sunhubError] = useState(() => {
+    const code = new URLSearchParams(location.search).get("sso_error");
+    return code ? sunhubAuthError(code) : "";
+  });
+  const [sunhubLinked] = useState(
+    () =>
+      new URLSearchParams(location.search).get("sunhub_linked") === "1" &&
+      session.user?.sunhubLinked,
+  );
+  useEffect(() => {
+    const query = new URLSearchParams(location.search);
+    if (query.has("sso_error") || query.has("sunhub_linked"))
+      navigate(
+        sunhubReturnTo(location.pathname + location.search + location.hash),
+        { replace: true },
+      );
+  }, [location.pathname, location.search, location.hash, navigate]);
   useEffect(() => {
     api<{ sessions: Device[] }>("/auth/sessions")
       .then((r) => setDevices(r.sessions))
@@ -688,6 +746,13 @@ export function AccountSecurity() {
         <h1>Safe. Signed in. In control.</h1>
         <p>Manage your password and where you’re signed in.</p>
       </div>
+      <ErrorMessage message={sunhubError} />
+      {sunhubLinked && (
+        <div className="account-success" role="status">
+          <Check size={18} />
+          Sunhub is linked. You can now sign in with either account.
+        </div>
+      )}
       <div className="security-grid">
         <section>
           <h2>
@@ -706,28 +771,66 @@ export function AccountSecurity() {
               "Email verification pending"
             )}
           </span>
-          <h3>Change password</h3>
-          <form
-            className="account-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const form = e.currentTarget,
-                d = Object.fromEntries(new FormData(form));
-              void task.run(async () => {
-                await post("/auth/password/change", d);
-                form.reset();
-                setRevision((v) => v + 1);
-                toast("Password changed. Other devices have been signed out.");
-              });
-            }}
-          >
-            <Password name="currentPassword" label="Current password" />
-            <Password creating label="New password" />
-            <ErrorMessage message={task.error} />
-            <button className="account-primary" disabled={task.busy}>
-              Update password
-            </button>
-          </form>
+          {(sunhubEnabled || session.user.sunhubLinked) && (
+            <div className="sunhub-account-linking">
+              <h3>Sunhub account</h3>
+              {session.user.sunhubLinked ? (
+                <div className="sunhub-account-linked">
+                  <CheckCheck size={19} />
+                  Linked to Sunhub
+                </div>
+              ) : (
+                <>
+                  <p>
+                    Link the Sunhub account that uses {session.user.email}. Your
+                    Connect profile and conversations stay with you.
+                  </p>
+                  <SunhubAuthLink
+                    intent="link"
+                    accountType={session.user.account_type || "company"}
+                    returnTo="/account"
+                    disabled={task.busy}
+                  />
+                </>
+              )}
+            </div>
+          )}
+          {session.user.hasPassword === false ? (
+            <div className="sunhub-password-note">
+              <h3>Password</h3>
+              <p>
+                You sign in with Sunhub. To add a separate Connect password, use
+                Forgot password on the Connect sign-in screen.
+              </p>
+            </div>
+          ) : (
+            <>
+              <h3>Change password</h3>
+              <form
+                className="account-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const form = e.currentTarget,
+                    d = Object.fromEntries(new FormData(form));
+                  void task.run(async () => {
+                    await post("/auth/password/change", d);
+                    form.reset();
+                    setRevision((v) => v + 1);
+                    toast(
+                      "Password changed. Other devices have been signed out.",
+                    );
+                  });
+                }}
+              >
+                <Password name="currentPassword" label="Current password" />
+                <Password creating label="New password" />
+                <ErrorMessage message={task.error} />
+                <button className="account-primary" disabled={task.busy}>
+                  Update password
+                </button>
+              </form>
+            </>
+          )}
         </section>
         <section>
           <h2>

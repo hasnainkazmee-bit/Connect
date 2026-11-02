@@ -1,5 +1,6 @@
 package com.sunhub.community
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -7,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -66,9 +68,18 @@ internal val Pale = Color(0xFFF2F7FC)
 internal val Muted = Color(0xFF62748A)
 
 class MainActivity : ComponentActivity() {
+    private val communityModel: CommunityModel by viewModels()
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        communityModel.handleSunhubCallback(intent.data)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        communityModel.handleSunhubCallback(intent?.data)
         setContent {
             MaterialTheme(
                 shapes = ConnectShapes,
@@ -87,7 +98,7 @@ class MainActivity : ComponentActivity() {
                         onSurfaceVariant = Muted,
                     ),
             ) {
-                ConnectApp()
+                ConnectApp(communityModel)
             }
         }
     }
@@ -162,6 +173,16 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
     fun finishWelcome() {
         welcome = false
         welcomePrefs.edit().putBoolean("seen", true).apply()
+    }
+    LaunchedEffect(model.sunhubReturnReady) {
+        if (model.sunhubReturnReady) {
+            finishWelcome()
+            if (!model.signedIn) {
+                initialAuthMode = "login"
+                auth = true
+            }
+            model.acknowledgeSunhubReturn()
+        }
     }
     var afterSignIn by remember { mutableStateOf<(() -> Unit)?>(null) }
     var account by remember { mutableStateOf(false) }
@@ -247,6 +268,7 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
             model,
             initialAuthMode,
             onClose = {
+                model.cancelSunhubSignIn()
                 auth = false
                 pendingCreate = false
                 afterSignIn = null

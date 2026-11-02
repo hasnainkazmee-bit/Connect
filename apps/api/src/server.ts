@@ -13,6 +13,7 @@ import { profileRoutes, profileExtras, ensureUsername } from "./profiles.js";
 import { publishingRoutes } from "./publishing.js";
 import { personalMessagesRoutes } from "./personal-messages.js";
 import { accountRoutes, sessionPayload as mePayload } from "./accounts.js";
+import { sunhubSsoRoutes } from "./sunhub-sso.js";
 import { flushMail } from "./mail.js";
 import {
   storeBuffer,
@@ -153,8 +154,22 @@ app.get("/api/session", async (req, res) => {
       : { user: null, companies: [], activeCompanyId: null },
   );
 });
-app.use("/api/auth", authLimit);
+app.use(
+  "/api/auth/sunhub",
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 100,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    skip: (req) => req.path === "/config",
+    message: { error: "Too many sign-in attempts. Please try again later." },
+  }),
+);
+app.use("/api/auth", (req, res, next) =>
+  req.path.startsWith("/sunhub/") ? next() : authLimit(req, res, next),
+);
 app.use("/api", accountRoutes());
+app.use("/api", sunhubSsoRoutes());
 app.use("/api", profileRoutes());
 app.use("/api", directoryRoutes());
 app.use("/api", personalMessagesRoutes());
@@ -1040,7 +1055,7 @@ mailTimer.unref();
 const cleanupTimer = setInterval(() => {
   void pool
     .query(
-      "DELETE FROM sessions WHERE expires_at<now(); DELETE FROM auth_limits WHERE expires_at<now(); DELETE FROM auth_challenges WHERE expires_at<now()-interval '1 day'; DELETE FROM email_outbox WHERE expires_at<now()-interval '7 days'; DELETE FROM auth_events WHERE created_at<now()-interval '90 days'",
+      "DELETE FROM sessions WHERE expires_at<now(); DELETE FROM auth_limits WHERE expires_at<now(); DELETE FROM auth_challenges WHERE expires_at<now()-interval '1 day'; DELETE FROM email_outbox WHERE expires_at<now()-interval '7 days'; DELETE FROM auth_events WHERE created_at<now()-interval '90 days'; DELETE FROM oidc_flows WHERE expires_at<now(); DELETE FROM mobile_auth_handoffs WHERE expires_at<now()",
     )
     .catch(() => {});
 }, 3600000);
