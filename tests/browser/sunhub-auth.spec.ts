@@ -476,3 +476,113 @@ test("same-origin BroadcastChannel completes when the opener is unavailable and 
   ).toBeVisible();
   await expect.poll(() => popup.isClosed()).toBe(true);
 });
+
+test("Sunhub popup centers on available monitor space, including negative origins and small screens", async ({
+  page,
+}) => {
+  await enabled(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.evaluate(() => {
+    (window as any).popupFeatures = [];
+    (window as any).screenDetailsRequests = 0;
+    (window as any).getScreenDetails = () => {
+      (window as any).screenDetailsRequests++;
+      throw new Error("Screen permission must not be requested");
+    };
+    window.open = (_url, _target, features) => {
+      (window as any).popupFeatures.push(features);
+      return null;
+    };
+    // A small, off-center browser window must not influence screen centering.
+    for (const [key, value] of Object.entries({
+      screenX: 90,
+      screenY: 80,
+      outerWidth: 900,
+      outerHeight: 760,
+    }))
+      Object.defineProperty(window, key, { configurable: true, value });
+  });
+  const scenarios = [
+    {
+      screen: {
+        availWidth: 1920,
+        availHeight: 1040,
+        availLeft: 0,
+        availTop: 40,
+      },
+      expected: { width: 500, height: 680, left: 710, top: 220 },
+    },
+    {
+      screen: {
+        availWidth: 1920,
+        availHeight: 1080,
+        availLeft: -1920,
+        availTop: 0,
+      },
+      expected: { width: 500, height: 680, left: -1210, top: 200 },
+    },
+    {
+      screen: {
+        availWidth: 1600,
+        availHeight: 900,
+        availLeft: 0,
+        availTop: -900,
+      },
+      expected: { width: 500, height: 680, left: 550, top: -790 },
+    },
+    {
+      screen: {
+        availWidth: 390,
+        availHeight: 600,
+        availLeft: -390,
+        availTop: 30,
+      },
+      expected: { width: 390, height: 600, left: -390, top: 30 },
+    },
+    {
+      screen: {
+        availWidth: 0,
+        availHeight: 0,
+        availLeft: undefined,
+        availTop: undefined,
+        width: 1280,
+        height: 800,
+      },
+      expected: { width: 500, height: 680, left: 390, top: 60 },
+    },
+  ];
+  for (const scenario of scenarios) {
+    await page.evaluate((values) => {
+      for (const [key, value] of Object.entries(values))
+        Object.defineProperty(window.screen, key, {
+          configurable: true,
+          value,
+        });
+    }, scenario.screen);
+    await page
+      .getByRole("link", { name: "Sign in with Sunhub", exact: true })
+      .click();
+    const features = await page.evaluate(() =>
+      Object.fromEntries(
+        (window as any).popupFeatures
+          .at(-1)
+          .split(",")
+          .map((part: string) => part.split("=")),
+      ),
+    );
+    for (const [name, value] of Object.entries(scenario.expected))
+      expect(
+        Number(features[name]),
+        `${name} for ${JSON.stringify(scenario.screen)}`,
+      ).toBe(value);
+    expect(features.popup).toBe("yes");
+    expect(features.resizable).toBe("yes");
+    await expect(page.getByRole("alert")).toContainText(
+      "Allow pop-ups for Connect",
+    );
+  }
+  expect(await page.evaluate(() => (window as any).screenDetailsRequests)).toBe(
+    0,
+  );
+});

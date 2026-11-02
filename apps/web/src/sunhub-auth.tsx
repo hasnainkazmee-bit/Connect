@@ -208,14 +208,28 @@ export function useSunhubPopup({
     } catch {
       // postMessage remains available in browsers without BroadcastChannel.
     }
-    const width = Math.min(500, screen.availWidth || 500);
-    const height = Math.min(680, screen.availHeight || 680);
+    // These existing Screen properties need no Window Management permission.
+    const display = window.screen as Screen & {
+      availLeft?: number;
+      availTop?: number;
+    };
+    const availableWidth = display.availWidth || display.width || 500;
+    const availableHeight = display.availHeight || display.height || 680;
+    const width = Math.min(500, availableWidth);
+    const height = Math.min(680, availableHeight);
+    const screenLeft = Number.isFinite(display.availLeft)
+      ? display.availLeft!
+      : 0;
+    const screenTop = Number.isFinite(display.availTop) ? display.availTop! : 0;
+    // Negative origins belong to monitors left of or above the primary display.
+    const left = Math.round(screenLeft + (availableWidth - width) / 2);
+    const top = Math.round(screenTop + (availableHeight - height) / 2);
     try {
       // Stay in this trusted click: awaiting a request first would block the popup.
       attempt.window = window.open(
         "/api/auth/sunhub/start?" + query,
         "connect-sunhub-" + popupId,
-        `popup=yes,width=${width},height=${height},left=${Math.max(0, window.screenX + (window.outerWidth - width) / 2)},top=${Math.max(0, window.screenY + (window.outerHeight - height) / 2)},resizable=yes,scrollbars=yes`,
+        `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`,
       );
     } catch {}
     if (!attempt.window) {
