@@ -113,7 +113,19 @@ async function request(path, { cookie = "", body } = {}) {
     location: r.headers.get("location"),
     data,
     text,
+    headers: r.headers,
   };
+}
+function popupResult(result) {
+  assert.equal(result.status, 200);
+  assert.equal(result.location, null);
+  assert.equal(result.headers.get("cache-control"), "no-store");
+  assert.equal(result.headers.get("referrer-policy"), "no-referrer");
+  return JSON.parse(
+    result.text.match(
+      /<script type="application\/json" id="sunhub-result">([^<]+)<\/script>/,
+    )[1],
+  );
 }
 function appReturn(result) {
   assert.equal(result.status, 200);
@@ -225,6 +237,93 @@ test("Sunhub is an optional verified OIDC sign-in, independent of Connect passwo
       const account = (await me(sessionCookie(result))).data;
       assert.equal(account.user.id, userId);
       assert.equal(account.user.email, email);
+    },
+  );
+  await t.test(
+    "popup signs in with a cookie and returns only a bound completion signal",
+    async () => {
+      const popupId = random();
+      const flow = await start({
+        display: "popup",
+        popup_id: popupId,
+        returnTo: "/invite/solar-team?from=invite",
+      });
+      assert.equal(flow.query.get("display"), "popup");
+      assert.equal(flow.query.has("popup_id"), false);
+      const result = await callback(flow, { sub: subject, email });
+      assert.deepEqual(popupResult(result), {
+        type: "connect:sunhub:complete",
+        popupId,
+        status: "success",
+        returnTo: "/invite/solar-team?from=invite",
+      });
+      assert.equal((await me(sessionCookie(result))).data.user.id, userId);
+      assert.ok(!result.text.includes(email));
+      assert.ok(!result.text.includes(sessionCookie(result).split("=")[1]));
+      assert.ok(!result.text.includes("access_token"));
+      assert.ok(!result.text.includes("id_token"));
+      const script = await request("/api/auth/sunhub/popup.js");
+      assert.match(
+        script.text,
+        /postMessage\(result, window.location.origin\)/,
+      );
+      assert.match(script.text, /BroadcastChannel/);
+    },
+  );
+  await t.test(
+    "popup errors and expiry stay in the popup without issuing a session",
+    async () => {
+      for (const scenario of ["failed", "expired"]) {
+        const popupId = random();
+        const flow = await start({ display: "popup", popup_id: popupId });
+        if (scenario === "expired")
+          await db.query(
+            "UPDATE oidc_flows SET expires_at=now()-interval '1 second' WHERE state_hash=$1",
+            [hash(flow.query.get("state"))],
+          );
+        const before = exchanges;
+        const result = await callback(flow, { badSignature: true });
+        assert.deepEqual(popupResult(result), {
+          type: "connect:sunhub:complete",
+          popupId,
+          status: "error",
+          error: scenario,
+          returnTo: "/",
+        });
+        assert.equal(sessionCookie(result), "");
+        if (scenario === "expired") assert.equal(exchanges, before);
+        assert.match((await callback(flow)).location, /sso_error=expired/);
+      }
+    },
+  );
+  await t.test(
+    "popup identifiers require a complete web flow and cannot override native handoff",
+    async () => {
+      for (const params of [
+        { display: "popup" },
+        { popup_id: random() },
+        { display: "popup", popup_id: "short" },
+        {
+          display: "popup",
+          popup_id: random(),
+          platform: "android",
+          redirect_uri: "com.sunhub.community://auth/sunhub",
+          code_challenge: pkce(random()),
+          state: random(),
+        },
+      ])
+        assert.equal(
+          (
+            await request(
+              "/api/auth/sunhub/start?" + new URLSearchParams(params),
+            )
+          ).status,
+          400,
+        );
+      const flow = await start({ display: "popup", popup_id: random() });
+      const result = await callback(flow, {}, { cookie: "" });
+      assert.match(result.location, /sso_error=expired/);
+      assert.equal(sessionCookie(result), "");
     },
   );
   await t.test(

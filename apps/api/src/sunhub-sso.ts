@@ -126,7 +126,29 @@ type Flow = {
   mobile_redirect: string | null;
   mobile_state: string | null;
   mobile_challenge: string | null;
+  popup_id: string | null;
+  expires_at?: Date;
 };
+function returnToPopup(res: Response, flow: Flow, error?: string) {
+  const target = new URL(flow.return_to, origin());
+  if (!error && flow.link_user_id)
+    target.searchParams.set("sunhub_linked", "1");
+  const result = {
+    type: "connect:sunhub:complete",
+    popupId: flow.popup_id,
+    status: error ? "error" : "success",
+    ...(error ? { error } : {}),
+    returnTo: target.pathname + target.search + target.hash,
+  };
+  // Only a completion signal crosses windows. Sessions stay in HttpOnly cookies.
+  const payload = JSON.stringify(result).replace(/</g, "\\u003c");
+  res.set("Referrer-Policy", "no-referrer");
+  res
+    .type("html")
+    .send(
+      `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${error ? "Return to Connect" : "Signed in · Connect"}</title><style>body{margin:0;background:#f2f7fc;color:#203444;font:16px system-ui,sans-serif;min-height:100dvh;display:grid;place-items:center}main{padding:32px;text-align:center;max-width:360px}img{width:160px;height:auto}h1{font-size:26px;letter-spacing:-.5px;margin-top:32px}p{color:#62748a;line-height:1.6}button{border:0;background:#ff710d;color:#142a38;padding:14px 26px;border-radius:999px;font:inherit;font-weight:600;cursor:pointer}button:focus-visible{outline:3px solid #203444;outline-offset:4px}</style></head><body><main><img src="/assets/connect-logo.png" alt="Connect"><h1>${error ? "Let’s return to Connect." : "You’re signed in."}</h1><p>${error ? "You can continue or try again in your Connect window." : "Your Connect window is ready. You can close this window."}</p><button id="close-sunhub-window" type="button">Close window</button></main><script type="application/json" id="sunhub-result">${payload}</script><script src="/api/auth/sunhub/popup.js"></script></body></html>`,
+    );
+}
 function returnToApp(res: Response, target: URL) {
   const href = target.href
     .replace(/&/g, "&amp;")
@@ -140,6 +162,7 @@ function returnToApp(res: Response, target: URL) {
     );
 }
 function finish(res: Response, flow: Flow | undefined, error: string) {
+  if (flow?.popup_id) return returnToPopup(res, flow, error);
   const target = new URL(
     flow?.mobile_redirect || flow?.return_to || "/",
     origin(),
@@ -242,6 +265,18 @@ async function identityUser(flow: Flow, claims: Record<string, unknown>) {
 }
 export function sunhubSsoRoutes() {
   const router = Router();
+  router.get("/auth/sunhub/popup.js", (_req, res) => {
+    res.type("application/javascript").send(`
+const result = JSON.parse(document.getElementById("sunhub-result").textContent);
+const notify = () => {
+  try { if (window.opener) window.opener.postMessage(result, window.location.origin); } catch {}
+  try { const channel = new BroadcastChannel("connect-sunhub-" + result.popupId); channel.postMessage(result); channel.close(); } catch {}
+};
+notify();
+document.getElementById("close-sunhub-window").addEventListener("click", () => { notify(); window.close(); });
+window.close();
+`);
+  });
   router.get("/auth/sunhub/return.js", (_req, res) => {
     res
       .type("application/javascript")
@@ -258,6 +293,11 @@ export function sunhubSsoRoutes() {
         intent: z.enum(["login", "signup", "link"]).default("login"),
         accountType: z.enum(["company", "individual"]).default("company"),
         returnTo: z.string().optional(),
+        display: z.literal("popup").optional(),
+        popup_id: z
+          .string()
+          .regex(/^[A-Za-z0-9_-]{32,128}$/)
+          .optional(),
         platform: z.literal("android").optional(),
         redirect_uri: z.string().optional(),
         code_challenge: z
@@ -271,6 +311,11 @@ export function sunhubSsoRoutes() {
       })
       .parse(req.query);
     if (
+      (parsed.display === "popup") !== !!parsed.popup_id ||
+      (parsed.platform && parsed.popup_id)
+    )
+      throw new HttpError(400, "Invalid Sunhub sign-in window.");
+    if (
       parsed.platform &&
       (!nativeRedirects.has(parsed.redirect_uri || "") ||
         !parsed.code_challenge ||
@@ -278,20 +323,24 @@ export function sunhubSsoRoutes() {
         parsed.intent === "link")
     )
       throw new HttpError(400, "Invalid Sunhub app sign-in request.");
-    if (parsed.intent === "link" && !req.auth)
-      throw new HttpError(401, "Sign in to Connect before linking Sunhub.");
     const flow: Flow = {
       issuer: issuer() || "",
       verifier: oidc.randomPKCECodeVerifier(),
       nonce: oidc.randomNonce(),
       return_to: safeReturnTo(parsed.returnTo),
       account_type: parsed.accountType,
-      link_user_id: parsed.intent === "link" ? req.auth!.userId : null,
-      link_session_hash: parsed.intent === "link" ? req.auth!.tokenHash : null,
+      link_user_id: parsed.intent === "link" ? req.auth?.userId || null : null,
+      link_session_hash:
+        parsed.intent === "link" ? req.auth?.tokenHash || null : null,
       mobile_redirect: parsed.platform ? parsed.redirect_uri! : null,
       mobile_state: parsed.platform ? parsed.state! : null,
       mobile_challenge: parsed.platform ? parsed.code_challenge! : null,
+      popup_id: parsed.popup_id || null,
     };
+    if (parsed.intent === "link" && !req.auth) {
+      if (flow.popup_id) return finish(res, flow, "expired");
+      throw new HttpError(401, "Sign in to Connect before linking Sunhub.");
+    }
     let config;
     try {
       config = await configuration();
@@ -305,7 +354,7 @@ export function sunhubSsoRoutes() {
       "DELETE FROM mobile_auth_handoffs WHERE expires_at<=now()",
     );
     await pool.query(
-      `INSERT INTO oidc_flows(state_hash,browser_hash,verifier,nonce,issuer,return_to,account_type,link_user_id,link_session_hash,mobile_redirect,mobile_state,mobile_challenge) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+      `INSERT INTO oidc_flows(state_hash,browser_hash,verifier,nonce,issuer,return_to,account_type,link_user_id,link_session_hash,mobile_redirect,mobile_state,mobile_challenge,popup_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
       [
         hashToken(state),
         hashToken(browser),
@@ -319,6 +368,7 @@ export function sunhubSsoRoutes() {
         flow.mobile_redirect,
         flow.mobile_state,
         flow.mobile_challenge,
+        flow.popup_id,
       ],
     );
     const url = oidc.buildAuthorizationUrl(config, {
@@ -329,6 +379,7 @@ export function sunhubSsoRoutes() {
       code_challenge: await oidc.calculatePKCECodeChallenge(flow.verifier),
       code_challenge_method: "S256",
       ...(parsed.intent === "signup" ? { screen_hint: "signup" } : {}),
+      ...(flow.popup_id ? { display: "popup" } : {}),
     });
     res.cookie(cookieName(state), browser, cookieOptions());
     res.redirect(303, url.href);
@@ -341,7 +392,7 @@ export function sunhubSsoRoutes() {
     // Consume exactly once, and only in the browser that initiated this flow.
     const flow = (
       await pool.query(
-        "DELETE FROM oidc_flows WHERE state_hash=$1 AND browser_hash=$2 AND expires_at>now() RETURNING *",
+        "DELETE FROM oidc_flows WHERE state_hash=$1 AND browser_hash=$2 RETURNING *",
         [hashToken(state), hashToken(browser)],
       )
     ).rows[0] as Flow | undefined;
@@ -350,6 +401,8 @@ export function sunhubSsoRoutes() {
       maxAge: undefined,
     });
     if (!flow) return finish(res, undefined, "expired");
+    if (!flow.expires_at || new Date(flow.expires_at).getTime() <= Date.now())
+      return finish(res, flow, "expired");
     try {
       if (flow.issuer !== issuer() || req.query.iss !== flow.issuer)
         throw new SignInError("failed");
@@ -401,6 +454,7 @@ export function sunhubSsoRoutes() {
         "INSERT INTO auth_events(user_id,event) VALUES($1,'sunhub_signed_in')",
         [userId],
       );
+      if (flow.popup_id) return returnToPopup(res, flow);
       const target = new URL(flow.return_to, origin());
       if (flow.link_user_id) target.searchParams.set("sunhub_linked", "1");
       res.redirect(303, target.pathname + target.search + target.hash);
