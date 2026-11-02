@@ -201,7 +201,9 @@ function App() {
     [sessionExpired, setSessionExpired] = useState(false),
     [reauthenticate, setReauthenticate] = useState(false),
     [notice, setNotice] = useState(""),
-    [deferredOnboarding, setDeferredOnboarding] = useState("");
+    [deferredOnboarding, setDeferredOnboarding] = useState(""),
+    [macIntentAfterSignIn, setMacIntentAfterSignIn] =
+      useState<MacCommand | null>(null);
   const navigate = useNavigate(),
     location = useLocation();
   const company = session.companies.find(
@@ -317,6 +319,7 @@ function App() {
     notifications = network.notifications.filter((n) => !n.read_at);
   const macApp = useMacApp(
     {
+      ready,
       path: location.pathname,
       signedIn: !!session.user && !sessionExpired,
       accountType: session.user?.account_type || "",
@@ -348,7 +351,8 @@ function App() {
             auth(() => navigate(command.path), command.path);
           else navigate(command.path);
         } else if (command.type === "compose") {
-          if (!session.user || sessionExpired) auth();
+          if (!session.user || sessionExpired)
+            auth(() => setMacIntentAfterSignIn(command));
           else if (session.user.account_type === "individual")
             setNotice("Publishing is for company accounts.");
           else if (!company) setModal(<NewCompany />);
@@ -364,7 +368,8 @@ function App() {
               </MacPanel>,
             );
         } else if (command.type === "notifications") {
-          if (!session.user || sessionExpired) auth();
+          if (!session.user || sessionExpired)
+            auth(() => setMacIntentAfterSignIn(command));
           else
             setModal(
               <MacPanel title="Notifications">
@@ -401,6 +406,36 @@ function App() {
       if (window.dispatchEvent(event)) finish();
     },
   );
+  useEffect(() => {
+    if (
+      !macApp ||
+      !macIntentAfterSignIn ||
+      !ready ||
+      !session.user ||
+      sessionExpired ||
+      needsOnboarding ||
+      reauthenticate ||
+      modal
+    )
+      return;
+    // Resume against the current account after React commits sign-in. Reusing
+    // the old auth callback would read the signed-out render's permissions.
+    setMacIntentAfterSignIn(null);
+    window.dispatchEvent(
+      new CustomEvent("connect:mac-command", {
+        detail: macIntentAfterSignIn,
+      }),
+    );
+  }, [
+    macApp,
+    macIntentAfterSignIn,
+    ready,
+    session.user,
+    sessionExpired,
+    needsOnboarding,
+    reauthenticate,
+    modal,
+  ]);
   if (!ready) return <Loading />;
   return (
     <AppContext.Provider

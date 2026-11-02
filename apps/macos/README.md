@@ -1,12 +1,16 @@
 # Connect for macOS
 
-Connect for macOS uses a native AppKit sidebar and workspace controls around live Connect content from `https://connect.sunhubapp.com`. The unified native title bar aligns its traffic lights and sidebar toggle with the left pane, places Back above the content pane, and keeps notification and compose icons on the right. The selected sidebar row supplies workspace context; the duplicate window title is visually hidden and there is no marketing subtitle. The underlying window title still tracks the route for the Window menu and accessibility. The native sidebar, context Back action, notifications, and account controls give the Mac app its own navigation. Content and workflow improvements arrive through the shared web app; changes to the native host require a new app build. An internet connection is required.
+Connect for macOS has a Swift/AppKit shell with a native sidebar, title bar, menus, and workspace controls around live Connect content from `https://connect.sunhubapp.com`. The shared feed, profiles, messages, and publishing workflows remain in WebKit. The unified native title bar aligns its traffic lights and sidebar toggle with the left pane, places Back above the content pane, and keeps notification and compose icons on the right. Both panes begin below the toolbar, so the sidebar logo and controls remain clear of the window buttons. The selected sidebar row supplies workspace context; the duplicate window title is visually hidden and there is no marketing subtitle. The underlying window title still tracks the route for the Window menu and accessibility. Content and workflow improvements arrive through the shared web app; changes to the native host require a new app build. An internet connection is required.
 
-Version 0.1.1 (build 2) supports macOS 13 or later. The default universal build runs on Apple silicon and Intel Macs. It uses the existing Connect artwork without cropping or stretching it.
+Version 0.1.2 (build 3) supports macOS 13 or later. The default universal build runs on Apple silicon and Intel Macs. It uses the existing Connect artwork without cropping or stretching it. The logo remains transparent in both appearances; dark mode lightens only its neutral lettering, preserving the orange symbol and original asset without a white badge behind it.
 
 ## Using the app
 
 Use the native sidebar to move between Home, Directory, My Network, and Messages. The native account/company control opens the existing account and company-switch workflow, preserving the same permissions and membership checks as the web app.
+
+Directory filter dropdowns open native AppKit menus with standard selection, keyboard navigation, and Escape behavior. The web app still owns the filter values and results. Older Mac hosts and ordinary browsers keep their existing dropdowns.
+
+When signed out, Create and Notifications open sign-in. After authentication, Connect resumes the requested action using the account's normal permissions; signing in does not grant publishing access to an individual account. An action clicked during the initial session check is held until that check finishes.
 
 The sidebar and title bar use AppKit's system materials, including the current glass treatment on macOS 26 and the native fallback on earlier supported versions. Connect's controls use the same palette as the web app. Choose **View → Appearance → System, Light, or Dark** to set a saved device preference; changing it updates the native controls and live content without reloading the page.
 
@@ -49,8 +53,8 @@ The scripts use `swiftc`, `lipo`, `vtool`, `sips`, `iconutil`, `codesign`, `ditt
 Outputs are ignored by Git:
 
 - `apps/macos/artifacts/Connect.app`
-- `apps/macos/artifacts/Connect-0.1.1-macos-universal.dmg`
-- `apps/macos/artifacts/Connect-0.1.1-macos-universal.zip`
+- `apps/macos/artifacts/Connect-0.1.2-macos-universal.dmg`
+- `apps/macos/artifacts/Connect-0.1.2-macos-universal.zip`
 
 For a single architecture, use `--arch arm64` or `--arch x86_64` on either script. The archive filename reflects the actual binary architectures. A failed cross-compile stops the universal build rather than delivering an incomplete universal app. `--skip-build` packages the existing signed app and derives its architecture from that binary.
 
@@ -92,14 +96,14 @@ This opt-in command requires Apple's `notarytool` and `stapler`, rejects ad-hoc 
 
 The native host runs with App Sandbox and hardened runtime. Its entitlements allow outgoing network connections and files explicitly chosen through system open/save dialogs. It has no broad filesystem, camera, microphone, printing, inbound server, or JIT entitlement. WebKit manages web content in its own processes. There is no global App Transport Security exception.
 
-The native host must keep its URL allowlist and external-link handling in place when adding features. The web layout adapter requires both the ConnectMac user agent and the native message handler, and it stays inactive in windows with an opener. Its bridge passes display state only, never authentication tokens. Credentials remain in the existing Connect/Sunhub authentication flow; packaging adds no embedded credentials or API secrets.
+The native host must keep its URL allowlist and external-link handling in place when adding features. The web layout adapter requires both the ConnectMac user agent and the native message handler, and it stays inactive in windows with an opener. Its bridge passes UI display state and bounded menu selections, never authentication tokens. Native menus require the current trusted main-frame document and do not change account permissions. Credentials remain in the existing Connect/Sunhub authentication flow; packaging adds no embedded credentials or API secrets.
 
 ## Verify a package
 
 ```sh
 xcrun lipo -archs apps/macos/artifacts/Connect.app/Contents/MacOS/Connect
 codesign --verify --strict --verbose=2 apps/macos/artifacts/Connect.app
-hdiutil verify apps/macos/artifacts/Connect-0.1.1-macos-universal.dmg
+hdiutil verify apps/macos/artifacts/Connect-0.1.2-macos-universal.dmg
 ```
 
 An ad-hoc build is expected to fail Gatekeeper's public-distribution assessment. For a Developer ID build intended for distribution, additionally verify its notarization ticket and Gatekeeper assessment before sharing it.

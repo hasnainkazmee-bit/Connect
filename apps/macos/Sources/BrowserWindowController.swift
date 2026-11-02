@@ -23,8 +23,15 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
     private var sidebarItem: NSSplitViewItem?
     private let workspace = NSView()
     private var workspaceReady = false
+    private var workspaceSignedIn = false
+    private var workspaceCanPublish = false
+    private var workspaceHasCompany = false
     private var pendingCommand: [String: String]?
     private var bridge: MacWorkspaceBridge?
+    private let nativeSelects = NativeSelectCoordinator()
+#if DEBUG
+    var activeNativeSelectMenu: NSMenu? { nativeSelects.activeMenu }
+#endif
     private var composeItem: NSToolbarItem?
     private var backItem: NSToolbarItem?
     private var notificationItem: NSToolbarItem?
@@ -57,7 +64,6 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
         window.backgroundColor = ConnectAppearance.windowBackground
         window.tabbingMode = .disallowed
         if !authentication {
-            window.styleMask.insert(.fullSizeContentView)
             window.toolbarStyle = .unified
             window.titlebarSeparatorStyle = .none
             // The selected sidebar row supplies the workspace name. Hiding
@@ -72,6 +78,10 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
             let bridge = MacWorkspaceBridge(owner: self)
             self.bridge = bridge
             settings.userContentController.add(bridge, name: "connectMac")
+            settings.userContentController.addUserScript(WKUserScript(
+                source: NativeSelectCoordinator.capabilityScript,
+                injectionTime: .atDocumentStart, forMainFrameOnly: true
+            ))
         }
         downloads = DownloadCoordinator(window: window, policy: policy)
         configureContent()
@@ -81,6 +91,9 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
             toolbar.displayMode = .iconOnly
             toolbar.allowsUserCustomization = false
             window.toolbar = toolbar
+            // A full-size content window lets the sidebar's glass continue
+            // behind the toolbar. Keep both panes strictly below native chrome.
+            window.styleMask.remove(.fullSizeContentView)
             if !window.setFrameUsingName("ConnectMainWindow") { window.center() }
             window.setFrameAutosaveName("ConnectMainWindow")
             webView.pageZoom = min(1.8, max(0.7, UserDefaults.standard.double(forKey: "pageZoom").nonzero ?? 1))
@@ -111,8 +124,9 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
             let navigationController = NSViewController()
             navigationController.view = sidebar
             let navigationItem = NSSplitViewItem(sidebarWithViewController: navigationController)
-            navigationItem.minimumThickness = 188
-            navigationItem.maximumThickness = 270
+            navigationItem.minimumThickness = 212
+            navigationItem.maximumThickness = 260
+            navigationItem.allowsFullHeightLayout = false
             navigationItem.canCollapseFromWindowResize = false
             navigationItem.holdingPriority = .defaultHigh
             navigationItem.collapseBehavior = .preferResizingSiblingsWithFixedSplitView
@@ -123,6 +137,11 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
             let contentItem = NSSplitViewItem(viewController: contentController)
             contentItem.minimumThickness = 480
             contentItem.titlebarSeparatorStyle = .none
+            if #available(macOS 26.0, *) {
+                // Both panes own their space; web content must never extend
+                // beneath a floating sidebar or rely on a DOM safe-area inset.
+                contentItem.automaticallyAdjustsSafeAreaInsets = false
+            }
             splitController.addSplitViewItem(navigationItem)
             splitController.addSplitViewItem(contentItem)
             let preferredWidth = sidebar.widthAnchor.constraint(equalToConstant: 224)
@@ -234,10 +253,6 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
             item.action = #selector(compose)
             item.autovalidates = false
             item.isEnabled = false
-            if #available(macOS 26.0, *) {
-                item.style = .prominent
-                item.backgroundTintColor = ConnectAppearance.accent
-            }
             composeItem = item
         case "notifications":
             item.label = "Notifications"
@@ -258,12 +273,29 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
             item.label = "Loading"
         default: return nil
         }
+        updateWorkspaceActions()
         return item
     }
 
     private func updateNavigation() {
         backItem?.isEnabled = webView.canGoBack
         if webView.isLoading { progress.startAnimation(nil) } else { progress.stopAnimation(nil) }
+    }
+
+    private func updateWorkspaceActions() {
+        let canCreate = !workspaceSignedIn || workspaceCanPublish || (!workspaceHasCompany && canUseNetwork)
+        composeItem?.isEnabled = workspaceReady && canCreate
+        notificationItem?.isEnabled = workspaceReady
+        composeItem?.toolTip = !workspaceSignedIn
+            ? "Sign in to create a post (⌘N)"
+            : (canCreate ? "Create a post or press release (⌘N)" : "Publishing is managed by company owners and administrators")
+        notificationItem?.toolTip = workspaceSignedIn ? "Notifications" : "Sign in to view notifications"
+        if #available(macOS 26.0, *) {
+            // Disabled prominent items keep their orange fill on Tahoe. Use a
+            // standard treatment until the action is available.
+            composeItem?.style = composeItem?.isEnabled == true ? .prominent : .plain
+            composeItem?.backgroundTintColor = composeItem?.isEnabled == true ? ConnectAppearance.accent : nil
+        }
     }
     private func recordLocation() {
         guard let url = webView.url else { return }
@@ -323,23 +355,32 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
         guard !authentication, message.webView === webView, message.frameInfo.isMainFrame,
               let source = message.frameInfo.request.url, ["http", "https"].contains(source.scheme ?? ""),
               policy.classify(source, inAuthenticationWindow: false) == .internalNavigation,
-              let state = message.body as? [String: Any], state["type"] as? String == "state" else { return }
+              let state = message.body as? [String: Any] else { return }
+        if ["select", "selectCancel"].contains(state["type"] as? String ?? "") {
+            nativeSelects.receive(state, from: webView)
+            return
+        }
+        guard state["type"] as? String == "state" else { return }
         // Only presentation state crosses this bridge. Session cookies, emails,
         // access tokens, and native filesystem operations are never exposed.
-        workspaceReady = true
+        // Older web releases lack this field; current releases explicitly
+        // report session readiness so startup commands cannot disappear.
+        workspaceReady = state["ready"] as? Bool ?? true
         let signedIn = state["signedIn"] as? Bool == true
         let canPublish = signedIn && state["canPublish"] as? Bool == true
+        workspaceSignedIn = signedIn
+        workspaceCanPublish = canPublish
         canUseNetwork = state["accountType"] as? String != "individual"
         sidebar.setNetworkVisible(canUseNetwork)
         let name = signedIn ? (state["userName"] as? String).map { String($0.prefix(160)) } : nil
         let company = signedIn ? (state["companyName"] as? String).map { String($0.prefix(160)) } : nil
+        workspaceHasCompany = company?.isEmpty == false
         sidebar.setAccount(name: name, company: company, canPublish: canPublish)
-        composeItem?.isEnabled = canPublish
-        notificationItem?.isEnabled = signedIn
+        updateWorkspaceActions()
         let unread = max(0, min(999, state["unreadCount"] as? Int ?? 0))
         notificationItem?.image = NSImage(systemSymbolName: unread > 0 ? "bell.badge" : "bell", accessibilityDescription: unread > 0 ? "\(unread) unread notifications" : "Notifications")
         NSApp.dockTile.badgeLabel = unread > 0 ? String(unread) : nil
-        if let pending = pendingCommand { pendingCommand = nil; sendWorkspaceCommand(pending) }
+        if workspaceReady, let pending = pendingCommand { pendingCommand = nil; sendWorkspaceCommand(pending) }
     }
     @objc func goBack(_ sender: Any?) {
         guard webView.canGoBack else { return }
@@ -404,6 +445,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        nativeSelects.cancel()
         if forceClose { return true }
         if authentication {
             // The actual DOM window must close so the opener's cancellation poll
@@ -456,7 +498,9 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
         } else { decisionHandler(.allow) }
     }
 
-    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) { if !authentication { workspaceReady = false } }
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        if !authentication { nativeSelects.cancel(); workspaceReady = false; updateWorkspaceActions() }
+    }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { recovery.isHidden = true; recordLocation() }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { navigationFailed(error) }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { navigationFailed(error) }
@@ -467,9 +511,9 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
         showRecovery()
     }
     private func showRecovery(processEnded: Bool = false) {
+        nativeSelects.cancel()
         workspaceReady = false
-        composeItem?.isEnabled = false
-        notificationItem?.isEnabled = false
+        updateWorkspaceActions()
         recoveryTitle.stringValue = processEnded ? "Let’s reopen Connect" : "Connect is taking a moment"
         recoveryBody.stringValue = authentication ? "Close this window and start Sunhub sign-in again from Connect." : (processEnded ? "Your session is saved. Reload to get back to Connect." : "Check your connection, then try again. Your account hasn’t been signed out.")
         recovery.isHidden = false

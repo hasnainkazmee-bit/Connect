@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { installMacNativeSelects } from "./mac-native-select";
 
 const routes = new Set([
   "/",
@@ -11,6 +12,7 @@ export type MacCommand =
   | { type: "navigate"; path: string }
   | { type: "compose" | "account" | "notifications" | "profile" };
 export type MacState = {
+  ready: boolean;
   path: string;
   signedIn: boolean;
   accountType: string;
@@ -46,12 +48,14 @@ export function useMacApp(
   const current = useRef({ state, onCommand });
   current.current = { state, onCommand };
   const lastState = useRef("");
+  const queuedCommand = useRef<MacCommand | null>(null);
   const sendState = () => {
     if (!enabled) return;
     const value = current.current.state;
     try {
       (window as MacWindow).webkit!.messageHandlers!.connectMac!.postMessage!({
         type: "state",
+        ready: value.ready,
         path: value.path,
         signedIn: value.signedIn,
         accountType: value.accountType,
@@ -67,6 +71,11 @@ export function useMacApp(
   useEffect(() => {
     if (!enabled) return;
     document.documentElement.classList.add("connect-mac");
+    const removeNativeSelects = installMacNativeSelects();
+    const deliver = (command: MacCommand) => {
+      if (current.current.state.ready) current.current.onCommand(command);
+      else queuedCommand.current = command;
+    };
     const receive = (event: Event) => {
       const command: unknown = (event as CustomEvent).detail;
       if (
@@ -87,23 +96,32 @@ export function useMacApp(
           !routes.has(command.path)
         )
           return;
-        current.current.onCommand({ type: "navigate", path: command.path });
+        deliver({ type: "navigate", path: command.path });
       } else if (
         ["compose", "account", "notifications", "profile"].includes(
           String(command.type),
         )
       ) {
-        current.current.onCommand({ type: command.type } as MacCommand);
+        deliver({ type: command.type } as MacCommand);
       }
       // A dirty/saving modal can keep the route unchanged. Acknowledge that too.
       queueMicrotask(sendState);
     };
     window.addEventListener("connect:mac-command", receive);
     return () => {
+      queuedCommand.current = null;
+      removeNativeSelects();
       window.removeEventListener("connect:mac-command", receive);
       document.documentElement.classList.remove("connect-mac");
     };
   }, [enabled]);
+  useEffect(() => {
+    if (enabled && state.ready && queuedCommand.current) {
+      const command = queuedCommand.current;
+      queuedCommand.current = null;
+      current.current.onCommand(command);
+    }
+  }, [enabled, state.ready]);
   useEffect(() => {
     const serialized = JSON.stringify(state);
     if (serialized !== lastState.current) {

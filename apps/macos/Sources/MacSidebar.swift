@@ -43,15 +43,10 @@ final class MacSidebar: NSView {
             brand = wordmark
         }
 
-        let section = NSTextField(labelWithString: "Workspace")
-        section.font = .systemFont(ofSize: 11, weight: .semibold)
-        section.textColor = ConnectAppearance.secondaryText
-        section.setAccessibilityElement(false)
-
         let navigation = NSStackView()
         navigation.orientation = .vertical
         navigation.alignment = .leading
-        navigation.spacing = 4
+        navigation.spacing = 3
         navigation.detachesHiddenViews = true
         for (title, path, symbol) in [
             ("Home", "/", "house"),
@@ -63,7 +58,7 @@ final class MacSidebar: NSView {
             button.title = title
             button.font = .systemFont(ofSize: 13)
             button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
-            button.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 15, weight: .regular)
+            button.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular)
             button.imagePosition = .imageLeading
             button.imageHugsTitle = true
             button.toolTip = title
@@ -73,37 +68,34 @@ final class MacSidebar: NSView {
             button.identifier = NSUserInterfaceItemIdentifier(path)
             navigation.addArrangedSubview(button)
             button.widthAnchor.constraint(equalTo: navigation.widthAnchor).isActive = true
-            button.heightAnchor.constraint(equalToConstant: 36).isActive = true
+            button.heightAnchor.constraint(equalToConstant: 34).isActive = true
             routeButtons.append((path, button))
         }
 
         let separator = NSBox()
         separator.boxType = .separator
         accountButton.image = NSImage(systemSymbolName: "person.crop.circle", accessibilityDescription: nil)
-        accountButton.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 25, weight: .regular)
+        accountButton.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 23, weight: .regular)
         accountButton.imagePosition = .imageLeading
         accountButton.imageHugsTitle = true
         accountButton.cell?.usesSingleLineMode = false
         accountButton.target = self
         accountButton.action = #selector(account)
 
-        for view in [brand, section, navigation, separator, accountButton] {
+        for view in [brand, navigation, separator, accountButton] {
             view.translatesAutoresizingMaskIntoConstraints = false
             addSubview(view)
         }
         NSLayoutConstraint.activate([
-            brand.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor, constant: 18),
-            brand.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 22),
+            brand.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor, constant: 16),
+            brand.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20),
             brand.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -18),
-            brand.widthAnchor.constraint(equalToConstant: 144),
-            brand.heightAnchor.constraint(equalToConstant: 36),
+            brand.widthAnchor.constraint(equalToConstant: 132),
+            brand.heightAnchor.constraint(equalToConstant: 28),
 
-            section.topAnchor.constraint(equalTo: brand.bottomAnchor, constant: 24),
-            section.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 24),
-            section.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -14),
-            navigation.topAnchor.constraint(equalTo: section.bottomAnchor, constant: 8),
-            navigation.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
-            navigation.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
+            navigation.topAnchor.constraint(equalTo: brand.bottomAnchor, constant: 22),
+            navigation.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            navigation.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
 
             separator.topAnchor.constraint(greaterThanOrEqualTo: navigation.bottomAnchor, constant: 24),
             separator.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 18),
@@ -111,8 +103,8 @@ final class MacSidebar: NSView {
             separator.bottomAnchor.constraint(equalTo: accountButton.topAnchor, constant: -8),
             accountButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
             accountButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
-            accountButton.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
-            accountButton.heightAnchor.constraint(equalToConstant: 56),
+            accountButton.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -12),
+            accountButton.heightAnchor.constraint(equalToConstant: 48),
         ])
     }
 
@@ -166,32 +158,68 @@ final class MacSidebar: NSView {
     @objc private func account() { onAccount?() }
 }
 
-/// Preserve the supplied artwork, including its orange symbol. A small plate
-/// in the existing pale-blue color keeps its black lettering legible at night.
+/// Keep the supplied transparent artwork. Only its neutral black lettering
+/// changes to Connect's pale text color in dark mode; the orange symbol and
+/// original file remain untouched.
 @MainActor
 private final class WordmarkView: NSView {
+    private let sourceImage: NSImage
+    private let darkImage: NSImage
+    private let imageView: NSImageView
+
     init(image: NSImage) {
+        sourceImage = image
+        darkImage = Self.darkWordmark(from: image) ?? image
+        imageView = NSImageView(image: image)
         super.init(frame: .zero)
-        let imageView = NSImageView(image: image)
         imageView.imageScaling = .scaleProportionallyUpOrDown
         imageView.setAccessibilityLabel("Connect")
         imageView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(imageView)
         NSLayoutConstraint.activate([
-            imageView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
-            imageView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
-            imageView.topAnchor.constraint(equalTo: topAnchor, constant: 6),
-            imageView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6),
+            imageView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            imageView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            imageView.topAnchor.constraint(equalTo: topAnchor),
+            imageView.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
+        updateImage()
     }
     required init?(coder: NSCoder) { fatalError("Use init(image:)") }
-    override func draw(_ dirtyRect: NSRect) {
-        if effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
-            NSColor(srgbRed: 237 / 255, green: 244 / 255, blue: 250 / 255, alpha: 1).setFill()
-            NSBezierPath(roundedRect: bounds, xRadius: 9, yRadius: 9).fill()
-        }
+
+    private func updateImage() {
+        imageView.image = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? darkImage : sourceImage
     }
-    override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        updateImage()
+    }
+
+    private static func darkWordmark(from image: NSImage) -> NSImage? {
+        guard let source = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
+              let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(data: nil, width: source.width, height: source.height,
+                                      bitsPerComponent: 8, bytesPerRow: source.width * 4,
+                                      space: colorSpace,
+                                      bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue),
+              let bytes = context.data?.assumingMemoryBound(to: UInt8.self) else { return nil }
+        context.draw(source, in: CGRect(x: 0, y: 0, width: source.width, height: source.height))
+        for offset in stride(from: 0, to: source.width * source.height * 4, by: 4) {
+            let alpha = Int(bytes[offset + 3])
+            guard alpha > 0 else { continue }
+            let channels = (Int(bytes[offset]), Int(bytes[offset + 1]), Int(bytes[offset + 2]))
+            let maximum = max(channels.0, channels.1, channels.2)
+            let minimum = min(channels.0, channels.1, channels.2)
+            // Work in premultiplied space so anti-aliased edges retain their
+            // exact opacity, and colored artwork never becomes a template.
+            guard maximum * 5 <= alpha, (maximum - minimum) * 20 <= alpha else { continue }
+            bytes[offset] = UInt8((242 * alpha + 127) / 255)
+            bytes[offset + 1] = UInt8((247 * alpha + 127) / 255)
+            bytes[offset + 2] = UInt8((252 * alpha + 127) / 255)
+        }
+        guard let result = context.makeImage() else { return nil }
+        return NSImage(cgImage: result, size: image.size)
+    }
 }
 
 /// A native button retains macOS keyboard/VoiceOver behavior. Only its spacing

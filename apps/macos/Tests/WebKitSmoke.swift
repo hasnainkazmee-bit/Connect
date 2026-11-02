@@ -74,6 +74,11 @@ private final class SmokeRunner: NSObject, NSApplicationDelegate {
         (view as? NSButton).map { [$0] } ?? view.subviews.flatMap(allButtons)
     }
 
+    private func sidebar(in view: NSView) -> MacSidebar? {
+        if let sidebar = view as? MacSidebar { return sidebar }
+        return view.subviews.lazy.compactMap { self.sidebar(in: $0) }.first
+    }
+
     private func stayOnPage(_ controller: BrowserWindowController) async throws {
         try await wait("native beforeunload sheet") { controller.window?.attachedSheet != nil }
         guard let content = controller.window?.attachedSheet?.contentView,
@@ -125,12 +130,19 @@ private final class SmokeRunner: NSObject, NSApplicationDelegate {
         try check(true, "Light appearance restores the web color scheme")
         ConnectAppearance.setChoice(previousAppearance)
         let originalFrame = mainWindow.frame
-        for size in [NSSize(width: 1180, height: 800), NSSize(width: 760, height: 650)] {
+        for size in [NSSize(width: 1180, height: 800), NSSize(width: 1920, height: 1080), NSSize(width: 720, height: 650)] {
             mainWindow.setFrame(NSRect(origin: originalFrame.origin, size: size), display: false)
             mainWindow.contentView?.layoutSubtreeIfNeeded()
             let contentFrame = main.webView.convert(main.webView.bounds, to: nil)
             try check(contentFrame.maxY <= mainWindow.contentLayoutRect.maxY + 1 && contentFrame.height > 400,
                       "workspace stays below native titlebar at \(Int(size.width))pt")
+            guard let root = mainWindow.contentView, let navigation = sidebar(in: root) else {
+                throw SmokeFailure("Native sidebar is missing")
+            }
+            let navigationFrame = navigation.convert(navigation.bounds, to: nil)
+            try check(navigationFrame.maxY <= mainWindow.contentLayoutRect.maxY + 1 &&
+                      navigationFrame.maxX <= contentFrame.minX + 1 && navigationFrame.width >= 212,
+                      "sidebar stays below toolbar and beside content at \(Int(size.width))pt")
         }
         let sidebarVisibleWidth = main.webView.bounds.width
         main.toggleSidebar(nil)
@@ -149,13 +161,44 @@ private final class SmokeRunner: NSObject, NSApplicationDelegate {
         guard let compose = mainWindow.toolbar?.items.first(where: { $0.itemIdentifier.rawValue == "compose" }) else {
             throw SmokeFailure("Native New post toolbar item is missing")
         }
-        try check(!compose.isEnabled, "native New post starts disabled before authenticated bridge state")
+        try check(!compose.isEnabled, "native New post starts disabled before workspace readiness")
         _ = try await js(main.webView, """
             window.nativeCommands = [];
             window.nativeDocumentMarker = 'same-document';
             window.addEventListener('connect:mac-command', event => nativeCommands.push(event.detail));
+            window.webkit.messageHandlers.connectMac.postMessage({type:'state',ready:false,signedIn:false,canPublish:false});
+            'loading';
+            """)
+        try await Task.sleep(for: .milliseconds(100))
+        main.compose(nil)
+        try check(try await js(main.webView, "String(nativeCommands.length)") == "0", "early menu intent waits for session readiness")
+        _ = try await js(main.webView, "window.webkit.messageHandlers.connectMac.postMessage({type:'state',ready:true,signedIn:false,canPublish:false}); 'ready'")
+        try await wait("queued guest compose reaches ready workspace") {
+            (try? await self.js(main.webView, "String(nativeCommands.length === 1 && nativeCommands[0].type === 'compose')")) == "true"
+        }
+        try check(compose.isEnabled, "guest New post is enabled so it can open sign-in")
+        func toolbarButton(_ action: Selector) throws -> NSButton {
+            guard let chrome = mainWindow.contentView?.superview,
+                  let button = allButtons(chrome).first(where: { $0.action == action && ($0.target as? BrowserWindowController) === main }) else {
+                throw SmokeFailure("Missing actual native toolbar control for \(action)")
+            }
+            return button
+        }
+        let composeButton = try toolbarButton(#selector(BrowserWindowController.compose(_:)))
+        let notificationsButton = try toolbarButton(#selector(BrowserWindowController.showNotifications(_:)))
+        try check(composeButton.isEnabled && notificationsButton.isEnabled, "actual guest toolbar buttons are actionable")
+        composeButton.performClick(nil)
+        try await wait("guest Create click") {
+            (try? await self.js(main.webView, "String(nativeCommands.length === 2 && nativeCommands.at(-1).type === 'compose')")) == "true"
+        }
+        notificationsButton.performClick(nil)
+        try await wait("guest Notifications click") {
+            (try? await self.js(main.webView, "nativeCommands.at(-1)?.type")) == "notifications"
+        }
+        try check(true, "real guest toolbar clicks reach sign-in intents")
+        _ = try await js(main.webView, """
             window.webkit.messageHandlers.connectMac.postMessage({
-              type:'state', path:'/spoofed-route', signedIn:true, canPublish:true,
+              type:'state', ready:true, path:'/spoofed-route', signedIn:true, canPublish:true,
               userName:'Native smoke user', companyName:'Native Fixture Solar', unreadCount:3
             });
             'sent';
@@ -168,12 +211,16 @@ private final class SmokeRunner: NSObject, NSApplicationDelegate {
             (try? await self.js(main.webView, "String(nativeCommands.at(-1)?.type === 'navigate' && nativeCommands.at(-1)?.path === '/directory')")) == "true"
         }
         try check(try await js(main.webView, "nativeDocumentMarker") == "same-document" && main.webView.url?.path == "/", "native navigation dispatches a router command without reloading the page")
-        guard let composeAction = compose.action else { throw SmokeFailure("Native New post action is missing") }
-        NSApp.sendAction(composeAction, to: compose.target, from: compose)
+        composeButton.performClick(nil)
         try await wait("native New post command") {
             (try? await self.js(main.webView, "nativeCommands.at(-1)?.type")) == "compose"
         }
-        try check(true, "native toolbar New post dispatches the compose intent")
+        try check(true, "real signed-in toolbar New post dispatches the compose intent")
+        notificationsButton.performClick(nil)
+        try await wait("signed-in Notifications click") {
+            (try? await self.js(main.webView, "nativeCommands.at(-1)?.type")) == "notifications"
+        }
+        try check(true, "real signed-in notification control dispatches its intent")
 
         _ = try await js(main.webView, "startAuth('hold'); 'started'")
         try await wait("bridge-isolation popup") { main.authenticationWindows.count == 1 }
@@ -198,8 +245,8 @@ private final class SmokeRunner: NSObject, NSApplicationDelegate {
             return (try? await self.js(main.webView, "String(authPopup.closed)")) == "true"
         }
         _ = try await js(main.webView, "window.webkit.messageHandlers.connectMac.postMessage({type:'state',signedIn:false,canPublish:false,userName:'',companyName:'',unreadCount:0}); 'reset'")
-        try await wait("native account state reset") { !compose.isEnabled && NSApp.dockTile.badgeLabel == nil }
-        try check(true, "main-frame signed-out state clears native publishing and unread state")
+        try await wait("native account state reset") { compose.isEnabled && NSApp.dockTile.badgeLabel == nil }
+        try check(true, "signed-out state clears unread state and restores sign-in actions")
         // Return to an unbridged fixture document before the existing full-page
         // navigation, authentication, history, and beforeunload scenarios.
         main.loadInitialURL(connect.appendingPathComponent("/"))

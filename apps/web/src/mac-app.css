@@ -12,6 +12,10 @@ html.connect-mac {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: var(--mac-canvas);
 }
+/* The persistent AppKit sidebar already carries Connect's identity. */
+.connect-mac .account-wordmark {
+  display: none;
+}
 .connect-mac .mac-app {
   width: 100%;
   max-width: none;
@@ -845,14 +849,6 @@ html.connect-mac {
     color: var(--on-brand);
     transform: none;
   }
-  /* The supplied wordmark contains black lettering. Keep its original pixels
-     on a pale brand plate instead of inverting the orange icon with a filter. */
-  .connect-mac .account-wordmark {
-    box-sizing: content-box;
-    padding: 8px 12px;
-    border-radius: 10px;
-    background: #f2f7fc;
-  }
   .connect-mac .button:not(.primary):not(.danger):hover:not(:disabled) {
     border-color: var(--muted);
   }
@@ -943,5 +939,37 @@ html.connect-mac {
   }
   .connect-mac .photo-adjuster-stage > span {
     color: var(--ink);
+  }
+}
+
+/* The DOM select remains the accessible/controlled form element. A capability
+   enabled host opens NSMenu; older hosts keep their ordinary WebKit picker. */
+.connect-mac .discovery-selects select {
+  min-height: 36px;
+  min-width: 156px;
+  max-width: 100%;
+  padding: 7px 36px 7px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  border-radius: 10px;
+}
+.connect-mac.mac-native-selects .discovery-selects select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m5 6 3 3 3-3' fill='none' stroke='%23203342' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: 16px;
+  background-position: right 10px center;
+  cursor: default;
+}
+.connect-mac.mac-native-selects
+  .discovery-selects
+  select[aria-expanded="true"] {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus) 15%, transparent);
+}
+@media (prefers-color-scheme: dark) {
+  .connect-mac.mac-native-selects .discovery-selects select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m5 6 3 3 3-3' fill='none' stroke='%23DBE5ED' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   }
 }

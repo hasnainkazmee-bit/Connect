@@ -74,6 +74,8 @@ for (const setup of [
     await expect(page.locator(".app-main")).not.toHaveClass(/mac-app/);
     await command(page, { type: "compose" });
     await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(page.locator(".account-wordmark")).toBeVisible();
     await context.close();
   });
 }
@@ -118,6 +120,7 @@ test("native guest actions keep the real authentication flow and strict route al
   expect(Object.keys(state).sort()).toEqual(
     [
       "type",
+      "ready",
       "path",
       "signedIn",
       "accountType",
@@ -581,11 +584,16 @@ test("Mac dark sign-in and individual inbox retain readable native surfaces", as
       .getByRole("dialog")
       .getByRole("button", { name: "Sign in", exact: true }),
   );
-  await expect(page.locator(".account-wordmark")).toHaveCSS(
-    "background-color",
-    "rgb(242, 247, 252)",
-  );
-  await expect(page.locator(".account-wordmark")).toHaveCSS("filter", "none");
+  await expect(page.locator(".account-wordmark")).toBeHidden();
+  await expect(
+    page.getByRole("heading", { name: "Welcome back.", exact: true }),
+  ).toBeVisible();
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator(".account-wordmark")).toBeHidden();
+  await expect(
+    page.getByRole("heading", { name: "Welcome back.", exact: true }),
+  ).toBeVisible();
+  await page.emulateMedia({ colorScheme: "dark" });
   await capture(page, "test-results/mac-dark-sign-in.png");
   await page.getByRole("button", { name: "Close dialog", exact: true }).click();
   const response = await context.request.post("/api/auth/register", {
@@ -660,4 +668,234 @@ test("Mac dark sign-in and individual inbox retain readable native surfaces", as
   await capture(page, "test-results/mac-dark-people-chat.png");
   await company.close();
   await context.close();
+});
+
+for (const intent of ["compose", "notifications"] as const) {
+  test(`early native ${intent} waits for session readiness and resumes after sign-in`, async ({
+    browser,
+  }) => {
+    const account = await browser.newContext({ baseURL });
+    const suffix = `${Date.now()}-${intent}`;
+    const email = `mac-ready-${suffix}@example.test`;
+    const registration = await account.request.post("/api/auth/register", {
+      data: {
+        name: "Mac Ready",
+        email,
+        password: "ConnectReady123!",
+        companyName: `Mac Ready Solar ${suffix}`,
+      },
+    });
+    expect(registration.status()).toBe(201);
+    const context = await contextFor(browser);
+    const page = await context.newPage();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route("**/api/session", async (route) => {
+      await gate;
+      await route.continue();
+    });
+    await page.goto("/directory");
+    await expect
+      .poll(() => page.evaluate(() => (window as any).macStates.at(-1)?.ready))
+      .toBe(false);
+    await command(page, { type: "account" });
+    await command(page, { type: intent }); // Latest valid UI intent wins during startup.
+    await command(page, { type: "navigate", path: "https://example.test/" });
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    release();
+    await expect
+      .poll(() => page.evaluate(() => (window as any).macStates.at(-1)?.ready))
+      .toBe(true);
+    await expect(
+      page.getByRole("dialog").getByLabel("Work email"),
+    ).toBeVisible();
+    await page.getByLabel("Work email").fill(email);
+    await page.getByLabel("Password", { exact: true }).fill("ConnectReady123!");
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Sign in", exact: true })
+      .click();
+    if (intent === "compose") {
+      await expect(
+        page.getByRole("textbox", { name: "Update content" }),
+      ).toBeVisible();
+    } else {
+      await expect(
+        page.getByRole("heading", { name: "Notifications", exact: true }),
+      ).toBeVisible();
+    }
+    await context.close();
+    await account.close();
+  });
+}
+
+test("Mac native filter menu preserves React selection, cancellation, accessibility and stale guards", async ({
+  browser,
+}) => {
+  const context = await contextFor(browser);
+  await context.addInitScript(() => {
+    Object.defineProperty(window, "__connectMacCapabilities", {
+      value: Object.freeze({ nativeSelect: true }),
+    });
+  });
+  const page = await context.newPage();
+  await page.goto("/directory");
+  const control = page.getByRole("combobox", {
+    name: "Company type",
+    exact: true,
+  });
+  await expect(page.locator("html")).toHaveClass(/mac-native-selects/);
+  await expect(control).toHaveCSS("appearance", "none");
+  const bounds = (await control.boundingBox())!;
+  expect(bounds.height).toBeGreaterThanOrEqual(36);
+  expect(bounds.width).toBeGreaterThanOrEqual(156);
+  const lastRequest = () =>
+    page.evaluate(() =>
+      (window as any).macStates
+        .filter((value: any) => value.type === "select")
+        .at(-1),
+    );
+  const result = (requestId: string, selectedIndex: number | null) =>
+    page.evaluate(
+      (detail) => {
+        window.dispatchEvent(
+          new CustomEvent("connect:mac-select-result", { detail }),
+        );
+      },
+      { requestId, selectedIndex },
+    );
+
+  await control.click();
+  await expect(control).toHaveAttribute("aria-expanded", "true");
+  const first = await lastRequest();
+  expect(first.label).toBe("Company type");
+  expect(first.options.map((option: any) => option.title)).toContain(
+    "Manufacturer",
+  );
+  expect(first.selectedIndex).toBe(0);
+  expect(Object.keys(first).sort()).toEqual(
+    ["type", "requestId", "label", "selectedIndex", "options", "anchor"].sort(),
+  );
+  expect(Object.keys(first.options[0]).sort()).toEqual(["disabled", "title"]);
+  await result("mismatched-request", 2);
+  await expect(control).toHaveValue("");
+  await result(first.requestId, 2);
+  await expect(control).toHaveValue("Manufacturer");
+  await expect(page).toHaveURL(/type=Manufacturer/);
+  await expect(control).toBeFocused();
+  await expect(control).not.toHaveAttribute("aria-expanded", "true");
+
+  await control.press("ArrowDown");
+  const keyboard = await lastRequest();
+  expect(keyboard.requestId).not.toBe(first.requestId);
+  expect(keyboard.selectedIndex).toBe(2);
+  await result(keyboard.requestId, null);
+  await expect(control).toHaveValue("Manufacturer");
+  await expect(control).toBeFocused();
+
+  await control
+    .locator("option")
+    .nth(1)
+    .evaluate((node) => {
+      (node as HTMLOptionElement).disabled = true;
+    });
+  await control.press("Space");
+  const disabled = await lastRequest();
+  expect(disabled.options[1].disabled).toBe(true);
+  await result(disabled.requestId, 1);
+  await expect(control).toHaveValue("Manufacturer");
+  await control
+    .locator("option")
+    .nth(1)
+    .evaluate((node) => {
+      (node as HTMLOptionElement).disabled = false;
+    });
+
+  await control.click();
+  const stale = await lastRequest();
+  await control
+    .locator("option")
+    .nth(1)
+    .evaluate((node) => {
+      node.textContent = "Changed while open";
+    });
+  await expect
+    .poll(() =>
+      page.evaluate(
+        (id) =>
+          (window as any).macStates.some(
+            (value: any) =>
+              value.type === "selectCancel" && value.requestId === id,
+          ),
+        stale.requestId,
+      ),
+    )
+    .toBe(true);
+  await result(stale.requestId, 1);
+  await expect(control).toHaveValue("Manufacturer");
+  await control
+    .locator("option")
+    .nth(1)
+    .evaluate((node) => {
+      node.textContent = "Installer";
+    });
+
+  await control.press("Enter");
+  const escaped = await lastRequest();
+  await control.press("Escape");
+  await expect(control).not.toHaveAttribute("aria-expanded", "true");
+  await result(escaped.requestId, 1);
+  await expect(control).toHaveValue("Manufacturer");
+
+  await control.click();
+  const navigated = await lastRequest();
+  await command(page, { type: "navigate", path: "/" });
+  await expect(page).toHaveURL(`${baseURL}/`);
+  await result(navigated.requestId, 1);
+  await expect(page).toHaveURL(`${baseURL}/`);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        (id) =>
+          (window as any).macStates.some(
+            (value: any) =>
+              value.type === "selectCancel" && value.requestId === id,
+          ),
+        navigated.requestId,
+      ),
+    )
+    .toBe(true);
+  await context.close();
+});
+
+test("old Mac hosts and ordinary browsers retain their working HTML directory selects", async ({
+  browser,
+}) => {
+  for (const mac of [true, false]) {
+    const context = await contextFor(browser, true, mac);
+    if (!mac)
+      await context.addInitScript(() => {
+        (window as any).__connectMacCapabilities = { nativeSelect: true };
+      });
+    const page = await context.newPage();
+    await page.goto("/directory");
+    await expect(page.locator("html")).not.toHaveClass(/mac-native-selects/);
+    const select = page.getByRole("combobox", {
+      name: "Project type",
+      exact: true,
+    });
+    await select.selectOption("Residential");
+    await expect(page).toHaveURL(/audience=Residential/);
+    await expect(select).toHaveValue("Residential");
+    expect(
+      await page.evaluate(() =>
+        (window as any).macStates.filter(
+          (value: any) => value.type === "select",
+        ),
+      ),
+    ).toEqual([]);
+    await context.close();
+  }
 });
