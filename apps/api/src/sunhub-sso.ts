@@ -127,6 +127,18 @@ type Flow = {
   mobile_state: string | null;
   mobile_challenge: string | null;
 };
+function returnToApp(res: Response, target: URL) {
+  const href = target.href
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;");
+  res.set("Referrer-Policy", "no-referrer");
+  res
+    .type("html")
+    .send(
+      `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Return to Connect</title><style>body{margin:0;background:#f2f7fc;color:#203444;font:16px system-ui,sans-serif;min-height:100dvh;display:grid;place-items:center}main{padding:32px;text-align:center;max-width:360px}img{width:170px;height:auto}h1{font-size:28px;letter-spacing:-.5px;margin-top:36px}p{color:#62748a;line-height:1.6}a{display:inline-block;background:#ff710d;color:#142a38;padding:15px 28px;border-radius:999px;font-weight:600;text-decoration:none;margin-top:18px}a:focus-visible{outline:3px solid #203444;outline-offset:4px}</style></head><body><main><img src="/assets/connect-logo.png" alt="Connect"><h1>Back to your community.</h1><p>Continue in the Connect app to finish signing in.</p><a id="return-to-connect" href="${href}">Return to Connect</a><p><small>If the app doesn’t open automatically, tap the button.</small></p></main><script src="/api/auth/sunhub/return.js"></script></body></html>`,
+    );
+}
 function finish(res: Response, flow: Flow | undefined, error: string) {
   const target = new URL(
     flow?.mobile_redirect || flow?.return_to || "/",
@@ -135,6 +147,7 @@ function finish(res: Response, flow: Flow | undefined, error: string) {
   target.searchParams.set(flow?.mobile_redirect ? "error" : "sso_error", error);
   if (flow?.mobile_redirect)
     target.searchParams.set("state", flow.mobile_state!);
+  if (flow?.mobile_redirect) return returnToApp(res, target);
   res.redirect(
     303,
     flow?.mobile_redirect
@@ -229,6 +242,13 @@ async function identityUser(flow: Flow, claims: Record<string, unknown>) {
 }
 export function sunhubSsoRoutes() {
   const router = Router();
+  router.get("/auth/sunhub/return.js", (_req, res) => {
+    res
+      .type("application/javascript")
+      .send(
+        'const link=document.getElementById("return-to-connect");if(link){try{window.location.replace(link.href)}catch{}}',
+      );
+  });
   router.get("/auth/sunhub/config", (_req, res) =>
     res.json({ enabled: !!issuer() }),
   );
@@ -365,7 +385,7 @@ export function sunhubSsoRoutes() {
         const target = new URL(flow.mobile_redirect);
         target.searchParams.set("code", code);
         target.searchParams.set("state", flow.mobile_state!);
-        return res.redirect(303, target.href);
+        return returnToApp(res, target);
       }
       if (!flow.link_user_id) {
         const company =

@@ -112,7 +112,14 @@ async function request(path, { cookie = "", body } = {}) {
     cookies: r.headers.getSetCookie(),
     location: r.headers.get("location"),
     data,
+    text,
   };
+}
+function appReturn(result) {
+  assert.equal(result.status, 200);
+  assert.match(result.text, /Return to Connect/);
+  const href = result.text.match(/id="return-to-connect" href="([^"]+)"/)[1];
+  return new URL(href.replaceAll("&amp;", "&"));
 }
 const sessionCookie = (r) =>
   r.cookies
@@ -371,7 +378,7 @@ test("Sunhub is an optional verified OIDC sign-in, independent of Connect passwo
         state,
       });
       const result = await callback(flow, { sub: subject, email });
-      const url = new URL(result.location);
+      const url = appReturn(result);
       assert.equal(url.protocol, "com.sunhub.community.debug:");
       assert.equal(url.searchParams.get("state"), state);
       assert.deepEqual([...url.searchParams.keys()].sort(), ["code", "state"]);
@@ -410,7 +417,7 @@ test("Sunhub is an optional verified OIDC sign-in, independent of Connect passwo
       state: random(),
     });
     const result = await callback(flow, { sub: subject, email }),
-      code = new URL(result.location).searchParams.get("code");
+      code = appReturn(result).searchParams.get("code");
     await db.query(
       "UPDATE mobile_auth_handoffs SET expires_at=now()-interval '1 second' WHERE code_hash=$1",
       [hash(code)],
