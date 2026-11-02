@@ -14,13 +14,15 @@ ARG CONNECT_RELEASE=local
 ENV NODE_ENV=production
 ENV CONNECT_RELEASE=$CONNECT_RELEASE
 LABEL org.opencontainers.image.revision=$CONNECT_RELEASE
-COPY --from=build /app/node_modules node_modules
-COPY --from=build /app/apps/api/node_modules apps/api/node_modules
-COPY --from=build /app/package.json package.json
-COPY --from=build /app/apps/api/package.json apps/api/package.json
-COPY --from=build /app/apps/api/dist apps/api/dist
-COPY --from=build /app/apps/api/migrations apps/api/migrations
-COPY --from=build /app/apps/web/dist apps/web/dist
+# COPY preserves source modes, including 0600/0700 from private checkouts.
+# Make the runtime user the owner so it can traverse and read every artifact.
+COPY --from=build --chown=node:node /app/node_modules node_modules
+COPY --from=build --chown=node:node /app/apps/api/node_modules apps/api/node_modules
+COPY --from=build --chown=node:node /app/package.json package.json
+COPY --from=build --chown=node:node /app/apps/api/package.json apps/api/package.json
+COPY --from=build --chown=node:node /app/apps/api/dist apps/api/dist
+COPY --from=build --chown=node:node /app/apps/api/migrations apps/api/migrations
+COPY --from=build --chown=node:node /app/apps/web/dist apps/web/dist
 RUN mkdir -p /app/uploads && chown node:node /app/uploads
 USER node
 EXPOSE 4100

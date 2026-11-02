@@ -42,10 +42,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -t connect-check .
-      - name: Check API runtime emoji support
-        run: >-
-          docker run --rm --entrypoint node
-          --mount "type=bind,source=$PWD/tests/container-runtime.mjs,target=/tmp/container-runtime.mjs,readonly"
-          --mount "type=bind,source=$PWD/apps/android/app/src/main/assets/reaction-emojis.json,target=/tmp/reaction-emojis.json,readonly"
+      - name: Build from a restrictive source checkout
+        run: |
+          find . -path './.git' -prune -o -type f -exec chmod 600 {} +
+          find . -path './.git' -prune -o -type d -exec chmod 700 {} +
+          docker build -t connect-check .
+      - name: Check non-root runtime files and dependencies
+        run: |
+          chmod 644 tests/container-runtime.mjs apps/android/app/src/main/assets/reaction-emojis.json
+          docker run --rm --entrypoint node \
+          --mount "type=bind,source=$PWD/tests/container-runtime.mjs,target=/tmp/container-runtime.mjs,readonly" \
+          --mount "type=bind,source=$PWD/apps/android/app/src/main/assets/reaction-emojis.json,target=/tmp/reaction-emojis.json,readonly" \
           connect-check /tmp/container-runtime.mjs
