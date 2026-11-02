@@ -1,0 +1,242 @@
+/* The native titlebar/sidebar sit outside this viewport. Keep these overrides
+   scoped so normal browsers retain their existing responsive shell. */
+html.connect-mac {
+  scroll-padding: 16px;
+  background: var(--surface);
+}
+.connect-mac body {
+  padding: 0;
+  min-width: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--surface);
+}
+.connect-mac .mac-app {
+  width: 100%;
+  max-width: none;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 24px clamp(16px, 3vw, 36px);
+}
+.connect-mac .newsroom {
+  max-width: 1020px;
+}
+.connect-mac .newsroom-heading,
+.connect-mac .feed-composer,
+.connect-mac .newsroom-workspace,
+.connect-mac .feed-small-print,
+.connect-mac .discovery-intro-note,
+.connect-mac .discovery-home .discovery-intro,
+.connect-mac .discovery-bottom,
+.connect-mac .discovery-source-note,
+.connect-mac .profile-breadcrumb {
+  display: none;
+}
+.connect-mac .feed-controls {
+  margin-top: 0;
+  padding-top: 0;
+}
+.connect-mac .feed-layout {
+  gap: 24px;
+}
+.connect-mac .feed-right-rail {
+  top: 24px;
+}
+.connect-mac .discovery-intro {
+  margin-top: 0;
+  padding-top: 0;
+}
+.connect-mac .discovery-intro h1 {
+  font-size: 28px;
+}
+.connect-mac .company-presence {
+  margin-top: 0;
+}
+.connect-mac .connections-page {
+  min-height: 0;
+}
+.connect-mac .mac-app.messages-view {
+  height: 100dvh;
+  min-height: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.connect-mac .messages-view > .inbox-channels {
+  margin: 10px 16px;
+  flex-shrink: 0;
+}
+.connect-mac .messaging-panel,
+.connect-mac .people-inbox,
+.connect-mac .people-inbox.has-chat {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  border-radius: 0;
+  border: 0;
+}
+.connect-mac .people-inbox-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-width: none;
+  width: 100%;
+  margin: 0;
+}
+.connect-mac .people-inbox-wrap > .inbox-channels {
+  margin: 10px 16px;
+  flex-shrink: 0;
+}
+.connect-mac .conversation-list,
+.connect-mac .conversation-pane,
+.connect-mac .people-list,
+.connect-mac .people-chat {
+  min-height: 0;
+}
+.connect-mac .modal:has(.mac-action-panel) {
+  width: min(440px, calc(100vw - 32px));
+  border-radius: 16px;
+}
+.connect-mac .modal::backdrop {
+  background: #20334230;
+  backdrop-filter: blur(2px);
+}
+.connect-mac .modal:has(.mac-action-panel) .modal-content {
+  padding: 0;
+}
+.mac-action-panel {
+  padding: 20px;
+}
+.mac-action-panel h2 {
+  font-size: 20px;
+  margin: 0 36px 20px 0;
+}
+.mac-action-panel .menu-heading {
+  padding: 0 12px 12px;
+}
+.mac-action-panel > button,
+.mac-action-panel > a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: var(--ink);
+  background: transparent;
+  text-align: left;
+}
+.mac-action-panel > button:hover,
+.mac-action-panel > a:hover {
+  background: var(--surface-muted);
+}
+.mac-action-panel > button > svg,
+.mac-action-panel > a > svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.mac-action-panel > button > span,
+.mac-action-panel > a > span {
+  flex: 1;
+  min-width: 0;
+}
+.mac-action-panel > button > .company-logo {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+}
+.mac-action-panel small {
+  display: block;
+  color: var(--muted);
+}
+.mac-action-panel > .between {
+  margin-bottom: 12px;
+}
+.mac-action-panel > p {
+  padding: 12px;
+}
+.connect-mac .mac-app .button {
+  min-height: 32px;
+  min-width: 32px;
+  padding: 6px 11px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.connect-mac .feed-tabs [role="tablist"] {
+  padding: 2px;
+  gap: 2px;
+  border-radius: 10px;
+  box-shadow: none;
+}
+.connect-mac .feed-tabs [role="tab"],
+.connect-mac .inbox-channels > a,
+.connect-mac .inbox-filters button,
+.connect-mac .people-list-tabs button {
+  min-height: 32px;
+  padding: 5px 11px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.connect-mac .feed-type-select select {
+  min-height: 32px;
+  height: 32px;
+  padding: 4px 28px 4px 10px;
+  border-radius: 9px;
+  font-size: 12px;
+}
+.connect-mac .feed-refresh {
+  flex-basis: 32px;
+  min-width: 32px;
+  width: 32px;
+  min-height: 32px;
+  height: 32px;
+}
+.connect-mac .compact-search,
+.connect-mac .conversation-list > .compact-search,
+.connect-mac .people-search {
+  min-height: 34px;
+  height: 34px;
+  border-radius: 9px;
+}
+.connect-mac .compact-search input,
+.connect-mac .people-search input {
+  min-height: 32px;
+  height: 32px;
+  padding-block: 5px;
+  font-size: 13px;
+}
+@media (max-width: 1100px) {
+  .connect-mac .feed-layout {
+    grid-template-columns: minmax(0, 720px);
+    justify-content: center;
+  }
+  .connect-mac .feed-right-rail {
+    display: none;
+  }
+}
+@media (max-width: 720px) {
+  .connect-mac .mac-app {
+    padding: 16px;
+  }
+  .connect-mac .mac-app.messages-view {
+    padding: 0;
+  }
+  .connect-mac .modal:has(.account-experience) {
+    width: min(520px, 100vw);
+    height: auto;
+    max-height: calc(100dvh - 32px);
+    border-radius: 24px;
+  }
+  .connect-mac .account-experience {
+    min-height: 0;
+  }
+  .connect-mac .account-experience .account-panel {
+    padding: 48px 24px 24px;
+  }
+}

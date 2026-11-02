@@ -84,12 +84,15 @@ import { ClaimCompanyPage } from "./claim-company";
 import { CompanyMatches } from "./company-matches";
 import { CompanyProfileView } from "./company-profile";
 import { CompanySettings, EmployeeInvite } from "./management";
+import { Publisher, DraftsDialog } from "./composer";
+import { MacPanel, useMacApp, type MacCommand } from "./mac-app";
 import "./styles.css";
 import "./shell.css";
 import "./network.css";
 import "./messaging.css";
 import "./design-system.css";
 import "./social.css";
+import "./mac-app.css";
 
 const date = (s: string) =>
   new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -312,6 +315,92 @@ function App() {
       network.connections.reduce((a, c) => a + c.unread, 0) +
       network.incoming.filter((r) => r.kind === "message").length,
     notifications = network.notifications.filter((n) => !n.read_at);
+  const macApp = useMacApp(
+    {
+      path: location.pathname,
+      signedIn: !!session.user && !sessionExpired,
+      accountType: session.user?.account_type || "",
+      userName: session.user?.name || "",
+      companyName: company?.name || "",
+      canPublish: !!company && admin && !sessionExpired && !incompleteAccount,
+      unreadCount: unread + notifications.length,
+    },
+    (command: MacCommand) => {
+      if (!ready) return;
+      if (needsOnboarding || reauthenticate) {
+        setNotice("Finish the open account step to continue.");
+        return;
+      }
+      const perform = () => {
+        if (command.type === "navigate") {
+          if (
+            session.user?.account_type === "individual" &&
+            command.path.startsWith("/network")
+          ) {
+            setNotice("Company connections are managed by company accounts.");
+            return;
+          }
+          if (
+            (!session.user || sessionExpired) &&
+            (command.path.startsWith("/network") ||
+              command.path === "/messages")
+          )
+            auth(() => navigate(command.path), command.path);
+          else navigate(command.path);
+        } else if (command.type === "compose") {
+          if (!session.user || sessionExpired) auth();
+          else if (session.user.account_type === "individual")
+            setNotice("Publishing is for company accounts.");
+          else if (!company) setModal(<NewCompany />);
+          else if (!admin)
+            setNotice("Only company owners and administrators can publish.");
+          else setModal(<Publisher />);
+        } else if (command.type === "account") {
+          if (!session.user || sessionExpired) auth();
+          else
+            setModal(
+              <MacPanel title="Your account">
+                <AccountMenuContents desktop closeMenu={() => setModal(null)} />
+              </MacPanel>,
+            );
+        } else if (command.type === "notifications") {
+          if (!session.user || sessionExpired) auth();
+          else
+            setModal(
+              <MacPanel title="Notifications">
+                {company ? (
+                  <NotificationContents
+                    heading={false}
+                    closeMenu={() => setModal(null)}
+                  />
+                ) : (
+                  <p className="muted">You’re all caught up.</p>
+                )}
+              </MacPanel>,
+            );
+        } else if (command.type === "profile") {
+          if (company) navigate("/company/" + company.slug);
+          else if (!session.user || sessionExpired) auth();
+          else if (session.user.account_type === "individual")
+            navigate("/account");
+          else setModal(<NewCompany />);
+        }
+      };
+      if (!modal) {
+        perform();
+        return;
+      }
+      const finish = () => {
+        setModal(null);
+        perform();
+      };
+      const event = new CustomEvent("connect:modal-close", {
+        cancelable: true,
+        detail: { close: finish },
+      });
+      if (window.dispatchEvent(event)) finish();
+    },
+  );
   if (!ready) return <Loading />;
   return (
     <AppContext.Provider
@@ -330,260 +419,155 @@ function App() {
         createCompany: () => setModal(<NewCompany />),
       }}
     >
-      <header className="site-header">
-        <div className="header-inner">
-          <Link className="brand" to="/" aria-label="Connect home">
-            <img src="/assets/connect-logo.png" alt="Connect" />
-          </Link>
-          <nav className="primary-nav" aria-label="Main navigation">
-            <NavLink
-              className={({ isActive }) =>
-                "home-nav " + (isActive ? "active" : "")
-              }
-              to="/"
-              end
-              aria-label="Home"
-            >
-              <House size={15} />
-              <span>Home</span>
-            </NavLink>
-            <Link
-              to="/directory"
-              className={
-                location.pathname === "/directory" ||
-                location.pathname.startsWith("/company/")
-                  ? "active"
-                  : ""
-              }
-              aria-current={
-                location.pathname === "/directory" ||
-                location.pathname.startsWith("/company/")
-                  ? "page"
-                  : undefined
-              }
-            >
-              <Building2 size={15} />
-              Directory
+      {!macApp && (
+        <header className="site-header">
+          <div className="header-inner">
+            <Link className="brand" to="/" aria-label="Connect home">
+              <img src="/assets/connect-logo.png" alt="Connect" />
             </Link>
-            {session.user?.account_type !== "individual" && (
+            <nav className="primary-nav" aria-label="Main navigation">
+              <NavLink
+                className={({ isActive }) =>
+                  "home-nav " + (isActive ? "active" : "")
+                }
+                to="/"
+                end
+                aria-label="Home"
+              >
+                <House size={15} />
+                <span>Home</span>
+              </NavLink>
               <Link
-                to="/network/connections"
+                to="/directory"
                 className={
-                  location.pathname.startsWith("/network") ? "active" : ""
+                  location.pathname === "/directory" ||
+                  location.pathname.startsWith("/company/")
+                    ? "active"
+                    : ""
                 }
                 aria-current={
-                  location.pathname.startsWith("/network") ? "page" : undefined
+                  location.pathname === "/directory" ||
+                  location.pathname.startsWith("/company/")
+                    ? "page"
+                    : undefined
                 }
+              >
+                <Building2 size={15} />
+                Directory
+              </Link>
+              {session.user?.account_type !== "individual" && (
+                <Link
+                  to="/network/connections"
+                  className={
+                    location.pathname.startsWith("/network") ? "active" : ""
+                  }
+                  aria-current={
+                    location.pathname.startsWith("/network")
+                      ? "page"
+                      : undefined
+                  }
+                  onClick={(e) => {
+                    if (!session.user) {
+                      e.preventDefault();
+                      auth(
+                        () => navigate("/network/connections"),
+                        "/network/connections",
+                      );
+                    }
+                  }}
+                >
+                  <Users size={15} />
+                  My Network
+                </Link>
+              )}
+              <NavLink
+                to="/messages"
                 onClick={(e) => {
                   if (!session.user) {
                     e.preventDefault();
-                    auth(
-                      () => navigate("/network/connections"),
-                      "/network/connections",
-                    );
+                    auth(() => navigate("/messages"), "/messages");
                   }
                 }}
               >
-                <Users size={15} />
-                My Network
-              </Link>
-            )}
-            <NavLink
-              to="/messages"
-              onClick={(e) => {
-                if (!session.user) {
-                  e.preventDefault();
-                  auth(() => navigate("/messages"), "/messages");
-                }
-              }}
-            >
-              <MessageSquare size={15} />
-              Messages{unread > 0 && <b className="count">{unread}</b>}
-            </NavLink>
-            {company && (
-              <>
-                {" "}
-                <span className="nav-divider" />{" "}
-                <details className="notifications">
-                  <summary aria-label="Notifications" className="icon-button">
-                    <Bell size={17} />
-                    {notifications.length > 0 && (
-                      <b className="notification-count">
-                        {notifications.length > 9 ? "9+" : notifications.length}
-                      </b>
-                    )}
-                  </summary>
-                  <div className="dropdown notifications-panel">
-                    <div className="between">
-                      <strong>Notifications</strong>
-                      <button
-                        className="text-button"
-                        onClick={async () => {
-                          await post("/notifications/read");
-                          refresh();
-                        }}
-                      >
-                        Mark read
-                      </button>
-                    </div>
-                    <Link
-                      className="requests-notification-link"
-                      to="/requests"
-                      onClick={(e) =>
-                        e.currentTarget
-                          .closest("details")
-                          ?.removeAttribute("open")
-                      }
-                    >
-                      <UserPlus size={17} />
-                      <span>Connection requests</span>
-                      {network.incoming.length > 0 && (
-                        <b className="count">{network.incoming.length}</b>
+                <MessageSquare size={15} />
+                Messages{unread > 0 && <b className="count">{unread}</b>}
+              </NavLink>
+              {company && (
+                <>
+                  {" "}
+                  <span className="nav-divider" />{" "}
+                  <details className="notifications">
+                    <summary aria-label="Notifications" className="icon-button">
+                      <Bell size={17} />
+                      {notifications.length > 0 && (
+                        <b className="notification-count">
+                          {notifications.length > 9
+                            ? "9+"
+                            : notifications.length}
+                        </b>
                       )}
-                      <ChevronRight size={15} />
-                    </Link>
-                    {network.notifications.length ? (
-                      network.notifications.slice(0, 8).map((n) => (
-                        <Link
-                          key={n.id}
-                          to={
-                            n.type === "request"
-                              ? "/requests"
-                              : n.type === "message_request"
-                                ? "/messages/company/" + n.related_company_id
-                                : n.type === "message"
-                                  ? "/messages"
-                                  : "/company/" + n.related_company_id
-                          }
-                          onClick={(e) =>
-                            e.currentTarget
-                              .closest("details")
-                              ?.removeAttribute("open")
-                          }
-                        >
-                          <span className={!n.read_at ? "unread-dot" : ""} />
-                          <span>
-                            {n.text}
-                            <small>{date(n.created_at)}</small>
-                          </span>
-                        </Link>
-                      ))
-                    ) : (
-                      <p className="muted">You’re all caught up.</p>
-                    )}
-                  </div>
-                </details>
-              </>
-            )}
-          </nav>
-          <div className="header-actions">
-            {session.user && !sessionExpired ? (
-              <>
-                {company && (
-                  <Link
-                    className="my-company-link"
-                    to={"/company/" + company.slug}
-                  >
-                    <Building2 size={15} />
-                    <span>My company</span>
-                  </Link>
-                )}
-                <details className="account-menu">
-                  <summary
-                    aria-label="Account and company menu"
-                    title={
-                      session.user.name +
-                      " · " +
-                      (company?.name || "Your account")
-                    }
-                  >
-                    <Avatar name={session.user.name} />
-                  </summary>
-                  <div className="dropdown">
-                    <div className="menu-heading">{session.user.name}</div>
-                    {session.companies.map((c) => (
-                      <button
-                        key={c.id}
-                        onClick={async () => {
-                          setSession(
-                            await post("/session/company", { companyId: c.id }),
-                          );
-                          refresh();
-                          document
-                            .querySelector(".account-menu")
-                            ?.removeAttribute("open");
-                          navigate("/network/connections");
-                        }}
-                      >
-                        <Logo company={c} size="tiny" />
-                        <span>{c.name}</span>
-                        {c.id === company?.id && <Check size={15} />}
-                      </button>
-                    ))}
+                    </summary>
+                    <div className="dropdown notifications-panel">
+                      <NotificationContents />
+                    </div>
+                  </details>
+                </>
+              )}
+            </nav>
+            <div className="header-actions">
+              {session.user && !sessionExpired ? (
+                <>
+                  {company && (
                     <Link
-                      to="/account"
-                      onClick={(e) =>
-                        e.currentTarget
-                          .closest("details")
-                          ?.removeAttribute("open")
+                      className="my-company-link"
+                      to={"/company/" + company.slug}
+                    >
+                      <Building2 size={15} />
+                      <span>My company</span>
+                    </Link>
+                  )}
+                  <details className="account-menu">
+                    <summary
+                      aria-label="Account and company menu"
+                      title={
+                        session.user.name +
+                        " · " +
+                        (company?.name || "Your account")
                       }
                     >
-                      <ShieldCheck />
-                      Account & security
-                    </Link>
-                    {session.user.account_type !== "individual" && (
-                      <button onClick={() => setModal(<NewCompany />)}>
-                        <Plus />
-                        Create a company
-                      </button>
-                    )}
-                    {company && (
-                      <Link to="/settings">
-                        <Settings />
-                        Company settings
-                      </Link>
-                    )}
+                      <Avatar name={session.user.name} />
+                    </summary>
+                    <div className="dropdown">
+                      <AccountMenuContents />
+                    </div>
+                  </details>
+                </>
+              ) : (
+                <>
+                  {!sessionExpired && (
                     <button
-                      onClick={async () => {
-                        await post("/auth/logout");
-                        setSession({
-                          user: null,
-                          companies: [],
-                          activeCompanyId: null,
-                        });
-                        navigate("/");
-                      }}
+                      className="button ghost"
+                      onClick={() =>
+                        setModal(<AuthModal initialMode="register" />)
+                      }
                     >
-                      <LogOut />
-                      Sign out
+                      Join Connect
                     </button>
-                  </div>
-                </details>
-              </>
-            ) : (
-              <>
-                {!sessionExpired && (
-                  <button
-                    className="button ghost"
-                    onClick={() =>
-                      setModal(<AuthModal initialMode="register" />)
-                    }
-                  >
-                    Join Connect
+                  )}
+                  <button className="button primary" onClick={() => auth()}>
+                    Sign in
                   </button>
-                )}
-                <button className="button primary" onClick={() => auth()}>
-                  Sign in
-                </button>
-              </>
-            )}
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
       <main
-        {...mobileNavigation}
+        {...(macApp ? {} : mobileNavigation)}
         className={
           "app-main " +
+          (macApp ? "mac-app " : "") +
           (location.pathname.startsWith("/messages")
             ? "workspace-view messages-view"
             : location.pathname.startsWith("/network")
@@ -717,19 +701,21 @@ function App() {
           </button>
         </div>
       )}
-      <footer className="site-footer">
-        <span>
-          <img
-            className="footer-logo"
-            src="/assets/connect-logo.png"
-            alt="Connect"
-          />
-        </span>
-        <span>Connect. Talk. Celebrate.</span>
-        <button onClick={() => setModal(<PhotoCredits />)}>
-          Photo credits
-        </button>
-      </footer>
+      {!macApp && (
+        <footer className="site-footer">
+          <span>
+            <img
+              className="footer-logo"
+              src="/assets/connect-logo.png"
+              alt="Connect"
+            />
+          </span>
+          <span>Connect. Talk. Celebrate.</span>
+          <button onClick={() => setModal(<PhotoCredits />)}>
+            Photo credits
+          </button>
+        </footer>
+      )}
       <WebUpdateNotice />
       {notice && (
         <div className="toast" role="status">
@@ -783,6 +769,151 @@ function App() {
     </AppContext.Provider>
   );
 }
+
+function AccountMenuContents({
+  closeMenu,
+  desktop = false,
+}: {
+  closeMenu?: () => void;
+  desktop?: boolean;
+}) {
+  const { session, company, admin, setSession, refresh, open } = useApp();
+  const navigate = useNavigate();
+  if (!session.user) return null;
+  return (
+    <>
+      <div className="menu-heading">{session.user.name}</div>
+      {session.companies.map((c) => (
+        <button
+          key={c.id}
+          onClick={async () => {
+            setSession(await post("/session/company", { companyId: c.id }));
+            refresh();
+            document.querySelector(".account-menu")?.removeAttribute("open");
+            closeMenu?.();
+            navigate("/network/connections");
+          }}
+        >
+          <Logo company={c} size="tiny" />
+          <span>{c.name}</span>
+          {c.id === company?.id && <Check size={15} />}
+        </button>
+      ))}
+      <Link
+        to="/account"
+        onClick={(e) => {
+          e.currentTarget.closest("details")?.removeAttribute("open");
+          closeMenu?.();
+        }}
+      >
+        <ShieldCheck />
+        Account & security
+      </Link>
+      {session.user.account_type !== "individual" && (
+        <button onClick={() => open(<NewCompany />)}>
+          <Plus />
+          Create a company
+        </button>
+      )}
+      {company && (
+        <Link to="/settings" onClick={closeMenu}>
+          <Settings />
+          Company settings
+        </Link>
+      )}
+      <button
+        onClick={async () => {
+          await post("/auth/logout");
+          setSession({
+            user: null,
+            companies: [],
+            activeCompanyId: null,
+          });
+          closeMenu?.();
+          navigate("/");
+        }}
+      >
+        <LogOut />
+        Sign out
+      </button>
+      {desktop && company && admin && (
+        <button onClick={() => open(<DraftsDialog />)}>
+          <FileText />
+          Your drafts
+        </button>
+      )}
+    </>
+  );
+}
+function NotificationContents({
+  closeMenu,
+  heading = true,
+}: {
+  closeMenu?: () => void;
+  heading?: boolean;
+}) {
+  const { network, refresh } = useApp();
+  return (
+    <>
+      <div className="between">
+        {heading && <strong>Notifications</strong>}
+        <button
+          className="text-button"
+          onClick={async () => {
+            await post("/notifications/read");
+            refresh();
+          }}
+        >
+          Mark read
+        </button>
+      </div>
+      <Link
+        className="requests-notification-link"
+        to="/requests"
+        onClick={(e) => {
+          e.currentTarget.closest("details")?.removeAttribute("open");
+          closeMenu?.();
+        }}
+      >
+        <UserPlus size={17} />
+        <span>Connection requests</span>
+        {network.incoming.length > 0 && (
+          <b className="count">{network.incoming.length}</b>
+        )}
+        <ChevronRight size={15} />
+      </Link>
+      {network.notifications.length ? (
+        network.notifications.slice(0, 8).map((n) => (
+          <Link
+            key={n.id}
+            to={
+              n.type === "request"
+                ? "/requests"
+                : n.type === "message_request"
+                  ? "/messages/company/" + n.related_company_id
+                  : n.type === "message"
+                    ? "/messages"
+                    : "/company/" + n.related_company_id
+            }
+            onClick={(e) => {
+              e.currentTarget.closest("details")?.removeAttribute("open");
+              closeMenu?.();
+            }}
+          >
+            <span className={!n.read_at ? "unread-dot" : ""} />
+            <span>
+              {n.text}
+              <small>{date(n.created_at)}</small>
+            </span>
+          </Link>
+        ))
+      ) : (
+        <p className="muted">You’re all caught up.</p>
+      )}
+    </>
+  );
+}
+
 function Protected({
   children,
   allowIndividual = false,

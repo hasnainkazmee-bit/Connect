@@ -80,6 +80,7 @@ The feeds are chronological and use exact sequence cursors. Following includes t
 
 ```text
 apps/android/             Native Kotlin/Jetpack Compose Android app
+apps/macos/               Native AppKit + WebKit Mac app, shared live Connect UI
 crates/mobile-core/       Rust networking, cache, uploads and event stream
 apps/web/                 React + TypeScript + Vite; responsive UI
 apps/api/src/             Express + TypeScript; authorization and business rules
@@ -136,6 +137,12 @@ Company employees have their own company-account login, with owner, administrato
 Individual accounts can follow companies, leave customer reviews, and start message requests with companies. They cannot publish, create company profiles, or join company teams. The People inbox keeps these conversations separate from company-to-company connections. Accepting an individual’s message request opens that conversation without creating a company connection. Employees of a company cannot review their own company.
 
 Android uses a floating capsule navigation with a central Create action. Phone layouts use bottom navigation. Horizontal swipes move between main tabs; editing, chat details, and horizontal content keep their own gestures. Android keeps tab scroll state and uses native Compose paging. Web builds check for a newer server release and offer a refresh. Android checks the release manifest, downloads only from the project’s GitHub releases, verifies the checksum, package, version, and signing certificate, and asks Android to confirm installation. Native changes require an APK update; API and web changes do not.
+
+### macOS app
+
+Connect for Mac uses a native AppKit sidebar and toolbar with a desktop workspace rendered by the system WebKit engine. It shares the existing backend, accounts, directory, publishing, and messaging. The Mac layout omits the website header/footer and uses compact controls and a full-height inbox. It includes a persistent sign-in store, centered Sunhub authentication popups, native file selection and downloads, keyboard navigation, find, zoom, and connection recovery. Closing the main window retains the session and drafts; quitting checks for unsaved work.
+
+On a Mac, run `npm run package:macos` to build a universal Apple Silicon/Intel installer for macOS 13 or later. The local installer is written to `apps/macos/artifacts/Connect-0.1.0-macos-universal.dmg`. Run `npm run test:macos` for the URL-policy and local WebKit regression checks. Installation, signing, and current limitations are documented in [apps/macos/README.md](apps/macos/README.md). Default builds are ad-hoc signed local test builds, not Apple-notarized public releases. Web improvements load from the live service; native host upgrades require a new app build.
 
 ### Optional Sign in with Sunhub
 

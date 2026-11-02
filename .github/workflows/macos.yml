@@ -1,0 +1,33 @@
+name: Connect macOS
+on:
+  push:
+    paths:
+      - 'apps/macos/**'
+      - 'apps/web/public/assets/connect-icon.png'
+      - 'apps/web/public/assets/connect-logo.png'
+      - '.github/workflows/macos.yml'
+  pull_request:
+    paths:
+      - 'apps/macos/**'
+      - 'apps/web/public/assets/connect-icon.png'
+      - 'apps/web/public/assets/connect-logo.png'
+      - '.github/workflows/macos.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check navigation and restoration boundaries
+        run: ./apps/macos/test-policy.sh
+      - name: Build universal local-test app and installer
+        run: ./apps/macos/package.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Connect-macOS-local-test
+          path: |
+            apps/macos/artifacts/*.dmg
+            apps/macos/artifacts/*.zip
+          retention-days: 14

@@ -10,6 +10,7 @@ sunhub-community
 target
 .toolchains
 apps/android
+apps/macos
 
 .env.*
 !.env.example
