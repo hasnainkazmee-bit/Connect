@@ -24,6 +24,7 @@ import { api, post } from "./api";
 import { useApp } from "./context";
 import { Avatar, Logo } from "./identity";
 import type { Achievement, Company, Project } from "./types";
+import { usePhotoAdjuster } from "./photo-adjuster";
 import "./management.css";
 
 type Site = {
@@ -235,12 +236,13 @@ export function UsernameField({
     </label>
   );
 }
-export async function uploadCompanyPhoto(file: File) {
+export async function uploadCompanyPhoto(file: File, signal?: AbortSignal) {
   const form = new FormData();
   form.set("file", file);
   return api<{ id: string; url: string }>("/companies/current/assets", {
     method: "POST",
     body: form,
+    signal,
   });
 }
 export function BrandEditor({
@@ -257,7 +259,20 @@ export function BrandEditor({
       slot === "logo" ? target.logo_url || "" : target.cover_url,
     );
   const input = useRef<HTMLInputElement>(null);
-  const guard = useUnsavedChanges(!!file, task.busy);
+  const operations = useRef(new AbortController()),
+    mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    operations.current = new AbortController();
+    return () => {
+      mounted.current = false;
+      operations.current.abort();
+    };
+  }, [target.id, slot]);
+  const owns = (owner: AbortController) =>
+    mounted.current && operations.current === owner && !owner.signal.aborted;
+  const { adjustPhoto, photoAdjuster, adjustingPhoto } = usePhotoAdjuster();
+  const guard = useUnsavedChanges(!!file, task.busy || adjustingPhoto);
   useEffect(() => {
     if (!file) return;
     const url = URL.createObjectURL(file);
@@ -265,19 +280,20 @@ export function BrandEditor({
     return () => URL.revokeObjectURL(url);
   }, [file]);
   return (
-    <section className="manage-dialog">
+    <section className="manage-dialog brand-photo-editor">
       <header className="manage-heading">
         <span>MAKE IT YOURS</span>
         <h2>{slot === "logo" ? "Company logo" : "Cover photo"}</h2>
         <p>
           {slot === "logo"
             ? "Choose a clear, square image that people will recognize."
-            : "Give your profile a first impression. A wide landscape photo works best."}
+            : "Show your work with a portrait or square photo. Adjust the crop before saving."}
         </p>
       </header>
       <button
         type="button"
         className={"branding-preview " + slot}
+        disabled={task.busy || adjustingPhoto}
         onClick={() => input.current?.click()}
       >
         {preview ? (
@@ -297,23 +313,41 @@ export function BrandEditor({
         ref={input}
         type="file"
         hidden
+        disabled={task.busy || adjustingPhoto}
         accept=".jpg,.jpeg,.png,.webp"
-        onChange={(e) => {
+        onChange={async (e) => {
           const f = e.target.files?.[0];
+          e.target.value = "";
+          const owner = operations.current;
+          if (task.busy || adjustingPhoto || !owns(owner)) return;
           if (f) {
             if (f.size > 10 * 1024 * 1024)
               task.setError("Choose a photo under 10 MB.");
             else {
-              setFile(f);
               task.setError("");
+              const adjusted = await adjustPhoto(f, {
+                title:
+                  slot === "logo"
+                    ? "Adjust company logo"
+                    : "Adjust cover photo",
+                aspects:
+                  slot === "logo"
+                    ? [{ label: "Square 1:1", value: 1 }]
+                    : [
+                        { label: "Portrait 4:5", value: 4 / 5 },
+                        { label: "Square 1:1", value: 1 },
+                      ],
+                initialAspect: slot === "logo" ? 1 : 4 / 5,
+              });
+              if (adjusted && owns(owner)) setFile(adjusted);
             }
           }
-          e.target.value = "";
         }}
       />
       <p className="manage-help">JPG, PNG or WebP · up to 10 MB</p>
       <FormError error={task.error} />
       {guard}
+      {photoAdjuster}
       <footer className="manage-footer">
         <button className="button" onClick={close} disabled={task.busy}>
           Cancel
@@ -323,12 +357,19 @@ export function BrandEditor({
           disabled={!file || task.busy}
           onClick={() =>
             void task.run(async () => {
-              const asset = await uploadCompanyPhoto(file!);
+              const owner = operations.current;
+              if (!owns(owner)) return;
+              const asset = await uploadCompanyPhoto(file!, owner.signal);
+              if (!owns(owner)) return;
               await api("/companies/current/branding", {
                 method: "PUT",
                 body: JSON.stringify({ slot, assetId: asset.id }),
+                signal: owner.signal,
               });
-              setSession(await api("/session"));
+              if (!owns(owner)) return;
+              const next = await api("/session", { signal: owner.signal });
+              if (!owns(owner)) return;
+              setSession(next);
               refresh();
               close();
               toast(

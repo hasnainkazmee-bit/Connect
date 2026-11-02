@@ -17,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -353,20 +354,33 @@ internal fun EditCompany(model: CommunityModel, c: JSONObject, close: () -> Unit
 
 @Composable
 internal fun CompanyPhoto(model: CommunityModel, c: JSONObject, slot: String, close: () -> Unit) {
-    var selected by remember { mutableStateOf<com.sunhub.core.UploadFile?>(null) }
+    var selectedJson by rememberSaveable { mutableStateOf("") }
+    var sourceJson by rememberSaveable { mutableStateOf("") }
+    var pendingJson by rememberSaveable { mutableStateOf("") }
+    fun encode(file: com.sunhub.core.UploadFile) = JSONObject().put("path", file.path).put("name", file.name).put("mime", file.mime).toString()
+    fun decode(value: String) = value.takeIf { it.isNotBlank() }?.let { JSONObject(it) }?.let { com.sunhub.core.UploadFile(it.getString("path"), it.getString("name"), it.getString("mime")) }
+    val selected = decode(selectedJson)
+    val sourceFile = decode(sourceJson)
+    val pending = decode(pendingJson)
+    val context = LocalContext.current
+    val cleanup by rememberUpdatedState(listOfNotNull(selected, sourceFile, pending).distinctBy { it.path })
+    DisposableEffect(Unit) {
+        onDispose {
+            if ((context as? android.app.Activity)?.isChangingConfigurations != true) MediaFiles.discard(cleanup)
+        }
+    }
+    var previewRatio by remember(selectedJson, slot) { mutableFloatStateOf(if (slot == "logo") 1f else 0.8f) }
     val picker =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             if (uri != null)
                 model.pickMedia(listOf(uri), true) { files ->
-                    selected?.let { MediaFiles.discard(listOf(it)) }
-                    selected = files.firstOrNull()
+                    pendingJson = files.firstOrNull()?.let(::encode).orEmpty()
                 }
         }
     WorkSheet(
         model,
         if (slot == "logo") "Company logo" else "Cover photo",
         {
-            selected?.let { MediaFiles.discard(listOf(it)) }
             close()
         },
         "Save photo",
@@ -380,21 +394,29 @@ internal fun CompanyPhoto(model: CommunityModel, c: JSONObject, slot: String, cl
                     JSONObject().put("slot", slot).put("assetId", asset.getString("id")),
                 )
             }) {
-                selected?.let { MediaFiles.discard(listOf(it)) }
                 model.refreshCompany()
                 close()
             }
         },
     ) {
-        Text("A familiar face for your company.", style = MaterialTheme.typography.headlineSmall)
         val source = selected?.path ?: c.text(if (slot == "logo") "logo_url" else "cover_url")
         if (source.isNotBlank())
             AsyncImage(
                 if (selected != null) java.io.File(source) else mediaUrl(model, source),
                 "Photo preview",
-                Modifier.fillMaxWidth().height(if (slot == "logo") 240.dp else 190.dp),
-                contentScale = if (slot == "logo") ContentScale.Fit else ContentScale.Crop,
+                Modifier.fillMaxWidth().aspectRatio(previewRatio).clip(ConnectCardShape),
+                contentScale = ContentScale.Fit,
+                onSuccess = { result ->
+                    val size = result.painter.intrinsicSize
+                    if (size.width > 0 && size.height > 0) previewRatio = if (slot == "logo") 1f else size.width / size.height
+                },
             )
+        if (sourceFile != null)
+            ConnectOutlinedButton(onClick = { pendingJson = sourceJson }, enabled = !model.busy, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Outlined.Crop, null)
+                Spacer(Modifier.width(8.dp))
+                Text("Adjust photo")
+            }
         ConnectOutlinedButton(
             onClick = { picker.launch(arrayOf("image/jpeg", "image/png", "image/webp")) },
             enabled = !model.busy,
@@ -410,6 +432,20 @@ internal fun CompanyPhoto(model: CommunityModel, c: JSONObject, slot: String, cl
             style = MaterialTheme.typography.bodySmall,
         )
     }
+    if (pending != null) PhotoAdjuster(
+        file = pending,
+        purpose = if (slot == "logo") PhotoPurpose.Profile else PhotoPurpose.Cover,
+        onCancel = {
+            if (pending.path != sourceFile?.path) MediaFiles.discard(listOf(pending))
+            pendingJson = ""
+        },
+        onUse = { adjusted ->
+            MediaFiles.discard(listOfNotNull(selected, sourceFile).filter { it.path != pending.path }.distinctBy { it.path })
+            sourceJson = pendingJson
+            selectedJson = encode(adjusted)
+            pendingJson = ""
+        },
+    )
 }
 
 @Composable

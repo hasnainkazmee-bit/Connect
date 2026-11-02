@@ -181,27 +181,12 @@
   margin: 20px auto 0;
 }
 .post-conversation {
-  padding: 16px 24px 24px;
+  padding: 12px 24px 16px;
   border-top: 1px solid var(--line);
   background: #f8fbfe;
 }
 .post-conversation[hidden] {
   display: none;
-}
-.conversation-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-.conversation-heading h3 {
-  font-size: 0.9375rem;
-  font-weight: 600;
-}
-.conversation-heading .icon-button {
-  background: transparent;
-  color: var(--muted);
 }
 .conversation-thread + .conversation-thread {
   margin-top: 16px;
@@ -345,65 +330,98 @@
   text-decoration: underline;
 }
 .conversation-composer {
-  margin-top: 20px;
-  padding: 14px 16px;
-  border: 1px solid #cbd9e5;
-  border-radius: var(--radius-card);
-  background: var(--surface);
-}
-.conversation-writing-as {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: start;
   gap: 8px;
-  margin-bottom: 8px;
-  color: var(--muted);
-  font-size: 0.75rem;
 }
-.conversation-writing-as > span {
+.conversation-threads:not(:empty) ~ .conversation-composer,
+.conversation-error + .conversation-composer {
+  margin-top: 12px;
+}
+.conversation-composer-avatar {
+  padding-top: 7px;
+}
+.conversation-composer-avatar .company-logo {
+  width: 32px;
+  height: 32px;
+}
+.conversation-composer-body {
   min-width: 0;
-  overflow-wrap: anywhere;
 }
-.conversation-writing-as strong {
-  color: var(--ink);
-  font-weight: 550;
+.conversation-input {
+  display: flex;
+  align-items: flex-end;
+  min-width: 0;
+  padding-left: 14px;
+  border: 1px solid #cbd9e5;
+  border-radius: 24px;
+  background: var(--surface);
+  transition:
+    border-color 120ms,
+    box-shadow 120ms;
+}
+.conversation-input:focus-within {
+  border-color: #6f889d;
+  box-shadow: 0 0 0 2px #244b681a;
 }
 .conversation-composer textarea {
   display: block;
+  flex: 1;
+  min-width: 0;
   width: 100%;
-  min-height: 70px;
+  min-height: 44px;
   max-height: 180px;
-  padding: 8px 0;
+  padding: 10px 0;
   border: 0;
-  border-radius: 0;
+  border-radius: 18px;
   background: transparent;
   font-size: 1rem;
-  line-height: 1.6;
+  line-height: 24px;
   resize: none;
 }
+.conversation-composer textarea:focus,
 .conversation-composer textarea:focus-visible {
-  outline-offset: 5px;
+  outline: none;
+  border-color: transparent;
+  box-shadow: none;
 }
-.conversation-composer > footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 8px;
+.conversation-send {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--brand);
+  color: var(--on-brand);
 }
-.conversation-composer > footer > span {
+.conversation-send:hover:not(:disabled) {
+  background: var(--brand-hover);
+}
+.conversation-send:disabled {
+  background: transparent;
+  color: #7a8e9e;
+  opacity: 1;
+}
+.conversation-send:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.conversation-character-count {
+  display: block;
+  padding: 4px 12px 0;
   color: var(--muted);
   font-size: 0.75rem;
-}
-.conversation-composer > footer .button {
-  padding-inline: 16px;
-  font-size: 0.8125rem;
+  text-align: right;
 }
 .conversation-reply-context {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 8px 10px 14px;
-  margin: 12px 0 4px;
+  padding: 6px 4px 6px 10px;
+  margin-bottom: 8px;
   border-left: 2px solid var(--brand);
   border-radius: 0 16px 16px 0;
   background: var(--surface-muted);
@@ -447,6 +465,12 @@
 .conversation-join-note a {
   color: var(--brand-ink);
 }
+@media (forced-colors: active) {
+  .conversation-input:focus-within {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+}
 @media (max-width: 600px) {
   .reaction-picker-dialog {
     left: 12px !important;
@@ -462,7 +486,7 @@
     padding-inline: 16px;
   }
   .post-conversation {
-    padding: 12px 16px 20px;
+    padding: 12px 16px 16px;
   }
   .conversation-comment-content {
     padding: 12px 12px 4px;
@@ -488,9 +512,6 @@
   }
   .conversation-thread-toggle {
     margin-left: 38px;
-  }
-  .conversation-composer {
-    padding: 12px;
   }
   .conversation-comment-menu .dropdown {
     min-width: min(180px, calc(100vw - 100px));

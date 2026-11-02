@@ -69,7 +69,10 @@ class NativeFlowTest {
         try {
             ui.onNodeWithTag("news-feed").performScrollToIndex(0)
             ui.onNodeWithTag("navigation-rail").assertDoesNotExist()
-            ui.onNodeWithText("Share an update").assertHeightIsAtLeast(48.dp)
+            ui.onNodeWithTag("navigation-create").assertHeightIsAtLeast(48.dp)
+            ui.onNodeWithText("Share an update").assertDoesNotExist()
+            ui.onNodeWithText("The industry, in motion.").assertDoesNotExist()
+            ui.onNodeWithText("All posts").assertDoesNotExist()
             capture("native-adaptive-phone")
             shell("wm size 1600x1200")
             shell("wm density 160")
@@ -77,7 +80,7 @@ class NativeFlowTest {
                 ui.onAllNodesWithTag("navigation-rail").fetchSemanticsNodes().isNotEmpty()
             }
             ui.onNodeWithTag("content-lane").assertWidthIsEqualTo(720.dp)
-            ui.onNodeWithText("Share an update").assertIsDisplayed()
+            ui.onNodeWithTag("navigation-create").assertIsDisplayed()
             capture("native-adaptive-tablet")
         } finally {
             shell("wm density $oldDensity")
@@ -124,7 +127,9 @@ class NativeFlowTest {
         click("Sign in")
         visible("All companies")
         click("Home")
-        visible("Share an update")
+        ui.waitUntil(20_000) {
+            ui.onAllNodesWithTag("navigation-create").fetchSemanticsNodes().isNotEmpty()
+        }
         val restored = CommunityClient(BuildConfig.API_URL, ":memory:", true)
         restored.restoreSession(
             checkNotNull(
@@ -181,15 +186,37 @@ class NativeFlowTest {
         click("Network")
         visible("1 connections")
         click("Home")
-        visible("Share an update")
-        click("Share an update")
+        ui.waitUntil(20_000) {
+            ui.onAllNodesWithTag("navigation-create").fetchSemanticsNodes().isNotEmpty()
+        }
+        ui.onNodeWithTag("navigation-create").performClick()
         ui.onNodeWithText("What’s happening at your company?")
             .performTextInput("Native Android project update $suffix")
-        click("Post")
+        click("Publish")
+        click("Update")
         ui.waitUntil(20_000) {
             ui.onAllNodesWithTag("publication-composer").fetchSemanticsNodes().isEmpty()
         }
-        visible("Native Android project update $suffix")
+        try {
+            visible("Native Android project update $suffix")
+        } catch (failure: Throwable) {
+            capture("native-publish-refresh-failure")
+            ui.runOnIdle {
+                val model =
+                    androidx.lifecycle.ViewModelProvider(ui.activity)[CommunityModel::class.java]
+                android.util.Log.e(
+                    "ConnectQA",
+                    "tab=${model.tab}; error=${model.error}; feed=" +
+                        model.pages["/feed?scope=all"]
+                            ?.optJSONArray("posts")
+                            .objects()
+                            .take(3)
+                            .map { it.text("body") },
+                )
+            }
+            ui.onNodeWithTag("news-feed").printToLog("ConnectQA")
+            throw failure
+        }
         // The profile workspace and editor use the same API as the web app.
         ui.onNodeWithContentDescription("Account and company").performClick()
         click("Company profile")
@@ -215,24 +242,22 @@ class NativeFlowTest {
         ui.onNodeWithContentDescription("Close").performClick()
         ui.onNodeWithContentDescription("Back").performClick()
         click("Home")
-        click("Share an update")
-        ui.onAllNodes(hasText("Post") and hasClickAction()).onFirst().performClick()
-        click("Press release")
-        visible("Tell your story…")
-        ui.onNodeWithText("Headline").performTextInput("Android field notes $suffix")
-        ui.onNodeWithText("Tell your story…")
-            .performScrollTo()
+        ui.onNodeWithTag("navigation-create").performClick()
+        ui.onNodeWithText("Headline").assertDoesNotExist()
+        ui.onNodeWithText("Press release").assertDoesNotExist()
+        ui.onNodeWithTag("publication-body")
             .performClick()
             .performTextInput(
-                "A thoughtful solar project starts with listening to the community. $suffix"
+                "Android field notes $suffix\nA thoughtful solar project starts with listening to the community. $suffix"
             )
         capture("native-publication-editor")
-        // Format switching preserves the headline and continuous document.
-        click("Press release")
-        ui.onAllNodes(hasText("Post") and hasClickAction()).onLast().performClick()
-        ui.onAllNodes(hasText("Post") and hasClickAction()).onFirst().performClick()
-        click("Press release")
-        ui.onNodeWithText("Android field notes $suffix").assertExists()
+        // The final format choice can be cancelled without changing any writing.
+        click("Publish")
+        visible("Publish as")
+        capture("native-publication-choice")
+        click("Keep writing")
+        ui.onNodeWithTag("publication-body")
+            .assertTextContains("Android field notes $suffix", substring = true)
         ui.onNodeWithContentDescription("Writing options").performClick()
         click("Save & close")
         ui.waitUntil(20_000) {
@@ -241,7 +266,7 @@ class NativeFlowTest {
         // Reopen a rich draft containing a real uploaded image, then edit around it.
         val draft =
             org.json.JSONArray(a.get("/publications")).objects().first {
-                it.text("title") == "Android field notes $suffix"
+                it.text("body").startsWith("Android field notes $suffix")
             }
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val photo = java.io.File(context.cacheDir, "native-editor-photo.png")
@@ -284,11 +309,14 @@ class NativeFlowTest {
                 .put("version", draft.getInt("version"))
                 .toString(),
         )
+        ui.onNodeWithContentDescription("Account and company").performClick()
         visible("Drafts")
         click("Drafts")
         visible("Android field notes $suffix")
         click("Android field notes $suffix")
-        visible("Continue your draft")
+        ui.waitUntil(20_000) {
+            ui.onAllNodesWithTag("publication-composer").fetchSemanticsNodes().isNotEmpty()
+        }
         ui.onNodeWithTag("publication-body").performScrollTo().performClick()
         val bodyLength =
             ui.onNodeWithTag("publication-body")
@@ -309,6 +337,7 @@ class NativeFlowTest {
         visible("Android field notes $suffix")
         capture("native-publication-preview")
         click("Publish")
+        click("Press release")
         ui.waitUntil(20_000) {
             ui.onAllNodesWithTag("publication-composer").fetchSemanticsNodes().isEmpty()
         }
@@ -323,7 +352,9 @@ class NativeFlowTest {
         check(feed.getJSONArray("posts").getJSONObject(0).getString("kind") == "press_release")
         // A real activity recreation must preserve the signed-in company and saved session.
         ui.activityRule.scenario.recreate()
-        visible("Share an update")
+        ui.waitUntil(20_000) {
+            ui.onAllNodesWithTag("navigation-create").fetchSemanticsNodes().isNotEmpty()
+        }
         adaptiveLayout()
         ui.onNodeWithContentDescription("Account and company").performClick()
         click("Sign out")

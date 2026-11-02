@@ -42,16 +42,78 @@ test("full emoji reactions, who reacted, and threaded comments persist with clea
   await owner.request.post(`/api/posts/${item.id}/reactions`, {
     data: { emoji: "🚀", reacted: true },
   });
-  const parentResponse = await owner.request.post(
-    `/api/posts/${item.id}/comments`,
-    { data: { body: "What would you like to know about the project?" } },
-  );
-  const parentComment = (await parentResponse.json()).created_comment;
   const page = await partner.newPage();
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(`/posts/${item.id}`);
   const card = page.locator(".feed-post");
+  const commentAction = card.getByRole("button", {
+    name: "Comment",
+    exact: true,
+  });
+  await commentAction.click();
+  const emptyComments = card.getByRole("region", { name: "Comments" });
+  const input = emptyComments.getByLabel("Write a comment");
+  await expect(emptyComments.locator(".conversation-threads")).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+  await expect(input).toBeFocused();
+  await expect(input).toHaveAttribute("maxlength", "1500");
+  await expect(emptyComments.getByRole("heading")).toHaveCount(0);
+  await expect(
+    emptyComments.locator(".conversation-empty, .conversation-writing-as"),
+  ).toHaveCount(0);
+  for (const width of [320, 390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const fieldBox = (await input.boundingBox())!;
+    const sendBox = (await emptyComments
+      .getByRole("button", { name: "Send comment" })
+      .boundingBox())!;
+    expect(fieldBox.height).toBeLessThanOrEqual(45);
+    expect(sendBox.height).toBeGreaterThanOrEqual(44);
+    expect(
+      Math.abs(
+        fieldBox.y + fieldBox.height / 2 - sendBox.y - sendBox.height / 2,
+      ),
+    ).toBeLessThanOrEqual(1);
+    expect((await emptyComments.boundingBox())!.height).toBeLessThanOrEqual(80);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: `test-results/compact-comments-${width}.png`,
+    });
+  }
+  await page.setViewportSize({ width: 320, height: 740 });
+  await input.fill("First line\nSecond line\nThird line");
+  expect((await input.boundingBox())!.height).toBeGreaterThan(44);
+  await expect(input).toHaveCSS("outline-style", "none");
+  await expect(input).toHaveCSS("box-shadow", "none");
+  expect(
+    await emptyComments
+      .locator(".conversation-input")
+      .evaluate((element) => getComputedStyle(element).boxShadow),
+  ).not.toBe("none");
+  await input.press("Tab");
+  await expect(
+    emptyComments.getByRole("button", { name: "Send comment" }),
+  ).toBeFocused();
+  await expect(
+    emptyComments.getByRole("button", { name: "Send comment" }),
+  ).toHaveCSS("outline-width", "2px");
+  await input.fill("");
+  expect((await input.boundingBox())!.height).toBeLessThanOrEqual(45);
+  await commentAction.click();
+  await expect(emptyComments).toBeHidden();
+  const parentResponse = await owner.request.post(
+    `/api/posts/${item.id}/comments`,
+    { data: { body: "What would you like to know about the project?" } },
+  );
+  const parentComment = (await parentResponse.json()).created_comment;
+  await page.reload();
   await card.getByRole("button", { name: "React", exact: true }).click();
   const picker = page.getByRole("dialog", { name: "Choose a reaction" });
   await expect(picker.getByRole("searchbox")).toBeFocused();
@@ -167,7 +229,8 @@ test("full emoji reactions, who reacted, and threaded comments persist with clea
   await expect(comments.getByLabel("Write a comment")).toHaveValue(
     "Keep my unfinished main comment",
   );
-  await comments.getByRole("button", { name: "Hide comments" }).click();
+  await commentAction.click();
+  await expect(comments).toBeHidden();
   await card.getByRole("button", { name: "Comment", exact: true }).click();
   await expect(reply).toBeVisible();
   await expect(comments.getByLabel("Write a comment")).toHaveValue(

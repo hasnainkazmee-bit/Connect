@@ -114,33 +114,39 @@ for (const size of [
       await dialog.getByRole("button", { name: "Done", exact: true }).click();
       await page
         .getByRole("region", { name: "Create a post" })
-        .getByRole("button", { name: "Press release", exact: true })
+        .getByRole("button", {
+          name: "What’s happening at your company?",
+          exact: true,
+        })
         .click();
+      const writing = dialog.getByRole("textbox", { name: "Update content" });
+      await writing.fill("How we built a better rooftop");
       await dialog
-        .getByLabel("Story title")
-        .fill("How we built a better rooftop");
-      await dialog
-        .getByRole("button", { name: "More formatting", exact: true })
+        .getByRole("button", { name: "Heading", exact: true })
         .click();
-      await dialog
-        .getByRole("button", { name: "Add summary", exact: true })
-        .click();
-      await dialog
-        .getByLabel("Story subtitle")
-        .fill("A practical story from our latest installation.");
-      await dialog
-        .getByRole("textbox", { name: "Story content" })
-        .fill(
-          "A good project begins with the people doing the work. Our team learned three important lessons.",
-        );
+      await writing.press("End");
+      await writing.press("Enter");
+      await writing.pressSequentially(
+        "A practical story from our latest installation.",
+      );
+      await writing.press("Enter");
+      await writing.pressSequentially(
+        "A good project begins with the people doing the work. Our team learned three important lessons.",
+      );
       await dialog.getByRole("button", { name: "Save & close" }).click();
       await expect(dialog).toHaveCount(0);
       await page.getByRole("button", { name: "Drafts", exact: true }).click();
       await dialog
         .getByRole("button", { name: /How we built a better rooftop/ })
         .click();
-      await expect(dialog.getByLabel("Story title")).toHaveValue(
+      await expect(writing.getByRole("heading")).toHaveText(
         "How we built a better rooftop",
+      );
+      await expect(writing).toContainText(
+        "A practical story from our latest installation.",
+      );
+      await expect(writing).toContainText(
+        "Our team learned three important lessons.",
       );
       await dialog
         .getByRole("button", { name: "Preview", exact: true })
@@ -153,6 +159,12 @@ for (const size of [
       });
       await dialog
         .getByRole("button", { name: "Publish", exact: true })
+        .click();
+      await expect(
+        dialog.getByRole("heading", { name: "How would you like to publish?" }),
+      ).toBeVisible();
+      await dialog
+        .getByRole("button", { name: "Press release", exact: true })
         .click();
       await expect(dialog).toHaveCount(0);
       await expect(

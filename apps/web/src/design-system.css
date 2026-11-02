@@ -212,6 +212,24 @@ summary:focus-visible,
   outline-offset: 3px;
 }
 
+/* Text entry keeps its own rounded boundary instead of a second offset box. */
+input:not([type="checkbox"]):not([type="radio"]):focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: #70889a;
+  box-shadow: 0 0 0 2px #244b6814;
+}
+
+@media (forced-colors: active) {
+  input:not([type="checkbox"]):not([type="radio"]):focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+}
+
 /* Navigation is the shape and color reference for every interactive surface. */
 .site-header {
   height: 76px;

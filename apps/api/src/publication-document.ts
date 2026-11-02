@@ -121,15 +121,17 @@ export function validateDocument(input: unknown): {
   if (document.type !== "doc")
     throw new HttpError(400, "Use a document as the root.");
   const plain = (n: DocumentNode): string =>
-    n.text ??
-    (n.content
-      ?.map(plain)
-      .join(
-        ["doc", "blockquote", "bulletList", "orderedList"].includes(n.type)
-          ? "\n"
-          : "",
-      ) ||
-      "");
+    n.type === "hardBreak"
+      ? "\n"
+      : (n.text ??
+        (n.content
+          ?.map(plain)
+          .join(
+            ["doc", "blockquote", "bulletList", "orderedList"].includes(n.type)
+              ? "\n"
+              : "",
+          ) ||
+          ""));
   const text = plain(document).trim();
   if (text.length > 50000)
     throw new HttpError(400, "Keep your story under 50,000 characters.");

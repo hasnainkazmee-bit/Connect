@@ -8,7 +8,7 @@ import androidx.compose.material.icons.outlined.ArrowOutward
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -83,13 +83,18 @@ private fun ShowcaseVisual(
             }
         }
     } else {
+        var imageRatio by remember(image) { mutableFloatStateOf(if (isCover) 0.8f else 1.65f) }
         Column(modifier.clip(RoundedCornerShape(18.dp)).background(Pale)) {
-            Box(Modifier.fillMaxWidth().aspectRatio(1.65f)) {
+            Box(Modifier.fillMaxWidth().aspectRatio(imageRatio)) {
                 AsyncImage(
                     mediaUrl(model, image),
                     if (isCover) "${company.text("name")} at work" else project?.text("name") ?: "Company project",
                     Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit,
+                    onSuccess = { result ->
+                        val size = result.painter.intrinsicSize
+                        if (isCover && size.width > 0 && size.height > 0) imageRatio = size.width / size.height
+                    },
                 )
                 if (canEdit)
                     FilledTonalIconButton(

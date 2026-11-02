@@ -1,0 +1,170 @@
+.photo-adjuster {
+  width: min(560px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 24px 80px #20334240;
+  overflow: auto;
+}
+.photo-adjuster::backdrop {
+  background: #182c3f88;
+}
+.photo-adjuster > header {
+  display: flex;
+  gap: 12px;
+  align-items: start;
+  padding: 18px 20px 12px;
+}
+.photo-adjuster > header > div {
+  flex: 1;
+  min-width: 0;
+}
+.photo-adjuster h2 {
+  font-size: 1.125rem;
+  line-height: 1.4;
+}
+.photo-adjuster header p {
+  margin-top: 4px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.photo-adjuster-aspects {
+  display: flex;
+  gap: 6px;
+  padding: 0 20px 12px;
+}
+.photo-adjuster-aspects button {
+  flex: 1;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--ink);
+  font-size: 0.8125rem;
+}
+.photo-adjuster-aspects button[aria-pressed="true"] {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+}
+.photo-adjuster-stage {
+  position: relative;
+  height: clamp(210px, 43dvh, 420px);
+  margin: 0 20px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #172c3c;
+}
+.photo-adjuster-stage > span {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: white;
+  font-size: 0.875rem;
+}
+.photo-adjuster-stage .reactEasyCrop_Container:focus-visible {
+  outline: 3px solid white;
+  outline-offset: -5px;
+}
+.brand-photo-editor .branding-preview.cover {
+  width: min(240px, calc(100% - 44px));
+  aspect-ratio: 4 / 5;
+}
+.brand-photo-editor .branding-preview.cover img {
+  object-fit: contain;
+}
+.photo-adjuster-controls {
+  padding: 12px 20px 0;
+}
+.photo-adjuster-zoom {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.photo-adjuster-zoom > svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.photo-adjuster-zoom input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  accent-color: var(--brand);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.photo-adjuster-zoom output {
+  min-width: 38px;
+  text-align: right;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.photo-adjuster-utilities {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.photo-adjuster-utilities button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.photo-adjuster-utilities button:hover {
+  background: var(--surface-muted);
+}
+.photo-adjuster-error {
+  margin: 8px 0;
+  font-size: 0.8125rem;
+  color: #9a3e29;
+}
+.photo-adjuster > footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 20px 18px;
+}
+.photo-adjuster > footer .button {
+  min-width: 100px;
+}
+@media (max-width: 600px) {
+  .photo-adjuster {
+    margin: auto;
+  }
+  .photo-adjuster > header {
+    padding: 16px 14px 12px;
+  }
+  .photo-adjuster-aspects {
+    padding-inline: 14px;
+  }
+  .photo-adjuster-stage {
+    margin-inline: 14px;
+    height: clamp(210px, 38dvh, 340px);
+  }
+  .photo-adjuster-controls {
+    padding-inline: 14px;
+  }
+  .photo-adjuster > footer {
+    padding: 12px 14px max(16px, env(safe-area-inset-bottom));
+  }
+  .photo-adjuster > footer .button {
+    flex: 1;
+    min-width: 0;
+  }
+}

@@ -343,6 +343,14 @@
   color: var(--muted);
   padding: 6px 0;
 }
+.post-body .story-prose {
+  font-size: 16px;
+  line-height: 1.75;
+}
+.post-body.is-collapsed .story-prose {
+  max-height: 280px;
+  overflow: hidden;
+}
 .post-media {
   overflow: hidden;
 }
@@ -498,6 +506,14 @@
 }
 .publication-reading .story-prose {
   margin-top: 24px;
+}
+.publication-reading .publication-headline .story-prose {
+  margin-top: 0;
+}
+.publication-headline .story-prose h2 {
+  font-size: clamp(23px, 2vw, 30px) !important;
+  margin: 0 0 12px !important;
+  line-height: 1.25;
 }
 .publication-full {
   overflow-wrap: anywhere;

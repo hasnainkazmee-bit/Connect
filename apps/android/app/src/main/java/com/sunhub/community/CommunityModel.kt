@@ -210,9 +210,9 @@ constructor(application: Application, apiUrl: String = BuildConfig.API_URL) :
         error = null
     }
 
-    fun load(path: String, force: Boolean = false) {
-        val core = client ?: return
-        if (loads[path]?.isActive == true && !force) return
+    fun load(path: String, force: Boolean = false): Job? {
+        val core = client ?: return null
+        if (loads[path]?.isActive == true && !force) return loads[path]
         loads[path]?.cancel()
         val capturedEpoch = epoch
         loads[path] =
@@ -247,6 +247,7 @@ constructor(application: Application, apiUrl: String = BuildConfig.API_URL) :
                     }
                 }
             }
+        return loads[path]
     }
 
     private fun loadSession() {
@@ -512,17 +513,23 @@ constructor(application: Application, apiUrl: String = BuildConfig.API_URL) :
             if (uris.isEmpty() || busy) return@launch
             busy = true
             val capturedEpoch = epoch
+            var handedOff = false
             try {
                 val selected =
                     withContext(Dispatchers.IO) {
                         MediaFiles.import(getApplication(), uris, post, publication)
                     }
-                if (capturedEpoch == epoch) done(selected)
-                else withContext(Dispatchers.IO) { MediaFiles.discard(selected) }
+                if (capturedEpoch == epoch) {
+                    // The import is complete. A callback may immediately start an upload,
+                    // which must not be rejected by perform() or reset by our finally block.
+                    busy = false
+                    handedOff = true
+                    done(selected)
+                } else withContext(Dispatchers.IO) { MediaFiles.discard(selected) }
             } catch (e: Exception) {
                 error = e.message ?: "Couldn’t attach this file."
             } finally {
-                busy = false
+                if (!handedOff) busy = false
             }
         }
 

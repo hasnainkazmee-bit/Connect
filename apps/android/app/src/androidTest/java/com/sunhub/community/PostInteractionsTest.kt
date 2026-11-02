@@ -148,7 +148,7 @@ class PostInteractionsTest {
             ui.onNodeWithText("Work email").performTextInput(email)
             ui.onNodeWithText("Password").performTextInput(password)
             click("Sign in")
-            visible("Share an update")
+            tag("navigation-create")
             ui.onNodeWithTag("news-feed").performScrollToNode(hasTestTag("react-$postId"))
             action("react-$postId")
             tag("emoji-picker")

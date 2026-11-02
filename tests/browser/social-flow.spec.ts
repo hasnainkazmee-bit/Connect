@@ -47,15 +47,29 @@ test("company publishes photos and video, another follows and comments", async (
   await page
     .getByRole("button", { name: "Photo / video", exact: true })
     .click();
-  await page.getByLabel("Post text").fill("New installation milestone " + id);
+  await page
+    .getByRole("textbox", { name: "Update content" })
+    .fill("New installation milestone " + id);
   await page
     .getByRole("dialog")
     .locator("input[type=file]")
     .setInputFiles("apps/web/public/assets/solar.jpg");
+  await page
+    .getByRole("dialog", { name: "Adjust photo", exact: true })
+    .getByRole("button", { name: "Use original", exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /^Photos & files/ })
+    .click();
   await page.getByLabel("Image description").fill("Solar panels in sunlight");
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "Post", exact: true })
+    .getByRole("button", { name: "Publish", exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Update", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   const photoPost = page
@@ -71,14 +85,20 @@ test("company publishes photos and video, another follows and comments", async (
   await page
     .getByRole("button", { name: "Photo / video", exact: true })
     .click();
-  await page.getByLabel("Post text").fill("Video site update " + id);
+  await page
+    .getByRole("textbox", { name: "Update content" })
+    .fill("Video site update " + id);
   await page
     .getByRole("dialog")
     .locator("input[type=file]")
     .setInputFiles("tests/fixtures/clip.webm");
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "Post", exact: true })
+    .getByRole("button", { name: "Publish", exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Update", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   const videoPost = page

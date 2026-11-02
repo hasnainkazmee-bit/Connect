@@ -24,6 +24,12 @@ import { Logo } from "./identity";
 import { api, post } from "./api";
 import type { Company } from "./types";
 import { PostEngagement, type Reaction } from "./post-engagement";
+import { MediaGallery } from "./publication-media";
+import {
+  publicationPresentation,
+  inlineImageUrls,
+  documentFromText,
+} from "./publication-writing";
 import {
   Publisher,
   DraftsDialog,
@@ -206,14 +212,11 @@ export function SocialStats({ companyId }: { companyId: string }) {
 export function ComposerLauncher() {
   const { company, session, admin, open, signIn, createCompany } = useApp();
   if (session.user?.account_type === "individual") return null;
-  const launch = (
-    kind: PublicationKind = "post",
-    media?: "image" | "video" | "document",
-  ) => {
+  const launch = (media?: "image" | "video" | "document") => {
     if (!session.user) return signIn();
     if (!company) return createCompany();
     if (!admin) return;
-    open(<Publisher initialKind={kind} initialMedia={media} />);
+    open(<Publisher initialMedia={media} />);
   };
   return (
     <section className="feed-composer" aria-label="Create a post">
@@ -241,16 +244,10 @@ export function ComposerLauncher() {
       </div>
       {(!company || admin) && (
         <div className="composer-attachments composer-formats">
-          <button onClick={() => launch("post", "image")}>
+          <button onClick={() => launch("image")}>
             <ImageIcon size={18} />
             <span>Photo / video</span>
           </button>
-          {formats.slice(1).map((f) => (
-            <button key={f.value} onClick={() => launch(f.value)}>
-              <f.icon size={18} />
-              <span>{f.label}</span>
-            </button>
-          ))}
         </div>
       )}
     </section>
@@ -300,162 +297,6 @@ function DeletePost({
     </>
   );
 }
-function MediaGallery({
-  media,
-  companyName,
-}: {
-  media: Media[];
-  companyName: string;
-}) {
-  const { open } = useApp();
-  const track = useRef<HTMLDivElement>(null);
-  const [active, setActive] = useState(0);
-  const [ratio, setRatio] = useState("1 / 1");
-  const photos = media.filter((m) => m.mime.startsWith("image/"));
-  const go = (index: number, moveFocus = false) => {
-    const el = track.current;
-    if (!el) return;
-    const reduced = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    if (moveFocus)
-      (el.children[index] as HTMLElement | undefined)?.focus({
-        preventScroll: true,
-      });
-    el.scrollTo({
-      left: index * el.clientWidth,
-      behavior: reduced ? "instant" : "smooth",
-    });
-  };
-  return (
-    <div className="post-media">
-      {photos.length > 0 && (
-        <div
-          className="photo-gallery"
-          role="region"
-          aria-roledescription="carousel"
-          aria-label={`Photos from ${companyName}`}
-        >
-          <div
-            className="photo-track"
-            ref={track}
-            style={{ aspectRatio: ratio }}
-            onScroll={(event) => {
-              const el = event.currentTarget;
-              setActive(
-                Math.round(el.scrollLeft / Math.max(1, el.clientWidth)),
-              );
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
-                event.preventDefault();
-                go(
-                  Math.min(
-                    photos.length - 1,
-                    Math.max(0, active + (event.key === "ArrowRight" ? 1 : -1)),
-                  ),
-                  true,
-                );
-              }
-            }}
-          >
-            {photos.map((m, index) => (
-              <button
-                className="post-photo"
-                key={m.id}
-                tabIndex={active === index ? 0 : -1}
-                aria-label={
-                  "View " + (m.alt || `photo ${index + 1} from ${companyName}`)
-                }
-                onClick={() =>
-                  open(
-                    <div className="post-lightbox">
-                      <img
-                        src={m.url}
-                        alt={m.alt || "Photo shared by " + companyName}
-                      />
-                      {m.alt && <p>{m.alt}</p>}
-                    </div>,
-                  )
-                }
-              >
-                <img
-                  src={m.url}
-                  alt={m.alt || "Photo shared by " + companyName}
-                  loading="lazy"
-                  decoding="async"
-                  onLoad={(event) => {
-                    if (index === 0) {
-                      const img = event.currentTarget;
-                      const r =
-                        img.naturalWidth / Math.max(1, img.naturalHeight);
-                      setRatio(
-                        r < 0.9 ? "4 / 5" : r > 1.3 ? "16 / 9" : "1 / 1",
-                      );
-                    }
-                  }}
-                />
-              </button>
-            ))}
-          </div>
-          {photos.length > 1 && (
-            <div className="photo-pagination">
-              <button
-                className="icon-button"
-                aria-label="Previous photo"
-                disabled={active === 0}
-                onClick={() => go(active - 1)}
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <span role="status" aria-live="polite">
-                {active + 1} / {photos.length}
-              </span>
-              <div className="photo-dots" aria-hidden="true">
-                {photos.map((m, index) => (
-                  <i key={m.id} className={active === index ? "active" : ""} />
-                ))}
-              </div>
-              <button
-                className="icon-button"
-                aria-label="Next photo"
-                disabled={active === photos.length - 1}
-                onClick={() => go(active + 1)}
-              >
-                <ChevronRight size={18} />
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-      {media
-        .filter((m) => !m.mime.startsWith("image/"))
-        .map((m) =>
-          m.mime.startsWith("video/") ? (
-            <video
-              key={m.id}
-              src={m.url}
-              controls
-              playsInline
-              preload="metadata"
-              aria-label={"Video from " + companyName}
-            />
-          ) : (
-            <a key={m.id} href={m.url} className="post-document">
-              <FileText size={28} />
-              <div>
-                <strong>{m.name}</strong>
-                <small>
-                  PDF · {(m.size / 1024 / 1024).toFixed(1)} MB · Download
-                </small>
-              </div>
-              <ArrowRight size={19} />
-            </a>
-          ),
-        )}
-    </div>
-  );
-}
 function PostCard({
   item,
   onUpdated,
@@ -471,6 +312,11 @@ function PostCard({
 }) {
   const { company, session, admin, open } = useApp();
   const [expanded, setExpanded] = useState(false);
+  const presentation = publicationPresentation(
+    item.document || documentFromText(item.body),
+    item.title,
+    item.subtitle,
+  );
   return (
     <article className="feed-post" id={"post-" + item.id}>
       <header className="post-header">
@@ -526,45 +372,45 @@ function PostCard({
           <span className="publication-label">
             <FileText size={14} /> {publicationLabel(item.kind)}
           </span>
-          <h2>
-            <Link to={"/posts/" + item.id}>{item.title}</Link>
-          </h2>
+          {reading && presentation.headline ? (
+            <div className="publication-headline">
+              <RichDocument document={presentation.headline} />
+            </div>
+          ) : (
+            <h2>
+              <Link to={"/posts/" + item.id}>{item.title}</Link>
+            </h2>
+          )}
           {item.subtitle && (
             <p className="publication-subtitle">{item.subtitle}</p>
           )}
-          {item.cover_media_id && (
-            <Link to={"/posts/" + item.id}>
-              <img
-                className="publication-cover"
-                loading="lazy"
-                decoding="async"
-                src={item.media.find((m) => m.id === item.cover_media_id)?.url}
-                alt={
-                  item.media.find((m) => m.id === item.cover_media_id)?.alt ||
-                  item.title
-                }
-              />
-            </Link>
-          )}
+          {item.cover_media_id &&
+            (!reading ||
+              !inlineImageUrls(item.document).has(
+                item.media.find((m) => m.id === item.cover_media_id)?.url || "",
+              )) && (
+              <Link to={"/posts/" + item.id}>
+                <img
+                  className="publication-cover"
+                  loading="lazy"
+                  decoding="async"
+                  src={
+                    item.media.find((m) => m.id === item.cover_media_id)?.url
+                  }
+                  alt={
+                    item.media.find((m) => m.id === item.cover_media_id)?.alt ||
+                    item.title
+                  }
+                />
+              </Link>
+            )}
           {reading ? (
-            <RichDocument
-              document={
-                item.document || {
-                  type: "doc",
-                  content: [
-                    {
-                      type: "paragraph",
-                      content: [{ type: "text", text: item.body }],
-                    },
-                  ],
-                }
-              }
-            />
+            <RichDocument document={presentation.document} />
           ) : (
             <>
               <p className="publication-excerpt">
-                {item.body.slice(0, 210)}
-                {item.body.length > 210 ? "…" : ""}
+                {presentation.excerpt.slice(0, 210)}
+                {presentation.excerpt.length > 210 ? "…" : ""}
               </p>
               <Link className="publication-read" to={"/posts/" + item.id}>
                 Read {publicationLabel(item.kind).toLowerCase()}
@@ -575,18 +421,22 @@ function PostCard({
         </div>
       ) : (
         <>
-          {item.body && (
+          {(item.body || item.document) && (
             <div
               className={
                 "post-body " +
                 (!expanded && item.body.length > 400 ? "is-collapsed" : "")
               }
             >
-              <p>
-                {!expanded && item.body.length > 400
-                  ? item.body.slice(0, 400) + "…"
-                  : item.body}
-              </p>
+              {item.document ? (
+                <RichDocument document={item.document} />
+              ) : (
+                <p>
+                  {!expanded && item.body.length > 400
+                    ? item.body.slice(0, 400) + "…"
+                    : item.body}
+                </p>
+              )}
               {item.body.length > 400 && (
                 <button onClick={() => setExpanded(!expanded)}>
                   {expanded ? "Show less" : "…see more"}
@@ -601,10 +451,8 @@ function PostCard({
           companyName={item.company.name}
           media={item.media.filter(
             (m) =>
-              item.kind === "post" ||
-              !m.mime.startsWith("image/") ||
-              (!JSON.stringify(item.document).includes(m.id) &&
-                m.id !== item.cover_media_id),
+              !inlineImageUrls(item.document).has(m.url) &&
+              (item.kind === "post" || m.id !== item.cover_media_id),
           )}
         />
       )}

@@ -51,6 +51,7 @@ The Compose defaults are for local use. Set your own database password, exact pu
 - A public discovery homepage at `/` for visitors and a social feed at the same address after sign-in. The directory remains available at `/directory`.
 - Public text posts, photo galleries, playable MP4/WebM video, and PDF attachments. Up to four JPG/PNG/WebP photos (10 MB each), one video (100 MB), or one PDF (20 MB) per post.
 - Upload previews, image descriptions, real upload progress, saved text drafts, and administrator post deletion.
+- Photo adjustment on web and Android: drag, zoom, and crop logos, covers, and post images, with matching editor and published framing.
 - Company follows, an All posts feed, a Following feed, and company Updates tabs. Follows are unilateral; they do not create connections or unlock messaging.
 - Persistent company likes and attributed comments, comment removal, shareable post URLs, and stable feed pagination.
 
@@ -126,7 +127,7 @@ Server setup and backup instructions: [infra/DEPLOYMENT.md](infra/DEPLOYMENT.md)
 
 ## Publishing and company workspaces
 
-Companies publish Posts and Press releases; older articles and case studies remain readable as company updates. A continuous writing canvas supports formatted documents, titles and subtitles, headings, lists, quotes, links, inline images, cover images, video and PDF attachments, image descriptions, drafts, and previews. Drafts and their files stay private to authorized company members; optimistic versions prevent one editor from overwriting another editor’s changes. Publishing and profile management require an owner or administrator.
+Companies write in one continuous canvas, then choose Update or Press release at publish time. The first writing line supplies the press-release headline; the full document, formatting, and image positions remain intact. Existing titles/subtitles are preserved in the writing canvas, and older articles and case studies remain readable as company updates. The editor supports headings, lists, quotes, links, inline images, video and PDF attachments, image descriptions, drafts, and previews. Drafts and their files stay private to authorized company members; optimistic versions prevent one editor from overwriting another editor’s changes. Publishing and profile management require an owner or administrator.
 
 Company profiles use `/company-username` on the app origin. Usernames are lowercase, unique, reserve application routes, and cannot reuse another company’s previous address. Previous usernames and `/company/...` links continue to resolve. Signup suggests a readable name; profile editing can claim another available username. Profiles include company facts, portfolio projects, achievements, people, customer ratings, and reviews.
 

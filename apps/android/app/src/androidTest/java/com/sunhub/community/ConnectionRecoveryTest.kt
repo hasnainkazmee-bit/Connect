@@ -87,13 +87,13 @@ class ConnectionRecoveryTest {
             // Exercise the same sp scaling used by Android without mutating global
             // emulator configuration while instrumentation owns its main thread.
             ui.runOnUiThread { fontScale.floatValue = 1.3f }
-            ui.onNodeWithText("The industry, in motion.").assertIsDisplayed()
+            ui.onNodeWithText("The industry, in motion.").assertDoesNotExist()
             ui.onNodeWithText("Sign in").assertIsDisplayed().assertHeightIsAtLeast(48.dp)
             ui.onNodeWithText("No posts yet. Follow companies to hear what they’re working on.")
                 .assertExists()
 
             responding.set(false)
-            ui.onNodeWithContentDescription("Refresh feed").performClick()
+            ui.onNodeWithTag("navigation-Home").performClick()
             ui.waitUntil(20_000) { model.offline }
             ui.onNodeWithText("Offline · showing saved content").assertExists()
             responding.set(true)

@@ -362,8 +362,8 @@ export function PostEngagement({
           aria-expanded={commentsOpen}
           aria-controls={`comments-${item.id}`}
           onClick={() => {
-            setCommentsOpen(true);
-            setFocusRequest((n) => n + 1);
+            setCommentsOpen(!commentsOpen);
+            if (!commentsOpen) setFocusRequest((n) => n + 1);
           }}
         >
           <MessageCircle size={18} />
@@ -415,7 +415,6 @@ export function PostEngagement({
         onUpdated={onUpdated}
         expanded={commentsOpen}
         focusRequest={focusRequest}
-        onClose={() => setCommentsOpen(false)}
       />
     </>
   );
@@ -656,13 +655,11 @@ function CommentsPanel({
   onUpdated,
   expanded,
   focusRequest,
-  onClose,
 }: {
   item: Post;
   onUpdated: UpdatePost;
   expanded: boolean;
   focusRequest: number;
-  onClose: () => void;
 }) {
   const { company, session, signIn, createCompany } = useApp();
   const [comments, setComments] = useState<PostComment[]>([]);
@@ -718,10 +715,22 @@ function CommentsPanel({
       field.current?.focus({ preventScroll: false });
   }, [expanded, focusRequest, loaded]);
   useLayoutEffect(() => {
-    if (!field.current) return;
-    field.current.style.height = "auto";
-    field.current.style.height =
-      Math.min(field.current.scrollHeight, 180) + "px";
+    const input = field.current;
+    if (!input || !expanded) return;
+    const resize = () => {
+      input.style.height = "auto";
+      input.style.height = Math.min(input.scrollHeight, 180) + "px";
+    };
+    resize();
+    let width = input.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (input.clientWidth !== width) {
+        width = input.clientWidth;
+        resize();
+      }
+    });
+    observer.observe(input);
+    return () => observer.disconnect();
   }, [body, expanded, reply]);
   const startReply = (target: ReplyTarget) => {
     setReply(target);
@@ -829,16 +838,6 @@ function CommentsPanel({
       aria-label="Comments"
       hidden={!expanded}
     >
-      <header className="conversation-heading">
-        <h3>Conversation</h3>
-        <button
-          className="icon-button"
-          aria-label="Hide comments"
-          onClick={onClose}
-        >
-          <X size={18} />
-        </button>
-      </header>
       {cursor && (
         <button
           className="conversation-load"
@@ -864,11 +863,6 @@ function CommentsPanel({
             canReply={allowed}
           />
         ))}
-        {!comments.length && !loading && loaded && !error && (
-          <p className="conversation-empty">
-            Start the conversation. Ask a question or share a thought.
-          </p>
-        )}
         {loading && (
           <p className="conversation-loading" role="status">
             <LoaderCircle className="spin" size={17} /> Loading comments…
@@ -889,73 +883,84 @@ function CommentsPanel({
             void send();
           }}
         >
-          <div className="conversation-writing-as">
+          <span
+            className="conversation-composer-avatar"
+            title={`Commenting as ${company!.name}`}
+          >
             <Logo company={company!} size="tiny" />
-            <span>
-              Writing as <strong>{company!.name}</strong>
+          </span>
+          <div className="conversation-composer-body">
+            <span className="sr-only" id={`comment-identity-${item.id}`}>
+              Commenting as {company!.name}
             </span>
-          </div>
-          {reply && (
-            <div className="conversation-reply-context">
-              <div>
-                <span>
-                  Replying to <strong>{reply.name}</strong>
-                </span>
-                <p>{reply.body}</p>
+            {reply && (
+              <div className="conversation-reply-context">
+                <div>
+                  <span>
+                    Replying to <strong>{reply.name}</strong>
+                  </span>
+                  <p>{reply.body}</p>
+                </div>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="Cancel reply"
+                  disabled={sending}
+                  onClick={() => {
+                    setReply(null);
+                    field.current?.focus();
+                  }}
+                >
+                  <X size={17} />
+                </button>
               </div>
-              <button
-                type="button"
-                className="icon-button"
-                aria-label="Cancel reply"
-                disabled={sending}
-                onClick={() => {
-                  setReply(null);
-                  field.current?.focus();
+            )}
+            <div className="conversation-input">
+              <textarea
+                ref={field}
+                aria-label={reply ? "Write a reply" : "Write a comment"}
+                aria-describedby={`comment-identity-${item.id}`}
+                placeholder={reply ? "Write a reply…" : "Write a comment…"}
+                rows={1}
+                maxLength={1500}
+                readOnly={sending}
+                value={body}
+                onChange={(event) =>
+                  setDrafts((old) => ({
+                    ...old,
+                    [draftKey]: event.target.value,
+                  }))
+                }
+                onKeyDown={(event) => {
+                  if (
+                    event.key === "Enter" &&
+                    (event.metaKey || event.ctrlKey) &&
+                    !event.nativeEvent.isComposing
+                  ) {
+                    event.preventDefault();
+                    void send();
+                  }
                 }}
+              />
+              <button
+                className="conversation-send"
+                aria-label={reply ? "Send reply" : "Send comment"}
+                title={reply ? "Send reply" : "Send comment"}
+                disabled={sending || !!deleting || !body.trim()}
               >
-                <X size={17} />
+                {sending ? (
+                  <LoaderCircle className="spin" size={18} />
+                ) : (
+                  <Send size={18} />
+                )}
               </button>
             </div>
-          )}
-          <textarea
-            ref={field}
-            aria-label={reply ? "Write a reply" : "Write a comment"}
-            placeholder={
-              reply ? "Write your reply…" : "Add to the conversation…"
-            }
-            rows={2}
-            maxLength={1500}
-            readOnly={sending}
-            value={body}
-            onChange={(event) =>
-              setDrafts((old) => ({ ...old, [draftKey]: event.target.value }))
-            }
-            onKeyDown={(event) => {
-              if (
-                event.key === "Enter" &&
-                (event.metaKey || event.ctrlKey) &&
-                !event.nativeEvent.isComposing
-              ) {
-                event.preventDefault();
-                void send();
-              }
-            }}
-          />
-          <footer>
-            <span>{body.length > 1200 ? `${body.length}/1,500` : ""}</span>
-            <button
-              className="button primary"
-              aria-label={reply ? "Send reply" : "Send comment"}
-              disabled={sending || !!deleting || !body.trim()}
-            >
-              {sending ? (
-                <LoaderCircle className="spin" size={16} />
-              ) : (
-                <Send size={16} />
-              )}
-              <span>{reply ? "Reply" : "Send"}</span>
-            </button>
-          </footer>
+            {body.length > 1200 && (
+              <span className="conversation-character-count">
+                {body.length}/1,500
+              </span>
+            )}
+          </div>
         </form>
       ) : session.user?.account_type === "individual" ? (
         <p className="conversation-join-note">

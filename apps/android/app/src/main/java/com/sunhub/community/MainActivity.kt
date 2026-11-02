@@ -55,6 +55,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import coil3.compose.AsyncImage
 import com.sunhub.core.UploadFile
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -102,6 +103,7 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
     var security by rememberSaveable { mutableStateOf(false) }
     var setupCompany by rememberSaveable { mutableStateOf(false) }
     var createPost by rememberSaveable { mutableStateOf(false) }
+    var companyDrafts by rememberSaveable { mutableStateOf(false) }
     var pendingCreate by rememberSaveable { mutableStateOf(false) }
     var publishingNotice by rememberSaveable { mutableStateOf("") }
     fun requestCreate() {
@@ -113,7 +115,8 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
             }
             model.individual -> {
                 pendingCreate = false
-                publishingNotice = "Posts and press releases come from company profiles. You can follow companies, leave a customer review, and start a conversation with this account."
+                publishingNotice =
+                    "Posts and press releases come from company profiles. You can follow companies, leave a customer review, and start a conversation with this account."
             }
             model.company == null -> {
                 pendingCreate = true
@@ -121,7 +124,8 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
             }
             !model.admin -> {
                 pendingCreate = false
-                publishingNotice = "A company owner or administrator can publish updates. Ask an administrator at your company to update your access."
+                publishingNotice =
+                    "A company owner or administrator can publish updates. Ask an administrator at your company to update your access."
             }
             else -> {
                 pendingCreate = false
@@ -129,8 +133,21 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
             }
         }
     }
-    LaunchedEffect(model.booting, model.signedIn, model.needsOnboarding, setupCompany, pendingCreate) {
-        if (!model.booting && pendingCreate && model.signedIn && !model.needsOnboarding && !setupCompany) requestCreate()
+    LaunchedEffect(
+        model.booting,
+        model.signedIn,
+        model.needsOnboarding,
+        setupCompany,
+        pendingCreate,
+    ) {
+        if (
+            !model.booting &&
+                pendingCreate &&
+                model.signedIn &&
+                !model.needsOnboarding &&
+                !setupCompany
+        )
+            requestCreate()
     }
     LaunchedEffect(model.booting, model.signedIn, model.company?.text("id"), model.admin) {
         if (!model.booting && (!model.signedIn || !model.admin)) createPost = false
@@ -156,9 +173,8 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
     var employeeAccess by remember { mutableStateOf(false) }
     if (employeeAccess && model.admin) EmployeeAccess(model) { employeeAccess = false }
     val screenStates = rememberSaveableStateHolder()
-    val tabs = remember(model.individual) {
-        Tab.entries.filter { !model.individual || it != Tab.Network }
-    }
+    val tabs =
+        remember(model.individual) { Tab.entries.filter { !model.individual || it != Tab.Network } }
     val pager =
         key(tabs) {
             // An account change can remove Network. Replace the state and lazy provider
@@ -182,6 +198,11 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
         }
     }
     val homeScroll = rememberLazyListState()
+    var publishedPostId by remember(model.company?.text("id")) { mutableStateOf<String?>(null) }
+    fun refreshPublishedFeed(post: JSONObject) {
+        publishedPostId = post.text("id")
+        model.refreshCompany()
+    }
     val directoryScroll = rememberLazyListState()
     val networkScroll = rememberLazyListState()
     val messagesScroll = rememberLazyListState()
@@ -274,12 +295,10 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
             confirmButton = { TextButton(onClick = { publishingNotice = "" }) { Text("Got it") } },
         )
     }
+    if (companyDrafts && model.admin)
+        PublicationDrafts(model, ::refreshPublishedFeed) { companyDrafts = false }
     if (createPost && model.admin) {
-        PublicationComposer(model, null, { createPost = false }) {
-            model.pages.keys.filter { it.startsWith("/feed?") && !it.contains("before=") }.toList()
-                .forEach { model.load(it, true) }
-            model.refreshCompany()
-        }
+        PublicationComposer(model, null, { createPost = false }, ::refreshPublishedFeed)
     }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wideNavigation = maxWidth >= 840.dp
@@ -288,7 +307,10 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
             if (!model.signedIn && tab in listOf(Tab.Network, Tab.Messages)) {
                 afterSignIn = { model.selectTab(tab) }
                 auth = true
-            } else model.selectTab(tab)
+            } else {
+                if (tab == Tab.Home && model.tab == Tab.Home) model.load("/feed?scope=all", true)
+                model.selectTab(tab)
+            }
         }
         Scaffold(
             containerColor = Pale,
@@ -361,6 +383,14 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
                                         )
                                     if (model.admin)
                                         DropdownMenuItem(
+                                            text = { Text("Drafts") },
+                                            onClick = {
+                                                account = false
+                                                companyDrafts = true
+                                            },
+                                        )
+                                    if (model.admin)
+                                        DropdownMenuItem(
                                             text = { Text("Employee access") },
                                             onClick = {
                                                 account = false
@@ -405,7 +435,13 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
             },
             bottomBar = {
                 if (!detail && !wideNavigation && !keyboardVisible)
-                    FloatingConnectNavigation(tabs, model.tab, model.incoming.size, ::select, ::requestCreate)
+                    FloatingConnectNavigation(
+                        tabs,
+                        model.tab,
+                        model.incoming.size,
+                        ::select,
+                        ::requestCreate,
+                    )
             },
         ) { padding ->
             Row(Modifier.fillMaxSize().padding(padding).imePadding()) {
@@ -510,73 +546,87 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
                                         else ChatScreen(model)
                                 }
                             }
-                        } else key(tabs) {
-                            HorizontalPager(
-                                state = pager,
-                                modifier = Modifier.weight(1f).testTag("main-tabs"),
-                                verticalAlignment = Alignment.Top,
-                                key = { tabs[it].name },
-                            ) { page ->
-                                val tab = tabs[page]
-                                screenStates.SaveableStateProvider(
-                                    "tab:${model.session?.optJSONObject("user")?.text("id")}:${model.company?.text("id")}:${tab.name}"
-                                ) {
-                                    if (!model.signedIn && tab in listOf(Tab.Network, Tab.Messages))
-                                        Box(
-                                            Modifier.fillMaxSize(),
-                                            contentAlignment = Alignment.Center,
-                                        ) {
-                                            ConnectButton(
-                                                onClick = {
-                                                    afterSignIn = { model.selectTab(tab) }
-                                                    auth = true
-                                                }
+                        } else
+                            key(tabs) {
+                                HorizontalPager(
+                                    state = pager,
+                                    modifier = Modifier.weight(1f).testTag("main-tabs"),
+                                    verticalAlignment = Alignment.Top,
+                                    key = { tabs[it].name },
+                                ) { page ->
+                                    val tab = tabs[page]
+                                    screenStates.SaveableStateProvider(
+                                        "tab:${model.session?.optJSONObject("user")?.text("id")}:${model.company?.text("id")}:${tab.name}"
+                                    ) {
+                                        if (
+                                            !model.signedIn &&
+                                                tab in listOf(Tab.Network, Tab.Messages)
+                                        )
+                                            Box(
+                                                Modifier.fillMaxSize(),
+                                                contentAlignment = Alignment.Center,
                                             ) {
-                                                Text("Sign in to ${tab.name.lowercase()}")
-                                            }
-                                        }
-                                    else
-                                        when (tab) {
-                                            Tab.Home ->
-                                                FeedScreen(
-                                                    model,
-                                                    homeScroll,
-                                                    onSignIn = { auth = true },
-                                                    onCreate = ::requestCreate,
-                                                )
-                                            Tab.Companies -> DirectoryScreen(model, directoryScroll)
-                                            Tab.Network -> NetworkScreen(model, networkScroll)
-                                            Tab.Messages ->
-                                                if (model.individual)
-                                                    PersonalInbox(model) { personalThread = it }
-                                                else
-                                                    Column {
-                                                        Row(
-                                                            Modifier.padding(horizontal = 16.dp),
-                                                            horizontalArrangement =
-                                                                Arrangement.spacedBy(8.dp),
-                                                        ) {
-                                                            ConnectFilterChip(
-                                                                !peopleInbox,
-                                                                { peopleInbox = false },
-                                                                label = { Text("Companies") },
-                                                            )
-                                                            ConnectFilterChip(
-                                                                peopleInbox,
-                                                                { peopleInbox = true },
-                                                                label = { Text("People") },
-                                                            )
-                                                        }
-                                                        if (peopleInbox)
-                                                            PersonalInbox(model) {
-                                                                personalThread = it
-                                                            }
-                                                        else MessagesScreen(model, messagesScroll)
+                                                ConnectButton(
+                                                    onClick = {
+                                                        afterSignIn = { model.selectTab(tab) }
+                                                        auth = true
                                                     }
-                                        }
+                                                ) {
+                                                    Text("Sign in to ${tab.name.lowercase()}")
+                                                }
+                                            }
+                                        else
+                                            when (tab) {
+                                                Tab.Home ->
+                                                    FeedScreen(
+                                                        model,
+                                                        homeScroll,
+                                                        publishedPostId,
+                                                        onPublishedVisible = {
+                                                            publishedPostId = null
+                                                        },
+                                                        onSignIn = { auth = true },
+                                                    )
+                                                Tab.Companies ->
+                                                    DirectoryScreen(model, directoryScroll)
+                                                Tab.Network -> NetworkScreen(model, networkScroll)
+                                                Tab.Messages ->
+                                                    if (model.individual)
+                                                        PersonalInbox(model) { personalThread = it }
+                                                    else
+                                                        Column {
+                                                            Row(
+                                                                Modifier.padding(
+                                                                    horizontal = 16.dp
+                                                                ),
+                                                                horizontalArrangement =
+                                                                    Arrangement.spacedBy(8.dp),
+                                                            ) {
+                                                                ConnectFilterChip(
+                                                                    !peopleInbox,
+                                                                    { peopleInbox = false },
+                                                                    label = { Text("Companies") },
+                                                                )
+                                                                ConnectFilterChip(
+                                                                    peopleInbox,
+                                                                    { peopleInbox = true },
+                                                                    label = { Text("People") },
+                                                                )
+                                                            }
+                                                            if (peopleInbox)
+                                                                PersonalInbox(model) {
+                                                                    personalThread = it
+                                                                }
+                                                            else
+                                                                MessagesScreen(
+                                                                    model,
+                                                                    messagesScroll,
+                                                                )
+                                                        }
+                                            }
+                                    }
                                 }
                             }
-                        }
                     }
                 }
             }
@@ -900,16 +950,19 @@ private fun MessagesScreen(model: CommunityModel, scroll: LazyListState) {
 }
 
 @Composable
-private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: () -> Unit, onCreate: () -> Unit) {
-    var following by rememberSaveable { mutableStateOf(false) }
-    var format by rememberSaveable { mutableStateOf("all") }
-    val commentIdentity = "${model.session?.optJSONObject("user")?.text("id")}:${model.company?.text("id")}"
+private fun FeedScreen(
+    model: CommunityModel,
+    scroll: LazyListState,
+    publishedPostId: String?,
+    onPublishedVisible: () -> Unit,
+    onSignIn: () -> Unit,
+) {
+    val commentIdentity =
+        "${model.session?.optJSONObject("user")?.text("id")}:${model.company?.text("id")}"
     var commentPost by remember(commentIdentity) { mutableStateOf<String?>(null) }
     var commentDrafts by rememberSaveable(commentIdentity) { mutableStateOf("{}") }
     var readPost by remember { mutableStateOf<JSONObject?>(null) }
-    var drafts by rememberSaveable { mutableStateOf(false) }
-    val firstPath =
-        "/feed?scope=${if (following) "following" else "all"}${if (format == "all") "" else "&kind=$format"}"
+    val firstPath = "/feed?scope=all"
     var paths by rememberSaveable(firstPath) { mutableStateOf(listOf(firstPath)) }
     val path = paths.last()
     LaunchedEffect(path) { model.load(path) }
@@ -918,95 +971,21 @@ private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: (
         paths
             .flatMap { model.pages[it]?.optJSONArray("posts").objects() }
             .distinctBy { it.optString("id") }
+    val publishedIndex = posts.indexOfFirst { it.text("id") == publishedPostId }
+    LaunchedEffect(publishedPostId, publishedIndex) {
+        if (publishedPostId != null && publishedIndex >= 0) {
+            // The new item must already belong to the composed data set before scrolling;
+            // scrolling when the HTTP job ends lets stable keys re-anchor the old first card.
+            scroll.scrollToItem(publishedIndex)
+            onPublishedVisible()
+        }
+    }
     LazyColumn(
         state = scroll,
         modifier = Modifier.fillMaxSize().testTag("news-feed"),
         contentPadding = PaddingValues(bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        item {
-            Column(
-                Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    "The industry, in motion.",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    "Project progress. Company news. Work worth celebrating.",
-                    color = Muted,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
-        item {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                ConnectFilterChip(
-                    !following,
-                    onClick = { following = false },
-                    label = { Text("All posts") },
-                )
-                ConnectFilterChip(
-                    following,
-                    onClick = {
-                        if (model.signedIn) {
-                            following = true
-                        } else onSignIn()
-                    },
-                    label = { Text("Following") },
-                )
-                Spacer(Modifier.weight(1f))
-                IconButton(
-                    onClick = {
-                        paths = listOf(firstPath)
-                        model.load(firstPath, true)
-                    }
-                ) {
-                    Icon(Icons.Outlined.Refresh, "Refresh feed")
-                }
-            }
-        }
-        item {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(
-                    listOf(
-                        "all" to "Everything",
-                        "post" to "Posts",
-                        "press_release" to "Press releases",
-                    )
-                ) { (value, label) ->
-                    ConnectFilterChip(
-                        format == value,
-                        onClick = { format = value },
-                        label = { Text(label) },
-                    )
-                }
-            }
-        }
-        if (model.admin)
-            item {
-                Row(
-                    Modifier.padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    ConnectButton(onClick = onCreate, modifier = Modifier.weight(1f)) {
-                        Icon(Icons.Outlined.Add, null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Share an update")
-                    }
-                    TextButton(onClick = { drafts = true }) { Text("Drafts") }
-                }
-            }
         items(posts, key = { it.optString("id") }) { post ->
             var expanded by rememberSaveable(post.optString("id")) { mutableStateOf(false) }
             var overflows by remember(post.optString("id")) { mutableStateOf(false) }
@@ -1034,29 +1013,38 @@ private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: (
                 ) {
                     model.profile(post.getJSONObject("company").optString("id"))
                 }
-                if (post.text("kind") != "post" && post.text("title").isNotBlank())
-                    PublicationHeading(
-                        post,
-                        Modifier.padding(horizontal = 16.dp).clickable { readPost = post },
-                        compact = true,
-                    )
-                if (post.optString("body").isNotBlank())
-                    Text(
-                        post.optString("body"),
-                        Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = if (expanded) Int.MAX_VALUE else 5,
-                        overflow = TextOverflow.Ellipsis,
-                        onTextLayout = { if (!expanded) overflows = it.hasVisualOverflow },
-                    )
-                if ((overflows || expanded) && post.text("kind") == "post")
-                    TextButton(
-                        onClick = { expanded = !expanded },
-                        modifier = Modifier.padding(horizontal = 4.dp),
+                if (post.text("kind") == "post" && post.optJSONObject("document") != null) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Text(if (expanded) "Show less" else "Show more")
+                        PublicationBody(model, post)
                     }
-                PublicationMediaGallery(model, post, compactRelease = true)
+                } else {
+                    if (post.text("kind") != "post" && post.text("title").isNotBlank())
+                        PublicationHeading(
+                            post,
+                            Modifier.padding(horizontal = 16.dp).clickable { readPost = post },
+                            compact = true,
+                        )
+                    if (post.optString("body").isNotBlank())
+                        Text(
+                            PublicationWriting.summary(post),
+                            Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = if (expanded) Int.MAX_VALUE else 5,
+                            overflow = TextOverflow.Ellipsis,
+                            onTextLayout = { if (!expanded) overflows = it.hasVisualOverflow },
+                        )
+                    if ((overflows || expanded) && post.text("kind") == "post")
+                        TextButton(
+                            onClick = { expanded = !expanded },
+                            modifier = Modifier.padding(horizontal = 4.dp),
+                        ) {
+                            Text(if (expanded) "Show less" else "Show more")
+                        }
+                    PublicationMediaGallery(model, post, compactRelease = true)
+                }
                 if (post.text("kind") != "post")
                     TextButton(
                         onClick = { readPost = post },
@@ -1068,7 +1056,12 @@ private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: (
                         )
                         Icon(Icons.Outlined.ArrowOutward, null, Modifier.size(18.dp))
                     }
-                PostSocialActions(model, post, comments = { commentPost = post.text("id") }, signIn = onSignIn)
+                PostSocialActions(
+                    model,
+                    post,
+                    comments = { commentPost = post.text("id") },
+                    signIn = onSignIn,
+                )
             }
         }
         if (result == null)
@@ -1097,19 +1090,28 @@ private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: (
                 }
             }
     }
-    if (drafts) PublicationDrafts(model) { drafts = false }
     readPost?.let { post ->
         WorkSheet(model, publicationLabel(post.text("kind")), { readPost = null }) {
             PublicationBody(model, post)
         }
     }
     commentPost?.let { id ->
-        PostCommentsSheet(model, id, close = { commentPost = null }, signIn = onSignIn,
+        PostCommentsSheet(
+            model,
+            id,
+            close = { commentPost = null },
+            signIn = onSignIn,
             savedDraft = JSONObject(commentDrafts).optJSONObject(id)?.toString(),
             saveDraft = { body, target ->
-                commentDrafts = JSONObject(commentDrafts).put(id, JSONObject().put("body", body)
-                    .put("target", target ?: JSONObject.NULL)).toString()
-            })
+                commentDrafts =
+                    JSONObject(commentDrafts)
+                        .put(
+                            id,
+                            JSONObject().put("body", body).put("target", target ?: JSONObject.NULL),
+                        )
+                        .toString()
+            },
+        )
     }
 }
 

@@ -409,6 +409,147 @@ test("publishing, company profiles, customer accounts, and employee access", asy
     },
   );
   await t.test(
+    "choosing a format at publish preserves the full writing document and failed choices remain private",
+    async () => {
+      const generic = (await a("/publications", { kind: "press_release" }))
+        .data;
+      const photo = new FormData();
+      photo.set(
+        "file",
+        new Blob([await fs.readFile("apps/web/public/assets/solar.jpg")]),
+        "project.jpg",
+      );
+      const attachment = await a(
+        "/publications/" + generic.id + "/media",
+        photo,
+      );
+      assert.equal(attachment.status, 201);
+      const document = {
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [
+              { type: "text", text: "A new community solar project" },
+              { type: "hardBreak" },
+              {
+                type: "text",
+                text: "Our team completed the first installation today.",
+              },
+            ],
+          },
+          {
+            type: "image",
+            attrs: { src: attachment.data.url, alt: "Completed rooftop" },
+          },
+          {
+            type: "paragraph",
+            content: [
+              {
+                type: "text",
+                text: "More progress next week.",
+                marks: [{ type: "bold" }],
+              },
+            ],
+          },
+        ],
+      };
+      const saved = await a(
+        "/publications/" + generic.id,
+        {
+          kind: "press_release",
+          title: "",
+          subtitle: "",
+          document,
+          status: "draft",
+          version: generic.version,
+        },
+        "PATCH",
+      );
+      assert.equal(saved.status, 200, JSON.stringify(saved.data));
+      assert.match(saved.data.body, /project\nOur team/);
+      assert.equal((await anon("/posts/" + generic.id)).status, 404);
+      const update = await a(
+        "/publications/" + generic.id,
+        {
+          kind: "post",
+          title: "",
+          subtitle: "",
+          document,
+          status: "published",
+          version: saved.data.version,
+        },
+        "PATCH",
+      );
+      assert.equal(update.status, 200, JSON.stringify(update.data));
+      const visible = (await anon("/posts/" + generic.id)).data;
+      assert.equal(visible.kind, "post");
+      assert.equal(visible.document.content[1].attrs.src, attachment.data.url);
+      assert.deepEqual(visible.document.content[2].content[0].marks, [
+        { type: "bold" },
+      ]);
+      assert.equal(
+        (await anon("/post-media/" + attachment.data.id)).status,
+        200,
+      );
+
+      const longDraft = (await a("/publications", { kind: "press_release" }))
+        .data;
+      const longDocument = {
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "Our next chapter" }],
+          },
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "x".repeat(4001) }],
+          },
+        ],
+      };
+      const longSaved = await a(
+        "/publications/" + longDraft.id,
+        {
+          kind: "press_release",
+          document: longDocument,
+          status: "draft",
+          version: longDraft.version,
+        },
+        "PATCH",
+      );
+      assert.equal(longSaved.status, 200);
+      const invalidChoice = await a(
+        "/publications/" + longDraft.id,
+        {
+          kind: "post",
+          document: longDocument,
+          status: "published",
+          version: longSaved.data.version,
+        },
+        "PATCH",
+      );
+      assert.equal(invalidChoice.status, 400);
+      assert.equal((await anon("/posts/" + longDraft.id)).status, 404);
+      const preserved = (await a("/posts/" + longDraft.id)).data;
+      assert.equal(preserved.status, "draft");
+      assert.equal(preserved.version, longSaved.data.version);
+      assert.deepEqual(preserved.document, longSaved.data.document);
+      const release = await a(
+        "/publications/" + longDraft.id,
+        {
+          kind: "press_release",
+          title: "Our next chapter",
+          document: longDocument,
+          status: "published",
+          version: preserved.version,
+        },
+        "PATCH",
+      );
+      assert.equal(release.status, 200, JSON.stringify(release.data));
+    },
+  );
+  await t.test(
     "post media limits match the quick composer and release images preserve descriptions",
     async () => {
       const quick = (await a("/publications", { kind: "post" })).data;

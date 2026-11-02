@@ -138,7 +138,9 @@ test("public directory and profiles are readable with JavaScript disabled", asyn
     baseURL: process.env.API_TEST_URL || "http://localhost:4101",
   });
   const page = await context.newPage();
-  await page.goto("/directory?type=Manufacturer");
+  // Other suites retain isolated company fixtures; search explicitly so this
+  // no-JavaScript journey does not depend on First Solar being on page one.
+  await page.goto("/directory?type=Manufacturer&q=First%20Solar");
   await page.getByRole("link", { name: /First Solar/ }).click();
   await expect(
     page.getByRole("heading", { name: "About First Solar" }),

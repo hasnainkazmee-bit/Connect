@@ -1,6 +1,86 @@
 import { test, expect } from "@playwright/test";
+import {
+  editableDocument,
+  publicationPresentation,
+  writingHeadline,
+  writingText,
+} from "../../apps/web/src/publication-writing";
 
-test("one writing canvas formats the current paragraph and preserves a selected link", async ({
+test("release presentation preserves rich headline marks and hard-break body text", () => {
+  const document = {
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [
+          {
+            type: "text",
+            text: "Solar milestones",
+            marks: [
+              { type: "bold" },
+              { type: "link", attrs: { href: "https://example.com" } },
+            ],
+          },
+          { type: "hardBreak" },
+          {
+            type: "text",
+            text: "The full project details stay here.",
+            marks: [{ type: "italic" }],
+          },
+        ],
+      },
+    ],
+  };
+  const before = JSON.stringify(document);
+  const shown = publicationPresentation(document, "Solar milestones");
+  expect(shown.headline.content[0].content[0].marks).toEqual(
+    document.content[0].content[0].marks,
+  );
+  expect(shown.excerpt).toBe("The full project details stay here.");
+  expect(shown.document.content[0].content[0].marks).toEqual([
+    { type: "italic" },
+  ]);
+  expect(JSON.stringify(document)).toBe(before);
+  expect(editableDocument(document, "", "Solar milestones", "")).toEqual(
+    document,
+  );
+  expect(
+    writingText(
+      editableDocument(document, "", "Solar milestones", "A legacy summary."),
+    ),
+  ).toBe(
+    "Solar milestones\nA legacy summary.\nThe full project details stay here.",
+  );
+});
+
+test("headline truncation never splits an emoji and complex first blocks stay intact", () => {
+  const long = {
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "a".repeat(179) + "🌞 project" }],
+      },
+    ],
+  };
+  expect(writingHeadline(long)).toBe("a".repeat(179));
+  const code = {
+    type: "doc",
+    content: [
+      {
+        type: "codeBlock",
+        content: [
+          { type: "text", text: "Solar milestones\nTechnical details" },
+        ],
+      },
+    ],
+  };
+  expect(publicationPresentation(code, "Solar milestones").document).toEqual(
+    code,
+  );
+});
+
+test("one canvas preserves writing through drafts, format cancellation and a failed publish", async ({
   browser,
 }) => {
   const context = await browser.newContext({
@@ -22,31 +102,28 @@ test("one writing canvas formats the current paragraph and preserves a selected 
   await page.goto("/");
   await page
     .getByRole("region", { name: "Create a post" })
-    .getByRole("button", { name: "Press release", exact: true })
+    .getByRole("button", { name: "What’s happening at your company?" })
     .click();
   const dialog = page.getByRole("dialog");
-  const editor = dialog.getByRole("textbox", { name: "Story content" });
+  const editor = dialog.getByRole("textbox", { name: "Update content" });
   await expect(editor).toHaveCount(1);
+  await expect(dialog.getByLabel("Story title")).toHaveCount(0);
   await expect(dialog.getByLabel("Story subtitle")).toHaveCount(0);
   await expect(
-    dialog.getByRole("toolbar", { name: "Text formatting" }),
-  ).toBeVisible();
+    dialog.getByRole("button", { name: "Update", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    dialog.getByRole("button", { name: "Press release", exact: true }),
+  ).toHaveCount(0);
   await page.screenshot({ path: "test-results/writing-empty-320.png" });
-  await dialog.getByLabel("Story title").fill("A new chapter for local solar");
-  await editor.click();
-  await editor.pressSequentially("A new installation");
-  await editor.press("Enter");
-  await editor.pressSequentially("Built with local partners");
-  await editor.press("Enter");
-  await editor.pressSequentially(
-    "Our team completed the community solar installation.",
+  await editor.fill(
+    "A new chapter for local solar\nBuilt with local partners\nOur team completed the community solar installation.\nRead more",
   );
-  await editor.press("Enter");
-  await editor.pressSequentially("Read more");
-  await expect(editor.locator("p")).toHaveCount(4);
   await editor.locator("p").nth(0).click();
   await dialog.getByRole("button", { name: "Heading", exact: true }).click();
-  await expect(editor.locator("h2")).toHaveText("A new installation");
+  await expect(editor.locator("h2")).toHaveText(
+    "A new chapter for local solar",
+  );
   await editor.locator("p").nth(0).click();
   await dialog.getByRole("button", { name: "Subheading", exact: true }).click();
   await expect(editor.locator("h3")).toHaveText("Built with local partners");
@@ -65,6 +142,9 @@ test("one writing canvas formats the current paragraph and preserves a selected 
     "href",
     "https://example.com/project",
   );
+  expect(await editor.evaluate((el) => getComputedStyle(el).boxShadow)).toBe(
+    "none",
+  );
   expect(
     await dialog.evaluate((el) => el.scrollWidth - el.clientWidth),
   ).toBeLessThanOrEqual(1);
@@ -79,11 +159,50 @@ test("one writing canvas formats the current paragraph and preserves a selected 
   await dialog
     .getByRole("button", { name: /A new chapter for local solar/ })
     .click();
-  await expect(editor.locator("h2")).toHaveText("A new installation");
+  await expect(editor.locator("h2")).toHaveText(
+    "A new chapter for local solar",
+  );
   await expect(editor.locator("h3")).toHaveText("Built with local partners");
   await expect(editor.locator("a")).toHaveText("Read more");
-  await page.screenshot({ path: "test-results/writing-formatted-320.png" });
+  const writing = await editor.textContent();
   await dialog.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(
+    dialog.getByRole("heading", { name: "How would you like to publish?" }),
+  ).toBeVisible();
+  await dialog
+    .getByRole("button", { name: "Keep writing", exact: true })
+    .click();
+  await expect(editor).toHaveText(writing!);
+  await expect(
+    dialog.getByRole("button", { name: "Update", exact: true }),
+  ).toHaveCount(0);
+  let fail = true;
+  await page.route("**/api/publications/*", async (route) => {
+    if (
+      route.request().method() === "PATCH" &&
+      route.request().postDataJSON().status === "published" &&
+      fail
+    ) {
+      fail = false;
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: "Could not publish. Your draft is safe.",
+        }),
+      });
+    } else await route.continue();
+  });
+  await dialog.getByRole("button", { name: "Publish", exact: true }).click();
+  await dialog
+    .getByRole("button", { name: "Press release", exact: true })
+    .click();
+  await expect(dialog.getByRole("alert")).toContainText("Your draft is safe");
+  await expect(editor).toHaveText(writing!);
+  await page.screenshot({ path: "test-results/writing-choice-320.png" });
+  await dialog
+    .getByRole("button", { name: "Press release", exact: true })
+    .click();
   await expect(dialog).toHaveCount(0);
   const feed = await (
     await context.request.get(
@@ -95,44 +214,85 @@ test("one writing canvas formats the current paragraph and preserves a selected 
   );
   expect(
     release.document.content
-      .filter((n: any) => n.type === "heading")
-      .map((n: any) => n.attrs.level),
+      .filter((node: any) => node.type === "heading")
+      .map((node: any) => node.attrs.level),
   ).toEqual([2, 3]);
   expect(JSON.stringify(release.document)).toContain(
     "https://example.com/project",
   );
-  // Optional tools keep keyboard focus predictable; even a summary-only draft
-  // must survive an immediate Close before the autosave timer can run.
-  await page
-    .getByRole("region", { name: "Create a post" })
-    .getByRole("button", { name: "Press release", exact: true })
-    .click();
-  await dialog.getByRole("button", { name: "Link", exact: true }).click();
-  await expect(dialog.getByLabel("Link address")).toBeFocused();
-  await dialog
-    .getByRole("button", { name: "More formatting", exact: true })
-    .click();
-  await expect(dialog.getByLabel("Link address")).toHaveCount(0);
+  await page.goto(`/posts/${release.id}`);
   await expect(
-    dialog.getByRole("button", { name: "Bold", exact: true }),
-  ).toBeFocused();
-  await dialog
-    .getByRole("button", { name: "Add summary", exact: true })
-    .click();
-  await expect(dialog.getByLabel("Story subtitle")).toBeFocused();
-  await dialog
-    .getByLabel("Story subtitle")
-    .fill("A summary saved before the headline is written.");
-  await dialog
-    .getByRole("button", { name: "Close dialog", exact: true })
-    .click();
-  await expect(dialog).toHaveCount(0);
-  const drafts = await (await context.request.get("/api/publications")).json();
-  expect(
-    drafts.some(
-      (draft: any) =>
-        draft.subtitle === "A summary saved before the headline is written.",
-    ),
-  ).toBe(true);
+    page
+      .locator(".publication-card h2")
+      .filter({ hasText: "A new chapter for local solar" }),
+  ).toHaveCount(1);
+  await expect(page.locator(".story-prose h3")).toHaveText(
+    "Built with local partners",
+  );
+  await context.close();
+});
+
+test("explicit and guarded close lock the last draft snapshot while it saves", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    baseURL: process.env.API_TEST_URL || "http://localhost:4101",
+  });
+  const suffix = Date.now();
+  await context.request.post("/api/auth/register", {
+    data: {
+      name: "Careful Writer",
+      email: `close-writing-${suffix}@example.test`,
+      password: "ConnectWriting123!",
+      companyName: `Careful Solar ${suffix}`,
+    },
+  });
+  const page = await context.newPage();
+  await page.goto("/");
+  for (const method of ["Save & close", "Close dialog"]) {
+    await page
+      .getByRole("button", {
+        name: "What’s happening at your company?",
+        exact: true,
+      })
+      .click();
+    const dialog = page.getByRole("dialog");
+    const editor = dialog.getByRole("textbox", { name: "Update content" });
+    const writing = `A draft saved with ${method}. Every word here must survive.`;
+    let release!: () => void, started!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const requested = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    await page.route("**/api/publications/*", async (route) => {
+      if (route.request().method() === "PATCH") {
+        started();
+        await pending;
+      }
+      await route.continue().catch(() => {});
+    });
+    try {
+      await editor.fill(writing);
+      await dialog.getByRole("button", { name: method, exact: true }).click();
+      await requested;
+      await expect(editor).toHaveAttribute("contenteditable", "false");
+      await expect(
+        dialog.getByRole("button", { name: "Save & close", exact: true }),
+      ).toBeDisabled();
+      await page.keyboard.type("This should not enter a closing draft");
+      await expect(editor).toHaveText(writing);
+      release();
+      await expect(dialog).toHaveCount(0);
+      const drafts = await (
+        await context.request.get("/api/publications")
+      ).json();
+      expect(drafts.some((draft: any) => draft.body === writing)).toBe(true);
+    } finally {
+      release();
+      await page.unroute("**/api/publications/*");
+    }
+  }
   await context.close();
 });

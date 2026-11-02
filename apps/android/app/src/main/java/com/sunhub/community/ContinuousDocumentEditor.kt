@@ -131,9 +131,7 @@ internal class DocumentObjectSpan(val node: String, private val width: () -> Int
         if (!image) return 36
         val d = drawable
         return if (d != null && d.intrinsicWidth > 0)
-            (width() * d.intrinsicHeight.toFloat() / d.intrinsicWidth)
-                .toInt()
-                .coerceIn(90, (width() * .85f).toInt())
+            (width() * d.intrinsicHeight.toFloat() / d.intrinsicWidth).toInt().coerceAtLeast(1)
         else (width() * .56f).toInt()
     }
 
@@ -172,7 +170,6 @@ internal class DocumentObjectSpan(val node: String, private val width: () -> Int
             canvas.drawRect(x, y - 12f, x + width(), y - 10f, p)
             return
         }
-        canvas.drawRoundRect(bounds, 16f, 16f, p)
         drawable?.let { d ->
             val scale =
                 minOf(
@@ -864,6 +861,7 @@ internal fun ContinuousDocumentEditor(
     change: (String) -> Unit,
     hint: String,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     state.onChange = change
     state.synchronize(value)
@@ -925,6 +923,7 @@ internal fun ContinuousDocumentEditor(
             }
         },
         update = {
+            it.isEnabled = enabled
             it.hint = hint
             it.load(value)
         },
