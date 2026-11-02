@@ -19,7 +19,7 @@
   margin: 26px 0 12px;
 }
 .story-prose blockquote {
-  border-left: 3px solid var(--brand, #ff8a24);
+  border-left: 3px solid var(--brand, #ff6b0b);
   margin: 24px 0;
   padding: 4px 0 4px 20px;
   color: var(--muted, #586d7f);
@@ -30,7 +30,7 @@
   max-width: 100%;
   height: auto;
   margin-inline: auto;
-  border-radius: 10px;
+  border-radius: var(--radius-card, 24px);
 }
 .story-prose a {
   color: var(--brand-ink, #974100);
@@ -51,7 +51,7 @@
   overflow: auto;
   max-width: 100%;
   background: var(--surface-muted, #edf4fa);
-  border-radius: 10px;
+  border-radius: var(--radius-card, 24px);
   padding: 20px;
   font-size: 13px;
 }
@@ -71,5 +71,5 @@
   aspect-ratio: 16 / 9;
   object-fit: contain;
   background: var(--surface-muted, #edf4fa);
-  border-radius: 12px;
+  border-radius: var(--radius-card, 24px);
 }

@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.*
@@ -63,18 +62,18 @@ internal fun PersonalInbox(model: CommunityModel, open: (JSONObject) -> Unit) {
             leadingIcon = { Icon(Icons.Outlined.Search, null) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            shape = RoundedCornerShape(12.dp),
+            shape = ConnectPillShape,
         )
         Row(
             Modifier.padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            FilterChip(
+            ConnectFilterChip(
                 all,
                 { all = true },
                 label = { Text(if (model.individual) "All companies" else "All messages") },
             )
-            FilterChip(
+            ConnectFilterChip(
                 !all,
                 { all = false },
                 label = { Text(if (model.individual) "My chats" else "Requests") },
@@ -253,7 +252,7 @@ internal fun PersonalChat(
                     )
                     Surface(
                         color = if (own) Pale else Color(0xFFF4F5F7),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = ConnectCardShape,
                         modifier = Modifier.widthIn(max = 300.dp),
                     ) {
                         Text(
@@ -365,7 +364,7 @@ internal fun PersonalChat(
                             },
                             modifier = Modifier.weight(1f),
                             maxLines = 5,
-                            shape = RoundedCornerShape(16.dp),
+                            shape = ConnectCardShape,
                         )
                         FilledIconButton(
                             enabled = !model.busy && text.isNotBlank(),

@@ -69,6 +69,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MaterialTheme(
+                shapes = ConnectShapes,
                 colorScheme =
                     lightColorScheme(
                         primary = Ink,
@@ -82,7 +83,7 @@ class MainActivity : ComponentActivity() {
                         onSurface = Ink,
                         surfaceVariant = Pale,
                         onSurfaceVariant = Muted,
-                    )
+                    ),
             ) {
                 ConnectApp()
             }
@@ -342,7 +343,14 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
             },
             bottomBar = {
                 if (!detail && !wideNavigation)
-                    NavigationBar(containerColor = Color.White) {
+                    NavigationBar(
+                        containerColor = Color.White,
+                        windowInsets = WindowInsets(0, 0, 0, 0),
+                        modifier =
+                            Modifier.navigationBarsPadding()
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                                .clip(ConnectPillShape),
+                    ) {
                         tabs.forEach { tab ->
                             NavigationBarItem(
                                 selected = tab == model.tab,
@@ -522,12 +530,12 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
                                                             horizontalArrangement =
                                                                 Arrangement.spacedBy(8.dp),
                                                         ) {
-                                                            FilterChip(
+                                                            ConnectFilterChip(
                                                                 !peopleInbox,
                                                                 { peopleInbox = false },
                                                                 label = { Text("Companies") },
                                                             )
-                                                            FilterChip(
+                                                            ConnectFilterChip(
                                                                 peopleInbox,
                                                                 { peopleInbox = true },
                                                                 label = { Text("People") },
@@ -631,7 +639,7 @@ private fun SearchField(value: String, onChange: (String) -> Unit) {
         singleLine = true,
         placeholder = { Text("Search companies…") },
         leadingIcon = { Icon(Icons.Outlined.Search, null) },
-        shape = RoundedCornerShape(12.dp),
+        shape = ConnectPillShape,
     )
 }
 
@@ -723,14 +731,14 @@ private fun NetworkScreen(model: CommunityModel, scroll: LazyListState) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 item {
-                    FilterChip(
+                    ConnectFilterChip(
                         type.isEmpty(),
                         onClick = { type = "" },
                         label = { Text("All ${connections.size}") },
                     )
                 }
                 items(types) { pair ->
-                    FilterChip(
+                    ConnectFilterChip(
                         type == pair.first,
                         onClick = { type = pair.first },
                         label = {
@@ -911,12 +919,12 @@ private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: (
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                FilterChip(
+                ConnectFilterChip(
                     !following,
                     onClick = { following = false },
                     label = { Text("All posts") },
                 )
-                FilterChip(
+                ConnectFilterChip(
                     following,
                     onClick = {
                         if (model.signedIn) {
@@ -948,7 +956,7 @@ private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: (
                         "press_release" to "Press releases",
                     )
                 ) { (value, label) ->
-                    FilterChip(
+                    ConnectFilterChip(
                         format == value,
                         onClick = { format = value },
                         label = { Text(label) },
@@ -976,7 +984,7 @@ private fun FeedScreen(model: CommunityModel, scroll: LazyListState, onSignIn: (
             var overflows by remember(post.optString("id")) { mutableStateOf(false) }
             Card(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                shape = RoundedCornerShape(14.dp),
+                shape = ConnectCardShape,
                 colors = CardDefaults.cardColors(containerColor = Color.White),
             ) {
                 val time =
@@ -1542,7 +1550,7 @@ private fun MessageBubble(body: String, author: String, own: Boolean) {
             color = Muted,
         )
         Surface(
-            shape = RoundedCornerShape(14.dp),
+            shape = ConnectCardShape,
             color = if (own) Navy.copy(alpha = .10f) else Pale,
             modifier = Modifier.widthIn(max = 310.dp),
         ) {

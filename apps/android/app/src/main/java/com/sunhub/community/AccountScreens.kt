@@ -155,7 +155,7 @@ internal fun AccountButton(
     ConnectButton(
         onClick = onClick,
         enabled = enabled && !busy,
-        shape = RoundedCornerShape(13.dp),
+        shape = ConnectPillShape,
         modifier = Modifier.fillMaxWidth().height(54.dp),
         contentPadding = PaddingValues(horizontal = 18.dp),
     ) {
@@ -185,7 +185,7 @@ private fun AccountField(
         label = { Text(label) },
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
-        shape = RoundedCornerShape(12.dp),
+        shape = ConnectPillShape,
         colors =
             OutlinedTextFieldDefaults.colors(
                 unfocusedBorderColor = Color(0xFFDCE5ED),
@@ -218,7 +218,7 @@ private fun AccountError(model: CommunityModel) {
     model.error?.let {
         Surface(
             color = Color(0xFFFFF0EC),
-            shape = RoundedCornerShape(10.dp),
+            shape = ConnectCardShape,
             modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
         ) {
             Text(
@@ -560,7 +560,7 @@ internal fun OnboardingScreen(
                         "Service provider",
                     )
                     .forEach { value ->
-                        FilterChip(
+                        ConnectFilterChip(
                             selected = type == value,
                             onClick = { type = value },
                             label = { Text(value, style = MaterialTheme.typography.labelMedium) },
@@ -592,7 +592,7 @@ internal fun OnboardingScreen(
                         "Equipment supply",
                     )
                     .forEach { value ->
-                        FilterChip(
+                        ConnectFilterChip(
                             selected = value in selected,
                             onClick = {
                                 selected =

@@ -8,20 +8,20 @@ Connect is a place to see companies doing real work: project updates, launches, 
 
 | Purpose                    | Token / value              | Rule                                                                                                    |
 | -------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Primary action             | `--brand: #ff8a24`         | Sign in, publish, save, and send share one treatment.                                                   |
+| Primary action             | `--brand: #ff6b0b`         | Sign in, publish, save, and send share one treatment.                                                   |
 | Primary action text        | `--on-brand: #1c2d3a`      | Dark text keeps orange buttons readable. White text on this orange lacks adequate normal-text contrast. |
 | Text link / selected label | `--brand-ink: #974100`     | The darker related color is readable on a light surface.                                                |
-| Selected background        | `--brand-soft: #fff0e2`    | Navigation selection is quieter than a primary action.                                                  |
+| Selected background        | `--brand-soft: #fff0e2`    | Subtle supporting accents; the active navigation uses the primary orange.                               |
 | App chrome                 | `--surface-muted: #edf4fa` | Retain Connect's pale blue navigation and contextual panels.                                            |
 | Content                    | `--surface: #ffffff`       | Clear, quiet reading surface.                                                                           |
 | Body text                  | `--ink: #203342`           | Primary content.                                                                                        |
 | Supporting text            | `--muted: #586d7f`         | Readable supporting copy; do not fade important information.                                            |
 | Control                    | `--control-height: 44px`   | Minimum web control target. Small variants retain the hit area.                                         |
-| Control radius             | `--radius-control: 10px`   | Buttons, inputs, and selects share a shape.                                                             |
-| Card radius                | `--radius-card: 16px`      | Larger containers use a related radius.                                                                 |
+| Control radius             | `--radius-control: 999px`  | Buttons, inputs, and selects share a shape.                                                             |
+| Card radius                | `--radius-card: 24px`      | Larger containers use a related radius.                                                                 |
 | Spacing                    | 4, 8, 12, 16, 24, 32px     | Reuse this small scale instead of arbitrary offsets.                                                    |
 
-Primary, secondary, selected, and destructive are separate meanings. A destructive control stays red. Success/error indicators retain their semantic colors. A selected navigation item uses a warm tint; it does not masquerade as a submit button. Keyboard focus uses an obvious dark blue outline, independent of selection.
+Primary, secondary, selected, and destructive are separate meanings. A destructive control stays red. Success/error indicators retain their semantic colors. The selected navigation item uses the original solar orange, matching primary actions. Capsule buttons and circular icon controls repeat that shape throughout the app. Large cards and dialogs use 24px corners; multiline writing areas keep generous 20–24px corners instead of becoming ellipses. Keyboard focus uses an obvious dark blue outline, independent of selection.
 
 ## Adapt to space, not a device name
 

@@ -7,7 +7,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -365,15 +364,15 @@ internal fun PublicationComposer(
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(!preview, { preview = false }, label = { Text("Write") })
-            FilterChip(preview, { preview = true }, label = { Text("Preview") })
+            ConnectFilterChip(!preview, { preview = false }, label = { Text("Write") })
+            ConnectFilterChip(preview, { preview = true }, label = { Text("Preview") })
         }
         if (preview) {
             PublicationBody(model, story)
         } else {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(formats) { (value, label) ->
-                    FilterChip(
+                    ConnectFilterChip(
                         kind == value,
                         {
                             if (
@@ -445,7 +444,7 @@ internal fun PublicationComposer(
                     placeholder = { Text("What’s happening at your company?") },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 5,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = ConnectCardShape,
                     supportingText = { Text("${body.length} / 4,000") },
                 )
             else {
@@ -793,7 +792,7 @@ private fun StoryBlock(
                 textStyle =
                     if (type == "heading") MaterialTheme.typography.titleLarge
                     else MaterialTheme.typography.bodyLarge,
-                shape = RoundedCornerShape(10.dp),
+                shape = if (type == "heading") ConnectPillShape else ConnectCardShape,
             )
         }
         "image" -> {
@@ -1045,7 +1044,7 @@ internal fun PublicationCard(model: CommunityModel, post: JSONObject) {
         }
     Card(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(15.dp),
+        shape = ConnectCardShape,
         colors = CardDefaults.cardColors(containerColor = Color.White),
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {

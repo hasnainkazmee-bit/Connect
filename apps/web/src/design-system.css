@@ -4,8 +4,8 @@
   font-size: 16px;
   color: #203342;
   background: #f2f7fc;
-  --brand: #ff8a24;
-  --brand-hover: #f47b13;
+  --brand: #ff6b0b;
+  --brand-hover: #ff791f;
   --on-brand: #1c2d3a;
   --brand-ink: #974100;
   --brand-soft: #fff0e2;
@@ -15,8 +15,9 @@
   --muted: #586d7f;
   --line: #dbe5ed;
   --control-height: 44px;
-  --radius-control: 10px;
-  --radius-card: 16px;
+  --radius-control: 999px;
+  --radius-card: 24px;
+  --shadow-chrome: 0 1px 3px #263f591b;
   --page-gutter: clamp(16px, 2.4vw, 32px);
   --content-width: 1184px;
   --feed-width: 720px;
@@ -211,7 +212,7 @@ summary:focus-visible,
   outline-offset: 3px;
 }
 
-/* Navigation keeps its own selection state; it is not a row of primary CTAs. */
+/* Navigation is the shape and color reference for every interactive surface. */
 .site-header {
   height: 76px;
   background: #f2f7fc;
@@ -257,9 +258,9 @@ summary:focus-visible,
 
 .header-inner .primary-nav > a.active,
 .header-inner .primary-nav > a.active:hover {
-  background: var(--brand-soft);
-  color: var(--brand-ink);
-  box-shadow: none;
+  background: var(--brand);
+  color: var(--on-brand);
+  box-shadow: 0 1px 2px #ac4c1314;
 }
 
 .header-actions {
@@ -280,6 +281,8 @@ summary:focus-visible,
    mobile browser focus from zooming the page just to edit a field. */
 .form-stack input:not([type="checkbox"]):not([type="radio"]),
 .form-stack select,
+.message-composer-inner,
+.message-composer .composer-input,
 .form-stack textarea,
 .manage-form input:not([type="checkbox"]):not([type="radio"]),
 .manage-form select,
@@ -578,6 +581,136 @@ summary:focus-visible,
   overflow-wrap: anywhere;
 }
 
+/* Capsule actions echo the navigation; larger content keeps spacious corners. */
+.header-inner .primary-nav > a,
+.button,
+.button.small,
+.follow-button,
+.discovery-search > .button,
+.discovery-categories button,
+.connection-filters button,
+.inbox-channels > a,
+.inbox-filters button,
+.people-list-tabs button,
+.company-sections button,
+.profile-tabs > button,
+.business-choices button,
+.service-choices button,
+.tag-suggestions button,
+.tag-input button,
+.setup-reminder button,
+.web-update-notice button,
+.dropdown > button,
+.dropdown > a,
+.cover-edit,
+.publisher-link button {
+  border-radius: var(--radius-control);
+}
+
+.button.selected,
+.business-choices button[aria-pressed="true"],
+.service-choices button[aria-pressed="true"],
+.connection-filters button[aria-pressed="true"],
+.discovery-categories button[aria-pressed="true"],
+.inbox-channels > a.active,
+.inbox-filters button.active,
+.inbox-filters button[aria-pressed="true"],
+.people-list-tabs button[aria-pressed="true"],
+.company-sections button[aria-current="page"],
+.profile-tabs > button.active {
+  background: var(--brand);
+  color: var(--on-brand);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.company-sections {
+  gap: 8px;
+  padding-block: 12px;
+}
+.company-sections button {
+  padding: 10px 16px;
+  border-bottom: 0;
+}
+.company-sections button[aria-current="page"]::after {
+  display: none;
+}
+.people-list-tabs {
+  gap: 8px;
+  padding-bottom: 8px;
+}
+.people-list-tabs button {
+  padding-inline: 12px;
+  border-bottom: 0;
+}
+
+.connections-page,
+.requests-page,
+.company-card,
+.discovery-card,
+.discovery-search,
+.discovery-owner,
+.claim-layout,
+.claim-context,
+.company-matches,
+.listing-notice,
+.company-hero,
+.profile-card,
+.profile-nudge,
+.portfolio-grid > article,
+.company-people article,
+.security-grid > section,
+.account-type button,
+.onboarding-companies button,
+.settings-company,
+.team-manager,
+.discard-confirmation,
+.manage-confirm,
+.messaging-panel,
+.people-inbox,
+.people-compose,
+.web-update-notice {
+  border-radius: var(--radius-card);
+}
+.discovery-card,
+.profile-card,
+.company-hero,
+.web-update-notice {
+  box-shadow: var(--shadow-chrome);
+}
+.team-permissions {
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+}
+.message-bubble,
+.message.own .message-bubble,
+.people-message > p,
+.people-message.mine > p {
+  border-radius: 20px;
+}
+.compact-search,
+.conversation-list > .compact-search,
+.manage-form .input-prefix,
+.people-search,
+.share-address {
+  border-radius: var(--radius-control);
+}
+.message-composer-inner,
+.message-composer .composer-input,
+.form-stack textarea,
+.manage-form textarea,
+.request-compose-label textarea,
+.people-compose textarea,
+.message-composer textarea,
+.publisher-link input {
+  border-radius: 20px;
+}
+.tag-input {
+  border-radius: 20px;
+}
+.discovery-eyebrow > span {
+  background: var(--brand);
+}
+
 @media (min-width: 721px) and (max-width: 1100px) {
   .site-header {
     height: 132px;
@@ -631,6 +764,7 @@ summary:focus-visible,
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
   }
   .header-inner .primary-nav > a {
+    border-radius: var(--radius-control);
     min-width: 0;
     min-height: 58px;
     height: auto;

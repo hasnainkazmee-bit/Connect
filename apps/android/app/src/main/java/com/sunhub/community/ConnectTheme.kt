@@ -11,13 +11,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 
+internal val ConnectPillShape = RoundedCornerShape(percent = 50)
+internal val ConnectCardShape = RoundedCornerShape(24.dp)
+internal val ConnectShapes =
+    Shapes(
+        extraSmall = ConnectCardShape,
+        small = ConnectPillShape,
+        medium = ConnectCardShape,
+        large = ConnectCardShape,
+        extraLarge = ConnectCardShape,
+    )
+
 /** Shared primary action: solar orange, with readable dark text and a 48 dp target. */
 @Composable
 internal fun ConnectButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    shape: Shape = RoundedCornerShape(12.dp),
+    shape: Shape = ConnectPillShape,
     colors: ButtonColors = ButtonDefaults.buttonColors(containerColor = Orange, contentColor = Ink),
     elevation: ButtonElevation? = ButtonDefaults.buttonElevation(),
     border: BorderStroke? = null,
@@ -41,11 +52,42 @@ internal const val FeedWidthDp = 720
 internal const val WorkspaceWidthDp = 840
 
 @Composable
+internal fun ConnectFilterChip(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    leadingIcon: (@Composable () -> Unit)? = null,
+    trailingIcon: (@Composable () -> Unit)? = null,
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = label,
+        modifier = modifier,
+        enabled = enabled,
+        leadingIcon = leadingIcon,
+        trailingIcon = trailingIcon,
+        shape = ConnectPillShape,
+        colors =
+            FilterChipDefaults.filterChipColors(
+                containerColor = Pale,
+                labelColor = Muted,
+                selectedContainerColor = Orange,
+                selectedLabelColor = Ink,
+                selectedLeadingIconColor = Ink,
+                selectedTrailingIconColor = Ink,
+            ),
+    )
+}
+
+@Composable
 internal fun ConnectOutlinedButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    shape: Shape = RoundedCornerShape(12.dp),
+    shape: Shape = ConnectPillShape,
     colors: ButtonColors = ButtonDefaults.outlinedButtonColors(contentColor = Ink),
     border: BorderStroke? = ButtonDefaults.outlinedButtonBorder(enabled),
     contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp, vertical = 12.dp),

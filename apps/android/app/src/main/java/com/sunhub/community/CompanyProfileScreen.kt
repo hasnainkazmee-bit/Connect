@@ -215,7 +215,7 @@ internal fun CompanyProfileScreen(
                     if (unclaimed) listOf("About", "Reviews")
                     else listOf("Updates", "About", "Portfolio", "People", "Reviews")
                 ) { value ->
-                    FilterChip(tab == value, { tab = value }, label = { Text(value) })
+                    ConnectFilterChip(tab == value, { tab = value }, label = { Text(value) })
                 }
             }
         }
@@ -446,7 +446,7 @@ internal fun CompanyProfileScreen(
                         )
                         Text(review.text("body"))
                         if (review.text("reply").isNotBlank())
-                            Surface(color = Pale, shape = RoundedCornerShape(12.dp)) {
+                            Surface(color = Pale, shape = ConnectCardShape) {
                                 Column(Modifier.padding(12.dp)) {
                                     Text(
                                         "${c.text("name")} replied",
@@ -530,7 +530,7 @@ private fun ProfileSection(
     Card(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(15.dp),
+        shape = ConnectCardShape,
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

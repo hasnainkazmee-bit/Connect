@@ -60,7 +60,7 @@ for (const viewport of windows) {
       );
       expect(control.width, `${control.name} width`).toBeGreaterThanOrEqual(44);
     }
-    expect(layout.primaryColors[0]).toEqual("rgb(255, 138, 36)");
+    expect(layout.primaryColors[0]).toEqual("rgb(255, 107, 11)");
     expect(layout.primaryColors[1]).toEqual(layout.primaryColors[0]);
     if (viewport.width <= 720) {
       expect(Math.round(layout.nav.bottom)).toEqual(viewport.height);

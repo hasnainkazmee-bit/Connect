@@ -5,7 +5,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
@@ -14,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -54,7 +54,10 @@ internal fun WorkSheet(
             contentAlignment = Alignment.TopCenter,
         ) {
             Scaffold(
-                modifier = Modifier.widthIn(max = WorkspaceWidthDp.dp).fillMaxSize(),
+                modifier =
+                    Modifier.widthIn(max = WorkspaceWidthDp.dp)
+                        .fillMaxSize()
+                        .clip(ConnectCardShape),
                 containerColor = Color.White,
                 topBar = {
                     TopAppBar(
@@ -88,7 +91,7 @@ internal fun WorkSheet(
                                     onClick = save,
                                     enabled = enabled && !model.busy,
                                     modifier = Modifier.fillMaxWidth().height(50.dp),
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = ConnectPillShape,
                                 ) {
                                     if (model.busy) {
                                         CircularProgressIndicator(
@@ -140,7 +143,7 @@ internal fun WorkField(
         singleLine = lines == 1,
         minLines = lines,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(11.dp),
+        shape = if (lines == 1) ConnectPillShape else ConnectCardShape,
         supportingText =
             if (hint != null) {
                 { Text(hint) }
@@ -264,7 +267,7 @@ internal fun EditCompany(model: CommunityModel, c: JSONObject, close: () -> Unit
                     "Service provider",
                 )
                 .forEach { v ->
-                    FilterChip(
+                    ConnectFilterChip(
                         type == v,
                         {
                             type = v
@@ -305,7 +308,7 @@ internal fun EditCompany(model: CommunityModel, c: JSONObject, close: () -> Unit
         Text("Company size", style = MaterialTheme.typography.labelLarge)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             listOf("1–10", "11–50", "51–200", "201–500", "501–1,000", "1,000+").forEach { v ->
-                FilterChip(
+                ConnectFilterChip(
                     size == v,
                     {
                         size = if (size == v) "" else v

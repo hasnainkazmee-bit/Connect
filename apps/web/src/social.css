@@ -73,6 +73,7 @@
   overflow: hidden;
 }
 .feed-composer {
+  box-shadow: var(--shadow-chrome);
   padding: 20px 20px 8px;
 }
 .composer-prompt {
@@ -146,24 +147,30 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 0;
 }
 .feed-tabs [role="tablist"] {
   display: flex;
-  gap: 24px;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  box-shadow: var(--shadow-chrome);
 }
 .feed-tabs [role="tab"] {
-  min-height: 48px;
+  border-radius: var(--radius-control);
+  min-height: 44px;
   background: transparent;
   color: var(--muted);
   font-size: 14px;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  padding: 10px 2px;
+  border: 0;
+  margin-bottom: 0;
+  padding: 10px 16px;
 }
 .feed-tabs [aria-selected="true"] {
-  border-bottom-color: var(--brand);
-  color: var(--ink);
+  background: var(--brand);
+  color: var(--on-brand);
   font-weight: 700;
 }
 .publication-filters {
@@ -188,12 +195,13 @@
   background: var(--surface);
 }
 .publication-filters button[aria-pressed="true"] {
-  background: var(--surface);
-  border-color: var(--line);
-  color: var(--ink);
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--on-brand);
   font-weight: 600;
 }
 .feed-post {
+  box-shadow: var(--shadow-chrome);
   margin-bottom: 24px;
 }
 .post-header {
@@ -426,7 +434,7 @@
   aspect-ratio: 16 / 9;
   object-fit: contain;
   display: block;
-  border-radius: 10px;
+  border-radius: var(--radius-card);
   background: var(--surface-muted);
   margin: 18px 0;
 }
@@ -651,7 +659,7 @@
 .social-error {
   color: #963a30;
   background: #fff2ef;
-  border-radius: 8px;
+  border-radius: var(--radius-card);
   padding: 12px;
   font-size: 13px;
   margin: 8px 12px;
@@ -705,7 +713,7 @@
   min-width: 0;
   padding: 12px;
   background: var(--surface-muted);
-  border-radius: 0 12px 12px 12px;
+  border-radius: 20px;
 }
 .comment-byline {
   display: flex;
@@ -885,7 +893,7 @@
     font-size: 14px;
   }
   .publication-cover {
-    border-radius: 8px;
+    border-radius: var(--radius-card);
   }
   .post-actions {
     margin: 0 8px;
