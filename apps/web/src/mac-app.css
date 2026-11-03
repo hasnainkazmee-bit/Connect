@@ -173,9 +173,18 @@ html.connect-mac {
   font-size: 13px;
   line-height: 1.35;
 }
-/* Keep the directory's primary action in the navigation capsule family. */
+/* Match the category capsules instead of the compact Mac toolbar controls. */
 .connect-mac .mac-app .discovery-search > .button.primary {
+  min-height: var(--control-height);
+  height: auto;
+  padding: 10px 14px;
   border-radius: var(--radius-control);
+  gap: 8px;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+.connect-mac .mac-app .discovery-search > .button.primary > span {
+  font-size: inherit;
 }
 .connect-mac .feed-tabs [role="tablist"] {
   padding: 2px;
@@ -231,6 +240,10 @@ html.connect-mac {
   }
 }
 @media (max-width: 720px) {
+  .connect-mac .mac-app .discovery-search > .button.primary {
+    padding: 9px 10px;
+    gap: 6px;
+  }
   .connect-mac .mac-app {
     padding: 16px;
   }
