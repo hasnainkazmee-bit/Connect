@@ -959,18 +959,16 @@ html.connect-mac {
   }
 }
 
-/* The DOM select remains the accessible/controlled form element. A capability
-   enabled host opens NSMenu; older hosts keep their ordinary WebKit picker. */
+/* Style the closed control consistently on every Mac build. Only the menu
+   behavior is capability-gated: NSMenu on new hosts, WebKit on older hosts. */
 .connect-mac .discovery-selects select {
-  min-height: 36px;
+  min-height: var(--control-height);
   min-width: 156px;
   max-width: 100%;
-  padding: 7px 36px 7px 12px;
+  padding: 10px 36px 10px 14px;
   font-size: 13px;
-  line-height: 1.45;
-  border-radius: 10px;
-}
-.connect-mac.mac-native-selects .discovery-selects select {
+  line-height: 1.6;
+  border-radius: var(--radius-control);
   appearance: none;
   -webkit-appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m5 6 3 3 3-3' fill='none' stroke='%23203342' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -986,7 +984,7 @@ html.connect-mac {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus) 15%, transparent);
 }
 @media (prefers-color-scheme: dark) {
-  .connect-mac.mac-native-selects .discovery-selects select {
+  .connect-mac .discovery-selects select {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m5 6 3 3 3-3' fill='none' stroke='%23DBE5ED' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   }
 }
