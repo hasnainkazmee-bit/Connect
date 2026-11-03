@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
@@ -183,7 +184,7 @@ public sealed class MainWindow : Window
     }
     private async Task OpenActivatedExternalLinkAsync(Uri uri)
     {
-        if(closed||!CurrentIsConnect())return;
+        if(closed||!CurrentIsConnect()){Trace.WriteLine("Connect external navigation: no live trusted document.");return;}
         var core=web.CoreWebView2;
         var source=core.Source;
         var generation=navigationGeneration;
@@ -197,13 +198,18 @@ public sealed class MainWindow : Window
                 JsonSerializer.Serialize(new{expression="navigator.userActivation.isActive",userGesture=false,returnByValue=true}))
                 .WaitAsync(TimeSpan.FromSeconds(3));
             using var result=JsonDocument.Parse(json);
-            if(!StillCurrent()||!result.RootElement.TryGetProperty("result",out var evaluation)||
-                !evaluation.TryGetProperty("value",out var active)||active.ValueKind!=JsonValueKind.True)return;
+            Trace.WriteLine($"Connect external navigation: live={!closed}, sameCore={ReferenceEquals(web.CoreWebView2,core)}, sameGeneration={generation==navigationGeneration}, sameSource={!closed&&core.Source==source}, trusted={!closed&&CurrentIsConnect()}.");
+            if(!StillCurrent()){Trace.WriteLine("Connect external navigation: document changed during activation check.");return;}
+            if(!result.RootElement.TryGetProperty("result",out var evaluation)||
+                !evaluation.TryGetProperty("value",out var active)||active.ValueKind!=JsonValueKind.True)
+            {Trace.WriteLine("Connect external navigation: no transient activation.");return;}
+            Trace.WriteLine("Connect external navigation: transient activation confirmed.");
             ExternalLinks.Open(uri,StillCurrent);
         }
         catch(Exception error)when(error is InvalidOperationException or System.Runtime.InteropServices.COMException or JsonException or TimeoutException)
         {
             // A missing, failed or stale activation check never opens an OS app.
+            Trace.WriteLine($"Connect external navigation: activation check failed ({error.GetType().Name}).");
         }
     }
     private async void NavigationCompleted(object? sender,CoreWebView2NavigationCompletedEventArgs e)

@@ -1,4 +1,5 @@
 using System.IO;
+using System.Diagnostics;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -21,12 +22,17 @@ internal static class Program
         if(args.Length!=3){Console.Error.WriteLine("Usage: Connect.Windows.Smoke <loopback-app-origin> <loopback-sso-origin> <output-dir>");return 2;}
         var policy=NavigationPolicy.ForTesting(new Uri(args[0]),new Uri(args[1]));
         output=Path.GetFullPath(args[2]);Directory.CreateDirectory(output);
+        Trace.Listeners.Add(new TextWriterTraceListener(Path.Combine(output,"native-decisions.log")));Trace.AutoFlush=true;
         var app=new Application { ShutdownMode=ShutdownMode.OnExplicitShutdown };
         var result=1;
         app.Startup+=async(_,_)=>
         {
             try{await Run(policy);result=0;}
-            catch(Exception ex){Console.Error.WriteLine(ex);File.WriteAllText(Path.Combine(output,"failure.txt"),ex.ToString());}
+            catch(Exception ex)
+            {
+                Console.Error.WriteLine(ex);File.WriteAllText(Path.Combine(output,"failure.txt"),ex.ToString());
+                CaptureFailureDesktop();
+            }
             finally{File.WriteAllText(Path.Combine(output,"checks.json"),JsonSerializer.Serialize(checks,new JsonSerializerOptions{WriteIndented=true}));app.Shutdown(result);}
         };
         app.Run();return result;
@@ -214,8 +220,30 @@ internal static class Program
         }
         finally{SelectObject(target,old);DeleteObject(bitmap);DeleteDC(target);ReleaseDC(IntPtr.Zero,screen);}
     }
+    private static void CaptureFailureDesktop()
+    {
+        // This harness only runs on a disposable Windows CI desktop. Preserve
+        // the foreground OS dialog, without activating Connect over it first.
+        try
+        {
+            File.WriteAllLines(Path.Combine(output,"failure-processes.txt"),Process.GetProcesses()
+                .Where(p=>p.ProcessName.Contains("edge",StringComparison.OrdinalIgnoreCase)||p.ProcessName.Contains("chrome",StringComparison.OrdinalIgnoreCase)||p.ProcessName=="Connect.Windows.Smoke")
+                .Select(p=>$"{p.Id} {p.ProcessName}: {p.MainWindowTitle}"));
+            var left=GetSystemMetrics(76);var top=GetSystemMetrics(77);var width=GetSystemMetrics(78);var height=GetSystemMetrics(79);
+            var screen=GetDC(IntPtr.Zero);var target=CreateCompatibleDC(screen);var bitmap=CreateCompatibleBitmap(screen,width,height);var old=SelectObject(target,bitmap);
+            try
+            {
+                if(!BitBlt(target,0,0,width,height,screen,left,top,0x00CC0020))return;
+                var image=Imaging.CreateBitmapSourceFromHBitmap(bitmap,IntPtr.Zero,Int32Rect.Empty,BitmapSizeOptions.FromEmptyOptions());
+                var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(image));using var file=File.Create(Path.Combine(output,"failure-desktop.png"));encoder.Save(file);
+            }
+            finally{SelectObject(target,old);DeleteObject(bitmap);DeleteDC(target);ReleaseDC(IntPtr.Zero,screen);}
+        }
+        catch(Exception error){File.WriteAllText(Path.Combine(output,"failure-capture-error.txt"),error.ToString());}
+    }
     [StructLayout(LayoutKind.Sequential)] private struct Rect {public int Left,Top,Right,Bottom;}
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr window,out Rect rect);
+    [DllImport("user32.dll")] private static extern int GetSystemMetrics(int index);
     [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr window);
     [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr window,IntPtr dc);
     [DllImport("gdi32.dll")] private static extern IntPtr CreateCompatibleDC(IntPtr dc);
