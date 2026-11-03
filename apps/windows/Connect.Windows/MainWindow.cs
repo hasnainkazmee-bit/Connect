@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -177,12 +176,12 @@ public sealed class MainWindow : Window
             // Cancel synchronously: external content must never enter this WebView.
             e.Cancel=true;
             if(decision==NavigationDecision.External&&e.IsUserInitiated&&!e.IsRedirected)
-                _=OpenActivatedExternalLinkAsync(uri);
+                OpenUserInitiatedExternalLink(uri);
             return;
         }
         web.Visibility=Visibility.Visible;activeNavigationId=e.NavigationId;navigationGeneration++;state=WorkspaceState.Empty;UpdateControls();ShowStatus("Loading…");
     }
-    private async Task OpenActivatedExternalLinkAsync(Uri uri)
+    private void OpenUserInitiatedExternalLink(Uri uri)
     {
         if(closed||!CurrentIsConnect()){Trace.WriteLine("Connect external navigation: no live trusted document.");return;}
         var core=web.CoreWebView2;
@@ -190,27 +189,12 @@ public sealed class MainWindow : Window
         var generation=navigationGeneration;
         bool StillCurrent()=>!closed&&ReferenceEquals(web.CoreWebView2,core)&&
             generation==navigationGeneration&&core.Source==source&&CurrentIsConnect();
-        try
-        {
-            // IsUserInitiated can also be true for script navigation. Unlike
-            // ExecuteScriptAsync, this query does not grant page activation.
-            var json=await core.CallDevToolsProtocolMethodAsync("Runtime.evaluate",
-                JsonSerializer.Serialize(new{expression="navigator.userActivation.isActive",userGesture=false,returnByValue=true}))
-                .WaitAsync(TimeSpan.FromSeconds(3));
-            using var result=JsonDocument.Parse(json);
-            Trace.WriteLine($"Connect external navigation: live={!closed}, sameCore={ReferenceEquals(web.CoreWebView2,core)}, sameGeneration={generation==navigationGeneration}, sameSource={!closed&&core.Source==source}, trusted={!closed&&CurrentIsConnect()}.");
-            if(!StillCurrent()){Trace.WriteLine("Connect external navigation: document changed during activation check.");return;}
-            if(!result.RootElement.TryGetProperty("result",out var evaluation)||
-                !evaluation.TryGetProperty("value",out var active)||active.ValueKind!=JsonValueKind.True)
-            {Trace.WriteLine("Connect external navigation: no transient activation.");return;}
-            Trace.WriteLine("Connect external navigation: transient activation confirmed.");
-            ExternalLinks.Open(uri,StillCurrent);
-        }
-        catch(Exception error)when(error is InvalidOperationException or System.Runtime.InteropServices.COMException or JsonException or TimeoutException)
-        {
-            // A missing, failed or stale activation check never opens an OS app.
-            Trace.WriteLine($"Connect external navigation: activation check failed ({error.GetType().Name}).");
-        }
+        // NavigationStarting.IsUserInitiated captures the gesture that started
+        // the request. Chromium clears live transient activation during this
+        // navigation, even when cancelled, so querying it afterward rejects real
+        // clicks. Timer/script navigation without a gesture is denied above.
+        Trace.WriteLine("Connect external navigation: user-initiated navigation confirmed.");
+        ExternalLinks.Open(uri,StillCurrent);
     }
     private async void NavigationCompleted(object? sender,CoreWebView2NavigationCompletedEventArgs e)
     {
