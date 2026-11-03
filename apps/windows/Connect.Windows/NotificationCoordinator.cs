@@ -40,6 +40,10 @@ internal sealed class NotificationCoordinator : IDisposable
                     Status(Request(data),"Use the Enable notifications button in Connect to continue.");return true;
                 case "notificationDisable":
                     enabledFor=null;Save();Clear();Status(Request(data));return true;
+                case "notificationRead":
+                    if(Text(data,"userId")==owner&&owner is not null&&data.TryGetProperty("ids",out var ids)&&ids.ValueKind==JsonValueKind.Array&&ids.GetArrayLength()<=500)
+                        foreach(var value in ids.EnumerateArray())if(value.ValueKind==JsonValueKind.String&&Guid.TryParse(value.GetString(),out _)){var id=value.GetString()!;seen.Add(id);displayed.Remove(id);if(registered)_=RemoveSafely(id);}
+                    return true;
                 case "notificationShow":
                     if(ParseNotice(data) is { } notice)Show(notice);return true;
                 default:return false;
@@ -113,6 +117,7 @@ internal sealed class NotificationCoordinator : IDisposable
         });
     }
     private void Clear(){displayed.Clear();if(registered)_=ClearSafely();}
+    private async Task RemoveSafely(string id){try{await sink.Remove(id);}catch(Exception){/* Read alerts cannot authorize a stale tap even if OS removal fails. */}}
     private async Task ClearSafely(){try{await sink.Clear();}catch(Exception){/* Logout still removes local click authorization. */}}
     public void Dispose(){if(disposed)return;disposed=true;generation++;Clear();sink.Clicked-=Invoked;try{sink.Dispose();}catch(Exception){}registered=false;}
 }

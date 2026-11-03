@@ -193,9 +193,11 @@ internal static class Program
         public bool Enabled=>true;
         public readonly List<string> Shown=[];
         public int Clears;
+        public readonly List<string> Removed=[];
         public void Register(){}
         public bool Show(string id,string title,string body){Shown.Add(id);return true;}
         public Task Clear(){Clears++;return Task.CompletedTask;}
+        public Task Remove(string id){Removed.Add(id);return Task.CompletedTask;}
         public void Tap(string id)=>Clicked?.Invoke(id);
         public void Dispose(){}
     }
@@ -219,7 +221,15 @@ internal static class Program
             Check(sink.Shown.Count==1,"Native alerts reject duplicate IDs, wrong owners and external routes");
             sink.Tap(id);await Until(()=>replies.Any(r=>r.GetProperty("type").GetString()=="open"),"Native notification tap");
             Check(replies.Last().GetProperty("userId").GetString()==user,"Native tap retains owner and safe route context");
-            var taps=replies.Count(r=>r.GetProperty("type").GetString()=="open");coordinator.SetOwner(null);sink.Tap(id);await Task.Delay(50);
+            var taps=replies.Count(r=>r.GetProperty("type").GetString()=="open");
+            Send(new{type="notificationRead",userId=Guid.NewGuid().ToString(),ids=new[]{id}});
+            Check(sink.Removed.Count==0,"Another account cannot withdraw notifications");
+            Send(new{type="notificationRead",userId=user,ids=new[]{id}});Send(notice);sink.Tap(id);await Task.Delay(50);
+            Check(sink.Removed.Contains(id)&&sink.Shown.Count==1&&replies.Count(r=>r.GetProperty("type").GetString()=="open")==taps,"Reading withdraws OS alerts and rejects late delivery or stale taps");
+            var queued=Guid.NewGuid().ToString();Send(new{type="notificationRead",userId=user,ids=new[]{queued}});
+            Send(new{type="notificationShow",id=queued,userId=user,title="Connect",body="Already read",url="/messages"});
+            Check(sink.Shown.Count==1,"A confirmed read suppresses an alert still queued for delivery");
+            coordinator.SetOwner(null);sink.Tap(id);await Task.Delay(50);
             Check(sink.Clears>0&&replies.Count(r=>r.GetProperty("type").GetString()=="open")==taps,"Logout clears OS alerts and invalidates stale taps");
             Check(!File.Exists(Path.Combine(output,"notification-test.txt")),"Logout clears per-account desktop notification opt-in");
             foreach(var path in new[]{"//evil.test/messages","/api/session","/messages%2f..%2fauth","/messages\\evil","javascript:alert(1)"})Check(!NotificationCoordinator.IsSafePath(path),"Native notification route rejects "+path);
