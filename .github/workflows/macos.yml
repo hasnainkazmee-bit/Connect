@@ -33,6 +33,7 @@ jobs:
         with:
           name: Connect-macOS-local-test
           path: |
+            apps/macos/artifacts/*.pkg
             apps/macos/artifacts/*.dmg
             apps/macos/artifacts/*.zip
           retention-days: 14

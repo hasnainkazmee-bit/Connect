@@ -2,7 +2,7 @@
 
 Connect for macOS has a Swift/AppKit shell with a native sidebar, title bar, menus, and workspace controls around live Connect content from `https://connect.sunhubapp.com`. The shared feed, profiles, messages, and publishing workflows remain in WebKit. The unified native title bar aligns its traffic lights and sidebar toggle with the left pane, places Back above the content pane, and keeps notification and compose icons on the right. Both panes begin below the toolbar, so the sidebar logo and controls remain clear of the window buttons. The selected sidebar row supplies workspace context; the duplicate window title is visually hidden and there is no marketing subtitle. The underlying window title still tracks the route for the Window menu and accessibility. Content and workflow improvements arrive through the shared web app; changes to the native host require a new app build. An internet connection is required.
 
-Version 0.1.3 (build 4) supports macOS 13 or later. The default universal build runs on Apple silicon and Intel Macs. It uses the existing Connect artwork without cropping or stretching it. The logo remains transparent in both appearances; dark mode lightens only its neutral lettering, preserving the orange symbol and original asset without a white badge behind it.
+Version 0.1.4 (build 5) supports macOS 13 or later. The default universal build runs on Apple silicon and Intel Macs. It uses the existing Connect artwork without cropping or stretching it. The logo remains transparent in both appearances; dark mode lightens only its neutral lettering, preserving the orange symbol and original asset without a white badge behind it.
 
 ## Using the app
 
@@ -48,13 +48,14 @@ Or build and package in one command:
 ./apps/macos/package.sh
 ```
 
-The scripts use `swiftc`, `lipo`, `vtool`, `sips`, `iconutil`, `codesign`, `ditto`, and `hdiutil` supplied by macOS and its developer tools. Compilation uses a writable module cache inside `.build`. Bundle and installer staging uses the system temporary directory, keeping File Provider metadata from synced project folders out of signed archive payloads. No JavaScript package installation or web build is needed to package this live host.
+The scripts use `swiftc`, `lipo`, `vtool`, `sips`, `iconutil`, `codesign`, `ditto`, `hdiutil`, `pkgbuild`, and `productbuild` supplied by macOS and its developer tools. Compilation uses a writable module cache inside `.build`. Bundle and installer staging uses the system temporary directory, keeping File Provider metadata from synced project folders out of signed archive payloads. No JavaScript package installation or web build is needed to package this live host.
 
 Outputs are ignored by Git:
 
 - `apps/macos/artifacts/Connect.app`
-- `apps/macos/artifacts/Connect-0.1.3-macos-universal.dmg`
-- `apps/macos/artifacts/Connect-0.1.3-macos-universal.zip`
+- `apps/macos/artifacts/Connect-0.1.4-macos-universal.pkg`
+- `apps/macos/artifacts/Connect-0.1.4-macos-universal.dmg`
+- `apps/macos/artifacts/Connect-0.1.4-macos-universal.zip`
 
 For a single architecture, use `--arch arm64` or `--arch x86_64` on either script. The archive filename reflects the actual binary architectures. A failed cross-compile stops the universal build rather than delivering an incomplete universal app. `--skip-build` packages the existing signed app and derives its architecture from that binary.
 
@@ -62,35 +63,41 @@ The bundle includes the unmodified transparent Connect wordmark as `ConnectWordm
 
 The bundle identifier is `com.sunhub.connect.macos`. Its version and minimum macOS version are in `Resources/Info.plist`. The compiler targets macOS 13 in `build.sh`; update both if the minimum version changes.
 
-## Install a local test build
+## Install with macOS Installer
 
-Open the DMG and drag **Connect.app** to **Applications**, then open it from Applications. The ZIP contains the same app bundle.
+Open **Connect-0.1.4-macos-universal.pkg**. Apple's Installer presents the Connect introduction, installation details, standard Install step, and completion screen. It installs **/Applications/Connect.app**; macOS may request authorization for that location. Open Connect from Applications or Spotlight after installation. The build scripts never install or launch the app themselves.
+
+Save your work and **Quit Connect (⌘Q)** before upgrading. Closing its window keeps the app running. Installer checks for a running Connect and asks you to close it before proceeding. An upgrade replaces only the existing application bundle at `/Applications/Connect.app`; user data, preferences, and sessions remain in their existing locations. The bundle identifier remains `com.sunhub.connect.macos`, and the stable package receipt identifier is `com.sunhub.connect.macos.pkg`.
+
+The package uses version checking and an atomic bundle replacement. It will not overwrite a newer installed version, relocate to a copy in Downloads, or run installation scripts. It supports the system Applications destination only. The DMG and ZIP remain available as optional manual-install formats containing the same app.
 
 If the project lives in a synced Documents folder, its File Provider may repeatedly add Finder metadata to the loose `artifacts/Connect.app`, causing strict signature checks on that copy to fail. Install from the DMG or extract the ZIP into a normal local folder instead. The package payload is copied to non-synced temporary storage, cleaned of Finder/resource-fork metadata, and signature-verified before archiving; the original source artwork and quarantine attributes are never cleared.
 
-By default, the app is **ad-hoc signed for local testing and is not notarized by Apple**. That signature verifies bundle integrity; it does not establish a trusted developer identity. macOS may block a downloaded copy. For a local build you trust, use **System Settings → Privacy & Security → Open Anyway** if macOS offers it. Do not disable Gatekeeper or remove quarantine as an installation requirement. A publicly distributed installer should be Developer ID signed and notarized.
+By default, the app is **ad-hoc signed for local testing**, while the **PKG installer is unsigned**. Neither is notarized by Apple. The app signature verifies bundle integrity; it does not establish a trusted developer identity. macOS may block a downloaded copy. For a local build you trust, use **System Settings → Privacy & Security → Open Anyway** if macOS offers it. Do not disable Gatekeeper or remove quarantine as an installation requirement. A publicly distributed installer should be Developer ID signed and notarized.
 
 Building or packaging never opens the app. The scripts do not submit anything to Apple unless `--notarize` is explicitly supplied.
 
 ## Developer ID signing and optional notarization
 
-Use a **Developer ID Application** identity already installed in your Keychain:
+Use separate **Developer ID Application** and **Developer ID Installer** identities already installed in your Keychain:
 
 ```sh
 SIGNING_IDENTITY='Developer ID Application: Your Organization (TEAMID)' \
+  INSTALLER_SIGNING_IDENTITY='Developer ID Installer: Your Organization (TEAMID)' \
   ./apps/macos/package.sh
 ```
 
-This enables a secure timestamp and hardened runtime. It does not notarize the app. Certificate import, account setup, and Keychain access remain the developer's responsibility; the scripts do not read or print passwords, API keys, or private keys.
+The application identity signs the app with hardened runtime; the installer identity signs the PKG. Both use secure timestamps. Signing does not notarize either artifact. Certificate import, account setup, and Keychain access remain the developer's responsibility; the scripts do not read or print passwords, API keys, or private keys.
 
 When a notarization profile has already been stored in Keychain, explicitly submit the signed installer:
 
 ```sh
 NOTARYTOOL_PROFILE='your-existing-keychain-profile' \
+  INSTALLER_SIGNING_IDENTITY='Developer ID Installer: Your Organization (TEAMID)' \
   ./apps/macos/package.sh --skip-build --notarize
 ```
 
-This opt-in command requires Apple's `notarytool` and `stapler`, rejects ad-hoc signed apps, submits the DMG, waits for Apple's result, and staples/validates the ticket. It also staples the app before producing the ZIP. A network connection and Apple Developer account are required for this step. If submission or stapling fails, the script exits with an error; do not distribute the output as notarized.
+This opt-in command requires Apple's `notarytool` and `stapler`, rejects ad-hoc signed apps or a missing installer identity, and submits both PKG and DMG. It waits for Apple's results and staples/validates their tickets. It also staples the app before producing the ZIP and PKG. A network connection and Apple Developer account are required for this step. If submission or stapling fails, the script exits without promoting the new artifacts; do not distribute them as notarized.
 
 ## Security boundary
 
@@ -103,10 +110,13 @@ The native host must keep its URL allowlist and external-link handling in place 
 ```sh
 xcrun lipo -archs apps/macos/artifacts/Connect.app/Contents/MacOS/Connect
 codesign --verify --strict --verbose=2 apps/macos/artifacts/Connect.app
-hdiutil verify apps/macos/artifacts/Connect-0.1.3-macos-universal.dmg
+hdiutil verify apps/macos/artifacts/Connect-0.1.4-macos-universal.dmg
+./apps/macos/test-package.sh apps/macos/artifacts/Connect-0.1.4-macos-universal.pkg
 ```
 
 An ad-hoc build is expected to fail Gatekeeper's public-distribution assessment. For a Developer ID build intended for distribution, additionally verify its notarization ticket and Gatekeeper assessment before sharing it.
+
+`test-package.sh` expands the PKG into temporary storage without installing it. It checks the app signature, architectures, minimum OS, fixed destination, bundle upgrade/version rules, absence of scripts, and branded resources. `package.sh` runs this verification before publishing its artifacts. Native Installer screens and package authorization are defined using Apple's [Distribution XML format](https://developer.apple.com/library/archive/documentation/DeveloperTools/Reference/DistributionDefinitionRef/Chapters/Distribution_XML_Ref.html).
 
 The macOS CI workflow uses GitHub's standard `macos-26` runner and reports the selected Xcode, Swift, and SDK versions. The build enforces SDK 26 or newer. GitHub documents this runner as generally available in its [macOS 26 runner announcement](https://github.blog/changelog/2026-02-26-macos-26-is-now-generally-available-for-github-hosted-runners/).
 
