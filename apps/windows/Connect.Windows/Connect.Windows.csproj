@@ -28,8 +28,9 @@
     <PackageReference Include="Microsoft.WindowsAppSDK.Foundation" Version="2.6.5" />
     <Resource Include="Assets/connect-icon.png" />
     <Resource Include="Assets/connect-logo.png" />
-    <!-- Windows App SDK project-reference outputs include these resources as
-         physical assets too; WPF still embeds the originals for pack:// URIs. -->
-    <Content Include="Assets/connect-icon.png;Assets/connect-logo.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <!-- The Windows SDK already includes PNGs as Content. Update their copy
+         metadata rather than adding duplicate PRI entries. WPF also embeds
+         the originals for pack:// URIs. -->
+    <Content Update="Assets/connect-icon.png;Assets/connect-logo.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
