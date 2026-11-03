@@ -38,6 +38,12 @@ internal static class Program
     private static async Task UntilJs(CoreWebView2 core,string expression,string label)
     {var until=DateTime.UtcNow.AddSeconds(20);while(!await Bool(core,expression)){if(DateTime.UtcNow>until)throw new TimeoutException(label);await Task.Delay(100);}}
     private static async Task<bool> Bool(CoreWebView2 core,string expression)=>await core.ExecuteScriptAsync(expression)=="true";
+    private static async Task<JsonElement> EvaluateWithoutGesture(CoreWebView2 core,string expression)
+    {
+        var json=await core.CallDevToolsProtocolMethodAsync("Runtime.evaluate",JsonSerializer.Serialize(new{expression,userGesture=false,returnByValue=true}));
+        using var result=JsonDocument.Parse(json);
+        return result.RootElement.GetProperty("result").GetProperty("value").Clone();
+    }
     private static void Click(Button button)=>button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
     private static IEnumerable<T> Descendants<T>(DependencyObject root) where T:DependencyObject
     {
@@ -46,11 +52,14 @@ internal static class Program
     }
     private static async Task TrustedClick(CoreWebView2 core,string id)
     {
-        await UntilJs(core,$"!!document.getElementById({JsonSerializer.Serialize(id)})","Click target exists");
-        await core.ExecuteScriptAsync($"document.getElementById({JsonSerializer.Serialize(id)}).scrollIntoView({{block:'center'}})");
+        var target=JsonSerializer.Serialize(id);
+        var deadline=DateTime.UtcNow.AddSeconds(20);
+        while(!(await EvaluateWithoutGesture(core,$"!!document.getElementById({target})")).GetBoolean())
+        {if(DateTime.UtcNow>deadline)throw new TimeoutException("Click target exists");await Task.Delay(100);}
+        await EvaluateWithoutGesture(core,$"(()=>{{document.getElementById({target}).scrollIntoView({{block:'center'}});return true}})()");
         await Task.Delay(150);
-        var json=await core.ExecuteScriptAsync($"(()=>{{const r=document.getElementById({JsonSerializer.Serialize(id)}).getBoundingClientRect();return {{x:r.x+r.width/2,y:r.y+r.height/2}}}})()");
-        using var point=JsonDocument.Parse(json);var x=point.RootElement.GetProperty("x").GetDouble();var y=point.RootElement.GetProperty("y").GetDouble();
+        var point=await EvaluateWithoutGesture(core,$"(()=>{{const r=document.getElementById({target}).getBoundingClientRect();return {{x:r.x+r.width/2,y:r.y+r.height/2}}}})()");
+        var x=point.GetProperty("x").GetDouble();var y=point.GetProperty("y").GetDouble();
         foreach(var type in new[]{"mousePressed","mouseReleased"})await core.CallDevToolsProtocolMethodAsync("Input.dispatchMouseEvent",JsonSerializer.Serialize(new{type,x,y,button="left",clickCount=1}));
     }
     private static async Task Run(NavigationPolicy policy)
@@ -108,6 +117,31 @@ internal static class Program
             var json=await client.GetStringAsync(new Uri(policy.ConnectOrigin,"/stats"));File.WriteAllText(Path.Combine(output,"fixture-stats.json"),json);File.WriteAllText(Path.Combine(output,"navigation-evidence.json"),JsonSerializer.Serialize(navigationEvidence));
             using var stats=JsonDocument.Parse(json);Check(stats.RootElement.GetProperty("untrustedRequests").GetInt32()==0,"No untrusted origin request occurred");
         }
+        // The geometry reads in TrustedClick do not activate the document. Only
+        // actual Chromium mouse input should authorize this same-window link.
+        Check(!(await EvaluateWithoutGesture(core,"navigator.userActivation.isActive")).GetBoolean(),"Script navigation did not create transient activation");
+        await TrustedClick(core,"external");
+        using(var client=new HttpClient{Timeout=TimeSpan.FromSeconds(5)})
+        {
+            var deadline=DateTime.UtcNow.AddSeconds(20);
+            while(true)
+            {
+                var json=await client.GetStringAsync(new Uri(policy.ConnectOrigin,"/stats"));
+                File.WriteAllText(Path.Combine(output,"trusted-external-stats.json"),json);
+                using var stats=JsonDocument.Parse(json);
+                var requests=stats.RootElement.GetProperty("untrustedDetails").EnumerateArray()
+                    .Where(request=>request.GetProperty("url").GetString()=="/trusted-external").ToArray();
+                if(requests.Length>0)
+                {
+                    Check(requests.All(request=>!(request.GetProperty("userAgent").GetString()??"").Contains("ConnectWindows/",StringComparison.Ordinal)),"Trusted external anchor opens in the OS browser");
+                    break;
+                }
+                if(DateTime.UtcNow>deadline)throw new TimeoutException("Trusted external anchor did not reach the OS browser");
+                await Task.Delay(250);
+            }
+        }
+        Check(new Uri(core.Source).Port==policy.ConnectOrigin.Port,"Trusted external link leaves Connect in its workspace");
+        window.Activate();await Task.Delay(200);
         var priorBoot=await core.ExecuteScriptAsync("fixtureBoot");
         await TrustedClick(core,"internal");await UntilJs(core,$"window.fixtureBoot&&fixtureBoot!=={priorBoot}","Same-origin new window link");await Until(()=>window.WorkspaceState.Ready,"New document bridge ready");Check(true,"Same-origin target blank link stays in workspace");
         await TrustedClick(core,"sunhub");

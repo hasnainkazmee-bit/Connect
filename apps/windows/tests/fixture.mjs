@@ -11,7 +11,7 @@ body{margin:0;padding:32px} h1{font-size:28px} button{border:1px solid #dbe5ed;b
 button.primary{background:#ff6b0b;color:#1c2d3a;border:0} section{background:#fff;border:1px solid #dbe5ed;border-radius:24px;padding:24px;margin:24px 0}p{line-height:1.6} textarea{width:90%;min-height:70px;border-radius:16px;padding:12px;border:1px solid #dbe5ed}
 @media(prefers-color-scheme:dark){:root{background:#1c2d3a;color:#f2f7fc}section,button{background:#203342;color:#f2f7fc;border-color:#40515d}}
 </style></head><body><h1 id="route">Connect</h1><p>Connect. Talk. Celebrate.</p>
-<section><h2>Solar, together.</h2><p>Local integration fixture for the native Windows workspace.</p><button class="primary" id="sunhub">Continue with Sunhub</button> <a id="internal" href="/directory" target="_blank">Discover companies</a></section>
+<section><h2>Solar, together.</h2><p>Local integration fixture for the native Windows workspace.</p><button class="primary" id="sunhub">Continue with Sunhub</button> <a id="internal" href="/directory" target="_blank">Discover companies</a> <a id="external" href="http://127.0.0.1:4198/trusted-external">Company website</a></section>
 <section><h2>Company updates</h2><p>Project progress. Company news. Work worth celebrating.</p><textarea placeholder="What’s happening at your company?"></textarea></section>
 <div id="command" aria-live="polite"></div>
 <script>

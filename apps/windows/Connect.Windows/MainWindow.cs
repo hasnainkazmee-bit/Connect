@@ -160,8 +160,40 @@ public sealed class MainWindow : Window
     {
         if(!Uri.TryCreate(e.Uri,UriKind.Absolute,out var uri)){e.Cancel=true;return;}
         var decision=policy.Classify(uri);
-        if(decision!=NavigationDecision.Internal){e.Cancel=true;if(decision==NavigationDecision.External&&e.IsUserInitiated&&!e.IsRedirected)ExternalLinks.Open(uri);return;}
+        if(decision!=NavigationDecision.Internal)
+        {
+            // Cancel synchronously: external content must never enter this WebView.
+            e.Cancel=true;
+            if(decision==NavigationDecision.External&&e.IsUserInitiated&&!e.IsRedirected)
+                _=OpenActivatedExternalLinkAsync(uri);
+            return;
+        }
         web.Visibility=Visibility.Visible;activeNavigationId=e.NavigationId;navigationGeneration++;state=WorkspaceState.Empty;UpdateControls();ShowStatus("Loading…");
+    }
+    private async Task OpenActivatedExternalLinkAsync(Uri uri)
+    {
+        if(closed||!CurrentIsConnect())return;
+        var core=web.CoreWebView2;
+        var source=core.Source;
+        var generation=navigationGeneration;
+        bool StillCurrent()=>!closed&&ReferenceEquals(web.CoreWebView2,core)&&
+            generation==navigationGeneration&&core.Source==source&&CurrentIsConnect();
+        try
+        {
+            // IsUserInitiated can also be true for script navigation. Unlike
+            // ExecuteScriptAsync, this query does not grant page activation.
+            var json=await core.CallDevToolsProtocolMethodAsync("Runtime.evaluate",
+                JsonSerializer.Serialize(new{expression="navigator.userActivation.isActive",userGesture=false,returnByValue=true}))
+                .WaitAsync(TimeSpan.FromSeconds(3));
+            using var result=JsonDocument.Parse(json);
+            if(!StillCurrent()||!result.RootElement.TryGetProperty("result",out var evaluation)||
+                !evaluation.TryGetProperty("value",out var active)||active.ValueKind!=JsonValueKind.True)return;
+            ExternalLinks.Open(uri,StillCurrent);
+        }
+        catch(Exception error)when(error is InvalidOperationException or System.Runtime.InteropServices.COMException or JsonException or TimeoutException)
+        {
+            // A missing, failed or stale activation check never opens an OS app.
+        }
     }
     private async void NavigationCompleted(object? sender,CoreWebView2NavigationCompletedEventArgs e)
     {
