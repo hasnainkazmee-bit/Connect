@@ -29,6 +29,8 @@ import {
   publicationPresentation,
   inlineImageUrls,
   documentFromText,
+  postCaptionDocument,
+  writingText,
 } from "./publication-writing";
 import {
   Publisher,
@@ -317,6 +319,14 @@ function PostCard({
     item.title,
     item.subtitle,
   );
+  const caption = postCaptionDocument(
+    item.document || documentFromText(item.body),
+  );
+  const captionText = writingText(caption).trim();
+  const captionCollapsed = !reading && !expanded && captionText.length > 400;
+  const cover = item.media.find((media) => media.id === item.cover_media_id);
+  const previewPhoto =
+    cover || item.media.find((media) => media.mime.startsWith("image/"));
   return (
     <article className="feed-post" id={"post-" + item.id}>
       <header className="post-header">
@@ -384,34 +394,35 @@ function PostCard({
           {item.subtitle && (
             <p className="publication-subtitle">{item.subtitle}</p>
           )}
-          {item.cover_media_id &&
+          {!reading && presentation.excerpt && (
+            <p className="publication-excerpt">
+              {presentation.excerpt.slice(0, 210)}
+              {presentation.excerpt.length > 210 ? "…" : ""}
+            </p>
+          )}
+          {(reading ? cover : previewPhoto) &&
             (!reading ||
-              !inlineImageUrls(item.document).has(
-                item.media.find((m) => m.id === item.cover_media_id)?.url || "",
-              )) && (
+              !inlineImageUrls(item.document).has(cover?.url || "")) && (
               <Link to={"/posts/" + item.id}>
                 <img
                   className="publication-cover"
                   loading="lazy"
                   decoding="async"
-                  src={
-                    item.media.find((m) => m.id === item.cover_media_id)?.url
-                  }
-                  alt={
-                    item.media.find((m) => m.id === item.cover_media_id)?.alt ||
-                    item.title
-                  }
+                  src={(reading ? cover : previewPhoto)?.url}
+                  alt={(reading ? cover : previewPhoto)?.alt || item.title}
                 />
               </Link>
             )}
+          {!reading && !previewPhoto && item.media.length > 0 && (
+            <MediaGallery
+              companyName={item.company.name}
+              media={item.media.slice(0, 1)}
+            />
+          )}
           {reading ? (
             <RichDocument document={presentation.document} />
           ) : (
             <>
-              <p className="publication-excerpt">
-                {presentation.excerpt.slice(0, 210)}
-                {presentation.excerpt.length > 210 ? "…" : ""}
-              </p>
               <Link className="publication-read" to={"/posts/" + item.id}>
                 Read {publicationLabel(item.kind).toLowerCase()}
                 <ArrowRight size={15} />
@@ -421,23 +432,20 @@ function PostCard({
         </div>
       ) : (
         <>
-          {(item.body || item.document) && (
+          {captionText && (
             <div
               className={
-                "post-body " +
-                (!expanded && item.body.length > 400 ? "is-collapsed" : "")
+                "post-body " + (captionCollapsed ? "is-collapsed" : "")
               }
             >
               {item.document ? (
-                <RichDocument document={item.document} />
+                <RichDocument document={caption} />
               ) : (
                 <p>
-                  {!expanded && item.body.length > 400
-                    ? item.body.slice(0, 400) + "…"
-                    : item.body}
+                  {captionCollapsed ? item.body.slice(0, 400) + "…" : item.body}
                 </p>
               )}
-              {item.body.length > 400 && (
+              {!reading && captionText.length > 400 && (
                 <button onClick={() => setExpanded(!expanded)}>
                   {expanded ? "Show less" : "…see more"}
                 </button>
@@ -449,11 +457,15 @@ function PostCard({
       {item.media.length > 0 && (item.kind === "post" || reading) && (
         <MediaGallery
           companyName={item.company.name}
-          media={item.media.filter(
-            (m) =>
-              !inlineImageUrls(item.document).has(m.url) &&
-              (item.kind === "post" || m.id !== item.cover_media_id),
-          )}
+          media={
+            item.kind === "post"
+              ? item.media
+              : item.media.filter(
+                  (m) =>
+                    !inlineImageUrls(item.document).has(m.url) &&
+                    m.id !== item.cover_media_id,
+                )
+          }
         />
       )}
       <PostEngagement

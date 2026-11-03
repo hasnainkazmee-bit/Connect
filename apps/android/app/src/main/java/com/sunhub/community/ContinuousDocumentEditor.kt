@@ -862,6 +862,7 @@ internal fun ContinuousDocumentEditor(
     hint: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    minimumLines: Int = 9,
 ) {
     state.onChange = change
     state.synchronize(value)
@@ -924,6 +925,7 @@ internal fun ContinuousDocumentEditor(
         },
         update = {
             it.isEnabled = enabled
+            it.minLines = minimumLines
             it.hint = hint
             it.load(value)
         },

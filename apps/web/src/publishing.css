@@ -616,6 +616,13 @@
   font-size: 17px;
   line-height: 1.75;
 }
+.publisher-onebox[data-publication-kind="post"] .story-editor {
+  min-height: 3.5em;
+  padding-bottom: 16px;
+}
+.publisher-onebox[data-publication-kind="post"] .story-editor > :last-child {
+  margin-bottom: 0;
+}
 .publisher-onebox .story-editor img {
   width: auto;
   max-width: 100%;
@@ -630,72 +637,6 @@
 .publisher-preview .story-prose {
   font-size: 17px;
   line-height: 1.75;
-}
-.publisher-choice {
-  margin: 0 var(--writing-gutter) 20px;
-  padding: 18px;
-  border-radius: var(--radius-card);
-  border: 1px solid var(--line);
-  background: var(--surface-muted);
-}
-.publisher-choice-heading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-.publisher-choice-heading h3 {
-  margin: 0;
-  font-size: 17px;
-  line-height: 1.4;
-  flex: 1;
-}
-.publisher-choice-options {
-  display: grid;
-  gap: 8px;
-}
-.publisher-choice-options > button {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  min-height: 80px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: var(--surface);
-  color: var(--ink);
-  text-align: left;
-}
-.publisher-choice-options > button:not(:disabled):hover {
-  border-color: var(--brand);
-  background: var(--brand-soft);
-}
-.publisher-choice-options > button > svg {
-  flex-shrink: 0;
-}
-.publisher-choice-options > button > span {
-  flex: 1;
-}
-.publisher-choice-options strong {
-  display: block;
-  font-size: 16px;
-}
-.publisher-choice-options small {
-  display: block;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.5;
-  margin-top: 4px;
-}
-.publisher-keep-writing {
-  display: block;
-  margin: 10px auto 0;
-  min-height: var(--control-height);
-  padding: 8px 16px;
-  border: 0;
-  border-radius: var(--radius-control);
-  background: transparent;
-  color: var(--muted);
 }
 .publisher button:disabled {
   opacity: 0.5;
@@ -897,4 +838,32 @@
 }
 .publisher-media-toggle span {
   font-variant-numeric: tabular-nums;
+}
+
+.publisher-formats {
+  margin-block: 0 18px;
+  padding: 3px;
+  border-radius: 999px;
+}
+.publisher-formats button {
+  border-radius: 999px;
+  font-size: 13px;
+  min-height: 44px;
+}
+.publisher-format-hint {
+  margin: -4px var(--writing-gutter) 16px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.publisher-media img,
+.publisher-media video {
+  aspect-ratio: 1;
+  height: auto;
+  max-height: none;
+}
+.publisher-canvas > .post-media .photo-track,
+.publisher-preview > .post-media .photo-track {
+  aspect-ratio: 1;
+  max-height: none;
 }

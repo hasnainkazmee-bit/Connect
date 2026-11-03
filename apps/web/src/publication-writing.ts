@@ -195,3 +195,27 @@ export function inlineImageUrls(document: any): Set<string> {
   visit(document);
   return urls;
 }
+
+// Posts always present every text block above their separate attachments.
+// Return a new tree so switching formats never mutates an original rich draft.
+export function postCaptionDocument(document: any) {
+  const visit = (node: any): any => {
+    if (!node) return null;
+    if (node.type === "image") {
+      const caption =
+        typeof node.attrs?.title === "string" ? node.attrs.title : "";
+      return caption.trim()
+        ? { type: "paragraph", content: [{ type: "text", text: caption }] }
+        : null;
+    }
+    return {
+      ...node,
+      ...(node.content
+        ? { content: node.content.map(visit).filter(Boolean) }
+        : {}),
+    };
+  };
+  const result = visit(document) || { type: "doc", content: [] };
+  if (!result.content?.length) result.content = [{ type: "paragraph" }];
+  return result;
+}

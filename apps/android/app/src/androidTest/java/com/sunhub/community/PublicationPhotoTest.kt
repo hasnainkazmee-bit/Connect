@@ -185,9 +185,16 @@ class PublicationPhotoTest {
             }
             capture("native-photo-adjustment")
             click("Use photo")
-            ui.waitUntil(20_000) { renderedPhoto() != null }
-            val drawable = renderedPhoto()!!
-            assertEquals(0.8f, drawable.intrinsicWidth.toFloat() / drawable.intrinsicHeight, .01f)
+            tag("post-media-frame")
+            ui.onNodeWithTag("post-media-frame").performScrollTo()
+            val frame = ui.onNodeWithTag("post-media-frame").getUnclippedBoundsInRoot()
+            assertEquals((frame.right - frame.left).value, (frame.bottom - frame.top).value, 1f)
+            assertNull("Post images must never enter the writing cursor", renderedPhoto())
+            ui.waitUntil(20_000) {
+                val image = instrumentation.uiAutomation.takeScreenshot()
+                try { assertPhotoPixels(image); true } catch (_: AssertionError) { false }
+                finally { image.recycle() }
+            }
             assertPhotoPixels(capture("native-photo-upload-visible"))
             ui.waitUntil(20_000) {
                 ui.onAllNodes(hasText("Publish") and isEnabled()).fetchSemanticsNodes().isNotEmpty()
@@ -197,11 +204,16 @@ class PublicationPhotoTest {
             val draft = drafts.single()
             assertEquals(1, draft.getJSONArray("media").length())
             assertEquals(
-                1,
+                0,
                 PublicationWriting.inlineImageUrls(draft.getJSONObject("document")).size,
             )
+            val storedPhoto = File(context.cacheDir, "stored-photo-$suffix.png")
+            client.downloadAttachment("/post-media/${draft.getJSONArray("media").getJSONObject(0).text("id")}", storedPhoto.absolutePath)
+            val decoded = android.graphics.BitmapFactory.decodeFile(storedPhoto.absolutePath)
+            assertEquals(0.8f, decoded.width.toFloat() / decoded.height, .01f)
+            decoded.recycle()
+            storedPhoto.delete()
             click("Publish")
-            click("Update")
             ui.waitUntil(20_000) {
                 ui.onAllNodesWithTag("publication-composer").fetchSemanticsNodes().isEmpty()
             }
@@ -220,7 +232,7 @@ class PublicationPhotoTest {
             val post = feed.getJSONArray("posts").getJSONObject(0)
             assertEquals("post", post.text("kind"))
             assertEquals(1, post.getJSONArray("media").length())
-            assertEquals(1, PublicationWriting.inlineImageUrls(post.getJSONObject("document")).size)
+            assertEquals(0, PublicationWriting.inlineImageUrls(post.getJSONObject("document")).size)
             ui.onNodeWithContentDescription("Account and company").performClick()
             click("Sign out")
         } finally {

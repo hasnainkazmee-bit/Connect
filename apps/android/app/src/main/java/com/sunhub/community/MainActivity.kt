@@ -1167,17 +1167,17 @@ internal fun PostMedia(model: CommunityModel, media: JSONObject, ratio: Float = 
             AsyncImage(
                 publicationImage(model, media.text("url")),
                 media.optString("alt").ifBlank { "Post image" },
-                Modifier.fillMaxWidth().aspectRatio(ratio).background(Pale).clickable {
+                Modifier.fillMaxWidth().aspectRatio(ratio).testTag("post-media-frame").background(Pale).clickable {
                     fullImage = true
                 },
                 contentScale = ContentScale.Fit,
             )
         media.optString("mime").startsWith("video/") -> {
             var play by rememberSaveable(uri) { mutableStateOf(false) }
-            if (play) NativeVideo(model, uri)
+            if (play) NativeVideo(model, uri, ratio)
             else
                 Box(
-                    Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Ink),
+                    Modifier.fillMaxWidth().aspectRatio(ratio).testTag("post-media-frame").background(Ink),
                     contentAlignment = Alignment.Center,
                 ) {
                     FilledTonalButton(onClick = { play = true }) {
@@ -1187,18 +1187,27 @@ internal fun PostMedia(model: CommunityModel, media: JSONObject, ratio: Float = 
                 }
         }
         else ->
-            TextButton(
-                onClick = { model.openPublicationMedia(media) },
-                modifier = Modifier.padding(12.dp),
+            Box(
+                Modifier.fillMaxWidth().aspectRatio(ratio).testTag("post-media-frame").background(Pale),
+                contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Outlined.Description, null)
-                Text(media.optString("name", "Open document"))
+                Column(
+                    Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Icon(Icons.Outlined.Description, null, Modifier.size(48.dp), tint = Muted)
+                    Text(media.optString("name", "Document"), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    ConnectOutlinedButton(onClick = { model.openPublicationMedia(media) }) {
+                        Text("Open document")
+                    }
+                }
             }
     }
 }
 
 @Composable
-private fun NativeVideo(model: CommunityModel, uri: String) {
+private fun NativeVideo(model: CommunityModel, uri: String, ratio: Float) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current
     val player =
@@ -1228,8 +1237,11 @@ private fun NativeVideo(model: CommunityModel, uri: String) {
         }
     }
     AndroidView(
-        factory = { PlayerView(it).apply { this.player = player } },
-        modifier = Modifier.fillMaxWidth().height(230.dp),
+        factory = { PlayerView(it).apply {
+            this.player = player
+            resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+        } },
+        modifier = Modifier.fillMaxWidth().aspectRatio(ratio).testTag("post-media-frame"),
     )
 }
 

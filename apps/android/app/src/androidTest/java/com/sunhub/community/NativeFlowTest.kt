@@ -197,7 +197,6 @@ class NativeFlowTest {
         ui.onNodeWithText("What’s happening at your company?")
             .performTextInput("Native Android project update $suffix")
         click("Publish")
-        click("Update")
         ui.waitUntil(20_000) {
             ui.onAllNodesWithTag("publication-composer").fetchSemanticsNodes().isEmpty()
         }
@@ -248,18 +247,17 @@ class NativeFlowTest {
         click("Home")
         ui.onNodeWithTag("navigation-create").performClick()
         ui.onNodeWithText("Headline").assertDoesNotExist()
-        ui.onNodeWithText("Press release").assertDoesNotExist()
+        ui.onNodeWithTag("publication-format-post").assertIsSelected()
+        ui.onNodeWithTag("publication-format-release").performClick()
         ui.onNodeWithTag("publication-body")
             .performClick()
             .performTextInput(
                 "Android field notes $suffix\nA thoughtful solar project starts with listening to the community. $suffix"
             )
         capture("native-publication-editor")
-        // The final format choice can be cancelled without changing any writing.
-        click("Publish")
-        visible("Publish as")
-        capture("native-publication-choice")
-        click("Keep writing")
+        // Switching format preserves all writing before publication.
+        ui.onNodeWithTag("publication-format-post").performClick()
+        ui.onNodeWithTag("publication-format-release").performClick()
         ui.onNodeWithTag("publication-body")
             .assertTextContains("Android field notes $suffix", substring = true)
         ui.onNodeWithContentDescription("Writing options").performClick()
@@ -341,7 +339,6 @@ class NativeFlowTest {
         visible("Android field notes $suffix")
         capture("native-publication-preview")
         click("Publish")
-        click("Press release")
         ui.waitUntil(20_000) {
             ui.onAllNodesWithTag("publication-composer").fetchSemanticsNodes().isEmpty()
         }

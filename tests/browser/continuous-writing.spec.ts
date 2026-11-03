@@ -80,7 +80,7 @@ test("headline truncation never splits an emoji and complex first blocks stay in
   );
 });
 
-test("one canvas preserves writing through drafts, format cancellation and a failed publish", async ({
+test("one canvas preserves writing through drafts, format changes and a failed publish", async ({
   browser,
 }) => {
   const context = await browser.newContext({
@@ -110,11 +110,11 @@ test("one canvas preserves writing through drafts, format cancellation and a fai
   await expect(dialog.getByLabel("Story title")).toHaveCount(0);
   await expect(dialog.getByLabel("Story subtitle")).toHaveCount(0);
   await expect(
-    dialog.getByRole("button", { name: "Update", exact: true }),
-  ).toHaveCount(0);
-  await expect(
-    dialog.getByRole("button", { name: "Press release", exact: true }),
-  ).toHaveCount(0);
+    dialog.getByRole("button", { name: "Post", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await dialog
+    .getByRole("button", { name: "Press release", exact: true })
+    .click();
   await page.screenshot({ path: "test-results/writing-empty-320.png" });
   await editor.fill(
     "A new chapter for local solar\nBuilt with local partners\nOur team completed the community solar installation.\nRead more",
@@ -165,17 +165,15 @@ test("one canvas preserves writing through drafts, format cancellation and a fai
   await expect(editor.locator("h3")).toHaveText("Built with local partners");
   await expect(editor.locator("a")).toHaveText("Read more");
   const writing = await editor.textContent();
-  await dialog.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(
-    dialog.getByRole("heading", { name: "How would you like to publish?" }),
-  ).toBeVisible();
+    dialog.getByRole("button", { name: "Press release", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await dialog.getByRole("button", { name: "Post", exact: true }).click();
+  await expect(editor).toHaveText(writing!);
   await dialog
-    .getByRole("button", { name: "Keep writing", exact: true })
+    .getByRole("button", { name: "Press release", exact: true })
     .click();
   await expect(editor).toHaveText(writing!);
-  await expect(
-    dialog.getByRole("button", { name: "Update", exact: true }),
-  ).toHaveCount(0);
   let fail = true;
   await page.route("**/api/publications/*", async (route) => {
     if (
@@ -194,15 +192,10 @@ test("one canvas preserves writing through drafts, format cancellation and a fai
     } else await route.continue();
   });
   await dialog.getByRole("button", { name: "Publish", exact: true }).click();
-  await dialog
-    .getByRole("button", { name: "Press release", exact: true })
-    .click();
   await expect(dialog.getByRole("alert")).toContainText("Your draft is safe");
   await expect(editor).toHaveText(writing!);
   await page.screenshot({ path: "test-results/writing-choice-320.png" });
-  await dialog
-    .getByRole("button", { name: "Press release", exact: true })
-    .click();
+  await dialog.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(dialog).toHaveCount(0);
   const feed = await (
     await context.request.get(

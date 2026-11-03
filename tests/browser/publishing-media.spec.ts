@@ -3,7 +3,7 @@ import path from "node:path";
 import { readFile } from "node:fs/promises";
 
 for (const width of [1440, 390]) {
-  test(`one-box photos preserve their appearance and pending descriptions at ${width}px`, async ({
+  test(`Post photos use separate square frames and preserve pending descriptions at ${width}px`, async ({
     browser,
   }) => {
     const context = await browser.newContext({
@@ -95,19 +95,33 @@ for (const width of [1440, 390]) {
       await adjustment
         .getByRole("button", { name: "Use original", exact: true })
         .click();
-    await expect(editor.locator("img")).toHaveCount(1);
+    await expect(editor.locator("img")).toHaveCount(0);
+    const attachedImage = dialog.locator(".publisher-canvas .photo-track img");
+    await expect(attachedImage).toHaveCount(1);
     await expect(dialog.getByRole("progressbar")).toHaveCount(0);
-    const naturalRatio = await editor
-      .locator("img")
-      .evaluate((el: HTMLImageElement) => el.naturalWidth / el.naturalHeight);
+    await attachedImage.scrollIntoViewIfNeeded();
+    await expect
+      .poll(() =>
+        attachedImage.evaluate(
+          (image: HTMLImageElement) =>
+            image.complete && image.naturalWidth > 0 && image.naturalHeight > 0,
+        ),
+      )
+      .toBe(true);
+    const naturalRatio = await attachedImage.evaluate(
+      (el: HTMLImageElement) => el.naturalWidth / el.naturalHeight,
+    );
     if (width === 1440) expect(naturalRatio).toBeCloseTo(1, 2);
-    const editRatio = await editor
-      .locator("img")
+    const editRatio = await dialog
+      .locator(".publisher-canvas .photo-track")
       .evaluate(
         (el) =>
           el.getBoundingClientRect().width / el.getBoundingClientRect().height,
       );
-    expect(editRatio).toBeCloseTo(naturalRatio, 2);
+    expect(editRatio).toBeCloseTo(1, 2);
+    await page.screenshot({
+      path: `test-results/post-caption-square-composer-${width}.png`,
+    });
     await dialog.getByRole("button", { name: /Photos & files/ }).click();
     await dialog
       .getByLabel("Image description")
@@ -118,14 +132,13 @@ for (const width of [1440, 390]) {
     await expect(dialog).toHaveCount(0);
     await page.getByRole("button", { name: "Drafts", exact: true }).click();
     await dialog.getByRole("button", { name: /Solar storage arrives/ }).click();
-    await expect(editor.locator("img")).toHaveAttribute(
-      "alt",
-      "Solar panels on the community centre roof",
-    );
+    await expect(
+      dialog.locator(".publisher-canvas .photo-track img"),
+    ).toHaveAttribute("alt", "Solar panels on the community centre roof");
     await dialog.getByRole("button", { name: "Preview", exact: true }).click();
     await expect(dialog.locator(".publisher-preview img")).toHaveCount(1);
     const previewRatio = await dialog
-      .locator(".publisher-preview img")
+      .locator(".publisher-preview .photo-track")
       .evaluate(
         (el) =>
           el.getBoundingClientRect().width / el.getBoundingClientRect().height,
@@ -151,7 +164,6 @@ for (const width of [1440, 390]) {
       .getByLabel("Image description")
       .fill("The final accessible photo description");
     await dialog.getByRole("button", { name: "Publish", exact: true }).click();
-    await dialog.getByRole("button", { name: "Update", exact: true }).click();
     releaseAlt!();
     await expect(dialog).toHaveCount(0);
     const feed = await (
@@ -162,13 +174,16 @@ for (const width of [1440, 390]) {
     expect(publication.title).toBe("");
     expect(publication.media).toHaveLength(1);
     expect(
-      publication.document.content.find((node: any) => node.type === "image")
-        .attrs.alt,
-    ).toBe("The final accessible photo description");
+      publication.document.content.some((node: any) => node.type === "image"),
+    ).toBe(false);
+    expect(publication.media[0].alt).toBe(
+      "The final accessible photo description",
+    );
     await page.goto("/posts/" + publication.id);
-    const publishedImage = page.locator(".feed-post .story-prose img");
+    const publishedImage = page.locator(".feed-post .photo-track img");
     await expect(publishedImage).toHaveCount(1);
-    await expect(page.locator(".feed-post .photo-gallery")).toHaveCount(0);
+    await expect(page.locator(".feed-post .photo-gallery")).toHaveCount(1);
+    await expect(page.locator(".feed-post .story-prose img")).toHaveCount(0);
     // The reader image is lazy-loaded and sizes itself from its intrinsic
     // dimensions. Being in the DOM does not mean those dimensions exist yet.
     await publishedImage.scrollIntoViewIfNeeded();
@@ -181,11 +196,16 @@ for (const width of [1440, 390]) {
         ),
       )
       .toBe(true);
-    const publishedRatio = await publishedImage.evaluate(
-      (el) =>
-        el.getBoundingClientRect().width / el.getBoundingClientRect().height,
-    );
+    const publishedRatio = await page
+      .locator(".feed-post .photo-track")
+      .evaluate(
+        (el) =>
+          el.getBoundingClientRect().width / el.getBoundingClientRect().height,
+      );
     expect(publishedRatio).toBeCloseTo(editRatio, 2);
+    await page.screenshot({
+      path: `test-results/post-caption-square-feed-${width}.png`,
+    });
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,

@@ -1,8 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("finishing a slow preview save preserves a newer Publish choice", async ({
-  browser,
-}) => {
+test("direct Publish supersedes a slow preview save", async ({ browser }) => {
   const context = await browser.newContext({
     baseURL: process.env.API_TEST_URL || "http://localhost:4101",
     viewport: { width: 390, height: 844 },
@@ -82,20 +80,10 @@ test("finishing a slow preview save preserves a newer Publish choice", async ({
     await started;
     // Publish is a newer user intent while Preview's save is still pending.
     await dialog.getByRole("button", { name: "Publish", exact: true }).click();
-    const choice = dialog.getByRole("heading", {
-      name: "How would you like to publish?",
-    });
-    await expect(choice).toBeVisible();
-    releaseSave();
     await expect(
-      dialog
-        .locator(".publisher-preview")
-        .getByRole("heading", { name: headline }),
-    ).toBeVisible();
-    await expect(choice).toBeVisible();
-    await dialog
-      .getByRole("button", { name: "Press release", exact: true })
-      .click();
+      dialog.getByRole("button", { name: "Publishing…", exact: false }),
+    ).toBeDisabled();
+    releaseSave();
     await expect(dialog).toHaveCount(0);
     const published = await (
       await context.request.get(`/api/posts/${draft.id}`)
