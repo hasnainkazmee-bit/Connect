@@ -94,6 +94,7 @@ internal static class Program
         await core.ExecuteScriptAsync("Object.assign(fixtureState,{signedIn:true,accountType:'company',userName:'Test employee',companyName:'Solar Test',canPublish:true,unreadCount:3});sendState()");
         await Until(()=>window.CreateButton.IsEnabled,"Company publish permission");Click(window.CreateButton);await UntilJs(core,"commands.some(x=>x.type==='compose')","Compose action");Check(true,"Company Create opens existing publisher");
         Check(window.NotificationsButton.ToolTip?.ToString()?.Contains("3 unread")==true,"Native notification unread count");
+        await CheckNotifications(window);
         await core.ExecuteScriptAsync("Object.assign(fixtureState,{accountType:'individual',canPublish:true});sendState()");
         await Until(()=>!window.CreateButton.IsEnabled,"Individual publish denied");Check(window.NetworkButton.Visibility==Visibility.Collapsed,"Individuals cannot publish or open company network");
         await core.ExecuteScriptAsync("Object.assign(fixtureState,{accountType:'company',canPublish:false});sendState()");await Until(()=>window.NetworkButton.Visibility==Visibility.Visible,"Company network restored");
@@ -184,6 +185,48 @@ internal static class Program
         Check(reopened.DirectoryButton.IsSelected,"Safe workspace route restored after relaunch");reopened.Close();await Until(()=>!reopened.IsVisible,"Reopened window closes");
         await CheckPublicGuest();
         Console.WriteLine($"{checks.Count} native Windows checks passed.");
+    }
+    private sealed class FakeNotificationSink : INotificationSink
+    {
+        public event Action<string>? Clicked;
+        public bool Supported=>true;
+        public bool Enabled=>true;
+        public readonly List<string> Shown=[];
+        public int Clears;
+        public void Register(){}
+        public bool Show(string id,string title,string body){Shown.Add(id);return true;}
+        public Task Clear(){Clears++;return Task.CompletedTask;}
+        public void Tap(string id)=>Clicked?.Invoke(id);
+        public void Dispose(){}
+    }
+    private static async Task CheckNotifications(MainWindow window)
+    {
+        var sink=new FakeNotificationSink();var replies=new List<JsonElement>();
+        var user="11111111-1111-4111-8111-111111111111";var id="22222222-2222-4222-8222-222222222222";
+        using(var coordinator=new NotificationCoordinator(window,Path.Combine(output,"notification-test.txt"),value=>replies.Add(JsonSerializer.SerializeToElement(value)),sink))
+        {
+            bool Send(object value)=>coordinator.Handle(JsonSerializer.Serialize(value));
+            coordinator.SetOwner(user);
+            Send(new{type="notificationPermission",requestId=id});
+            await Until(()=>replies.Any(r=>r.TryGetProperty("requestId",out var request)&&request.GetString()==id),"Notification gesture denial");
+            Check(!replies.Last().GetProperty("enabled").GetBoolean(),"Native alerts require an explicit gesture");
+            coordinator.EnableFromGesture(Guid.NewGuid().ToString());
+            await Until(()=>replies.Last().GetProperty("enabled").GetBoolean(),"Native notification opt-in");
+            var notice=new{type="notificationShow",id,userId=user,title="Connect",body="A new notification",url="/messages?company=33333333-3333-4333-8333-333333333333",companyId=(string?)null};
+            Send(notice);Send(notice);
+            Send(new{type="notificationShow",id=Guid.NewGuid().ToString(),userId=Guid.NewGuid().ToString(),title="Connect",body="Wrong owner",url="/messages"});
+            Send(new{type="notificationShow",id=Guid.NewGuid().ToString(),userId=user,title="Connect",body="Unsafe route",url="https://evil.test"});
+            Check(sink.Shown.Count==1,"Native alerts reject duplicate IDs, wrong owners and external routes");
+            sink.Tap(id);await Until(()=>replies.Any(r=>r.GetProperty("type").GetString()=="open"),"Native notification tap");
+            Check(replies.Last().GetProperty("userId").GetString()==user,"Native tap retains owner and safe route context");
+            var taps=replies.Count(r=>r.GetProperty("type").GetString()=="open");coordinator.SetOwner(null);sink.Tap(id);await Task.Delay(50);
+            Check(sink.Clears>0&&replies.Count(r=>r.GetProperty("type").GetString()=="open")==taps,"Logout clears OS alerts and invalidates stale taps");
+            Check(!File.Exists(Path.Combine(output,"notification-test.txt")),"Logout clears per-account desktop notification opt-in");
+            foreach(var path in new[]{"//evil.test/messages","/api/session","/messages%2f..%2fauth","/messages\\evil","javascript:alert(1)"})Check(!NotificationCoordinator.IsSafePath(path),"Native notification route rejects "+path);
+        }
+        using var runtime=new WindowsNotificationSink();
+        if(runtime.Supported){runtime.Register();_ = runtime.Enabled;await runtime.Clear();Check(true,"Actual Windows notification runtime registers and clears without sending test alerts");}
+        else Check(true,"Windows reports native notifications unsupported; user receives explicit fallback");
     }
     private static async Task CheckPublicGuest()
     {

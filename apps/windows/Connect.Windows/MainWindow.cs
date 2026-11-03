@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -42,6 +43,8 @@ public sealed class MainWindow : Window
     private readonly Button retry=NativeControls.Button("Try again");
     private readonly List<AuthWindow> authWindows=[];
     private DownloadCoordinator? downloads;
+    private NotificationCoordinator? localNotifications;
+    private NotificationPermissionBridge? notificationPermission;
     private (string Type,string? Path)? pendingCommand;
     private bool selectingRoute,closed,allowClose,confirming,initializing;
     private string? lastSafeUrl;
@@ -122,6 +125,10 @@ public sealed class MainWindow : Window
             if(closed)return;
             var core=web.CoreWebView2;
             ConfigureCore(core);
+            localNotifications ??= new NotificationCoordinator(this,Path.Combine(Path.GetDirectoryName(userDataFolder)!,"notifications.txt"),ReplyNotification);
+            notificationPermission ??= new NotificationPermissionBridge(core,policy,id=>{if(!closed&&CurrentIsConnect())localNotifications?.EnableFromGesture(id);});
+            await notificationPermission.InitializeAsync();
+            await core.AddScriptToExecuteOnDocumentCreatedAsync("if(window===top&&!window.opener)Object.defineProperty(window,'__CONNECT_DESKTOP_NOTIFICATIONS__',{value:true});");
             // Stop external documents at the request boundary too: cancelling
             // NavigationStarting can still allow a speculative network request.
             // Images, media and API requests keep their normal browser policies;
@@ -158,7 +165,7 @@ public sealed class MainWindow : Window
     }
     internal static void ConfigureCore(CoreWebView2 core)
     {
-        core.Settings.UserAgent+=" ConnectWindows/0.1";
+        core.Settings.UserAgent+=" ConnectWindows/"+(typeof(MainWindow).Assembly.GetName().Version?.ToString(3)??"0.1.0");
         core.Settings.AreHostObjectsAllowed=false;core.Settings.IsStatusBarEnabled=false;
         core.Settings.AreBrowserAcceleratorKeysEnabled=false;
 #if !DEBUG
@@ -179,7 +186,7 @@ public sealed class MainWindow : Window
                 OpenUserInitiatedExternalLink(uri);
             return;
         }
-        web.Visibility=Visibility.Visible;activeNavigationId=e.NavigationId;navigationGeneration++;state=WorkspaceState.Empty;UpdateControls();ShowStatus("Loading…");
+        web.Visibility=Visibility.Visible;activeNavigationId=e.NavigationId;navigationGeneration++;localNotifications?.ResetDocument();state=WorkspaceState.Empty;UpdateControls();ShowStatus("Loading…");
     }
     private void OpenUserInitiatedExternalLink(Uri uri)
     {
@@ -208,8 +215,10 @@ public sealed class MainWindow : Window
     {
         // CoreWebView2.WebMessageReceived is top-level only; no frame handlers are installed.
         if(closed || !Uri.TryCreate(e.Source,UriKind.Absolute,out var source)||!policy.IsConnect(source)||!CurrentIsConnect())return;
+        if(localNotifications?.Handle(e.WebMessageAsJson)==true)return;
         if(!WorkspaceState.TryParse(e.WebMessageAsJson,out var received))return;
         state=received;UpdateControls();UpdateRoute();
+        if(state.Ready&&!state.SignedIn)localNotifications?.SetOwner(null);
         if(state.Ready&&pendingCommand is { } command){pendingCommand=null;_ = ExecuteCommandAsync(command.Type,command.Path);}
     }
     public async Task NavigateAsync(string path)
@@ -231,6 +240,11 @@ public sealed class MainWindow : Window
         catch(Exception e)when(e is InvalidOperationException or System.Runtime.InteropServices.COMException){ShowStatus("The workspace is reconnecting. Try again in a moment.");}
     }
     private bool CurrentIsConnect()=>web.CoreWebView2 is not null&&Uri.TryCreate(web.CoreWebView2.Source,UriKind.Absolute,out var current)&&policy.IsConnect(current);
+    private async void ReplyNotification(object message)
+    {
+        if(closed||!CurrentIsConnect())return;
+        try{await web.CoreWebView2.ExecuteScriptAsync("window.dispatchEvent(new CustomEvent('connect:windows-notifications',{detail:"+JsonSerializer.Serialize(message)+"}))");}catch(InvalidOperationException){}catch(System.Runtime.InteropServices.COMException){}
+    }
     private void UpdateRoute()
     {
         var path=web.Source?.AbsolutePath ?? "/";
@@ -329,5 +343,5 @@ public sealed class MainWindow : Window
     private void ApplyAppearance(){lightWordmark.Visibility=Appearance.IsDark(preferences.Appearance)?Visibility.Collapsed:Visibility.Visible;darkWordmark.Visibility=Appearance.IsDark(preferences.Appearance)?Visibility.Visible:Visibility.Collapsed;Appearance.Apply(this,preferences.Appearance,web.CoreWebView2);web.DefaultBackgroundColor=Appearance.IsDark(preferences.Appearance)?System.Drawing.Color.FromArgb(28,45,58):System.Drawing.Color.FromArgb(242,247,252);foreach(var popup in authWindows)popup.SetAppearance(preferences.Appearance);}
     private void OnSystemAppearance(object sender,UserPreferenceChangedEventArgs e){if(!closed)Dispatcher.BeginInvoke(ApplyAppearance);}
     private void SaveSettings(){preferences=preferences with{LastUrl=lastSafeUrl,Width=RestoreBounds.Width>0?RestoreBounds.Width:Width,Height=RestoreBounds.Height>0?RestoreBounds.Height:Height,Zoom=web.ZoomFactor};settings.Save(preferences);}
-    private void Dispose(){if(closed)return;closed=true;SystemEvents.UserPreferenceChanged-=OnSystemAppearance;foreach(var popup in authWindows.ToArray())popup.Close();downloads?.Dispose();web.Dispose();}
+    private void Dispose(){if(closed)return;closed=true;SystemEvents.UserPreferenceChanged-=OnSystemAppearance;foreach(var popup in authWindows.ToArray())popup.Close();notificationPermission?.Dispose();localNotifications?.Dispose();downloads?.Dispose();web.Dispose();}
 }
