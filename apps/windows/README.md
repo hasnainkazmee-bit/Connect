@@ -6,8 +6,8 @@ Connect is a native WPF desktop shell around the shared Connect workspace. The s
 
 Download the Setup installer for the PC's processor:
 
-- **Connect-0.1.0-win-x64-Setup.exe** for Intel and AMD PCs.
-- **Connect-0.1.0-win-arm64-Setup.exe** for Windows on ARM, including Snapdragon PCs.
+- **Connect-0.1.1-win-x64-Setup.exe** for Intel and AMD PCs.
+- **Connect-0.1.1-win-arm64-Setup.exe** for Windows on ARM, including Snapdragon PCs.
 
 Use a supported Windows 11 release. The executable's technical minimum is Windows 10 build 19041; older Windows editions are not a substitute for an OS still supported by Microsoft.
 
@@ -43,6 +43,8 @@ The installer execution test explicitly refuses to run outside GitHub Actions. I
 
 ## Current scope
 
-The app has its own persistent WebView2 session store, separate from Edge's normal browser profile. Native window changes require a new Setup installer; shared web changes arrive through the live service. There is no automatic binary updater, native push service, or offline workspace in this release.
+The app has its own persistent WebView2 session store, separate from Edge's normal browser profile. Native window changes require a new Setup installer; shared web changes arrive through the live service. App updates shows verified release download links; installing remains a user action.
+
+After opting in from notification settings, Windows displays native notifications while Connect is running or minimized. The Windows App SDK runtime is bundled with the app. Fully quit delivery through WNS is not configured. The bridge requires the trusted main frame, an explicit user gesture for opt-in, and the current account for display and taps. Confirmed reads withdraw matching alerts and prevent delayed duplicates. Native smoke tests use fake delivery for permission/account/read races, plus real runtime initialization; they do not claim end-user OS banner delivery. There is no offline workspace.
 
 Packaging references: [Microsoft WebView2 distribution](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution), [Inno Setup architecture rules](https://jrsoftware.org/ishelp/topic_setup_architecturesallowed.htm), [Inno Setup application mutex](https://jrsoftware.org/ishelp/topic_setup_appmutex.htm), and [GitHub Windows runner contents](https://github.com/actions/runner-images/blob/main/images/windows/Windows2025-Readme.md).

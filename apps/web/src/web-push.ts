@@ -142,6 +142,7 @@ export async function enableWebPush(userId: string, publicKey: string) {
     throw new Error(
       "This app does not support browser notifications. Your notification inbox still works.",
     );
+  const attempt = generation;
   // This runs synchronously from the Enable button, never during page loading.
   const permission = await Notification.requestPermission();
   if (permission !== "granted")
@@ -150,7 +151,6 @@ export async function enableWebPush(userId: string, publicKey: string) {
         ? "Notifications are blocked. Allow notifications in your browser’s site settings, then try again."
         : "Notifications weren’t enabled. You can try again whenever you’re ready.",
     );
-  const attempt = generation;
   task = task
     .catch(() => {})
     .then(async () => {

@@ -58,7 +58,12 @@ test("two company accounts connect, accept and chat with real persistence", asyn
     pageA.getByRole("heading", { name: "Connection request sent" }),
   ).toBeVisible();
   await pageB.getByLabel("Notifications", { exact: true }).click();
-  await pageB.getByRole("link", { name: "Connection requests 1" }).click();
+  const incomingRequests = pageB.getByRole("link", {
+    name: /^Connection requests/,
+  });
+  await expect(incomingRequests.locator(".count")).toHaveText("1");
+  await expect(incomingRequests).toHaveAttribute("href", "/requests");
+  await incomingRequests.click();
   await expect(
     pageB.getByText("Let’s discuss a commercial installation in Austin."),
   ).toBeVisible();

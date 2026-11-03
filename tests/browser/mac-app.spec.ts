@@ -161,6 +161,25 @@ test("native company workspace reuses publishing guards, account switching and n
   });
   expect(registration.status()).toBe(201);
   const owner = await registration.json();
+  // The inbox shows its connection-request shortcut only when a request is pending.
+  const sender = await contextFor(browser);
+  try {
+    const registration = await sender.request.post("/api/auth/register", {
+      data: {
+        name: "Mac Connection Sender",
+        email: `mac-sender-${suffix}@example.test`,
+        password: "ConnectMacSender123!",
+        companyName: `Mac Partner ${suffix}`,
+      },
+    });
+    expect(registration.status()).toBe(201);
+    const incoming = await sender.request.post("/api/requests", {
+      data: { companyId: owner.activeCompanyId },
+    });
+    expect(incoming.status()).toBe(201);
+  } finally {
+    await sender.close();
+  }
   const added = await context.request.post("/api/companies", {
     data: { name: `Mac Projects ${suffix}` },
   });
@@ -228,10 +247,11 @@ test("native company workspace reuses publishing guards, account switching and n
   await expect(
     page.getByRole("heading", { name: "Notifications", exact: true }),
   ).toBeVisible();
-  await page
+  const incomingRequests = page
     .getByRole("dialog")
-    .getByRole("link", { name: "Connection requests" })
-    .click();
+    .getByRole("link", { name: /^Connection requests/ });
+  await expect(incomingRequests.locator(".count")).toHaveText("1");
+  await incomingRequests.click();
   await expect(page).toHaveURL(/\/requests$/);
   await expect(page.getByRole("dialog")).toHaveCount(0);
 

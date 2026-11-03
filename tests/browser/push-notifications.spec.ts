@@ -208,6 +208,9 @@ async function fixture(
     sent,
     reads,
     deleted,
+    restoreUser: () => {
+      session = state;
+    },
     changeUser: () => {
       session = {
         ...state,
@@ -744,7 +747,7 @@ for (const host of ["mac", "windows"] as const) {
             },
           ],
           unread: 1,
-          nextCursor: null,
+          nextCursor: "1",
         },
       }),
     );
@@ -757,6 +760,50 @@ for (const host of ["mac", "windows"] as const) {
     const alert = await page.evaluate(() => (window as any).nativeShown[0]);
     expect(alert.title).toBe("Connect");
     expect(alert.body).not.toContain("Private");
+    await page.route("**/api/notifications?before=1", (route) =>
+      route.fulfill({
+        json: {
+          notifications: [
+            {
+              id: "99999999-9999-4999-8999-999999999999",
+              sequence: "0",
+              type: "personal_message",
+              category: "messages",
+              title: "Older unread message",
+              text: "History",
+              url: "/account/updates",
+              company_id: null,
+              actor_company_id: companyId,
+              created_at: "2026-01-01",
+              read_at: null,
+            },
+          ],
+          unread: 2,
+          nextCursor: null,
+        },
+      }),
+    );
+    await page.evaluate(
+      (host) =>
+        window.dispatchEvent(
+          new CustomEvent(`connect:${host}-command`, {
+            detail: { type: "notifications" },
+          }),
+        ),
+      host,
+    );
+    await page
+      .getByRole("button", { name: "Earlier notifications", exact: true })
+      .click();
+    await expect(
+      page.getByText("Older unread message", { exact: true }),
+    ).toBeVisible();
+    expect(await page.evaluate(() => (window as any).nativeShown.length)).toBe(
+      1,
+    );
+    await page
+      .getByRole("button", { name: "Close dialog", exact: true })
+      .click();
     await page.evaluate(
       ({ host, id, userId }) =>
         window.dispatchEvent(
@@ -920,4 +967,38 @@ test("worker withdraws a platform display that finishes after logout", async () 
   await delivery;
   expect(f.shown).toHaveLength(1);
   expect(f.shown[0].closed).toBe(true);
+});
+
+test("a permission prompt cannot opt back in after signing out and back into the same account", async ({
+  page,
+}) => {
+  const data = await fixture(page);
+  await page.goto("/account#notifications");
+  await page.evaluate(() => {
+    (Notification as any).requestPermission = () =>
+      new Promise((resolve) => ((window as any).finishPermission = resolve));
+  });
+  await page
+    .getByRole("button", { name: "Enable notifications", exact: true })
+    .click();
+  data.changeUser();
+  await page.evaluate(() =>
+    document.dispatchEvent(new Event("visibilitychange")),
+  );
+  await expect(
+    page.getByRole("main").getByText("Other Reader", { exact: true }),
+  ).toBeVisible();
+  data.restoreUser();
+  await page.evaluate(() =>
+    document.dispatchEvent(new Event("visibilitychange")),
+  );
+  await expect(
+    page.getByRole("main").getByText("Individual Reader", { exact: true }),
+  ).toBeVisible();
+  await page.evaluate(() => (window as any).finishPermission("granted"));
+  await expect(page.getByRole("alert")).toContainText("Your account changed");
+  expect(data.sent).toHaveLength(0);
+  expect(
+    await page.evaluate(() => localStorage.getItem("connect.web-push")),
+  ).toBeNull();
 });

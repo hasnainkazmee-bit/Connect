@@ -94,7 +94,8 @@ export function useDesktopNotifications(
     owner: string | null;
     seen: Set<string>;
     initialized: boolean;
-  }>({ owner: null, seen: new Set(), initialized: false });
+    sequence: bigint;
+  }>({ owner: null, seen: new Set(), initialized: false, sequence: 0n });
   const [preferences, setPreferences] = useState<Preferences | null>(null);
   const native = useDesktopNotificationStatus();
   const update = useDesktopUpdate();
@@ -176,7 +177,12 @@ export function useDesktopNotifications(
   }, []);
   useEffect(() => {
     if (!ready) return;
-    baseline.current = { owner: userId, seen: new Set(), initialized: false };
+    baseline.current = {
+      owner: userId,
+      seen: new Set(),
+      initialized: false,
+      sequence: 0n,
+    };
     status = { enabled: false, permission: "default" };
     window.dispatchEvent(new Event(changed));
     setPreferences(null);
@@ -218,13 +224,22 @@ export function useDesktopNotifications(
     const existing = baseline.current;
     if (!existing.initialized) {
       existing.initialized = true;
-      items.forEach((item) => existing.seen.add(item.id));
+      items.forEach((item) => {
+        existing.seen.add(item.id);
+        const sequence = /^\d+$/.test(item.sequence)
+          ? BigInt(item.sequence)
+          : 0n;
+        if (sequence > existing.sequence) existing.sequence = sequence;
+      });
       return;
     }
     if (!preferences) return;
     for (const item of [...items].reverse()) {
       if (existing.seen.has(item.id)) continue;
       existing.seen.add(item.id);
+      const sequence = /^\d+$/.test(item.sequence) ? BigInt(item.sequence) : 0n;
+      if (sequence <= existing.sequence) continue;
+      existing.sequence = sequence;
       if (
         !native.enabled ||
         item.read_at ||
