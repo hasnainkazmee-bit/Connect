@@ -144,6 +144,12 @@ Connect for Mac uses a native AppKit sidebar and toolbar with a desktop workspac
 
 On a Mac, run `npm run package:macos` to build a universal Apple Silicon/Intel installer for macOS 13 or later. The local installer is written to `apps/macos/artifacts/Connect-0.1.0-macos-universal.dmg`. Run `npm run test:macos` for the URL-policy and local WebKit regression checks. Installation, signing, and current limitations are documented in [apps/macos/README.md](apps/macos/README.md). Default builds are ad-hoc signed local test builds, not Apple-notarized public releases. Web improvements load from the live service; native host upgrades require a new app build.
 
+### Windows app
+
+Connect for Windows uses a native WPF window, sidebar, toolbar, menus, and sign-in popup around the shared live workspace in Microsoft WebView2. It supports Windows window snapping, light/dark/system appearance, persistent sessions, native file selection and downloads, and permission-aware publishing controls. The workspace hides duplicate web navigation while retaining the existing accounts, directory, feed, and messages.
+
+Windows builds produce separate x64 and ARM64 Setup installers with Start menu integration, optional desktop shortcuts, repair/upgrade support, and uninstall registration. Installation is per user and preserves session data. See [apps/windows/README.md](apps/windows/README.md) for build commands, prerequisites, validation, and limitations. Initial installers are unsigned; native upgrades require a new Setup installer, while shared workspace changes arrive from the live service.
+
 ### Optional Sign in with Sunhub
 
 Connect keeps its own email/password registration, verification and sign-in. Setting `SUNHUB_SSO_ISSUER=https://accounts.sunhubapp.com` and `SUNHUB_SSO_CLIENT_ID=sunhub-connect` adds a second sign-in option for a Sunhub account with any email address. The Sunhub identity service is deployed separately from its private repository. Register the exact callback `https://connect.sunhubapp.com/api/auth/sunhub/callback` there.
