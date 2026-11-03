@@ -122,6 +122,17 @@ public sealed class MainWindow : Window
             if(closed)return;
             var core=web.CoreWebView2;
             ConfigureCore(core);
+            // Stop external documents at the request boundary too: cancelling
+            // NavigationStarting can still allow a speculative network request.
+            // Images, media and API requests keep their normal browser policies;
+            // authentication popups have their own separately restricted core.
+            core.AddWebResourceRequestedFilter("*",CoreWebView2WebResourceContext.Document,CoreWebView2WebResourceRequestSourceKinds.Document);
+            core.WebResourceRequested+=(_,request)=>
+            {
+                if(request.ResourceContext==CoreWebView2WebResourceContext.Document&&
+                    (!Uri.TryCreate(request.Request.Uri,UriKind.Absolute,out var target)||policy.Classify(target)!=NavigationDecision.Internal))
+                    request.Response=core.Environment.CreateWebResourceResponse(null,403,"Blocked","Content-Type: text/plain\r\nCache-Control: no-store");
+            };
             downloads=new DownloadCoordinator(this,policy,core,ShowStatus);
             core.DownloadStarting+=(_,_)=>Dispatcher.BeginInvoke(async()=>await ExecuteCommandAsync("state"));
             core.NavigationStarting+=NavigationStarting;
@@ -277,6 +288,7 @@ public sealed class MainWindow : Window
             await popup.InitializeAsync();
             if(closed||popup.IsClosed){popup.Close();return;}
             e.NewWindow=popup.Browser.CoreWebView2;
+            popup.AttachDocumentGuard();
         }
         catch(Exception ex)when(ex is InvalidOperationException or System.Runtime.InteropServices.COMException){popup?.Close();ShowStatus("The sign-in window could not open. Please try again.");}
     }

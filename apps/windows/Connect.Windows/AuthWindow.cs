@@ -49,6 +49,19 @@ public sealed class AuthWindow : Window
         core.ProcessFailed+=(_,_)=>{if(!disposed)Dispatcher.BeginInvoke(()=>{MessageBox.Show(this,"The sign-in window stopped responding. Close it and try signing in again from Connect.","Sunhub Account",MessageBoxButton.OK,MessageBoxImage.Information);FinishClosing();});};
     }
     public void SetAppearance(AppearanceChoice value){appearance=value;Appearance.Apply(this,value,web.CoreWebView2);web.DefaultBackgroundColor=Appearance.IsDark(value)?System.Drawing.Color.FromArgb(32,51,66):System.Drawing.Color.White;}
+    internal void AttachDocumentGuard()
+    {
+        // WebView2 requires request interception to be attached after this core
+        // is assigned to NewWindow, while its creation deferral is still held.
+        var core=web.CoreWebView2;
+        core.AddWebResourceRequestedFilter("*",CoreWebView2WebResourceContext.Document,CoreWebView2WebResourceRequestSourceKinds.Document);
+        core.WebResourceRequested+=(_,request)=>
+        {
+            if(request.ResourceContext==CoreWebView2WebResourceContext.Document&&
+                (!Uri.TryCreate(request.Request.Uri,UriKind.Absolute,out var target)||policy.Classify(target,true)!=NavigationDecision.Internal))
+                request.Response=environment.CreateWebResourceResponse(null,403,"Blocked","Content-Type: text/plain\r\nCache-Control: no-store");
+        };
+    }
     private async void OnClosing(object? sender,CancelEventArgs e)
     {
         if(allowClose)return;e.Cancel=true;if(closing)return;closing=true;

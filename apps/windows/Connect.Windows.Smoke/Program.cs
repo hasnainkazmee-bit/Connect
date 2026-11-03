@@ -70,6 +70,7 @@ internal static class Program
         await window.Initialized.WaitAsync(TimeSpan.FromSeconds(45));await Until(()=>window.WorkspaceState.Ready,"Initial native bridge");
         var core=window.Browser.CoreWebView2;
         core.NavigationStarting+=(_,e)=>File.AppendAllText(Path.Combine(output,"navigation.log"),$"{e.Uri} userInitiated={e.IsUserInitiated} redirected={e.IsRedirected} cancelled={e.Cancel}\n");
+        core.WebResourceRequested+=(_,e)=>File.AppendAllText(Path.Combine(output,"document-requests.log"),$"{e.Request.Uri} context={e.ResourceContext} response={e.Response?.StatusCode}\n");
         Check(window.WindowStyle==WindowStyle.SingleBorderWindow&&window.ResizeMode==ResizeMode.CanResize,"Native Windows caption, resize and Snap controls");
         Check(!window.CreateButton.IsEnabled,"Guest Create is visibly disabled");
         Check(window.HomeButton.IsSelected,"Home initially selected");
