@@ -24,7 +24,11 @@ if ((Test-Path $installDir) -or (Test-Path $dataDir) -or (Test-Path $registratio
 $setup = (Resolve-Path -LiteralPath $SetupPath).Path
 $checksum = ((Get-Content -LiteralPath "$setup.sha256" -Raw) -split '\s+')[0]
 if ((Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash -ne $checksum) { throw 'Installer checksum mismatch.' }
-if ((Get-Item $setup).VersionInfo.ProductName -ne 'Connect') { throw 'Installer product metadata mismatch.' }
+$setupInfo = (Get-Item $setup).VersionInfo
+$setupInfo | Select-Object ProductName, CompanyName, FileDescription, FileVersion, ProductVersion |
+    ConvertTo-Json | Set-Content -LiteralPath (Join-Path $output 'setup-metadata.json')
+if ($setupInfo.ProductName -ne 'Connect') { throw "Installer product metadata mismatch: $($setupInfo.ProductName)" }
+if ($setupInfo.CompanyName -ne 'Sunhub') { throw "Installer publisher metadata mismatch: $($setupInfo.CompanyName)" }
 [IO.Directory]::CreateDirectory($dataDir) | Out-Null
 $markerContent = 'Keep the user profile across repair and uninstall.'
 Set-Content -LiteralPath $marker -Value $markerContent -NoNewline

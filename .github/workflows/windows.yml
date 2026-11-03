@@ -46,6 +46,7 @@ jobs:
       - name: Publish self-contained native app
         run: ./apps/windows/build.ps1 -Runtime '${{ matrix.runtime }}'
       - name: Build guided Windows installer
+        id: package
         run: ./apps/windows/package.ps1 -Runtime '${{ matrix.runtime }}' -SkipBuild
       - name: Verify real install, repair, and uninstall
         if: matrix.runtime == 'win-x64'
@@ -54,9 +55,12 @@ jobs:
           if ($setups.Count -ne 1) { throw 'Expected exactly one x64 installer.' }
           ./apps/windows/tests/test-installer.ps1 -SetupPath $setups[0].FullName
       - name: Test native WebView2 workflows against local fixtures
-        if: matrix.runtime == 'win-x64'
+        if: always() && matrix.runtime == 'win-x64' && steps.package.outcome == 'success'
         timeout-minutes: 5
         run: |
+          $bootstrapper = Join-Path $PWD 'apps/windows/.build/tools/MicrosoftEdgeWebView2Setup.exe'
+          & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File apps/windows/installer/Ensure-WebView2.ps1 -BootstrapperPath $bootstrapper
+          if ($LASTEXITCODE -notin @(0, 3010)) { throw 'Microsoft WebView2 prerequisite validation failed.' }
           $output = Join-Path $PWD 'apps/windows/.build/native-smoke'
           New-Item -ItemType Directory -Force -Path $output | Out-Null
           $fixture = Start-Process node -ArgumentList 'apps/windows/tests/fixture.mjs' -PassThru -RedirectStandardOutput "$output/fixture.log" -RedirectStandardError "$output/fixture-error.log"

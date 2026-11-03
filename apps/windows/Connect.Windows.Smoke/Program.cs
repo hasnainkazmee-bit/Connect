@@ -45,6 +45,9 @@ internal static class Program
     }
     private static async Task TrustedClick(CoreWebView2 core,string id)
     {
+        await UntilJs(core,$"!!document.getElementById({JsonSerializer.Serialize(id)})","Click target exists");
+        await core.ExecuteScriptAsync($"document.getElementById({JsonSerializer.Serialize(id)}).scrollIntoView({{block:'center'}})");
+        await Task.Delay(150);
         var json=await core.ExecuteScriptAsync($"(()=>{{const r=document.getElementById({JsonSerializer.Serialize(id)}).getBoundingClientRect();return {{x:r.x+r.width/2,y:r.y+r.height/2}}}})()");
         using var point=JsonDocument.Parse(json);var x=point.RootElement.GetProperty("x").GetDouble();var y=point.RootElement.GetProperty("y").GetDouble();
         foreach(var type in new[]{"mousePressed","mouseReleased"})await core.CallDevToolsProtocolMethodAsync("Input.dispatchMouseEvent",JsonSerializer.Serialize(new{type,x,y,button="left",clickCount=1}));
