@@ -1164,11 +1164,13 @@ export function Publisher({
             className="button"
             disabled={busy}
             onClick={async () => {
+              // Dismiss the current choice now; a later Publish click must not
+              // be undone when this preview's asynchronous save finishes.
+              setChoosingFormat(false);
               try {
                 await flushMediaSaves();
                 if (!preview) await persist();
                 setPreview(!preview);
-                setChoosingFormat(false);
               } catch (e) {
                 setError((e as Error).message);
               }

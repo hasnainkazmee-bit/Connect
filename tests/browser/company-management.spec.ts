@@ -152,7 +152,9 @@ for (const size of [
         .getByRole("button", { name: "Preview", exact: true })
         .click();
       await expect(
-        dialog.getByRole("heading", { name: "How we built a better rooftop" }),
+        dialog
+          .locator(".publisher-preview")
+          .getByRole("heading", { name: "How we built a better rooftop" }),
       ).toBeVisible();
       await page.screenshot({
         path: "test-results/publishing-preview-" + size.name + ".png",
