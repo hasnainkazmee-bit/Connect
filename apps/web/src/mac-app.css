@@ -173,6 +173,10 @@ html.connect-mac {
   font-size: 13px;
   line-height: 1.35;
 }
+/* Keep the directory's primary action in the navigation capsule family. */
+.connect-mac .mac-app .discovery-search > .button.primary {
+  border-radius: var(--radius-control);
+}
 .connect-mac .feed-tabs [role="tablist"] {
   padding: 2px;
   gap: 2px;

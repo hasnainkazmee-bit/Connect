@@ -347,9 +347,12 @@ function App() {
             (!session.user || sessionExpired) &&
             (command.path.startsWith("/network") ||
               command.path === "/messages")
-          )
-            auth(() => navigate(command.path), command.path);
-          else navigate(command.path);
+          ) {
+            // Select the real destination before opening sign-in. Native
+            // sidebar state follows the URL, including cancellation and Back.
+            navigate(command.path);
+            auth(undefined, command.path);
+          } else navigate(command.path);
         } else if (command.type === "compose") {
           if (!session.user || sessionExpired)
             auth(() => setMacIntentAfterSignIn(command));

@@ -107,8 +107,17 @@ test("native guest actions keep the real authentication flow and strict route al
   await expect(page).toHaveURL(/\/directory$/);
   await command(page, { type: "navigate", path: "/messages" });
   await expect(page.getByRole("dialog").getByLabel("Work email")).toBeVisible();
-  await expect(page).toHaveURL(/\/directory$/);
+  await expect(page).toHaveURL(/\/messages$/);
+  await command(page, { type: "navigate", path: "/network" });
+  await expect(page).toHaveURL(/\/network$/);
+  await expect(page.getByRole("dialog").getByLabel("Work email")).toBeVisible();
   await page.getByRole("button", { name: "Close dialog", exact: true }).click();
+  await expect(page).toHaveURL(/\/network$/);
+  await expect(
+    page.getByRole("button", { name: "Sign in to continue", exact: true }),
+  ).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/messages$/);
   await command(page, { type: "account" });
   await expect(
     page.getByRole("dialog").getByLabel("Password", { exact: true }),
@@ -116,6 +125,7 @@ test("native guest actions keep the real authentication flow and strict route al
   await command(page, { type: "state" });
   const state = await page.evaluate(() => (window as any).macStates.at(-1));
   expect(state.signedIn).toBe(false);
+  expect(state.path).toBe("/messages");
   expect(state.canPublish).toBe(false);
   expect(Object.keys(state).sort()).toEqual(
     [

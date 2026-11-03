@@ -82,6 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(compose(_:)) { return browser?.canCreatePost ?? false }
         if menuItem.action == #selector(selectAppearance(_:)) {
             menuItem.state = menuItem.representedObject as? String == ConnectAppearance.selectedChoice.rawValue ? .on : .off
         }

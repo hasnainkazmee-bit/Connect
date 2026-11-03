@@ -170,13 +170,17 @@ private final class SmokeRunner: NSObject, NSApplicationDelegate {
             'loading';
             """)
         try await Task.sleep(for: .milliseconds(100))
-        main.compose(nil)
+        main.showNotifications(nil)
         try check(try await js(main.webView, "String(nativeCommands.length)") == "0", "early menu intent waits for session readiness")
         _ = try await js(main.webView, "window.webkit.messageHandlers.connectMac.postMessage({type:'state',ready:true,signedIn:false,canPublish:false}); 'ready'")
-        try await wait("queued guest compose reaches ready workspace") {
-            (try? await self.js(main.webView, "String(nativeCommands.length === 1 && nativeCommands[0].type === 'compose')")) == "true"
+        try await wait("queued guest notification intent reaches ready workspace") {
+            (try? await self.js(main.webView, "String(nativeCommands.length === 1 && nativeCommands[0].type === 'notifications')")) == "true"
         }
-        try check(compose.isEnabled, "guest New post is enabled so it can open sign-in")
+        try check(!compose.isEnabled && !main.canCreatePost, "guest New post remains disabled after loading")
+        if #available(macOS 26.0, *) {
+            try check(compose.style == .plain && compose.backgroundTintColor == nil,
+                      "guest Create has no prominent orange treatment")
+        }
         func toolbarButton(_ action: Selector) throws -> NSButton {
             guard let chrome = mainWindow.contentView?.superview,
                   let button = allButtons(chrome).first(where: { $0.action == action && ($0.target as? BrowserWindowController) === main }) else {
@@ -186,16 +190,16 @@ private final class SmokeRunner: NSObject, NSApplicationDelegate {
         }
         let composeButton = try toolbarButton(#selector(BrowserWindowController.compose(_:)))
         let notificationsButton = try toolbarButton(#selector(BrowserWindowController.showNotifications(_:)))
-        try check(composeButton.isEnabled && notificationsButton.isEnabled, "actual guest toolbar buttons are actionable")
+        try check(!composeButton.isEnabled && notificationsButton.isEnabled, "actual guest Create is disabled while Notifications remains actionable")
         composeButton.performClick(nil)
-        try await wait("guest Create click") {
-            (try? await self.js(main.webView, "String(nativeCommands.length === 2 && nativeCommands.at(-1).type === 'compose')")) == "true"
-        }
+        main.compose(nil)
+        try await Task.sleep(for: .milliseconds(100))
+        try check(try await js(main.webView, "String(nativeCommands.length)") == "1", "disabled Create and direct shortcut dispatch no compose intent")
         notificationsButton.performClick(nil)
         try await wait("guest Notifications click") {
             (try? await self.js(main.webView, "nativeCommands.at(-1)?.type")) == "notifications"
         }
-        try check(true, "real guest toolbar clicks reach sign-in intents")
+        try check(true, "guest Notifications reaches its sign-in intent")
         _ = try await js(main.webView, """
             window.webkit.messageHandlers.connectMac.postMessage({
               type:'state', ready:true, path:'/spoofed-route', signedIn:true, canPublish:true,
@@ -245,8 +249,8 @@ private final class SmokeRunner: NSObject, NSApplicationDelegate {
             return (try? await self.js(main.webView, "String(authPopup.closed)")) == "true"
         }
         _ = try await js(main.webView, "window.webkit.messageHandlers.connectMac.postMessage({type:'state',signedIn:false,canPublish:false,userName:'',companyName:'',unreadCount:0}); 'reset'")
-        try await wait("native account state reset") { compose.isEnabled && NSApp.dockTile.badgeLabel == nil }
-        try check(true, "signed-out state clears unread state and restores sign-in actions")
+        try await wait("native account state reset") { !compose.isEnabled && NSApp.dockTile.badgeLabel == nil }
+        try check(true, "sign-out disables Create again and clears unread state")
         // Return to an unbridged fixture document before the existing full-page
         // navigation, authentication, history, and beforeunload scenarios.
         main.loadInitialURL(connect.appendingPathComponent("/"))

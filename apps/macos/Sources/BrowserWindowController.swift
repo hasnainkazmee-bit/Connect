@@ -26,6 +26,9 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
     private var workspaceSignedIn = false
     private var workspaceCanPublish = false
     private var workspaceHasCompany = false
+    var canCreatePost: Bool {
+        workspaceReady && workspaceSignedIn && (workspaceCanPublish || (!workspaceHasCompany && canUseNetwork))
+    }
     private var pendingCommand: [String: String]?
     private var bridge: MacWorkspaceBridge?
     private let nativeSelects = NativeSelectCoordinator()
@@ -283,11 +286,11 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
     }
 
     private func updateWorkspaceActions() {
-        let canCreate = !workspaceSignedIn || workspaceCanPublish || (!workspaceHasCompany && canUseNetwork)
-        composeItem?.isEnabled = workspaceReady && canCreate
+        let canCreate = canCreatePost
+        composeItem?.isEnabled = canCreate
         notificationItem?.isEnabled = workspaceReady
         composeItem?.toolTip = !workspaceSignedIn
-            ? "Sign in to create a post (⌘N)"
+            ? "Sign in from the sidebar to create a post"
             : (canCreate ? "Create a post or press release (⌘N)" : "Publishing is managed by company owners and administrators")
         notificationItem?.toolTip = workspaceSignedIn ? "Notifications" : "Sign in to view notifications"
         if #available(macOS 26.0, *) {
@@ -326,7 +329,10 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
         window?.subtitle = ""
     }
 
-    @objc func compose(_ sender: Any?) { sendWorkspaceCommand(["type": "compose"]) }
+    @objc func compose(_ sender: Any?) {
+        guard canCreatePost else { return }
+        sendWorkspaceCommand(["type": "compose"])
+    }
     @objc func showNotifications(_ sender: Any?) { sendWorkspaceCommand(["type": "notifications"]) }
     @objc func toggleSidebar(_ sender: Any?) {
         guard !authentication, let sidebarItem else { return }
