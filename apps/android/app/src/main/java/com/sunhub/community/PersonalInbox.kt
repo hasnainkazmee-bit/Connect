@@ -164,6 +164,12 @@ internal fun PersonalChat(
             ?: threads
                 .find { it.getJSONObject("company").text("id") == company?.text("id") }
                 ?.text("id")
+    DisposableEffect(id, model.company?.text("id")) {
+        PushNotifications.activePersonal = id
+        PushNotifications.activeCompany = model.company?.text("id")
+        onDispose { PushNotifications.activePersonal = null; PushNotifications.activeCompany = null }
+    }
+    NotificationContextSeen(model, "personal_conversation", id, visible = !PushNotifications.obscured)
     val path = id?.let { "/personal-inbox/$it" }
     var text by rememberSaveable(company?.text("id"), threadId) { mutableStateOf("") }
     var clientId by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }

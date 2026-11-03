@@ -177,7 +177,7 @@ test("network groups active connections by business type and keeps requests sepa
 
   // A read notification must not hide a pending request from the bell.
   await page.getByLabel("Notifications", { exact: true }).click();
-  await page.getByRole("button", { name: "Mark read" }).click();
+  await page.getByRole("button", { name: "Mark all read" }).click();
   await page
     .getByRole("link", { name: "Connection requests 1", exact: true })
     .click();

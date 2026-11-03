@@ -32,7 +32,7 @@ cat > "$bundle/Contents/Info.plist" <<'PLIST'
 PLIST
 xcrun swiftc -sdk "$(xcrun --sdk macosx --show-sdk-path)" -target "$(uname -m)-apple-macosx13.0" \
   -D DEBUG -swift-version 6 -warnings-as-errors -module-cache-path "$test_dir/module-cache" \
-  -framework AppKit -framework WebKit -framework Foundation -framework UniformTypeIdentifiers \
+  -framework AppKit -framework WebKit -framework Foundation -framework UniformTypeIdentifiers -framework UserNotifications \
   "${sources[@]}" "$macos_dir/Tests/WebKitSmoke.swift" -o "$bundle/Contents/MacOS/WebKitSmoke"
 /usr/bin/codesign --force --sign - --timestamp=none "$bundle" >/dev/null
 printf 'Running native WebKit smoke test against %s and %s…\n' "$connect_origin" "$sso_origin"

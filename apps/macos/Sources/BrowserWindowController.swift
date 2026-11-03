@@ -32,6 +32,8 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
     private var pendingCommand: [String: String]?
     private var bridge: MacWorkspaceBridge?
     private let nativeSelects = NativeSelectCoordinator()
+    private var nativeNotifications: NativeNotificationCoordinator?
+    private var notificationPermissionBridge: MacNotificationPermissionBridge?
 #if DEBUG
     var activeNativeSelectMenu: NSMenu? { nativeSelects.activeMenu }
 #endif
@@ -44,7 +46,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
     private let findStatus = NSTextField(labelWithString: "")
     private var findHeight: NSLayoutConstraint!
 
-    init(policy: NavigationPolicy = NavigationPolicy(), configuration: WKWebViewConfiguration? = nil, authentication: Bool = false) {
+    init(policy: NavigationPolicy = NavigationPolicy(), configuration: WKWebViewConfiguration? = nil, authentication: Bool = false, notificationDelivery: NativeNotificationDelivering? = nil) {
         self.policy = policy
         self.authentication = authentication
         // A popup MUST retain WebKit's supplied configuration to preserve opener,
@@ -53,7 +55,8 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
         if configuration == nil {
             settings.websiteDataStore = .default()
             settings.preferences.javaScriptCanOpenWindowsAutomatically = false
-            settings.applicationNameForUserAgent = "ConnectMac/0.1"
+            let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1"
+            settings.applicationNameForUserAgent = "ConnectMac/\(version)"
         }
         webView = WKWebView(frame: .zero, configuration: settings)
         webView.allowsBackForwardNavigationGestures = true
@@ -81,6 +84,25 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
             let bridge = MacWorkspaceBridge(owner: self)
             self.bridge = bridge
             settings.userContentController.add(bridge, name: "connectMac")
+            let notifications = NativeNotificationCoordinator(delivery: notificationDelivery ?? SystemNotificationDelivery())
+            nativeNotifications = notifications
+            notifications.onEvent = { [weak self] payload in self?.sendNotificationEvent(payload) }
+            notifications.onActivate = { [weak self] in
+                self?.window?.makeKeyAndOrderFront(nil)
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            let permissionBridge = MacNotificationPermissionBridge(owner: self)
+            notificationPermissionBridge = permissionBridge
+            let permissionWorld = WKContentWorld.world(name: "ConnectNotificationPermission")
+            settings.userContentController.add(permissionBridge, contentWorld: permissionWorld, name: "connectNotificationPermission")
+            settings.userContentController.addUserScript(WKUserScript(
+                source: NativeNotificationCoordinator.permissionScript,
+                injectionTime: .atDocumentStart, forMainFrameOnly: true, in: permissionWorld
+            ))
+            settings.userContentController.addUserScript(WKUserScript(
+                source: NativeNotificationCoordinator.capabilityScript,
+                injectionTime: .atDocumentStart, forMainFrameOnly: true
+            ))
             settings.userContentController.addUserScript(WKUserScript(
                 source: NativeSelectCoordinator.capabilityScript,
                 injectionTime: .atDocumentStart, forMainFrameOnly: true
@@ -362,6 +384,10 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
               let source = message.frameInfo.request.url, ["http", "https"].contains(source.scheme ?? ""),
               policy.classify(source, inAuthenticationWindow: false) == .internalNavigation,
               let state = message.body as? [String: Any] else { return }
+        if (state["type"] as? String)?.hasPrefix("notification") == true {
+            nativeNotifications?.receive(state)
+            return
+        }
         if ["select", "selectCancel"].contains(state["type"] as? String ?? "") {
             nativeSelects.receive(state, from: webView)
             return
@@ -373,6 +399,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
         // report session readiness so startup commands cannot disappear.
         workspaceReady = state["ready"] as? Bool ?? true
         let signedIn = state["signedIn"] as? Bool == true
+        if !signedIn { nativeNotifications?.setOwner(nil) }
         let canPublish = signedIn && state["canPublish"] as? Bool == true
         workspaceSignedIn = signedIn
         workspaceCanPublish = canPublish
@@ -388,6 +415,23 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
         NSApp.dockTile.badgeLabel = unread > 0 ? String(unread) : nil
         if workspaceReady, let pending = pendingCommand { pendingCommand = nil; sendWorkspaceCommand(pending) }
     }
+    private func sendNotificationEvent(_ payload: [String: Any]) {
+        guard !authentication, let url = webView.url, ["http", "https"].contains(url.scheme ?? ""),
+              policy.classify(url, inAuthenticationWindow: false) == .internalNavigation,
+              let data = try? JSONSerialization.data(withJSONObject: payload),
+              let json = String(data: data, encoding: .utf8) else { return }
+        webView.evaluateJavaScript("window.dispatchEvent(new CustomEvent('connect:mac-notifications', { detail: \(json) }))", completionHandler: nil)
+    }
+
+    fileprivate func receiveNotificationPermission(_ message: WKScriptMessage) {
+        guard !authentication, message.webView === webView, message.frameInfo.isMainFrame,
+              let source = message.frameInfo.request.url, ["http", "https"].contains(source.scheme ?? ""),
+              policy.classify(source, inAuthenticationWindow: false) == .internalNavigation,
+              let value = message.body as? [String: Any], let id = value["requestId"] as? String else { return }
+        let permitted = value["permitted"] as? Bool == true
+        Task { await nativeNotifications?.requestPermission(id: id, trustedGesture: permitted) }
+    }
+
     @objc func goBack(_ sender: Any?) {
         guard webView.canGoBack else { return }
         webView.goBack()
@@ -505,7 +549,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
     }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-        if !authentication { nativeSelects.cancel(); workspaceReady = false; updateWorkspaceActions() }
+        if !authentication { nativeSelects.cancel(); nativeNotifications?.setOwner(nil); workspaceReady = false; updateWorkspaceActions() }
     }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { recovery.isHidden = true; recordLocation() }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { navigationFailed(error) }
@@ -518,6 +562,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, WKNav
     }
     private func showRecovery(processEnded: Bool = false) {
         nativeSelects.cancel()
+        nativeNotifications?.setOwner(nil)
         workspaceReady = false
         updateWorkspaceActions()
         recoveryTitle.stringValue = processEnded ? "Let’s reopen Connect" : "Connect is taking a moment"
@@ -620,5 +665,14 @@ private final class MacWorkspaceBridge: NSObject, WKScriptMessageHandler {
     init(owner: BrowserWindowController) { self.owner = owner }
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         owner?.receiveWorkspaceState(message)
+    }
+}
+
+@MainActor
+private final class MacNotificationPermissionBridge: NSObject, WKScriptMessageHandler {
+    weak var owner: BrowserWindowController?
+    init(owner: BrowserWindowController) { self.owner = owner }
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        owner?.receiveNotificationPermission(message)
     }
 }

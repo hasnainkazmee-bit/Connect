@@ -292,11 +292,17 @@
   outline: none;
   color: var(--ink);
   font-size: 16px;
-  line-height: 1.8;
+  line-height: 1.6;
   overflow-wrap: anywhere;
 }
 .story-editor > :first-child {
   margin-top: 0 !important;
+}
+.story-editor p {
+  margin: 0 0 0.6em;
+}
+.story-editor p:last-child {
+  margin-bottom: 0;
 }
 .story-editor p.is-editor-empty:first-child:before {
   color: var(--muted);
@@ -614,7 +620,7 @@
 .publisher-onebox .story-editor {
   min-height: 300px;
   font-size: 17px;
-  line-height: 1.75;
+  line-height: 1.6;
 }
 .publisher-onebox[data-publication-kind="post"] .story-editor {
   min-height: 3.5em;
@@ -866,4 +872,29 @@
 .publisher-preview > .post-media .photo-track {
   aspect-ratio: 1;
   max-height: none;
+}
+
+/* The first writing surface is available before the rich-editor chunk arrives. */
+.publisher-instant-input {
+  display: block;
+  width: 100%;
+  min-height: 96px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  resize: vertical;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.6;
+}
+.publisher .publisher-instant-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.publisher-starting .publisher-bottom {
+  color: var(--muted);
+  font-size: 13px;
+  gap: 12px;
 }

@@ -76,7 +76,7 @@ for arch in "${architectures[@]}"; do
     -module-cache-path "$arch_dir/module-cache" \
     -swift-version 6 -warnings-as-errors -O -whole-module-optimization \
     -framework AppKit -framework WebKit -framework Foundation \
-    -framework UniformTypeIdentifiers \
+    -framework UniformTypeIdentifiers -framework UserNotifications \
     "${sources[@]}" -o "$arch_dir/Connect"
   build_metadata="$(xcrun vtool -show-build "$arch_dir/Connect")"
   embedded_sdk="$(/usr/bin/awk '$1 == "sdk" {print $2; exit}' <<< "$build_metadata")"

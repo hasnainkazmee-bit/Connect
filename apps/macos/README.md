@@ -2,7 +2,7 @@
 
 Connect for macOS has a Swift/AppKit shell with a native sidebar, title bar, menus, and workspace controls around live Connect content from `https://connect.sunhubapp.com`. The shared feed, profiles, messages, and publishing workflows remain in WebKit. The unified native title bar aligns its traffic lights and sidebar toggle with the left pane, places Back above the content pane, and keeps notification and compose icons on the right. Both panes begin below the toolbar, so the sidebar logo and controls remain clear of the window buttons. The selected sidebar row supplies workspace context; the duplicate window title is visually hidden and there is no marketing subtitle. The underlying window title still tracks the route for the Window menu and accessibility. Content and workflow improvements arrive through the shared web app; changes to the native host require a new app build. An internet connection is required.
 
-Version 0.1.4 (build 5) supports macOS 13 or later. The default universal build runs on Apple silicon and Intel Macs. It uses the existing Connect artwork without cropping or stretching it. The logo remains transparent in both appearances; dark mode lightens only its neutral lettering, preserving the orange symbol and original asset without a white badge behind it.
+Version 0.1.5 (build 6) supports macOS 13 or later. The default universal build runs on Apple silicon and Intel Macs. It uses the existing Connect artwork without cropping or stretching it. The logo remains transparent in both appearances; dark mode lightens only its neutral lettering, preserving the orange symbol and original asset without a white badge behind it.
 
 ## Using the app
 
@@ -29,7 +29,11 @@ Closing the main window hides it while keeping the process and current drafts al
 | ⌘+ / ⌘− / ⌘0 | Zoom in / out / actual size |
 | ⌘W / ⌘Q | Close window / quit the app |
 
-This version does not provide native push notifications, offline operation, or an automatic native binary updater. Interface improvements arrive through the live web app; native host upgrades still require a new app build.
+Enable **Notifications on this Mac** in Connect’s notification settings to receive native alerts for new messages, company activity, and announced app updates. macOS asks for notification permission only after that explicit choice. Alerts continue while Connect is running with its window minimized or closed; clicking an alert reopens the relevant conversation, post, or account page through the usual company-access and unsaved-work checks. Signing out or switching accounts clears old alerts. Confirmed reads remove matching system alerts and prevent late delivery from reopening them. Category and preview preferences stay in the shared account settings.
+
+These are local macOS alerts fed by the live authenticated inbox, not APNs delivery. **Quit Connect stops notifications.** The current ad-hoc distribution has no APNs entitlement or remote background wake capability. Notification availability also depends on macOS permission and distribution/signing restrictions; failures remain visible in settings and the in-app inbox still works. Tests use a fake notification center and do not prompt for OS permission or establish real system delivery on an installed build.
+
+Offline operation and automatic native binary installation are not provided. Interface improvements arrive through the live web app; native host upgrades still require a new app build.
 
 ## Build with Command Line Tools
 
@@ -53,9 +57,9 @@ The scripts use `swiftc`, `lipo`, `vtool`, `sips`, `iconutil`, `codesign`, `ditt
 Outputs are ignored by Git:
 
 - `apps/macos/artifacts/Connect.app`
-- `apps/macos/artifacts/Connect-0.1.4-macos-universal.pkg`
-- `apps/macos/artifacts/Connect-0.1.4-macos-universal.dmg`
-- `apps/macos/artifacts/Connect-0.1.4-macos-universal.zip`
+- `apps/macos/artifacts/Connect-0.1.5-macos-universal.pkg`
+- `apps/macos/artifacts/Connect-0.1.5-macos-universal.dmg`
+- `apps/macos/artifacts/Connect-0.1.5-macos-universal.zip`
 
 For a single architecture, use `--arch arm64` or `--arch x86_64` on either script. The archive filename reflects the actual binary architectures. A failed cross-compile stops the universal build rather than delivering an incomplete universal app. `--skip-build` packages the existing signed app and derives its architecture from that binary.
 
@@ -65,7 +69,7 @@ The bundle identifier is `com.sunhub.connect.macos`. Its version and minimum mac
 
 ## Install with macOS Installer
 
-Open **Connect-0.1.4-macos-universal.pkg**. Apple's Installer presents the Connect introduction, installation details, standard Install step, and completion screen. It installs **/Applications/Connect.app**; macOS may request authorization for that location. Open Connect from Applications or Spotlight after installation. The build scripts never install or launch the app themselves.
+Open **Connect-0.1.5-macos-universal.pkg**. Apple's Installer presents the Connect introduction, installation details, standard Install step, and completion screen. It installs **/Applications/Connect.app**; macOS may request authorization for that location. Open Connect from Applications or Spotlight after installation. The build scripts never install or launch the app themselves.
 
 Save your work and **Quit Connect (⌘Q)** before upgrading. Closing its window keeps the app running. Installer checks for a running Connect and asks you to close it before proceeding. An upgrade replaces only the existing application bundle at `/Applications/Connect.app`; user data, preferences, and sessions remain in their existing locations. The bundle identifier remains `com.sunhub.connect.macos`, and the stable package receipt identifier is `com.sunhub.connect.macos.pkg`.
 
@@ -103,15 +107,15 @@ This opt-in command requires Apple's `notarytool` and `stapler`, rejects ad-hoc 
 
 The native host runs with App Sandbox and hardened runtime. Its entitlements allow outgoing network connections and files explicitly chosen through system open/save dialogs. It has no broad filesystem, camera, microphone, printing, inbound server, or JIT entitlement. WebKit manages web content in its own processes. There is no global App Transport Security exception.
 
-The native host must keep its URL allowlist and external-link handling in place when adding features. The web layout adapter requires both the ConnectMac user agent and the native message handler, and it stays inactive in windows with an opener. Its bridge passes UI display state and bounded menu selections, never authentication tokens. Native menus require the current trusted main-frame document and do not change account permissions. Credentials remain in the existing Connect/Sunhub authentication flow; packaging adds no embedded credentials or API secrets.
+The native host must keep its URL allowlist and external-link handling in place when adding features. The web layout adapter requires both the ConnectMac user agent and the native message handler, and it stays inactive in windows with an opener. Its bridge passes UI display state, bounded menu selections, and bounded notification display data, never authentication tokens. Notification messages require the exact trusted main-frame origin; the notification permission channel lives in an isolated WebKit content world and consumes a recent trusted click or keyboard gesture. Notification routes are allowlisted and account-bound before display and again on tap. Native notification permission does not grant account access. Native menus require the current trusted main-frame document and do not change account permissions. Credentials remain in the existing Connect/Sunhub authentication flow; packaging adds no embedded credentials or API secrets.
 
 ## Verify a package
 
 ```sh
 xcrun lipo -archs apps/macos/artifacts/Connect.app/Contents/MacOS/Connect
 codesign --verify --strict --verbose=2 apps/macos/artifacts/Connect.app
-hdiutil verify apps/macos/artifacts/Connect-0.1.4-macos-universal.dmg
-./apps/macos/test-package.sh apps/macos/artifacts/Connect-0.1.4-macos-universal.pkg
+hdiutil verify apps/macos/artifacts/Connect-0.1.5-macos-universal.dmg
+./apps/macos/test-package.sh apps/macos/artifacts/Connect-0.1.5-macos-universal.pkg
 ```
 
 An ad-hoc build is expected to fail Gatekeeper's public-distribution assessment. For a Developer ID build intended for distribution, additionally verify its notarization ticket and Gatekeeper assessment before sharing it.
@@ -127,4 +131,4 @@ The macOS CI workflow uses GitHub's standard `macos-26` runner and reports the s
 ./apps/macos/test-webkit.sh
 ```
 
-The policy suite checks trusted origins, callback routes, external links, and safe restoration in debug and release configurations. The WebKit suite uses local fixtures to exercise the native host and popup lifecycle. Its scripted popup checks enable automatic JavaScript windows **only in the test fixture**; production keeps that preference disabled. Passing those checks does not establish that the real production sign-in gesture has been exercised. A release should also receive a manual sign-in and file-transfer check in the packaged app.
+The policy suite checks trusted origins, callback routes, external links, and safe restoration in debug and release configurations. Its notification tests use fake delivery to cover permission gating, route validation, account switches, deduplication, logout races, and safe taps without requesting operating-system permission. The WebKit suite uses local fixtures to exercise the native host and popup lifecycle. Its scripted popup checks enable automatic JavaScript windows **only in the test fixture**; production keeps that preference disabled. Passing those checks does not establish that the real production sign-in gesture has been exercised. A release should also receive a manual sign-in and file-transfer check in the packaged app.

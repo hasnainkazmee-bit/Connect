@@ -8,9 +8,22 @@ private struct SmokeFailure: Error, CustomStringConvertible {
 }
 
 @MainActor
+private final class SmokeNotificationDelivery: NativeNotificationDelivering {
+    var onOpen: ((NativeNotification) -> Void)?
+    var shouldPresent: ((NativeNotification) -> Bool)?
+    var requests = 0
+    func permission() async -> String { "default" }
+    func requestPermission() async throws -> Bool { requests += 1; return false }
+    func show(_ notice: NativeNotification) async throws {}
+    func clear() {}
+    func remove(_ id: String) {}
+}
+
+@MainActor
 private final class SmokeRunner: NSObject, NSApplicationDelegate {
     private var controllers: [BrowserWindowController] = []
     private var checks = 0
+    private let notificationDelivery = SmokeNotificationDelivery()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Task { @MainActor in
@@ -64,7 +77,7 @@ private final class SmokeRunner: NSObject, NSApplicationDelegate {
         configuration.websiteDataStore = .default()
         // Only this local fixture bypasses gesture gating. Production leaves it false.
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = automaticPopups
-        let controller = BrowserWindowController(policy: policy, configuration: configuration)
+        let controller = BrowserWindowController(policy: policy, configuration: configuration, notificationDelivery: notificationDelivery)
         controllers.append(controller)
         controller.showWindow(nil)
         return controller
@@ -113,6 +126,28 @@ private final class SmokeRunner: NSObject, NSApplicationDelegate {
             return
         }
 
+        try check(try await js(main.webView, "String(window.__CONNECT_DESKTOP_NOTIFICATIONS__)") == "true", "main frame advertises native notifications")
+        try check(try await js(main.webView, "typeof window.webkit.messageHandlers.connectNotificationPermission") == "undefined", "page world cannot access isolated permission handler")
+        let notificationRequest = UUID().uuidString.lowercased()
+        _ = try await js(main.webView, """
+            window.notificationEvents = [];
+            window.addEventListener('connect:mac-notifications', event => notificationEvents.push(event.detail));
+            window.webkit.messageHandlers.connectMac.postMessage({type:'notificationOwner',userId:'\(notificationRequest)'});
+            window.dispatchEvent(new CustomEvent('connect:native-notification-permission',{detail:{requestId:'\(notificationRequest)'}}));
+            'sent';
+            """)
+        try await wait("isolated permission rejects synthetic event") {
+            (try? await self.js(main.webView, "String(notificationEvents.some(item=>item.requestId==='\(notificationRequest)' && item.error))")) == "true"
+        }
+        try check(notificationDelivery.requests == 0, "synthetic permission event never prompts macOS")
+        _ = try await js(main.webView, """
+            window.webkit.messageHandlers.connectMac.postMessage({type:'notificationPermission',requestId:'\(notificationRequest)',permitted:true});
+            document.body.click();
+            window.dispatchEvent(new CustomEvent('connect:native-notification-permission',{detail:{requestId:'\(notificationRequest)'}}));
+            'forged';
+            """)
+        try await Task.sleep(for: .milliseconds(150))
+        try check(notificationDelivery.requests == 0, "forged page message and synthetic click cannot acquire permission")
         guard let mainWindow = main.window else { throw SmokeFailure("Main window is missing") }
         let previousAppearance = ConnectAppearance.selectedChoice
         ConnectAppearance.setChoice(.light)
@@ -235,6 +270,7 @@ private final class SmokeRunner: NSObject, NSApplicationDelegate {
         _ = try await js(untrustedSender.webView, "location.href='\(connect.appendingPathComponent("next").absoluteString)'; 'navigating'")
         try await pageReady(untrustedSender, path: "/next")
         try check(try await js(untrustedSender.webView, "typeof window.webkit?.messageHandlers?.connectMac?.postMessage") == "function", "popup inherits the WebKit message controller for the isolation test")
+        try check(try await js(untrustedSender.webView, "String(window.__CONNECT_DESKTOP_NOTIFICATIONS__ === true)") == "false", "authentication popup does not advertise desktop notifications")
         _ = try await js(untrustedSender.webView, "window.webkit.messageHandlers.connectMac.postMessage({type:'state',signedIn:false,canPublish:false,userName:'Popup override',companyName:'',unreadCount:0}); 'sent'")
         for _ in 0..<5 {
             try await Task.sleep(for: .milliseconds(80))

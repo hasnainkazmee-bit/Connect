@@ -1,3 +1,4 @@
+import { AccountUpdates, NotificationPreferences } from "./notifications";
 import { useEffect, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -135,6 +136,13 @@ export function AuthExperience({
   );
   const task = useAction();
   const sunhubEnabled = useSunhubAuth();
+  useEffect(() => {
+    const id = location.hash.slice(1);
+    if (id === "notifications" || id === "updates")
+      requestAnimationFrame(() =>
+        document.getElementById(id)?.scrollIntoView({ block: "start" }),
+      );
+  }, [location.hash]);
   const [sunhubError, setSunhubError] = useState(
     sunhubErrorCode ? sunhubAuthError(sunhubErrorCode) : "",
   );
@@ -734,6 +742,13 @@ export function AccountSecurity() {
   const location = useLocation(),
     navigate = useNavigate();
   const sunhubEnabled = useSunhubAuth();
+  useEffect(() => {
+    const id = location.hash.slice(1);
+    if (id === "notifications" || id === "updates")
+      requestAnimationFrame(() =>
+        document.getElementById(id)?.scrollIntoView({ block: "start" }),
+      );
+  }, [location.hash]);
   const [sunhubError, setSunhubError] = useState(() => {
     const code = new URLSearchParams(location.search).get("sso_error");
     return code ? sunhubAuthError(code) : "";
@@ -935,6 +950,8 @@ export function AccountSecurity() {
             Sign out other devices
           </button>
         </section>
+        <NotificationPreferences />
+        <AccountUpdates />
       </div>
     </div>
   );

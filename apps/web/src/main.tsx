@@ -72,6 +72,19 @@ import {
   SocialStats,
 } from "./social";
 import { WebUpdateNotice } from "./app-updates";
+import { useDesktopNotifications } from "./desktop-notifications";
+import {
+  NotificationContext,
+  NotificationContents,
+  useNotificationInbox,
+  useNotificationReadContext,
+} from "./notifications";
+import {
+  disconnectWebPush,
+  notificationDestination,
+  useNotificationConversation,
+  useWebPushLifecycle,
+} from "./web-push";
 import { useMobileNavigation } from "./mobile-navigation";
 import {
   InboxChannels,
@@ -84,7 +97,7 @@ import { ClaimCompanyPage } from "./claim-company";
 import { CompanyMatches } from "./company-matches";
 import { CompanyProfileView } from "./company-profile";
 import { CompanySettings, EmployeeInvite } from "./management";
-import { Publisher, DraftsDialog } from "./composer";
+import { Publisher, DraftsDialog, preloadPublisher } from "./composer";
 import {
   DesktopPanel,
   useDesktopApp,
@@ -236,6 +249,10 @@ function App() {
         if (!cancelled && !current.user) {
           setSessionExpired(true);
           setReauthenticate(true);
+        } else if (!cancelled && current.user?.id !== session.user?.id) {
+          setSession(current);
+          setModal(null);
+          refresh();
         }
       } catch {
         // An unavailable network is not evidence that the user has signed out.
@@ -323,7 +340,119 @@ function App() {
   const unread =
       network.connections.reduce((a, c) => a + c.unread, 0) +
       network.incoming.filter((r) => r.kind === "message").length,
-    notifications = network.notifications.filter((n) => !n.read_at);
+    notificationInbox = useNotificationInbox(
+      sessionExpired ? null : session.user?.id || null,
+      revision,
+    );
+  const notificationUser = useRef(session.user?.id);
+  notificationUser.current = session.user?.id;
+  const notificationNavigation = useRef(0);
+  function openNotification(url: string, contextCompany?: string | null) {
+    const destination = notificationDestination(url, contextCompany);
+    if (!destination) return;
+    const returnUrl = new URL(url, window.location.origin);
+    if (destination.companyId)
+      returnUrl.searchParams.set("notificationCompany", destination.companyId);
+    if (!session.user || sessionExpired) {
+      auth(undefined, returnUrl.pathname + returnUrl.search);
+      return;
+    }
+    const owner = session.user.id,
+      attempt = ++notificationNavigation.current;
+    const perform = async () => {
+      try {
+        if (destination.companyId && destination.companyId !== company?.id) {
+          const next = await post<Session>("/session/company", {
+            companyId: destination.companyId,
+          });
+          if (next.user?.id !== owner) {
+            setSession(next);
+            return;
+          }
+          if (
+            notificationUser.current !== owner ||
+            attempt !== notificationNavigation.current
+          )
+            return;
+          setSession(next);
+          refresh();
+        }
+        if (
+          notificationUser.current === owner &&
+          attempt === notificationNavigation.current
+        ) {
+          const notificationId = returnUrl.searchParams.get("notification");
+          if (notificationId && /^[a-f0-9-]{36}$/i.test(notificationId))
+            void notificationInbox.markRead([notificationId]);
+          navigate(destination.path, {
+            replace: !!new URLSearchParams(location.search).get(
+              "notificationCompany",
+            ),
+          });
+        }
+      } catch (error) {
+        if (notificationUser.current !== owner) return;
+        setNotice((error as Error).message);
+        navigate("/account#notifications", { replace: true });
+      }
+    };
+    if (!modal) {
+      void perform();
+      return;
+    }
+    const finish = () => {
+      setModal(null);
+      void perform();
+    };
+    const event = new CustomEvent("connect:modal-close", {
+      cancelable: true,
+      detail: { close: finish },
+    });
+    if (window.dispatchEvent(event)) finish();
+  }
+  useWebPushLifecycle(
+    sessionExpired ? null : session.user?.id || null,
+    company?.id || null,
+    ready,
+    refresh,
+    openNotification,
+  );
+  useDesktopNotifications(
+    ready,
+    sessionExpired ? null : session.user?.id || null,
+    company?.id || null,
+    notificationInbox.items,
+    notificationInbox.loadedUser,
+    openNotification,
+  );
+  useEffect(() => {
+    if (!ready || !session.user || sessionExpired) return;
+    const query = new URLSearchParams(location.search);
+    if (
+      query.has("notificationCompany") ||
+      query.has("conversation") ||
+      query.has("personal") ||
+      query.has("company") ||
+      query.has("notification") ||
+      location.pathname === "/account/updates"
+    )
+      openNotification(location.pathname + location.search);
+  }, [
+    ready,
+    session.user?.id,
+    sessionExpired,
+    location.pathname,
+    location.search,
+  ]);
+  useEffect(() => {
+    if (!ready || !session.user || session.user.account_type === "individual")
+      return;
+    const timer = setTimeout(
+      () => void preloadPublisher().catch(() => {}),
+      250,
+    );
+    return () => clearTimeout(timer);
+  }, [ready, session.user?.id, session.user?.account_type]);
   const desktopHost = useDesktopApp(
     {
       ready,
@@ -333,7 +462,7 @@ function App() {
       userName: session.user?.name || "",
       companyName: company?.name || "",
       canPublish: !!company && admin && !sessionExpired && !incompleteAccount,
-      unreadCount: unread + notifications.length,
+      unreadCount: notificationInbox.unread,
     },
     (command: DesktopCommand) => {
       if (!ready) return;
@@ -383,14 +512,10 @@ function App() {
           else
             setModal(
               <DesktopPanel title="Notifications">
-                {company ? (
-                  <NotificationContents
-                    heading={false}
-                    closeMenu={() => setModal(null)}
-                  />
-                ) : (
-                  <p className="muted">You’re all caught up.</p>
-                )}
+                <NotificationContents
+                  heading={false}
+                  closeMenu={() => setModal(null)}
+                />
               </DesktopPanel>,
             );
         } else if (command.type === "profile") {
@@ -447,7 +572,7 @@ function App() {
     modal,
   ]);
   if (!ready) return <Loading />;
-  return (
+  const workspace = (
     <AppContext.Provider
       value={{
         session,
@@ -537,18 +662,18 @@ function App() {
                 <MessageSquare size={15} />
                 Messages{unread > 0 && <b className="count">{unread}</b>}
               </NavLink>
-              {company && (
+              {session.user && (
                 <>
                   {" "}
                   <span className="nav-divider" />{" "}
                   <details className="notifications">
                     <summary aria-label="Notifications" className="icon-button">
                       <Bell size={17} />
-                      {notifications.length > 0 && (
+                      {notificationInbox.unread > 0 && (
                         <b className="notification-count">
-                          {notifications.length > 9
+                          {notificationInbox.unread > 9
                             ? "9+"
-                            : notifications.length}
+                            : notificationInbox.unread}
                         </b>
                       )}
                     </summary>
@@ -704,6 +829,10 @@ function App() {
             }
           />
           <Route path="/account" element={<AccountSecurity />} />
+          <Route
+            path="/account/updates"
+            element={<Navigate to="/account#updates" replace />}
+          />
           <Route path="/join/:username" element={<JoinCompanyPage />} />
           <Route path="/invite/:token" element={<InvitePage />} />
           <Route path="/:username" element={<CompanyProfile />} />
@@ -813,6 +942,13 @@ function App() {
       )}
     </AppContext.Provider>
   );
+  return (
+    <NotificationContext.Provider
+      value={{ ...notificationInbox, openNotification }}
+    >
+      {workspace}
+    </NotificationContext.Provider>
+  );
 }
 
 function AccountMenuContents({
@@ -868,6 +1004,7 @@ function AccountMenuContents({
       )}
       <button
         onClick={async () => {
+          await disconnectWebPush().catch(() => {});
           await post("/auth/logout");
           setSession({
             user: null,
@@ -886,74 +1023,6 @@ function AccountMenuContents({
           <FileText />
           Your drafts
         </button>
-      )}
-    </>
-  );
-}
-function NotificationContents({
-  closeMenu,
-  heading = true,
-}: {
-  closeMenu?: () => void;
-  heading?: boolean;
-}) {
-  const { network, refresh } = useApp();
-  return (
-    <>
-      <div className="between">
-        {heading && <strong>Notifications</strong>}
-        <button
-          className="text-button"
-          onClick={async () => {
-            await post("/notifications/read");
-            refresh();
-          }}
-        >
-          Mark read
-        </button>
-      </div>
-      <Link
-        className="requests-notification-link"
-        to="/requests"
-        onClick={(e) => {
-          e.currentTarget.closest("details")?.removeAttribute("open");
-          closeMenu?.();
-        }}
-      >
-        <UserPlus size={17} />
-        <span>Connection requests</span>
-        {network.incoming.length > 0 && (
-          <b className="count">{network.incoming.length}</b>
-        )}
-        <ChevronRight size={15} />
-      </Link>
-      {network.notifications.length ? (
-        network.notifications.slice(0, 8).map((n) => (
-          <Link
-            key={n.id}
-            to={
-              n.type === "request"
-                ? "/requests"
-                : n.type === "message_request"
-                  ? "/messages/company/" + n.related_company_id
-                  : n.type === "message"
-                    ? "/messages"
-                    : "/company/" + n.related_company_id
-            }
-            onClick={(e) => {
-              e.currentTarget.closest("details")?.removeAttribute("open");
-              closeMenu?.();
-            }}
-          >
-            <span className={!n.read_at ? "unread-dot" : ""} />
-            <span>
-              {n.text}
-              <small>{date(n.created_at)}</small>
-            </span>
-          </Link>
-        ))
-      ) : (
-        <p className="muted">You’re all caught up.</p>
       )}
     </>
   );
@@ -2642,12 +2711,14 @@ function MessageRequestConversation({
   );
 }
 function Conversation({ connection: c }: { connection: Connection }) {
+  useNotificationConversation("/messages/" + c.id);
   const { company, session, refresh } = useApp();
   const { data, error, setData } = useResource<{
     messages: Message[];
     hasMore: boolean;
     peerReadSequence?: string;
   }>("/conversations/" + c.id + "/messages");
+  useNotificationReadContext("company_conversation", data ? c.id : null);
   const [draft, setDraft] = useState(
       () => sessionStorage.getItem("draft:" + company!.id + ":" + c.id) || "",
     ),

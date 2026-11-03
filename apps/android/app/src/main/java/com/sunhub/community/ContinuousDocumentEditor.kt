@@ -505,7 +505,7 @@ internal class DocumentEditText(
                 InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
         setSingleLine(false)
         setHorizontallyScrolling(false)
-        setLineSpacing(8f, 1.12f)
+        setLineSpacing(0f, 1.15f)
         minLines = 9
         isVerticalScrollBarEnabled = false
         load(state.document())

@@ -16,3 +16,4 @@ apps/windows
 .env.*
 !.env.example
 .backups
+.secrets

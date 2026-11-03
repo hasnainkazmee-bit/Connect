@@ -52,6 +52,10 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:?Set a verified sender address}
+      WEB_PUSH_PUBLIC_KEY: ${WEB_PUSH_PUBLIC_KEY:-}
+      WEB_PUSH_PRIVATE_KEY: ${WEB_PUSH_PRIVATE_KEY:-}
+      WEB_PUSH_SUBJECT: ${WEB_PUSH_SUBJECT:-https://connect.sunhubapp.com}
+      FIREBASE_SERVICE_ACCOUNT_FILE: ${FIREBASE_SERVICE_ACCOUNT_FILE:-}
       STORAGE_BACKEND: s3
       S3_ENDPOINT: http://storage:3900
       S3_REGION: garage
@@ -60,7 +64,12 @@ services:
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
       COMPANY_STORAGE_LIMIT_BYTES: ${COMPANY_STORAGE_LIMIT_BYTES:-5368709120}
     ports: [127.0.0.1:14100:4100]
-    volumes: [attachments:/app/uploads]
+    volumes:
+      - attachments:/app/uploads
+      - type: bind
+        source: ${CONNECT_PUSH_SECRETS_DIR:-./.secrets/push}
+        target: /run/secrets/connect-push
+        read_only: true
     depends_on:
       db: {condition: service_healthy}
       storage: {condition: service_started}

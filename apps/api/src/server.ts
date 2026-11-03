@@ -7,6 +7,14 @@ import {
 import { publicPages } from "./public-pages.js";
 import { employeeInvitationRoutes } from "./employee-invitations.js";
 import { androidRelease } from "./mobile-release.js";
+import {
+  notificationRoutes,
+  flushPush,
+  pruneNotifications,
+  closeNotificationStreams,
+  recordNotificationRelease,
+  pushConfiguration,
+} from "./notifications.js";
 import express from "express";
 import { socialRoutes } from "./social.js";
 import { profileRoutes, profileExtras, ensureUsername } from "./profiles.js";
@@ -595,13 +603,7 @@ app.get("/api/messaging/companies", requireCompany, async (req, res) => {
   );
   res.json({ ...rows[0], page, pageSize: 24 });
 });
-app.post("/api/notifications/read", requireCompany, async (req, res) => {
-  await pool.query(
-    "UPDATE notifications SET read_at=now() WHERE company_id=$1 AND read_at IS NULL",
-    [req.auth!.companyId],
-  );
-  res.json({ ok: true });
-});
+app.use("/api", notificationRoutes());
 app.get("/api/conversations/:id/messages", requireCompany, async (req, res) => {
   const id = idSchema.parse(req.params.id),
     actor = req.auth!.companyId!,
@@ -1052,7 +1054,33 @@ const mailTimer = setInterval(() => {
   void cleanStorage().catch(() => {});
 }, 5000);
 mailTimer.unref();
+let deliveringPush = false;
+const pushTimer = setInterval(() => {
+  if (
+    process.env.NODE_ENV === "test" &&
+    process.env.PUSH_WORKER_DISABLED === "true"
+  )
+    return;
+  if (deliveringPush) return;
+  deliveringPush = true;
+  void flushPush()
+    .catch(() => console.error("Push delivery cycle failed."))
+    .finally(() => {
+      deliveringPush = false;
+    });
+}, 5000);
+pushTimer.unref();
+void pushConfiguration().catch(() =>
+  console.error("Unable to check push provider configuration."),
+);
+void recordNotificationRelease(
+  "android",
+  String(androidRelease.versionCode),
+  "Connect " + androidRelease.versionName + " is available",
+  "Install the latest Connect update from app settings.",
+).catch(() => console.error("Unable to record the app release."));
 const cleanupTimer = setInterval(() => {
+  void pruneNotifications().catch(() => {});
   void pool
     .query(
       "DELETE FROM sessions WHERE expires_at<now(); DELETE FROM auth_limits WHERE expires_at<now(); DELETE FROM auth_challenges WHERE expires_at<now()-interval '1 day'; DELETE FROM email_outbox WHERE expires_at<now()-interval '7 days'; DELETE FROM auth_events WHERE created_at<now()-interval '90 days'; DELETE FROM oidc_flows WHERE expires_at<now(); DELETE FROM mobile_auth_handoffs WHERE expires_at<now()",
@@ -1062,7 +1090,9 @@ const cleanupTimer = setInterval(() => {
 cleanupTimer.unref();
 const stop = () => {
   clearInterval(mailTimer);
+  clearInterval(pushTimer);
   clearInterval(cleanupTimer);
+  closeNotificationStreams();
   for (const responses of listeners.values())
     for (const res of responses) res.end();
   server.close(() => {

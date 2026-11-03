@@ -1049,7 +1049,7 @@ private fun ReadBlock(model: CommunityModel, node: JSONObject) {
                 Modifier.padding(
                     start = if (type in listOf("blockquote", "listItem")) 12.dp else 0.dp
                 ),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 node.optJSONArray("content").objects().forEachIndexed { i, child ->
                     if (type in listOf("bulletList", "orderedList"))
@@ -1068,6 +1068,7 @@ internal fun PublicationCard(model: CommunityModel, post: JSONObject) {
     var reading by rememberSaveable(post.text("id")) { mutableStateOf(false) }
     if (reading)
         WorkSheet(model, publicationLabel(post.text("kind")), { reading = false }) {
+            NotificationContextSeen(model, "post", post.text("id"))
             PublicationBody(model, post)
         }
     Card(

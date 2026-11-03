@@ -1,3 +1,4 @@
+import { useNotificationReadContext } from "./notifications";
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
@@ -842,6 +843,7 @@ export function PostPage() {
   const { company, session } = useApp();
   const [data, setData] = useState<Post | null>(null),
     [error, setError] = useState("");
+  useNotificationReadContext("post", data && data.id === id ? data.id : null);
   useEffect(() => {
     const controller = new AbortController();
     setData(null);

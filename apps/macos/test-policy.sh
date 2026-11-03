@@ -27,3 +27,13 @@ xcrun swiftc -swift-version 6 -warnings-as-errors \
   "$macos_dir/Tests/NativeSelectTests.swift" \
   -o "$policy_build_dir/native-selects"
 "$policy_build_dir/native-selects"
+
+xcrun swiftc -swift-version 6 -warnings-as-errors \
+  -module-cache-path "$policy_build_dir/modules" \
+  -framework AppKit -framework UserNotifications \
+  "$macos_dir/Sources/NativeNotificationCoordinator.swift" \
+  "$macos_dir/Tests/NativeNotificationTests.swift" \
+  -o "$policy_build_dir/native-notifications"
+"$policy_build_dir/native-notifications"
+
+node --test "$macos_dir/Tests/notification-gesture.test.mjs"

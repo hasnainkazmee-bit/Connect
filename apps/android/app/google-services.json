@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "2392879430",
+    "project_id": "connect-77d45",
+    "storage_bucket": "connect-77d45.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:2392879430:android:74d318b2135f74ac1bf547",
+        "android_client_info": {
+          "package_name": "com.sunhub.community.debug"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCeWjx-udPusdU9U85O60py8nS5WbsPTkU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

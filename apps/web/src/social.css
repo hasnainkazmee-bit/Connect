@@ -329,7 +329,7 @@
 .post-body {
   padding: 0 24px 22px;
   font-size: 16px;
-  line-height: 1.75;
+  line-height: 1.6;
   overflow-wrap: anywhere;
 }
 .post-body p {
@@ -345,7 +345,7 @@
 }
 .post-body .story-prose {
   font-size: 16px;
-  line-height: 1.75;
+  line-height: 1.6;
 }
 .post-body.is-collapsed .story-prose {
   max-height: 280px;

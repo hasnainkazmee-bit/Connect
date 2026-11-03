@@ -40,6 +40,7 @@ import {
   writingText,
   inlineImageUrls,
   postCaptionDocument,
+  documentFromText,
 } from "./publication-writing";
 import "./publishing.css";
 
@@ -67,11 +68,13 @@ const emptyDoc = { type: "doc", content: [{ type: "paragraph" }] };
 export function Publisher({
   initialKind = "post",
   initialMedia,
+  initialText = "",
   publicationId,
   onPublished,
 }: {
   initialKind?: PublicationKind;
   initialMedia?: "image" | "video" | "document";
+  initialText?: string;
   publicationId?: string;
   onPublished?: () => void;
 }) {
@@ -79,8 +82,11 @@ export function Publisher({
   const { adjustPhoto, photoAdjuster } = usePhotoAdjuster();
   const [kind, setKind] = useState<PublicationKind>(initialKind);
   const richBackup = useRef<{ document: any; caption: string } | null>(null);
-  const [body, setBody] = useState(""),
-    [doc, setDoc] = useState<any>(emptyDoc);
+  const startingDocument = useRef(
+    initialText ? documentFromText(initialText) : emptyDoc,
+  );
+  const [body, setBody] = useState(initialText),
+    [doc, setDoc] = useState<any>(startingDocument.current);
   const [media, setMedia] = useState<Media[]>([]),
     [cover, setCover] = useState<string | null>(null);
   const [busy, setBusy] = useState(false),
@@ -145,7 +151,7 @@ export function Publisher({
         placeholder: "What’s happening at your company?",
       }),
     ],
-    content: emptyDoc,
+    content: startingDocument.current,
     editorProps: {
       attributes: {
         "aria-label": "Update content",
@@ -209,6 +215,11 @@ export function Publisher({
       quote: editor?.isActive("blockquote") || false,
     }),
   });
+  useEffect(() => {
+    if (publicationId || !editor) return;
+    const frame = requestAnimationFrame(() => editor.commands.focus("end"));
+    return () => cancelAnimationFrame(frame);
+  }, [editor, publicationId]);
   useLayoutEffect(() => {
     if (linkOpen) linkInput.current?.focus();
   }, [linkOpen]);

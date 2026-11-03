@@ -1,7 +1,16 @@
+import groovy.json.JsonSlurper
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+// Only public Firebase app configuration belongs in an APK. Service-account keys stay server-side.
+val firebaseFile = providers.gradleProperty("sunhubFirebaseConfig").orNull?.let(::file) ?: file("google-services.json")
+val firebaseJson = if (firebaseFile.exists()) JsonSlurper().parse(firebaseFile) as Map<*, *> else emptyMap<Any, Any>()
+fun firebaseValue(property: String, value: Any?): String =
+    providers.gradleProperty(property).orNull ?: value?.toString().orEmpty()
+fun quoted(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r") + "\""
 
 android {
     namespace = "com.sunhub.community"
@@ -10,8 +19,8 @@ android {
         applicationId = "com.sunhub.community"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10
-        versionName = "0.5.3"
+        versionCode = 11
+        versionName = "0.5.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
@@ -21,6 +30,20 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     buildTypes {
+        configureEach {
+            val packageName = "com.sunhub.community" + if (name == "debug") ".debug" else ""
+            val project = firebaseJson["project_info"] as? Map<*, *> ?: emptyMap<Any, Any>()
+            val client = (firebaseJson["client"] as? List<*>)?.filterIsInstance<Map<*, *>>()?.firstOrNull {
+                ((it["client_info"] as? Map<*, *>)?.get("android_client_info") as? Map<*, *>)?.get("package_name") == packageName
+            }
+            val info = client?.get("client_info") as? Map<*, *>
+            val apiKey = (client?.get("api_key") as? List<*>)?.filterIsInstance<Map<*, *>>()?.firstOrNull()?.get("current_key")
+            buildConfigField("String", "FIREBASE_APP_ID", quoted(firebaseValue("sunhubFirebaseAppId", info?.get("mobilesdk_app_id"))))
+            buildConfigField("String", "FIREBASE_API_KEY", quoted(firebaseValue("sunhubFirebaseApiKey", apiKey)))
+            buildConfigField("String", "FIREBASE_PROJECT_ID", quoted(firebaseValue("sunhubFirebaseProjectId", project["project_id"])))
+            buildConfigField("String", "FIREBASE_SENDER_ID", quoted(firebaseValue("sunhubFirebaseSenderId", project["project_number"])))
+        }
+
         debug {
             applicationIdSuffix = ".debug"
             buildConfigField("String", "API_URL", "\"${providers.gradleProperty("sunhubApiUrl").getOrElse("http://10.0.2.2:4100")}\"")
@@ -38,6 +61,11 @@ android {
 }
 
 dependencies {
+    implementation(platform("com.google.firebase:firebase-bom:35.1.0"))
+    implementation("com.google.firebase:firebase-messaging")
+    implementation("androidx.work:work-runtime-ktx:2.12.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
     implementation(platform("androidx.compose:compose-bom:2025.10.01"))
     implementation("androidx.activity:activity-compose:1.11.0")
     implementation("androidx.compose.material3:material3")

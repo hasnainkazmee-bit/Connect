@@ -1,3 +1,5 @@
+import { useNotificationConversation } from "./web-push";
+import { useNotificationReadContext } from "./notifications";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
@@ -111,6 +113,8 @@ export function PersonalInbox() {
     (companyId
       ? threads.find((t) => t.company.id === companyId)?.id
       : undefined);
+  useNotificationConversation(conversation?.thread.id ? "/messages/people/" + conversation.thread.id : null);
+  useNotificationReadContext("personal_conversation", conversation?.thread.id || null);
   const [directoryPage, setDirectoryPage] = useState(1),
     [total, setTotal] = useState(0);
   const draftKey = `connect:personal-draft:${session.user?.id}:${company?.id || 'personal'}:${companyId || id || 'none'}`;
