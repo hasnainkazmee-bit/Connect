@@ -1,8 +1,6 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
-test("Create opens a writable box immediately while editor and draft network are delayed", async ({
-  page,
-}) => {
+async function fixture(page: Page) {
   const company = {
     id: "11111111-1111-4111-8111-111111111111",
     name: "Solar Studio",
@@ -18,6 +16,7 @@ test("Create opens a writable box immediately while editor and draft network are
     release = resolve;
   });
   let draftWrites = 0;
+  const saved: any[] = [];
   await page.route(
     /\/(?:assets\/publishing-[^/]+\.js|src\/publishing\.tsx)(?:\?.*)?$/,
     async (route) => {
@@ -82,6 +81,7 @@ test("Create opens a writable box immediately while editor and draft network are
       };
     } else if (path.startsWith("/api/publications/")) {
       draftWrites++;
+      saved.push(route.request().postDataJSON());
       json = {
         id: "33333333-3333-4333-8333-333333333333",
         version: 2,
@@ -90,6 +90,13 @@ test("Create opens a writable box immediately while editor and draft network are
     }
     await route.fulfill({ json });
   });
+  return { release, writes: () => draftWrites, saved };
+}
+test("Create opens a writable box immediately while editor and draft network are delayed", async ({
+  page,
+}) => {
+  const fixtureData = await fixture(page);
+  const { release } = fixtureData;
   await page.goto("/");
   const launch = page.getByRole("button", {
     name: "What’s happening at your company?",
@@ -123,7 +130,7 @@ test("Create opens a writable box immediately while editor and draft network are
     "Written before the tools arrive\nSecond paragraph stays intact.",
   );
   await page.waitForTimeout(1600);
-  expect(draftWrites).toBe(0);
+  expect(fixtureData.writes()).toBe(0);
   await expect(box).toHaveValue(
     "Written before the tools arrive\nSecond paragraph stays intact.",
   );
@@ -140,6 +147,57 @@ test("Create opens a writable box immediately while editor and draft network are
   await page.locator(".story-editor").press("End");
   await page.keyboard.type(" Still typing.");
   await expect(page.locator(".story-editor")).toContainText("Still typing.");
-  await expect.poll(() => draftWrites).toBeGreaterThan(0);
+  await expect.poll(() => fixtureData.writes()).toBeGreaterThan(0);
   await page.screenshot({ path: "test-results/instant-composer.png" });
+});
+
+test("native navigation during the instant editor handoff saves text before leaving", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "userAgent", {
+      value: navigator.userAgent + " ConnectWindows/0.1.1",
+    });
+    (window as any).chrome ||= {};
+    (window as any).chrome.webview = { postMessage() {} };
+  });
+  const data = await fixture(page);
+  const prompts: string[] = [];
+  page.on("dialog", (dialog) => {
+    prompts.push(dialog.type());
+    void dialog.dismiss();
+  });
+  await page.goto("/network/connections");
+  await expect(
+    page.getByRole("heading", { name: "My Network", exact: true }),
+  ).toBeVisible();
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new CustomEvent("connect:windows-command", {
+        detail: { type: "compose" },
+      }),
+    ),
+  );
+  const box = page.getByRole("textbox", { name: "Update content" });
+  const text =
+    "Keep this draft from the immediate editor.\nSecond paragraph too.";
+  await box.fill(text);
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new CustomEvent("connect:windows-command", {
+        detail: { type: "navigate", path: "/directory" },
+      }),
+    ),
+  );
+  await expect(box).not.toBeEditable();
+  await page.waitForTimeout(300);
+  await expect(page).toHaveURL(/\/network\/connections$/);
+  expect(data.writes()).toBe(0);
+  expect(prompts).toEqual([]);
+  data.release();
+  await expect(page).toHaveURL(/\/directory$/, { timeout: 10000 });
+  expect(data.saved).toHaveLength(1);
+  expect(data.saved[0].body).toBe(text);
+  expect(data.saved[0].status).toBe("draft");
+  expect(prompts).toEqual([]);
 });

@@ -69,12 +69,14 @@ export function Publisher({
   initialKind = "post",
   initialMedia,
   initialText = "",
+  initialClose,
   publicationId,
   onPublished,
 }: {
   initialKind?: PublicationKind;
   initialMedia?: "image" | "video" | "document";
   initialText?: string;
+  initialClose?: () => void;
   publicationId?: string;
   onPublished?: () => void;
 }) {
@@ -114,6 +116,7 @@ export function Publisher({
   );
   const uploadLock = useRef(false),
     [mediaSaving, setMediaSaving] = useState(false);
+  const resumedClose = useRef(false);
   const closing = useRef(false),
     operations = useRef(new AbortController()),
     activeUpload = useRef<XMLHttpRequest | null>(null);
@@ -647,6 +650,11 @@ export function Publisher({
     return () =>
       window.removeEventListener("connect:modal-close", closeRequest);
   }, [busy, mediaSaving, body, fingerprint, saved]);
+  useEffect(() => {
+    if (!initialClose || !editor || resumedClose.current) return;
+    resumedClose.current = true;
+    void saveAndClose(initialClose);
+  }, [initialClose, editor]);
   if (!company)
     return (
       <div className="publisher-empty">

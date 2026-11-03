@@ -40,6 +40,8 @@ export function Publisher(props: ComponentProps<Module["Publisher"]>) {
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
   const [composing, setComposing] = useState(false);
+  const [pendingClose, setPendingClose] = useState<(() => void) | null>(null);
+  const requestedClose = useRef<(() => void) | null>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const live = useRef({ text, module, composing });
   live.current = { text, module, composing };
@@ -65,11 +67,16 @@ export function Publisher(props: ComponentProps<Module["Publisher"]>) {
       if (live.current.text.trim()) event.preventDefault();
     };
     const beforeClose = (event: Event) => {
-      if (
-        live.current.text.trim() &&
-        !window.confirm("Discard this unsaved post?")
-      )
-        event.preventDefault();
+      if (!live.current.text.trim()) return;
+      event.preventDefault();
+      const finish = (event as CustomEvent).detail?.close;
+      if (typeof finish !== "function" || requestedClose.current) return;
+      // The full editor owns saving. Retain this navigation until it can save
+      // the early text, instead of introducing a different discard flow.
+      requestedClose.current = finish;
+      setText(textarea.current?.value || live.current.text);
+      setComposing(false);
+      setPendingClose(() => finish);
     };
     window.addEventListener("beforeunload", beforeUnload);
     window.addEventListener("connect:modal-close", beforeClose);
@@ -80,7 +87,14 @@ export function Publisher(props: ComponentProps<Module["Publisher"]>) {
   }, [active, props.publicationId]);
   if (active) {
     const Ready = module.Publisher;
-    return <Ready {...props} initialKind={kind} initialText={text} />;
+    return (
+      <Ready
+        {...props}
+        initialKind={kind}
+        initialText={text}
+        initialClose={pendingClose || undefined}
+      />
+    );
   }
   const requestClose = () => {
     const event = new CustomEvent("connect:modal-close", {
@@ -98,6 +112,7 @@ export function Publisher(props: ComponentProps<Module["Publisher"]>) {
         <button
           className="icon-button publisher-close"
           aria-label="Close dialog"
+          disabled={!!pendingClose}
           onClick={requestClose}
         >
           <X size={20} />
@@ -128,6 +143,7 @@ export function Publisher(props: ComponentProps<Module["Publisher"]>) {
           >
             <button
               aria-pressed={kind === "post"}
+              disabled={!!pendingClose}
               onClick={() => setKind("post")}
             >
               <MessageSquare size={17} />
@@ -135,6 +151,7 @@ export function Publisher(props: ComponentProps<Module["Publisher"]>) {
             </button>
             <button
               aria-pressed={kind !== "post"}
+              disabled={!!pendingClose}
               onClick={() => setKind("press_release")}
             >
               <Newspaper size={17} />
@@ -148,6 +165,7 @@ export function Publisher(props: ComponentProps<Module["Publisher"]>) {
               aria-label="Update content"
               placeholder="What’s happening at your company?"
               value={text}
+              readOnly={!!pendingClose}
               onChange={(e) => setText(e.target.value)}
               onCompositionStart={() => setComposing(true)}
               onCompositionEnd={() => setComposing(false)}
@@ -158,10 +176,23 @@ export function Publisher(props: ComponentProps<Module["Publisher"]>) {
       <footer className="publisher-bottom">
         <span role={error ? "alert" : "status"}>
           {error ||
-            (props.publicationId
-              ? "Opening your publication…"
-              : "You can start writing. Tools are loading…")}
+            (pendingClose
+              ? "Opening the writing tools to save your draft…"
+              : props.publicationId
+                ? "Opening your publication…"
+                : "You can start writing. Tools are loading…")}
         </span>
+        {error && pendingClose && (
+          <button
+            className="button secondary"
+            onClick={() => {
+              requestedClose.current = null;
+              setPendingClose(null);
+            }}
+          >
+            Keep writing
+          </button>
+        )}
         {error && (
           <button
             className="button secondary"

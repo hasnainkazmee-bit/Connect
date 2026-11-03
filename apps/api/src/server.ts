@@ -7,6 +7,7 @@ import {
 import { publicPages } from "./public-pages.js";
 import { employeeInvitationRoutes } from "./employee-invitations.js";
 import { androidRelease } from "./mobile-release.js";
+import { desktopRelease } from "./desktop-release.js";
 import {
   notificationRoutes,
   flushPush,
@@ -142,6 +143,9 @@ async function conversation(db: PoolClient, id: string, actor: string) {
 }
 app.get("/api/mobile/releases/android", (_req, res) =>
   res.json(androidRelease),
+);
+app.get("/api/mobile/releases/desktop", (_req, res) =>
+  res.json(desktopRelease),
 );
 app.get("/api/health", async (_req, res) => {
   await pool.query("SELECT 1");
