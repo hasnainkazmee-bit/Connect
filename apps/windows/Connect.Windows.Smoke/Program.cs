@@ -87,13 +87,25 @@ internal static class Program
         var webLeft=window.Browser.TranslatePoint(new Point(0,0),window).X;
         Check(webLeft>=sidebarRight&&window.Browser.ActualWidth>=500,"Sidebar and content never overlap at narrow desktop width");
         Check(window.CreateButton.TranslatePoint(new Point(0,0),window).X>=webLeft,"Toolbar actions remain in workspace at narrow width");await Capture(window,"narrow");window.Width=Math.Min(1280,area.Width);
-        // ExecuteScriptAsync supplies a host user gesture. CDP models page script
-        // without that privilege, so this checks the actual untrusted-page path.
-        await core.CallDevToolsProtocolMethodAsync("Runtime.evaluate",JsonSerializer.Serialize(new{expression="location.href='http://127.0.0.1:4198/untrusted'",userGesture=false}));await Task.Delay(700);
+        // ExecuteScriptAsync supplies a host user gesture that remains transiently
+        // active even after that call completes. A false CDP userGesture does not
+        // erase it. Wait with CDP only so the probe itself cannot renew activation.
+        var activationDeadline=DateTime.UtcNow.AddSeconds(15);
+        while(true)
+        {
+            var activationJson=await core.CallDevToolsProtocolMethodAsync("Runtime.evaluate",JsonSerializer.Serialize(new{expression="navigator.userActivation.isActive",userGesture=false,returnByValue=true}));
+            using var activation=JsonDocument.Parse(activationJson);
+            if(!activation.RootElement.GetProperty("result").GetProperty("value").GetBoolean())break;
+            if(DateTime.UtcNow>activationDeadline)throw new TimeoutException("Page user activation did not expire before non-user navigation test");
+            await Task.Delay(250);
+        }
+        var navigationEvidence=new List<object>();
+        core.NavigationStarting+=(_,e)=>navigationEvidence.Add(new{url=e.Uri,userInitiated=e.IsUserInitiated,redirect=e.IsRedirected,cancelled=e.Cancel});
+        await core.CallDevToolsProtocolMethodAsync("Runtime.evaluate",JsonSerializer.Serialize(new{expression="setTimeout(()=>{location.href='http://127.0.0.1:4198/untrusted'},0)",userGesture=false}));await Task.Delay(700);
         Check(new Uri(core.Source).Port==policy.ConnectOrigin.Port,"Untrusted programmatic navigation is blocked");
         using(var client=new HttpClient{Timeout=TimeSpan.FromSeconds(5)})
         {
-            var json=await client.GetStringAsync(new Uri(policy.ConnectOrigin,"/stats"));File.WriteAllText(Path.Combine(output,"fixture-stats.json"),json);
+            var json=await client.GetStringAsync(new Uri(policy.ConnectOrigin,"/stats"));File.WriteAllText(Path.Combine(output,"fixture-stats.json"),json);File.WriteAllText(Path.Combine(output,"navigation-evidence.json"),JsonSerializer.Serialize(navigationEvidence));
             using var stats=JsonDocument.Parse(json);Check(stats.RootElement.GetProperty("untrustedRequests").GetInt32()==0,"No untrusted origin request occurred");
         }
         var priorBoot=await core.ExecuteScriptAsync("fixtureBoot");
@@ -116,7 +128,41 @@ internal static class Program
         var reopened=new MainWindow(policy,profile);reopened.Show();await reopened.Initialized.WaitAsync(TimeSpan.FromSeconds(45));await Until(()=>reopened.WorkspaceState.Ready,"Reopened session");
         Check(await Bool(reopened.Browser.CoreWebView2,"document.cookie.includes('fixturePersist=saved')&&document.cookie.includes('fixtureAuth=complete')"),"Cookies persist after closing and reopening Connect");
         Check(reopened.DirectoryButton.IsSelected,"Safe workspace route restored after relaunch");reopened.Close();await Until(()=>!reopened.IsVisible,"Reopened window closes");
+        await CheckPublicGuest();
         Console.WriteLine($"{checks.Count} native Windows checks passed.");
+    }
+    private static async Task CheckPublicGuest()
+    {
+        // Production is strictly read-only here: a new guest profile, normal
+        // allowlist, and directory GETs. No fixture cookies or accounts cross over.
+        var area=SystemParameters.WorkArea;
+        var live=new MainWindow(new NavigationPolicy(),Path.Combine(output,"public-profile","WebView2"))
+        {
+            Width=Math.Min(1280,area.Width),Height=Math.Min(850,area.Height),
+            Left=area.Left,Top=area.Top,WindowStartupLocation=WindowStartupLocation.Manual
+        };
+        try
+        {
+            live.Show();live.Activate();
+            await live.Initialized.WaitAsync(TimeSpan.FromSeconds(45));
+            await Until(()=>live.WorkspaceState.Ready,"Production guest session ready",45);
+            Check(!live.WorkspaceState.SignedIn&&!live.CreateButton.IsEnabled,"Public Connect opens as a fresh guest");
+            await live.NavigateAsync("/directory");
+            await Until(()=>live.DirectoryButton.IsSelected&&live.WorkspaceState.Path=="/directory","Production native Directory selection");
+            var core=live.Browser.CoreWebView2;
+            await UntilJs(core,"document.documentElement.classList.contains('connect-windows')&&!document.querySelector('.site-header')","Production Windows content integration");
+            Check(true,"Public directory uses Windows chrome without duplicate web navigation");
+            await Capture(live,"public");
+        }
+        catch(Exception error)
+        {
+            File.WriteAllText(Path.Combine(output,"production-failure.txt"),$"{error}\nSource: {live.Browser.CoreWebView2?.Source}\nReady: {live.WorkspaceState.Ready}");
+            throw;
+        }
+        finally
+        {
+            live.Close();await Until(()=>!live.IsVisible,"Production guest window closes");
+        }
     }
     private static async Task Capture(MainWindow window,string name)
     {

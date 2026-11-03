@@ -4,6 +4,7 @@ import http from 'node:http';
 const appOrigin = 'http://127.0.0.1:4196';
 const accountOrigin = 'http://127.0.0.1:4197';
 let untrustedRequests = 0;
+const untrustedDetails = [];
 const page = `<!doctype html><html><head><meta charset="utf-8"><style>
 :root { color-scheme: light dark; font: 15px 'Segoe UI',sans-serif; background:#f2f7fc;color:#203342 }
 body{margin:0;padding:32px} h1{font-size:28px} button{border:1px solid #dbe5ed;border-radius:24px;padding:12px 20px;background:#fff;color:#203342;cursor:pointer}
@@ -33,8 +34,8 @@ start(4196, (req, res) => {
     res.setHeader('Set-Cookie', 'fixtureAuth=complete; Path=/; SameSite=Lax; Max-Age=3600');
     return html(res, `<script>window.opener?.postMessage({type:'fixture-auth-complete'},'${appOrigin}');window.close();</script>`);
   }
-  if (url.pathname === '/stats') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ untrustedRequests })); }
+  if (url.pathname === '/stats') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ untrustedRequests, untrustedDetails })); }
   html(res, page);
 });
 start(4197, (_req, res) => html(res, `<!doctype html><html><body style="font:16px 'Segoe UI';padding:32px"><h1>Continue with Sunhub</h1><p>Local test account</p><button id="continue" style="padding:12px 24px" onclick="location.href='${appOrigin}/auth/sunhub/popup'">Continue</button></body></html>`));
-start(4198, (_req, res) => { untrustedRequests++; html(res, '<h1>Untrusted origin must not load inside Connect</h1>'); });
+start(4198, (req, res) => { untrustedRequests++; untrustedDetails.push({url:req.url,userAgent:req.headers['user-agent'],fetchMode:req.headers['sec-fetch-mode'],fetchDestination:req.headers['sec-fetch-dest']}); html(res, '<h1>Untrusted origin must not load inside Connect</h1>'); });

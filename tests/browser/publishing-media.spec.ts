@@ -166,14 +166,25 @@ for (const width of [1440, 390]) {
         .attrs.alt,
     ).toBe("The final accessible photo description");
     await page.goto("/posts/" + publication.id);
-    await expect(page.locator(".feed-post .story-prose img")).toHaveCount(1);
+    const publishedImage = page.locator(".feed-post .story-prose img");
+    await expect(publishedImage).toHaveCount(1);
     await expect(page.locator(".feed-post .photo-gallery")).toHaveCount(0);
-    const publishedRatio = await page
-      .locator(".feed-post .story-prose img")
-      .evaluate(
-        (el) =>
-          el.getBoundingClientRect().width / el.getBoundingClientRect().height,
-      );
+    // The reader image is lazy-loaded and sizes itself from its intrinsic
+    // dimensions. Being in the DOM does not mean those dimensions exist yet.
+    await publishedImage.scrollIntoViewIfNeeded();
+    await expect(publishedImage).toBeVisible();
+    await expect
+      .poll(() =>
+        publishedImage.evaluate(
+          (image: HTMLImageElement) =>
+            image.complete && image.naturalWidth > 0 && image.naturalHeight > 0,
+        ),
+      )
+      .toBe(true);
+    const publishedRatio = await publishedImage.evaluate(
+      (el) =>
+        el.getBoundingClientRect().width / el.getBoundingClientRect().height,
+    );
     expect(publishedRatio).toBeCloseTo(editRatio, 2);
     expect(
       await page.evaluate(

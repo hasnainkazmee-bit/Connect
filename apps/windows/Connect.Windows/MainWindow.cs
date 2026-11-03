@@ -32,7 +32,7 @@ public sealed class MainWindow : Window
     private readonly Button forward=NativeControls.Button("Forward (Alt+Right)","\uE72A");
     private readonly Button reload=NativeControls.Button("Reload (Ctrl+R)","\uE72C");
     private readonly Button compose=NativeControls.Button("New post (Ctrl+N)");
-    private readonly Button notifications=NativeControls.Button("Notifications","\uE7F4");
+    private readonly Button notifications=NativeControls.Button("Notifications","\uEA8F");
     private readonly Button account=NativeControls.Button("Sign in");
     private readonly TextBlock routeTitle=new(){ FontSize=17, FontWeight=FontWeights.SemiBold, VerticalAlignment=VerticalAlignment.Center, Margin=new Thickness(14,0,12,0) };
     private readonly TextBlock status=new(){FontSize=12,Margin=new Thickness(12,4,12,4),TextWrapping=TextWrapping.Wrap};
@@ -90,7 +90,7 @@ public sealed class MainWindow : Window
         AddRoute("Home","/","\uE80F");AddRoute("Directory","/directory","\uE80A");AddRoute("My Network","/network","\uE716");AddRoute("Messages","/messages","\uE8BD");
         navigation.SelectionChanged+=async (_,_)=>{if(!selectingRoute && navigation.SelectedItem is ListBoxItem{Tag:string path}){UpdateRoute();await NavigateAsync(path);}};
         navStack.Children.Add(navigation);Grid.SetRow(navStack,1);sidebar.Children.Add(navStack);
-        account.Margin=new Thickness(12,12,12,18);account.HorizontalContentAlignment=HorizontalAlignment.Left;account.Click+=async(_,_)=>await SendCommandAsync("account");Grid.SetRow(account,2);sidebar.Children.Add(account);shell.Children.Add(sidebar);
+        account.Margin=new Thickness(12,12,12,18);account.HorizontalAlignment=HorizontalAlignment.Stretch;account.HorizontalContentAlignment=HorizontalAlignment.Left;account.Click+=async(_,_)=>await SendCommandAsync("account");Grid.SetRow(account,2);sidebar.Children.Add(account);shell.Children.Add(sidebar);
         var splitter=new GridSplitter{Width=1,HorizontalAlignment=HorizontalAlignment.Right,ResizeDirection=GridResizeDirection.Columns,ResizeBehavior=GridResizeBehavior.CurrentAndNext};splitter.SetResourceReference(BackgroundProperty,"Line");shell.Children.Add(splitter);
         var workspace=new Grid();workspace.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});workspace.RowDefinitions.Add(new RowDefinition{Height=new GridLength(1,GridUnitType.Star)});workspace.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});Grid.SetColumn(workspace,1);
         var toolbar=new DockPanel{LastChildFill=true,Margin=new Thickness(12,8,12,8)};
