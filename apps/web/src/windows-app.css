@@ -1,0 +1,23 @@
+/* Windows keeps its own host identity. Shared desktop layout and colors are
+   defined once in desktop-app.css; WebView2 follows the native theme setting. */
+html.connect-windows {
+  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+}
+.connect-windows body {
+  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+}
+.connect-windows :is(button, input, textarea, select) {
+  font-family: inherit;
+}
+.connect-windows .desktop-action-panel h2 {
+  font-size: 20px;
+  font-weight: 600;
+}
+.connect-windows .modal:has(.desktop-action-panel) {
+  border-radius: 12px;
+}
+.connect-windows .desktop-action-panel > :is(button, a) {
+  min-height: 36px;
+  font-size: 14px;
+}

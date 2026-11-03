@@ -85,14 +85,21 @@ import { CompanyMatches } from "./company-matches";
 import { CompanyProfileView } from "./company-profile";
 import { CompanySettings, EmployeeInvite } from "./management";
 import { Publisher, DraftsDialog } from "./composer";
-import { MacPanel, useMacApp, type MacCommand } from "./mac-app";
+import {
+  DesktopPanel,
+  useDesktopApp,
+  desktopCommandEvent,
+  type DesktopCommand,
+} from "./mac-app";
 import "./styles.css";
 import "./shell.css";
 import "./network.css";
 import "./messaging.css";
 import "./design-system.css";
 import "./social.css";
+import "./desktop-app.css";
 import "./mac-app.css";
+import "./windows-app.css";
 
 const date = (s: string) =>
   new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -202,8 +209,8 @@ function App() {
     [reauthenticate, setReauthenticate] = useState(false),
     [notice, setNotice] = useState(""),
     [deferredOnboarding, setDeferredOnboarding] = useState(""),
-    [macIntentAfterSignIn, setMacIntentAfterSignIn] =
-      useState<MacCommand | null>(null);
+    [desktopIntentAfterSignIn, setDesktopIntentAfterSignIn] =
+      useState<DesktopCommand | null>(null);
   const navigate = useNavigate(),
     location = useLocation();
   const company = session.companies.find(
@@ -317,7 +324,7 @@ function App() {
       network.connections.reduce((a, c) => a + c.unread, 0) +
       network.incoming.filter((r) => r.kind === "message").length,
     notifications = network.notifications.filter((n) => !n.read_at);
-  const macApp = useMacApp(
+  const desktopHost = useDesktopApp(
     {
       ready,
       path: location.pathname,
@@ -328,7 +335,7 @@ function App() {
       canPublish: !!company && admin && !sessionExpired && !incompleteAccount,
       unreadCount: unread + notifications.length,
     },
-    (command: MacCommand) => {
+    (command: DesktopCommand) => {
       if (!ready) return;
       if (needsOnboarding || reauthenticate) {
         setNotice("Finish the open account step to continue.");
@@ -355,7 +362,7 @@ function App() {
           } else navigate(command.path);
         } else if (command.type === "compose") {
           if (!session.user || sessionExpired)
-            auth(() => setMacIntentAfterSignIn(command));
+            auth(() => setDesktopIntentAfterSignIn(command));
           else if (session.user.account_type === "individual")
             setNotice("Publishing is for company accounts.");
           else if (!company) setModal(<NewCompany />);
@@ -366,16 +373,16 @@ function App() {
           if (!session.user || sessionExpired) auth();
           else
             setModal(
-              <MacPanel title="Your account">
+              <DesktopPanel title="Your account">
                 <AccountMenuContents desktop closeMenu={() => setModal(null)} />
-              </MacPanel>,
+              </DesktopPanel>,
             );
         } else if (command.type === "notifications") {
           if (!session.user || sessionExpired)
-            auth(() => setMacIntentAfterSignIn(command));
+            auth(() => setDesktopIntentAfterSignIn(command));
           else
             setModal(
-              <MacPanel title="Notifications">
+              <DesktopPanel title="Notifications">
                 {company ? (
                   <NotificationContents
                     heading={false}
@@ -384,7 +391,7 @@ function App() {
                 ) : (
                   <p className="muted">You’re all caught up.</p>
                 )}
-              </MacPanel>,
+              </DesktopPanel>,
             );
         } else if (command.type === "profile") {
           if (company) navigate("/company/" + company.slug);
@@ -411,8 +418,8 @@ function App() {
   );
   useEffect(() => {
     if (
-      !macApp ||
-      !macIntentAfterSignIn ||
+      !desktopHost ||
+      !desktopIntentAfterSignIn ||
       !ready ||
       !session.user ||
       sessionExpired ||
@@ -423,15 +430,15 @@ function App() {
       return;
     // Resume against the current account after React commits sign-in. Reusing
     // the old auth callback would read the signed-out render's permissions.
-    setMacIntentAfterSignIn(null);
+    setDesktopIntentAfterSignIn(null);
     window.dispatchEvent(
-      new CustomEvent("connect:mac-command", {
-        detail: macIntentAfterSignIn,
+      new CustomEvent(desktopCommandEvent(desktopHost), {
+        detail: desktopIntentAfterSignIn,
       }),
     );
   }, [
-    macApp,
-    macIntentAfterSignIn,
+    desktopHost,
+    desktopIntentAfterSignIn,
     ready,
     session.user,
     sessionExpired,
@@ -457,7 +464,7 @@ function App() {
         createCompany: () => setModal(<NewCompany />),
       }}
     >
-      {!macApp && (
+      {!desktopHost && (
         <header className="site-header">
           <div className="header-inner">
             <Link className="brand" to="/" aria-label="Connect home">
@@ -602,10 +609,10 @@ function App() {
         </header>
       )}
       <main
-        {...(macApp ? {} : mobileNavigation)}
+        {...(desktopHost ? {} : mobileNavigation)}
         className={
           "app-main " +
-          (macApp ? "mac-app " : "") +
+          (desktopHost ? `desktop-app ${desktopHost}-app ` : "") +
           (location.pathname.startsWith("/messages")
             ? "workspace-view messages-view"
             : location.pathname.startsWith("/network")
@@ -739,7 +746,7 @@ function App() {
           </button>
         </div>
       )}
-      {!macApp && (
+      {!desktopHost && (
         <footer className="site-footer">
           <span>
             <img

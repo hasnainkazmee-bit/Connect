@@ -8,10 +8,10 @@ const routes = new Set([
   "/network/connections",
   "/messages",
 ]);
-export type MacCommand =
+export type DesktopCommand =
   | { type: "navigate"; path: string }
   | { type: "compose" | "account" | "notifications" | "profile" };
-export type MacState = {
+export type DesktopState = {
   ready: boolean;
   path: string;
   signedIn: boolean;
@@ -21,7 +21,8 @@ export type MacState = {
   canPublish: boolean;
   unreadCount: number;
 };
-type MacWindow = Window & {
+type DesktopWindow = Window & {
+  chrome?: { webview?: { postMessage?: (value: unknown) => void } };
   webkit?: {
     messageHandlers?: {
       connectMac?: { postMessage?: (value: unknown) => void };
@@ -33,27 +34,41 @@ export function isMacApp() {
   return (
     window.opener == null &&
     navigator.userAgent.includes("ConnectMac/") &&
-    typeof (window as MacWindow).webkit?.messageHandlers?.connectMac
+    typeof (window as DesktopWindow).webkit?.messageHandlers?.connectMac
       ?.postMessage === "function"
   );
 }
 
+export function isWindowsApp() {
+  return (
+    window.opener == null &&
+    navigator.userAgent.includes("ConnectWindows/") &&
+    typeof (window as DesktopWindow).chrome?.webview?.postMessage === "function"
+  );
+}
+
+export type DesktopHost = "mac" | "windows";
+export const desktopCommandEvent = (host: DesktopHost) =>
+  `connect:${host}-command`;
+
 // This adapter exposes navigation/UI intents only. The existing React handlers
 // remain responsible for authentication, authorization, and every API mutation.
-export function useMacApp(
-  state: MacState,
-  onCommand: (command: MacCommand) => void,
+export function useDesktopApp(
+  state: DesktopState,
+  onCommand: (command: DesktopCommand) => void,
 ) {
-  const [enabled] = useState(isMacApp);
+  const [host] = useState<DesktopHost | null>(() =>
+    isMacApp() ? "mac" : isWindowsApp() ? "windows" : null,
+  );
   const current = useRef({ state, onCommand });
   current.current = { state, onCommand };
   const lastState = useRef("");
-  const queuedCommand = useRef<MacCommand | null>(null);
+  const queuedCommand = useRef<DesktopCommand | null>(null);
   const sendState = () => {
-    if (!enabled) return;
+    if (!host) return;
     const value = current.current.state;
     try {
-      (window as MacWindow).webkit!.messageHandlers!.connectMac!.postMessage!({
+      const payload = {
         type: "state",
         ready: value.ready,
         path: value.path,
@@ -63,16 +78,25 @@ export function useMacApp(
         companyName: value.companyName,
         canPublish: value.canPublish,
         unreadCount: value.unreadCount,
-      });
+      };
+      if (host === "mac")
+        (window as DesktopWindow).webkit!.messageHandlers!.connectMac!
+          .postMessage!(payload);
+      else (window as DesktopWindow).chrome!.webview!.postMessage!(payload);
     } catch {
       /* Losing native chrome must never interrupt the web workspace. */
     }
   };
   useEffect(() => {
-    if (!enabled) return;
-    document.documentElement.classList.add("connect-mac");
-    const removeNativeSelects = installMacNativeSelects();
-    const deliver = (command: MacCommand) => {
+    if (!host) return;
+    document.documentElement.classList.add(
+      "connect-desktop",
+      `connect-${host}`,
+    );
+    const removeNativeSelects =
+      host === "mac" ? installMacNativeSelects() : () => {};
+    const commandEvent = desktopCommandEvent(host);
+    const deliver = (command: DesktopCommand) => {
       if (current.current.state.ready) current.current.onCommand(command);
       else queuedCommand.current = command;
     };
@@ -102,37 +126,40 @@ export function useMacApp(
           String(command.type),
         )
       ) {
-        deliver({ type: command.type } as MacCommand);
+        deliver({ type: command.type } as DesktopCommand);
       }
       // A dirty/saving modal can keep the route unchanged. Acknowledge that too.
       queueMicrotask(sendState);
     };
-    window.addEventListener("connect:mac-command", receive);
+    window.addEventListener(commandEvent, receive);
     return () => {
       queuedCommand.current = null;
       removeNativeSelects();
-      window.removeEventListener("connect:mac-command", receive);
-      document.documentElement.classList.remove("connect-mac");
+      window.removeEventListener(commandEvent, receive);
+      document.documentElement.classList.remove(
+        "connect-desktop",
+        `connect-${host}`,
+      );
     };
-  }, [enabled]);
+  }, [host]);
   useEffect(() => {
-    if (enabled && state.ready && queuedCommand.current) {
+    if (host && state.ready && queuedCommand.current) {
       const command = queuedCommand.current;
       queuedCommand.current = null;
       current.current.onCommand(command);
     }
-  }, [enabled, state.ready]);
+  }, [host, state.ready]);
   useEffect(() => {
     const serialized = JSON.stringify(state);
     if (serialized !== lastState.current) {
       lastState.current = serialized;
       sendState();
     }
-  }, [enabled, state]);
-  return enabled;
+  }, [host, state]);
+  return host;
 }
 
-export function MacPanel({
+export function DesktopPanel({
   title,
   children,
 }: {
@@ -140,7 +167,7 @@ export function MacPanel({
   children: ReactNode;
 }) {
   return (
-    <section className="mac-action-panel">
+    <section className="desktop-action-panel mac-action-panel">
       <h2>{title}</h2>
       {children}
     </section>
