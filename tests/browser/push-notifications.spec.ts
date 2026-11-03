@@ -185,6 +185,11 @@ async function fixture(
         companies: [],
         total: 0,
         page: 1,
+        pageSize: 24,
+        places: [],
+        services: [],
+        areas: [],
+        types: {},
         facets: { types: [], services: [], states: [] },
       };
     else if (path === "/api/social/suggestions" || path === "/api/publications")
@@ -1001,4 +1006,140 @@ test("a permission prompt cannot opt back in after signing out and back into the
   expect(
     await page.evaluate(() => localStorage.getItem("connect.web-push")),
   ).toBeNull();
+});
+
+const desktopDownload =
+  "https://github.com/hasnainkazmee-bit/Connect/releases/download/v0.5.4/Connect-0.1.5-macos-universal.pkg";
+
+async function desktopBannerFixture(
+  page: Page,
+  version: string | null,
+  download = desktopDownload,
+) {
+  await fixture(page);
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  if (version)
+    await page.addInitScript((version) => {
+      const host = window as any;
+      Object.defineProperty(navigator, "userAgent", {
+        value: navigator.userAgent + ` ConnectMac/${version}`,
+      });
+      host.macStates = [];
+      // Older installed apps have navigation but no OS-notification bridge.
+      host.webkit = {
+        messageHandlers: {
+          connectMac: {
+            postMessage: (value: unknown) => host.macStates.push(value),
+          },
+        },
+      };
+    }, version);
+  await page.route("**/api/session", (route) =>
+    route.fulfill({
+      json: { user: null, companies: [], activeCompanyId: null },
+    }),
+  );
+  let checks = 0;
+  await page.route("**/api/mobile/releases/desktop", (route) => {
+    checks++;
+    return route.fulfill({
+      json: {
+        macos: {
+          versionName: "0.1.5",
+          buildNumber: 6,
+          downloads: [
+            { arch: "universal", url: download, sha256: "a".repeat(64) },
+          ],
+        },
+      },
+    });
+  });
+  return { checks: () => checks, errors };
+}
+
+test("desktop update banner reaches signed-out legacy Mac apps and dismissal survives reload", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const data = await desktopBannerFixture(page, "0.1.4");
+  await page.goto("/directory");
+  const banner = page
+    .getByRole("status")
+    .filter({ hasText: "Connect 0.1.5 is ready." });
+  await expect(banner).toBeVisible();
+  await expect(
+    banner.getByRole("link", { name: "Download update", exact: true }),
+  ).toHaveAttribute("href", desktopDownload);
+  await expect(page.locator(".app-main.mac-app")).toBeVisible();
+  const host = await page.evaluate(() => ({
+    notificationBridge: !!(window as any).__CONNECT_DESKTOP_NOTIFICATIONS__,
+    state: (window as any).macStates.at(-1),
+  }));
+  expect(host.notificationBridge).toBe(false);
+  expect(host.state.signedIn).toBe(false);
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    await expect(banner).toBeVisible();
+    const box = await banner.boundingBox();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.y).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(1280);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(800);
+    await page.screenshot({
+      path: `test-results/desktop-update-legacy-mac-${colorScheme}.png`,
+    });
+  }
+  await banner.getByRole("button", { name: "Remind me later" }).click();
+  await expect(banner).toHaveCount(0);
+  const previousChecks = data.checks();
+  await page.reload();
+  await expect.poll(data.checks).toBeGreaterThan(previousChecks);
+  await expect(page.locator(".app-main.mac-app")).toBeVisible();
+  await page.waitForTimeout(150);
+  await expect(banner).toHaveCount(0);
+  expect(data.errors).toEqual([]);
+});
+
+for (const version of ["0.1.5", null]) {
+  test(`desktop update banner stays hidden for ${version ? "the current Mac version" : "an ordinary browser"}`, async ({
+    page,
+  }) => {
+    const data = await desktopBannerFixture(page, version);
+    await page.goto("/directory");
+    if (version) {
+      await expect.poll(data.checks).toBeGreaterThan(0);
+      await expect(page.locator(".app-main.mac-app")).toBeVisible();
+    } else await expect(page.locator(".site-header")).toBeVisible();
+    await page.waitForTimeout(150);
+    await expect(
+      page.getByRole("link", { name: "Download update", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("status").filter({ hasText: "Connect 0.1.5 is ready." }),
+    ).toHaveCount(0);
+    if (!version) expect(data.checks()).toBe(0);
+    expect(data.errors).toEqual([]);
+  });
+}
+
+test("desktop update banner rejects an installer outside the trusted release origin", async ({
+  page,
+}) => {
+  const data = await desktopBannerFixture(
+    page,
+    "0.1.4",
+    "https://github.com.evil.example/hasnainkazmee-bit/Connect/releases/download/v0.5.4/Connect.dmg",
+  );
+  await page.goto("/directory");
+  await expect.poll(data.checks).toBeGreaterThan(0);
+  await expect(page.locator(".app-main.mac-app")).toBeVisible();
+  await page.waitForTimeout(150);
+  await expect(
+    page.getByRole("link", { name: "Download update", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("status").filter({ hasText: "Connect 0.1.5 is ready." }),
+  ).toHaveCount(0);
+  expect(data.errors).toEqual([]);
 });
