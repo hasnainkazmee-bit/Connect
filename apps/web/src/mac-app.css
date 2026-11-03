@@ -437,7 +437,7 @@ html.connect-mac {
       .editor-link input,
       .conversation-input
     ) {
-    background: var(--surface);
+    background-color: var(--surface);
     color: var(--ink);
     border-color: var(--line);
   }
