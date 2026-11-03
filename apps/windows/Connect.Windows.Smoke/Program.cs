@@ -1,4 +1,5 @@
 using System.IO;
+using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
@@ -55,9 +56,11 @@ internal static class Program
     private static async Task Run(NavigationPolicy policy)
     {
         var profile=Path.Combine(output,"profile","WebView2");
-        var window=new MainWindow(policy,profile){Width=1280,Height=850};window.Show();window.Activate();
+        var area=SystemParameters.WorkArea;
+        var window=new MainWindow(policy,profile){Width=Math.Min(1280,area.Width),Height=Math.Min(850,area.Height),Left=area.Left,Top=area.Top,WindowStartupLocation=WindowStartupLocation.Manual};window.Show();window.Activate();
         await window.Initialized.WaitAsync(TimeSpan.FromSeconds(45));await Until(()=>window.WorkspaceState.Ready,"Initial native bridge");
         var core=window.Browser.CoreWebView2;
+        core.NavigationStarting+=(_,e)=>File.AppendAllText(Path.Combine(output,"navigation.log"),$"{e.Uri} userInitiated={e.IsUserInitiated} redirected={e.IsRedirected} cancelled={e.Cancel}\n");
         Check(window.WindowStyle==WindowStyle.SingleBorderWindow&&window.ResizeMode==ResizeMode.CanResize,"Native Windows caption, resize and Snap controls");
         Check(!window.CreateButton.IsEnabled,"Guest Create is visibly disabled");
         Check(window.HomeButton.IsSelected,"Home initially selected");
@@ -83,11 +86,16 @@ internal static class Program
         var sidebarRight=window.NavigationList.TranslatePoint(new Point(window.NavigationList.ActualWidth,0),window).X;
         var webLeft=window.Browser.TranslatePoint(new Point(0,0),window).X;
         Check(webLeft>=sidebarRight&&window.Browser.ActualWidth>=500,"Sidebar and content never overlap at narrow desktop width");
-        Check(window.CreateButton.TranslatePoint(new Point(0,0),window).X>=webLeft,"Toolbar actions remain in workspace at narrow width");await Capture(window,"narrow");window.Width=1280;
-        await core.ExecuteScriptAsync("location.href='http://127.0.0.1:4198/untrusted'");await Task.Delay(700);
+        Check(window.CreateButton.TranslatePoint(new Point(0,0),window).X>=webLeft,"Toolbar actions remain in workspace at narrow width");await Capture(window,"narrow");window.Width=Math.Min(1280,area.Width);
+        // ExecuteScriptAsync supplies a host user gesture. CDP models page script
+        // without that privilege, so this checks the actual untrusted-page path.
+        await core.CallDevToolsProtocolMethodAsync("Runtime.evaluate",JsonSerializer.Serialize(new{expression="location.href='http://127.0.0.1:4198/untrusted'",userGesture=false}));await Task.Delay(700);
         Check(new Uri(core.Source).Port==policy.ConnectOrigin.Port,"Untrusted programmatic navigation is blocked");
-        await core.ExecuteScriptAsync("fetch('/stats').then(r=>r.json()).then(x=>window.fixtureUntrustedCount=x.untrustedRequests)");
-        await UntilJs(core,"window.fixtureUntrustedCount===0","No untrusted origin request occurred");Check(true,"No untrusted origin request occurred");
+        using(var client=new HttpClient{Timeout=TimeSpan.FromSeconds(5)})
+        {
+            var json=await client.GetStringAsync(new Uri(policy.ConnectOrigin,"/stats"));File.WriteAllText(Path.Combine(output,"fixture-stats.json"),json);
+            using var stats=JsonDocument.Parse(json);Check(stats.RootElement.GetProperty("untrustedRequests").GetInt32()==0,"No untrusted origin request occurred");
+        }
         var priorBoot=await core.ExecuteScriptAsync("fixtureBoot");
         await TrustedClick(core,"internal");await UntilJs(core,$"window.fixtureBoot&&fixtureBoot!=={priorBoot}","Same-origin new window link");await Until(()=>window.WorkspaceState.Ready,"New document bridge ready");Check(true,"Same-origin target blank link stays in workspace");
         await TrustedClick(core,"sunhub");

@@ -27,8 +27,10 @@ if ((Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash -ne $checksum) { t
 $setupInfo = (Get-Item $setup).VersionInfo
 $setupInfo | Select-Object ProductName, CompanyName, FileDescription, FileVersion, ProductVersion |
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $output 'setup-metadata.json')
-if ($setupInfo.ProductName -ne 'Connect') { throw "Installer product metadata mismatch: $($setupInfo.ProductName)" }
-if ($setupInfo.CompanyName -ne 'Sunhub') { throw "Installer publisher metadata mismatch: $($setupInfo.CompanyName)" }
+# Inno reserves fixed-width string fields in Setup's version resource.
+# Ignore their whitespace padding, but still require the exact identities.
+if (([string]$setupInfo.ProductName).Trim() -cne 'Connect') { throw "Installer product metadata mismatch: $($setupInfo.ProductName)" }
+if (([string]$setupInfo.CompanyName).Trim() -cne 'Sunhub') { throw "Installer publisher metadata mismatch: $($setupInfo.CompanyName)" }
 [IO.Directory]::CreateDirectory($dataDir) | Out-Null
 $markerContent = 'Keep the user profile across repair and uninstall.'
 Set-Content -LiteralPath $marker -Value $markerContent -NoNewline
@@ -48,7 +50,10 @@ try {
     Invoke-Installer $setup 'install'
     $app = Join-Path $installDir 'Connect.exe'
     if (-not (Test-Path $app)) { throw 'Connect.exe was not installed at the per-user destination.' }
-    if ((Get-Item $app).VersionInfo.FileVersion -ne "$Version.0") { throw 'Installed app version mismatch.' }
+    $appInfo = (Get-Item $app).VersionInfo
+    $expectedVersion = [Version]"$Version.0"
+    $installedVersion = [Version]::new($appInfo.FileMajorPart, $appInfo.FileMinorPart, $appInfo.FileBuildPart, $appInfo.FilePrivatePart)
+    if ($installedVersion -ne $expectedVersion) { throw 'Installed app version mismatch.' }
     foreach ($file in @('Connect.exe', 'Connect.dll', 'Connect.Core.dll', 'coreclr.dll', 'Microsoft.Web.WebView2.Wpf.dll')) {
         $source = Join-Path $windowsRoot ".build/publish/win-x64/$file"
         $installed = Join-Path $installDir $file
