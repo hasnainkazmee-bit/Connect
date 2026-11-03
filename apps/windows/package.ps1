@@ -47,10 +47,9 @@ $compilerCandidates = @(
 )
 $compiler = $compilerCandidates | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
 if (-not $compiler) { throw 'Install Inno Setup 6 from https://jrsoftware.org/isdl.php or set ISCC_PATH.' }
-$compilerVersion = (Get-Item -LiteralPath $compiler).VersionInfo
-if ($compilerVersion.FileMajorPart -ne 6 -or $compilerVersion.FileMinorPart -lt 3) {
-    throw 'Inno Setup 6.3 or later in the 6.x series is required.'
-}
+# ISCC.exe can report 0.0.0.0 in its PE resource. Connect.iss checks the
+# compiler's own predefined Ver value instead of trusting that metadata.
+Write-Host "Installer compiler: $compiler (version enforced by Connect.iss)"
 # Download only from Microsoft's official Evergreen bootstrapper link.
 $bootstrapper = Join-Path $toolsDir 'MicrosoftEdgeWebView2Setup.exe'
 Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile $bootstrapper

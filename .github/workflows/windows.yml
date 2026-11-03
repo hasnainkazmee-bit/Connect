@@ -40,7 +40,7 @@ jobs:
           dotnet --info
           $iscc = Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Inno Setup 6/ISCC.exe'
           if (-not (Test-Path $iscc)) { throw 'The runner must provide Inno Setup 6.' }
-          (Get-Item $iscc).VersionInfo | Select-Object FileVersion, ProductVersion
+          Write-Host "Inno Setup compiler: $iscc (engine version checked during compilation)"
       - name: Test shared navigation and security rules
         run: dotnet run --project apps/windows/Connect.Core.Tests/Connect.Core.Tests.csproj --configuration Release
       - name: Publish self-contained native app

@@ -1,3 +1,6 @@
+#if Ver < 0x06030000 || Ver >= 0x07000000
+  #error Inno Setup 6.3 or later in the 6.x series is required.
+#endif
 #ifndef AppVersion
   #error AppVersion must be supplied by package.ps1
 #endif
