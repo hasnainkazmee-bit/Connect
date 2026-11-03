@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$SetupPath,
-    [string]$Version = '0.1.0'
+    [string]$Version = ''
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -10,6 +10,11 @@ if (-not $IsWindows -or $env:GITHUB_ACTIONS -ne 'true') {
     throw 'Installer execution tests are restricted to an isolated GitHub Actions Windows runner.'
 }
 $windowsRoot = Split-Path $PSScriptRoot -Parent
+if (-not $Version) {
+    [xml]$project = Get-Content (Join-Path $windowsRoot 'Connect.Windows/Connect.Windows.csproj') -Raw
+    $Version = $project.SelectSingleNode('/Project/PropertyGroup/Version').InnerText
+}
+if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Expected an explicit three-part app version.' }
 $output = Join-Path $windowsRoot '.build/installer-test'
 [IO.Directory]::CreateDirectory($output) | Out-Null
 $installDir = Join-Path $env:LOCALAPPDATA 'Programs/Sunhub/Connect'
