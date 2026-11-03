@@ -17,6 +17,7 @@ button.primary{background:#ff6b0b;color:#1c2d3a;border:0} section{background:#ff
 <script>
 window.fixtureState={type:'state',ready:true,path:location.pathname,signedIn:false,accountType:'',userName:'',companyName:'',canPublish:false,unreadCount:0};
 window.commands=[];window.authDone=false;window.fixtureBoot=crypto.randomUUID();
+document.addEventListener('click',event=>{window.fixtureLastClick={id:event.target.closest('a,button')?.id,trusted:event.isTrusted,active:navigator.userActivation.isActive}},true);
 window.sendState=()=>{fixtureState.path=location.pathname;document.getElementById('route').textContent=location.pathname==='/'?'Home':location.pathname.slice(1);window.chrome?.webview?.postMessage(fixtureState)};
 addEventListener('connect:windows-command',e=>{commands.push(e.detail);if(e.detail.type==='navigate'){history.pushState({},'',e.detail.path);sendState()}document.getElementById('command').textContent=e.detail.type;if(e.detail.type==='state')sendState()});
 addEventListener('popstate',sendState);

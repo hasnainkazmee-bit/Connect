@@ -58,6 +58,10 @@ internal static class Program
     }
     private static async Task TrustedClick(CoreWebView2 core,string id)
     {
+        var browser=Application.Current.Windows.Cast<Window>()
+            .Select(window=>window switch{MainWindow main=>main.Browser,AuthWindow auth=>auth.Browser,_=>null})
+            .First(view=>view is not null&&ReferenceEquals(view.CoreWebView2,core))!;
+        Window.GetWindow(browser).Activate();browser.Focus();await Task.Delay(100);
         var target=JsonSerializer.Serialize(id);
         var deadline=DateTime.UtcNow.AddSeconds(20);
         while(!(await EvaluateWithoutGesture(core,$"!!document.getElementById({target})")).GetBoolean())
@@ -66,7 +70,10 @@ internal static class Program
         await Task.Delay(150);
         var point=await EvaluateWithoutGesture(core,$"(()=>{{const r=document.getElementById({target}).getBoundingClientRect();return {{x:r.x+r.width/2,y:r.y+r.height/2}}}})()");
         var x=point.GetProperty("x").GetDouble();var y=point.GetProperty("y").GetDouble();
-        foreach(var type in new[]{"mousePressed","mouseReleased"})await core.CallDevToolsProtocolMethodAsync("Input.dispatchMouseEvent",JsonSerializer.Serialize(new{type,x,y,button="left",clickCount=1}));
+        var screen=browser.PointToScreen(new Point(x*browser.ZoomFactor,y*browser.ZoomFactor));
+        if(!SetCursorPos((int)Math.Round(screen.X),(int)Math.Round(screen.Y)))throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+        NativeInput[] inputs=[new(){Type=0,Data=new(){Mouse=new(){Flags=0x0002}}},new(){Type=0,Data=new(){Mouse=new(){Flags=0x0004}}}];
+        if(SendInput((uint)inputs.Length,inputs,Marshal.SizeOf<NativeInput>())!=inputs.Length)throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
     }
     private static async Task Run(NavigationPolicy policy)
     {
@@ -125,9 +132,15 @@ internal static class Program
             using var stats=JsonDocument.Parse(json);Check(stats.RootElement.GetProperty("untrustedRequests").GetInt32()==0,"No untrusted origin request occurred");
         }
         // The geometry reads in TrustedClick do not activate the document. Only
-        // actual Chromium mouse input should authorize this same-window link.
+        // actual Windows mouse input should authorize this same-window link.
         Check(!(await EvaluateWithoutGesture(core,"navigator.userActivation.isActive")).GetBoolean(),"Script navigation did not create transient activation");
         await TrustedClick(core,"external");
+        var clickDeadline=DateTime.UtcNow.AddSeconds(5);
+        while(!(await EvaluateWithoutGesture(core,"window.fixtureLastClick?.id==='external'")).GetBoolean())
+        {if(DateTime.UtcNow>clickDeadline)throw new TimeoutException("Windows input did not click the external anchor");await Task.Delay(50);}
+        var click=await EvaluateWithoutGesture(core,"fixtureLastClick");
+        File.WriteAllText(Path.Combine(output,"trusted-click.json"),click.GetRawText());
+        Check(click.GetProperty("trusted").GetBoolean()&&click.GetProperty("active").GetBoolean(),"Real Windows click carries trusted transient activation");
         using(var client=new HttpClient{Timeout=TimeSpan.FromSeconds(5)})
         {
             var deadline=DateTime.UtcNow.AddSeconds(20);
@@ -242,6 +255,11 @@ internal static class Program
         catch(Exception error){File.WriteAllText(Path.Combine(output,"failure-capture-error.txt"),error.ToString());}
     }
     [StructLayout(LayoutKind.Sequential)] private struct Rect {public int Left,Top,Right,Bottom;}
+    [StructLayout(LayoutKind.Sequential)] private struct NativeInput {public uint Type;public InputData Data;}
+    [StructLayout(LayoutKind.Explicit)] private struct InputData {[FieldOffset(0)]public MouseInput Mouse;}
+    [StructLayout(LayoutKind.Sequential)] private struct MouseInput {public int X,Y;public uint MouseData,Flags,Time;public UIntPtr ExtraInfo;}
+    [DllImport("user32.dll",SetLastError=true)] [return:MarshalAs(UnmanagedType.Bool)] private static extern bool SetCursorPos(int x,int y);
+    [DllImport("user32.dll",SetLastError=true)] private static extern uint SendInput(uint count,NativeInput[] inputs,int size);
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr window,out Rect rect);
     [DllImport("user32.dll")] private static extern int GetSystemMetrics(int index);
     [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr window);
