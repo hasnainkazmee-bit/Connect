@@ -67,8 +67,11 @@ async function downloadImage(input: string, redirects = 0): Promise<Buffer> {
     const request = https.get(
       url,
       {
-        lookup: (_host, _options, callback) =>
-          callback(null, address.address, 4),
+        lookup: (_host, options, callback) => {
+          if (options.all)
+            callback(null, [{ address: address.address, family: 4 }]);
+          else callback(null, address.address, 4);
+        },
         signal: AbortSignal.timeout(16000),
         headers: {
           Accept:
