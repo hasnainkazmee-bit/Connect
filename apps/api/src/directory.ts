@@ -109,15 +109,35 @@ export async function directorySearch(input: Record<string, unknown>) {
   const globalSupply = usArea || country === "canada";
   const { rows } = await pool.query(
     `WITH filtered AS (
-      SELECT c.*,r.rating_average,r.review_count FROM companies c
+      SELECT c.*,r.rating_average,r.review_count,
+        (c.logo_url <> '') AS has_logo,
+        (
+          (c.cover_url <> '' AND c.cover_url <> '/assets/solar.jpg')::int * 3 +
+          (length(btrim(c.description)) >= 40)::int * 2 +
+          (c.tagline <> '')::int +
+          (c.website <> '')::int +
+          (c.location <> '' AND c.location NOT IN ('United States','Canada','Worldwide'))::int +
+          (cardinality(c.services) > 0)::int +
+          (cardinality(c.service_areas) > 0)::int * 2 +
+          (cardinality(c.audiences) > 0)::int +
+          (c.phone <> '')::int +
+          (c.employee_count <> '')::int +
+          (c.established IS NOT NULL)::int
+        ) AS profile_score
+      FROM companies c
       LEFT JOIN LATERAL (SELECT round(avg(rating),1)::float AS rating_average,count(*)::int AS review_count FROM company_reviews r WHERE r.company_id=c.id AND NOT EXISTS(SELECT 1 FROM memberships m WHERE m.company_id=c.id AND m.user_id=r.user_id)) r ON true
       WHERE NOT c.is_demo
       AND ($1='' OR ($10<>'' AND c.name_key LIKE '%'||$10||'%') OR concat_ws(' ',c.name,c.tagline,c.description,c.location,array_to_string(c.services,' '),array_to_string(c.service_areas,' ')) ILIKE '%'||$1||'%')
       AND ($2='' OR c.type=$2) AND ($3='' OR $3=ANY(c.services))
       AND ($4::text[]='{}' OR EXISTS(SELECT 1 FROM unnest(c.service_areas) a,unnest($4::text[]) t WHERE lower(a)=t OR split_part(lower(a),',',1)=t) OR (c.type='Manufacturer' AND (($8 AND 'United States'=ANY(c.service_areas)) OR ($9 AND 'Worldwide'=ANY(c.service_areas)))))
       AND ($5='' OR c.location ILIKE '%'||$5||'%') AND ($6='' OR $6=ANY(c.audiences))
-    ), paged AS (SELECT * FROM filtered ORDER BY name,id LIMIT 24 OFFSET $7)
-    SELECT COALESCE((SELECT json_agg(paged ORDER BY name,id) FROM paged),'[]') AS companies,
+    ), paged AS (
+      SELECT * FROM filtered
+      ORDER BY has_logo DESC,profile_score DESC,(listing_status='managed') DESC,name,id
+      LIMIT 24 OFFSET $7
+    )
+    SELECT COALESCE((SELECT json_agg(to_jsonb(paged)-'has_logo'-'profile_score'
+      ORDER BY has_logo DESC,profile_score DESC,(listing_status='managed') DESC,name,id) FROM paged),'[]') AS companies,
     (SELECT count(*)::int FROM filtered) AS total,
     ARRAY(SELECT DISTINCT unnest(services) AS value FROM companies WHERE NOT is_demo ORDER BY value) AS services,
     ARRAY(SELECT DISTINCT unnest(service_areas) AS value FROM companies WHERE NOT is_demo ORDER BY value) AS areas,

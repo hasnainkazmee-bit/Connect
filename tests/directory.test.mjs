@@ -106,6 +106,47 @@ test("public directory, ownership claims and shared company identity", async (t)
         );
       },
     );
+    await t.test(
+      "complete profiles lead each result page and listings without logos come last",
+      async () => {
+        const marker = "Ranking " + suffix;
+        const bare = [];
+        for (let i = 0; i < 25; i++)
+          bare.push(await fixture(`Bare ${marker} ${i}`, ["Austin, TX"]));
+        const withLogo = await fixture(`Z Logo ${marker}`, ["Austin, TX"]);
+        const complete = await fixture(`Y Complete ${marker}`, ["Austin, TX"]);
+        await db.query(
+          "UPDATE companies SET logo_url='/assets/companies/lighthouse-solar.png' WHERE id=ANY($1::uuid[])",
+          [[withLogo.id, complete.id]],
+        );
+        await db.query(
+          "UPDATE companies SET cover_url='/assets/companies/lighthouse-solar.png',tagline='Solar for every home',description=$2,phone='+1 512 555 0142',employee_count='11–50',established=2010 WHERE id=$1",
+          [
+            complete.id,
+            "A detailed company profile with services, locations, and a long track record helping customers.",
+          ],
+        );
+        const search = "/companies?q=" + encodeURIComponent(marker);
+        const first = (await anon(search)).data;
+        const second = (await anon(search + "&page=2")).data;
+        assert.equal(first.total, 27);
+        assert.deepEqual(
+          first.companies.slice(0, 2).map((company) => company.id),
+          [complete.id, withLogo.id],
+        );
+        assert.equal(first.companies.length, 24);
+        assert.equal(second.companies.length, 3);
+        assert.ok(second.companies.every((company) => !company.logo_url));
+        assert.equal(
+          new Set(
+            [...first.companies, ...second.companies].map(
+              (company) => company.id,
+            ),
+          ).size,
+          27,
+        );
+      },
+    );
     const wrong = await register("outsider-" + suffix + "@example.test"),
       owner = await register("owner@" + suffix + ".example.test"),
       peer = await register("peer@" + suffix + ".example.test"),

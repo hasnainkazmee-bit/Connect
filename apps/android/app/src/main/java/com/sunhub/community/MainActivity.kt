@@ -730,15 +730,8 @@ private fun LoadingScreen() {
 
 @Composable
 internal fun CompanyAvatar(company: JSONObject, size: Int = 42) {
-    val letters =
-        company
-            .optString("name")
-            .split(" ")
-            .take(2)
-            .mapNotNull { it.firstOrNull() }
-            .joinToString("")
     Box(
-        Modifier.size(size.dp).clip(RoundedCornerShape(12.dp)).background(Navy.copy(alpha = .09f)),
+        Modifier.size(size.dp).clip(RoundedCornerShape(12.dp)).background(Color.White),
         contentAlignment = Alignment.Center,
     ) {
         if (company.text("logo_url").isNotBlank())
@@ -749,13 +742,6 @@ internal fun CompanyAvatar(company: JSONObject, size: Int = 42) {
                 null,
                 Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit,
-            )
-        else
-            Text(
-                letters,
-                color = Navy,
-                fontWeight = FontWeight.SemiBold,
-                style = MaterialTheme.typography.labelLarge,
             )
     }
 }

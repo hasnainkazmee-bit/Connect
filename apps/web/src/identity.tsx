@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Sun, Leaf, Building2 } from "lucide-react";
 import type { Company } from "./types";
 const initials = (s: string) =>
   s
@@ -18,12 +17,7 @@ export function Logo({
   const imageUrl = c.logo_url && c.logo_url !== failedUrl ? c.logo_url : "";
   return (
     <span
-      className={
-        "company-logo " +
-        (c.logo_style === "panel" ? "photo" : c.logo_style) +
-        " " +
-        size
-      }
+      className={"company-logo " + size}
     >
       {imageUrl ? (
         <img
@@ -39,18 +33,7 @@ export function Logo({
             borderRadius: "inherit",
           }}
         />
-      ) : c.logo_style === "leaf" ? (
-        <Leaf />
-      ) : c.logo_style === "building" ? (
-        <Building2 />
-      ) : c.logo_style === "panel" ? (
-        <img src="/assets/solar.jpg" alt="" />
-      ) : (
-        <span className="helio-mark">
-          <Sun />
-          <i />
-        </span>
-      )}
+      ) : null}
     </span>
   );
 }

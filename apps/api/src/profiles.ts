@@ -534,6 +534,8 @@ export function profileRoutes() {
     ).rows[0];
     if (!a) throw new HttpError(404, "Photo not found.");
     res.type(a.mime_type);
+    if (a.storage_name.startsWith("imported-logos/"))
+      res.set("Cache-Control", "public, max-age=604800, immutable");
     await sendStored(req, res, a.storage_backend, a.storage_name);
   });
   router.get("/companies/:id/reviews", async (req, res) => {
