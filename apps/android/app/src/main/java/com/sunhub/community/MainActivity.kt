@@ -815,8 +815,9 @@ private fun Pagination(page: Int, total: Int, pageSize: Int = 24, change: (Int) 
 @Composable
 private fun DirectoryScreen(model: CommunityModel, scroll: LazyListState) {
     var search by rememberSaveable { mutableStateOf("") }
+    var type by rememberSaveable { mutableStateOf("") }
     var page by rememberSaveable { mutableIntStateOf(1) }
-    val path = "/companies?q=${query(search)}&page=$page"
+    val path = "/companies?q=${query(search)}&type=${query(type)}&page=$page"
     LaunchedEffect(path) {
         kotlinx.coroutines.delay(180)
         model.load(path)
@@ -825,6 +826,34 @@ private fun DirectoryScreen(model: CommunityModel, scroll: LazyListState) {
         SearchField(search) {
             search = it
             page = 1
+        }
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+        ) {
+            items(
+                listOf(
+                    "" to "All companies",
+                    "Installer" to "Installers",
+                    "EPC" to "EPCs",
+                    "Manufacturer" to "Manufacturers",
+                    "Contractor" to "Contractors",
+                    "Developer" to "Developers",
+                    "Distributor" to "Distributors",
+                    "Service provider" to "Service providers",
+                )
+            ) { (value, label) ->
+                ConnectFilterChip(
+                    selected = type == value,
+                    onClick = {
+                        type = value
+                        page = 1
+                    },
+                    label = { Text(label) },
+                    modifier = Modifier.testTag("directory-type-${value.ifEmpty { "all" }}"),
+                )
+            }
         }
         val result = model.pages[path]
         if (result == null) LoadingScreen()
