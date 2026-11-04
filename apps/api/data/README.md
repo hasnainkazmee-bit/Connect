@@ -11,3 +11,5 @@ Run `npm run directory:import-master` for a database-aware dry run; add `-- --ap
 Logo quality corrections: the source images for 15 lightyears and 1stle were customer logos (UCF and Public Storage). Migration 014 replaces them with each company's own header artwork from its official website. The original snapshot remains unchanged for provenance.
 
 The same migration clears imported external logo URLs that could not be cached. Those listings show an empty white logo area and sort after listings with a usable logo; the original URLs remain in the source snapshot for later review.
+
+Barnhart Pump Co was mislabeled as a general solar installer in the source sheet. Its official site describes water well pump work, including solar-powered pumps. The import applies this verified correction while retaining the original NDJSON; migration 015 corrects the existing unclaimed listing.

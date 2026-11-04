@@ -4,10 +4,18 @@ import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { spawnSync } from "node:child_process";
 import { directoryCatalog } from "../apps/api/dist/directory-catalog.js";
+import { loadMasterCompanySnapshot } from "../apps/api/dist/master-company-import.js";
 const base = process.env.API_TEST_URL || "http://localhost:4101";
 if (!new URL(process.env.DATABASE_URL).pathname.endsWith("_test"))
   throw new Error("Use an isolated test database.");
 const db = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+test("verified company corrections do not repeat inaccurate source labels", async () => {
+  const records = await loadMasterCompanySnapshot(process.cwd());
+  const barnhart = records.find((record) => record.domain === "barnhartpump.com");
+  assert.equal(barnhart?.type, "Service provider");
+  assert.equal(barnhart?.location, "Peyton, CO");
+  assert.equal(barnhart?.services[0], "Solar water pumps");
+});
 function client() {
   let cookie = "";
   return async (path, body, method = body === undefined ? "GET" : "POST") => {

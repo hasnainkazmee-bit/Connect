@@ -27,6 +27,27 @@ const recordSchema = z.strictObject({
   sourceCheckedAt: z.iso.date(),
 });
 export type MasterCompany = z.infer<typeof recordSchema>;
+
+function verifiedPublicCorrection(item: MasterCompany): MasterCompany {
+  if (item.name !== "Barnhart Pump Co" || item.domain !== "barnhartpump.com")
+    return item;
+  // Official services: https://www.barnhartpump.com/services/solar-water-pumps/
+  return {
+    ...item,
+    type: "Service provider",
+    location: "Peyton, CO",
+    tagline: "Water well pumps, including solar-powered systems",
+    description:
+      "Barnhart Pump Co designs, installs and repairs water well pump systems and provides water treatment in Colorado. Its solar work is solar-powered water pumps for off-grid homes, farms and remote sites.",
+    services: [
+      "Solar water pumps",
+      "Water well pump installation",
+      "Well pump repair",
+      "Water treatment",
+    ],
+    serviceAreas: ["Peyton", "Colorado Springs", "Pikes Peak region"],
+  };
+}
 export type ExistingCompany = {
   id: string;
   name_key: string;
@@ -82,7 +103,7 @@ export async function loadMasterCompanySnapshot(root: string) {
         throw new Error(`Website/domain mismatch in ${file} line ${index + 1}`);
       if (item.logoUrl && !host(item.logoUrl))
         throw new Error(`Invalid logo URL in ${file} line ${index + 1}`);
-      records.push(item);
+      records.push(verifiedPublicCorrection(item));
     }
   }
   if (records.length !== 3330)
