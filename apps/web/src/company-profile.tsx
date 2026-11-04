@@ -109,7 +109,8 @@ export function CompanyProfileView({
   const { company, session, admin, open, revision } = useApp();
   const [data, setData] = useState<Profile | null>(null),
     [error, setError] = useState(""),
-    [preview, setPreview] = useState(false);
+    [preview, setPreview] = useState(false),
+    [failedLogoUrl, setFailedLogoUrl] = useState("");
   const visibleTabs =
     data?.company.listing_status === "unclaimed"
       ? tabs.filter((t) => t === "About" || t === "Reviews")
@@ -296,15 +297,17 @@ export function CompanyProfileView({
       <article className="presence-masthead" aria-labelledby="presence-title">
         <div className="presence-introduction">
           <div className="presence-brand">
-            {c.logo_url ? (
+            {c.logo_url && c.logo_url !== failedLogoUrl ? (
               <img
                 className="presence-wordmark"
                 src={c.logo_url}
                 alt={c.name + " logo"}
                 decoding="async"
+                referrerPolicy="no-referrer"
+                onError={() => setFailedLogoUrl(c.logo_url || "")}
               />
             ) : (
-              <Logo company={c} />
+              <Logo company={{ ...c, logo_url: "" }} />
             )}
             <div className="presence-brand-tools">
               {editable && (

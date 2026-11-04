@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Sun, Leaf, Building2 } from "lucide-react";
 import type { Company } from "./types";
 const initials = (s: string) =>
@@ -13,6 +14,8 @@ export function Logo({
   company: Company;
   size?: string;
 }) {
+  const [failedUrl, setFailedUrl] = useState("");
+  const imageUrl = c.logo_url && c.logo_url !== failedUrl ? c.logo_url : "";
   return (
     <span
       className={
@@ -22,10 +25,12 @@ export function Logo({
         size
       }
     >
-      {c.logo_url ? (
+      {imageUrl ? (
         <img
-          src={c.logo_url}
+          src={imageUrl}
           alt=""
+          referrerPolicy="no-referrer"
+          onError={() => setFailedUrl(imageUrl)}
           style={{
             width: "100%",
             height: "100%",
