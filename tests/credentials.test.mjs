@@ -158,6 +158,20 @@ test("sourced credentials preserve ownership, evidence and import boundaries", a
             [company.id],
           )
         ).rows[0];
+        await db.query(
+          "UPDATE company_credentials SET title='Newer reviewed evidence',checked_at=now() WHERE id=$1",
+          [sourced.id],
+        );
+        runImport("--apply");
+        assert.equal(
+          (
+            await db.query(
+              "SELECT title FROM company_credentials WHERE id=$1",
+              [sourced.id],
+            )
+          ).rows[0].title,
+          "Newer reviewed evidence",
+        );
         // An operator-sourced record remains protected even for this company's owner.
         await db.query(
           "INSERT INTO memberships(user_id,company_id,role) VALUES($1,$2,'owner') ON CONFLICT DO NOTHING",

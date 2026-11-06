@@ -71,7 +71,8 @@ try {
           await db.query(
             `INSERT INTO company_credentials(company_id,catalog_key,category,title,organization,scope,scope_detail,description,source_url,evidence_basis,period,checked_at)
          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-         ON CONFLICT(company_id,catalog_key) DO UPDATE SET category=excluded.category,title=excluded.title,organization=excluded.organization,scope=excluded.scope,scope_detail=excluded.scope_detail,description=excluded.description,source_url=excluded.source_url,evidence_basis=excluded.evidence_basis,period=excluded.period,checked_at=excluded.checked_at,updated_at=now()`,
+         ON CONFLICT(company_id,catalog_key) DO UPDATE SET category=excluded.category,title=excluded.title,organization=excluded.organization,scope=excluded.scope,scope_detail=excluded.scope_detail,description=excluded.description,source_url=excluded.source_url,evidence_basis=excluded.evidence_basis,period=excluded.period,checked_at=excluded.checked_at,updated_at=now()
+         WHERE company_credentials.checked_at IS NULL OR company_credentials.checked_at<=excluded.checked_at`,
             [
               company.id,
               item.key,

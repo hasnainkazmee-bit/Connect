@@ -93,7 +93,7 @@ def build():
             if organization=='B Lab':continue # directory presence alone is not proof of certification
             key={'EnergySage':'energysage','SolarReviews':'solarreviews','Solar Power World':'solar-power-world'}[organization]
             description='Public company profile. Directory presence is separate from certification; external ratings are not included in Connect review scores.'
-            if finding.get('networkDisclaimer'):description+=' The source states this company is outside its screened network.'
+            # Profile existence is corroborated here. Network approval/status needs separate manual review.
             records[(company['id'],key)]=record(company,key,organization+' profile',organization,'company',description,finding['sourceUrl'],'directory',finding['checkedAt'],'directory_profile_identity_match',finding['matchedBy'],category='directory',scope_detail=company['name']+' public directory profile.')
     # Human-reviewed source records and issuer-directory domain matches take precedence.
     manual=ROOT/'data/company-credentials/manual.json'

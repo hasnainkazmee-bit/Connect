@@ -42,8 +42,9 @@ npm run credentials:research -- inventory
 npm run credentials:research -- crawl --workers 24 --pages 3
 npm run credentials:research -- sitemaps
 npm run credentials:research -- directories --workers 6
-npm run credentials:research -- report
+npm run credentials:research -- reconcile
 npm run credentials:batch
+npm run credentials:research -- report --publish
 npm run test:credential-research
 ```
 

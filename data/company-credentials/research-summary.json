@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-06T14:32:47.317429+00:00",
+  "generatedAt": "2026-11-06T14:51:34.759792+00:00",
   "inventoryCompanies": 3339,
   "attemptedCompanies": 3339,
   "websiteResearchStatusCounts": {
@@ -9,21 +9,21 @@
     "no_website": 1
   },
   "websitePagesFetched": 7497,
-  "directoryProfilesAttempted": 323,
+  "directoryProfilesAttempted": 1017,
   "directoryProfileStatusCounts": {
-    "profile_identity_matched": 114,
-    "identity_review": 193,
-    "fetch_failed": 16
+    "profile_identity_matched": 429,
+    "identity_review": 566,
+    "fetch_failed": 22
   },
-  "importableRecords": 516,
-  "companiesWithImportableRecords": 380,
+  "importableRecords": 816,
+  "companiesWithImportableRecords": 611,
   "evidenceBasisCounts": {
-    "directory": 118,
+    "directory": 418,
     "company": 377,
     "issuer": 21
   },
   "reviewMethodCounts": {
-    "directory_profile_identity_match": 112,
+    "directory_profile_identity_match": 412,
     "first_party_explicit_claim": 342,
     "issuer_directory_domain_match": 6,
     "manual": 56
@@ -32,5 +32,14 @@
     "Company-reported claims are not issuer verification.",
     "No findings means no qualifying evidence in checked pages, not absence of credentials.",
     "These research artifacts do not establish a production deployment or import."
-  ]
+  ],
+  "validation": {
+    "apiChecksPassed": 130,
+    "browserChecksPassed": 100,
+    "serviceOnboardingBrowserChecksSkipped": 2,
+    "crawlerChecksPassed": 14,
+    "masterSnapshotChecksPassed": 2,
+    "completeBatchImportRehearsal": "passed",
+    "repeatImport": "stable"
+  }
 }

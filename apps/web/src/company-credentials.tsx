@@ -53,6 +53,7 @@ export function CompanyCredentials({
         {editable && (
           <button
             className="button small"
+            aria-label="Add credential or directory listing"
             onClick={() => open(<CredentialEditor />)}
           >
             <Plus size={15} />

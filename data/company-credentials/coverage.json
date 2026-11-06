@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-06T14:32:47.318014+00:00",
+  "generatedAt": "2026-11-06T14:51:34.760460+00:00",
   "companies": [
     {
       "id": "a79660d7-9787-4ba1-b75f-fab0eb6891eb",
@@ -143,7 +143,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:18:10.273422+00:00",
-      "importableRecordCount": 2,
+      "importableRecordCount": 3,
       "checkedPages": [
         {
           "url": "https://creativesolarusa.com/",
@@ -343,7 +343,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:18:10.273818+00:00",
-      "importableRecordCount": 2,
+      "importableRecordCount": 3,
       "checkedPages": [
         {
           "url": "https://www.midstatesolar.com/",
@@ -389,7 +389,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:18:10.273905+00:00",
-      "importableRecordCount": 3,
+      "importableRecordCount": 4,
       "checkedPages": [
         {
           "url": "https://ppm.solar/",
@@ -416,7 +416,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:18:10.273938+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.paradisesolarenergy.com/",
@@ -601,7 +601,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:18:10.275115+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.trusourceenergy.com/",
@@ -697,7 +697,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:18:13.901177+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://allsolarenergy.com/",
@@ -1551,7 +1551,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:18:22.028719+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.lighthousesolartx.com/",
@@ -1616,7 +1616,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:18:22.500367+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://mohavesolar.com/",
@@ -2084,7 +2084,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:18:26.679779+00:00",
-      "importableRecordCount": 2,
+      "importableRecordCount": 4,
       "checkedPages": [
         {
           "url": "https://www.revisionenergy.com/",
@@ -2395,7 +2395,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:18:28.505631+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://solar-fit.com/",
@@ -2441,7 +2441,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:18:28.918651+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://sundirected.com/",
@@ -2491,7 +2491,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:18:29.821266+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://suncatcherenergy.com/",
@@ -2827,7 +2827,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:18:32.234329+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://valleysolar.solar/",
@@ -2977,7 +2977,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:18:34.768969+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.yellowlite.com/",
@@ -3027,7 +3027,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:18:35.231007+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://abcsolar.com/",
@@ -3292,7 +3292,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:18:36.544820+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://brightstarsolar.net/",
@@ -3692,7 +3692,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:18:40.668466+00:00",
-      "importableRecordCount": 3,
+      "importableRecordCount": 4,
       "checkedPages": [
         {
           "url": "https://www.electricare.com/",
@@ -4541,7 +4541,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:18:48.720997+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://mccormickselectrical.com/",
@@ -5144,7 +5144,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:18:55.158227+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://pinnacleroofingpros.com/",
@@ -5663,7 +5663,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:18:59.002008+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://shockoesolar.com/",
@@ -6028,7 +6028,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:19:02.341415+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.strawberrysolar.com/",
@@ -6082,7 +6082,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:19:03.072866+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.sungreensystems.com/",
@@ -6435,7 +6435,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:19:06.938570+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://universalsolardirect.com/",
@@ -6485,7 +6485,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:19:07.300669+00:00",
-      "importableRecordCount": 3,
+      "importableRecordCount": 4,
       "checkedPages": [
         {
           "url": "https://www.virtuesolar.com/",
@@ -6604,7 +6604,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:19:08.205891+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://westcoastsolarenergy.com/",
@@ -6750,7 +6750,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:19:09.984867+00:00",
-      "importableRecordCount": 2,
+      "importableRecordCount": 3,
       "checkedPages": [
         {
           "url": "https://www.a1asolar.com/",
@@ -6931,7 +6931,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:19:11.818883+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.advancedsolarproducts.com/",
@@ -7004,7 +7004,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:19:12.504605+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://aikyum.com/",
@@ -7027,7 +7027,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:19:12.628522+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://aileysolarelectric.com/",
@@ -7204,7 +7204,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:19:14.483433+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.americansolarandroofing.com/",
@@ -7231,7 +7231,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:19:14.487603+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.americansolarpartners.com/",
@@ -7420,7 +7420,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:19:16.415611+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://aurora-energy.com/",
@@ -7647,7 +7647,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:19:18.068821+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://beaconsolarma.com/",
@@ -7858,7 +7858,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:19:19.939378+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://bluehorizonenergy.com/",
@@ -8308,7 +8308,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:19:24.284715+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.cosmicsolar.com/",
@@ -8427,7 +8427,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:19:26.294257+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.dfwsolarelectric.com/",
@@ -8781,7 +8781,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:19:29.463664+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.envinity.com/",
@@ -8808,7 +8808,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:19:29.590548+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://evolutionsolarenergy.com/",
@@ -9027,7 +9027,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:19:32.336223+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.floridapowerservices.com/",
@@ -9054,7 +9054,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:19:33.042067+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.floridasolarservices.com/",
@@ -9380,7 +9380,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:19:36.685233+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://hannahsolar.com/",
@@ -9407,7 +9407,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:19:36.794797+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://hsgs.solar/",
@@ -9426,7 +9426,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:19:36.892541+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://harmonyairconstruction.com/",
@@ -9733,7 +9733,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:19:38.983294+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.integratesun.com/",
@@ -9937,7 +9937,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:19:41.554231+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.kapitalelectric.com/",
@@ -10172,7 +10172,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:19:43.724468+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://mpisolar.com/",
@@ -10522,7 +10522,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:19:49.077671+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.mygenerationenergy.com/",
@@ -10845,7 +10845,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:00.755362+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://o3energy.com/",
@@ -10899,7 +10899,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:19:53.763101+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://openskyenergy.net/",
@@ -11030,7 +11030,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:00.755491+00:00",
-      "importableRecordCount": 2,
+      "importableRecordCount": 3,
       "checkedPages": [
         {
           "url": "https://www.palomarsolar.com/",
@@ -11526,7 +11526,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:00.757171+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.purepointenergy.com/",
@@ -11645,7 +11645,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:00.757550+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.renewableusa.com/",
@@ -11903,7 +11903,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:00.758486+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://savkat.com/",
@@ -12188,7 +12188,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:00.758854+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://sol-ark.com/",
@@ -12253,7 +12253,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:00.758950+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.solarcentex.com/",
@@ -12368,7 +12368,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:00.759123+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://solarsaves.net/",
@@ -12395,7 +12395,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:00.759150+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.solaresystems.com/",
@@ -12549,7 +12549,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:03.425020+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://solarsme.com/",
@@ -12695,7 +12695,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:04.154712+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://solartechelec.com/",
@@ -12745,7 +12745,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:04.289514+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.solartopps.com/",
@@ -12799,7 +12799,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:04.370341+00:00",
-      "importableRecordCount": 4,
+      "importableRecordCount": 5,
       "checkedPages": [
         {
           "url": "https://solartechonline.com/",
@@ -13068,7 +13068,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:05.550072+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.southsoundsolar.com/",
@@ -13210,7 +13210,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:05.996300+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://straightupsolar.com/",
@@ -13298,7 +13298,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:06.553027+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://suncraftsmensolar.com/",
@@ -13375,7 +13375,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:06.795445+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://sunbridgesolar.com/",
@@ -13517,7 +13517,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:07.719788+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://sunlightfinancial.com/",
@@ -13594,7 +13594,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:07.980167+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.sunseyesolar.com/",
@@ -14648,7 +14648,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:11.920588+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://180solarpower.com/",
@@ -14721,7 +14721,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:12.142845+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://365solar.net/",
@@ -15040,7 +15040,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:13.626999+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://apgsolar.com/",
@@ -15132,7 +15132,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:14.174790+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://accordpower.com/",
@@ -15155,7 +15155,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:14.293715+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://acosenergy.com/",
@@ -15505,7 +15505,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:15.660697+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.aldonelectric.com/",
@@ -15555,7 +15555,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:15.696801+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.allamericansolar.com/",
@@ -15597,7 +15597,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:15.950465+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.allearthrenewables.com/",
@@ -15624,7 +15624,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:15.974495+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://allseasonsolar.net/",
@@ -15993,7 +15993,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:17.322192+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://ampericon.com/",
@@ -16297,7 +16297,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:18.396784+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://atlastasolar.com/",
@@ -16389,7 +16389,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:18.870578+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.axis-solar.com/",
@@ -16416,7 +16416,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:18.944431+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.bcxenergy.com/",
@@ -16543,7 +16543,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:19.626591+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://bakerhomeenergy.com/",
@@ -16858,7 +16858,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:20.899716+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://beyondsolar.net/",
@@ -17027,7 +17027,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:21.176713+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://blueplanetenergy.com/",
@@ -17211,7 +17211,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:22.131928+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://brightsidesolarinc.com/",
@@ -17422,7 +17422,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:22.933740+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://cvmelectric.com/",
@@ -17798,7 +17798,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:24.853251+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://circlelsolar.com/",
@@ -18625,7 +18625,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:28.315224+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://dcsolarelectric.com/",
@@ -18706,7 +18706,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:28.445080+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.dailygreenpower.com/",
@@ -18929,7 +18929,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:29.510746+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://dogwoodsolar.com/",
@@ -19094,7 +19094,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:30.269689+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://e2solar.com/",
@@ -19171,7 +19171,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:30.522118+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.efsenergy.com/",
@@ -19521,7 +19521,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:31.500494+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.ecodirect.com/",
@@ -19617,7 +19617,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:31.934073+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://ecotechsolar.com/",
@@ -20244,7 +20244,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:35.097228+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://ensmarrt.com/",
@@ -20367,7 +20367,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:35.557961+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://everguardsolar.com/",
@@ -20413,7 +20413,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:35.711104+00:00",
-      "importableRecordCount": 2,
+      "importableRecordCount": 3,
       "checkedPages": [
         {
           "url": "https://exactsolar.com/",
@@ -20486,7 +20486,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:36.096853+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://exeltech.com/",
@@ -20636,7 +20636,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:36.552963+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.fortresspower.com/",
@@ -20767,7 +20767,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:36.988364+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.freedomsolar.net/",
@@ -20940,7 +20940,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:37.500399+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://geckosolarenergy.com/",
@@ -21117,7 +21117,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:38.359504+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.gogreensolar.com/",
@@ -21140,7 +21140,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:38.648495+00:00",
-      "importableRecordCount": 2,
+      "importableRecordCount": 3,
       "checkedPages": [
         {
           "url": "https://www.gosolarpower.com/",
@@ -21294,7 +21294,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:39.375834+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://goldensolar.net/",
@@ -21463,7 +21463,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:39.984686+00:00",
-      "importableRecordCount": 2,
+      "importableRecordCount": 3,
       "checkedPages": [
         {
           "url": "https://gotwatts.com/",
@@ -21544,7 +21544,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:40.222218+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.granitestatesolar.com/",
@@ -21675,7 +21675,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:40.621205+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.greenmtnsolar.com/",
@@ -21702,7 +21702,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:40.780939+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.greenstocksolar.com/",
@@ -21829,7 +21829,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:41.220812+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://greenlogic.com/",
@@ -22474,7 +22474,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:44.632482+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.huffmanelectricalsystems.com/",
@@ -23000,7 +23000,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:46.804224+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://isasolar.com/",
@@ -23227,7 +23227,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:47.602467+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.ironridge.com/",
@@ -23369,7 +23369,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:48.015702+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://jdsolarsolutions.com/",
@@ -23496,7 +23496,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:48.221614+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://kaitannasolar.com/",
@@ -24022,7 +24022,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:50.517894+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://legacysolar.com/",
@@ -24087,7 +24087,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:51.102854+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.lifestylesolarinc.com/",
@@ -24164,7 +24164,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:51.537478+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.lightwavesolar.com/",
@@ -24805,7 +24805,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:53.415462+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://marylandsolarsolutions.com/",
@@ -25782,7 +25782,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:56.842973+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://newenglandcleanenergy.com/",
@@ -25947,7 +25947,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:20:57.164399+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.nextstepenergy.com/",
@@ -26047,7 +26047,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:20:57.395516+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.nickelsenergysolutions.com/",
@@ -26665,7 +26665,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:00.387996+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://alteryourenergy.com/",
@@ -27122,7 +27122,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:02.144916+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.photonbrothers.com/",
@@ -27383,7 +27383,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:03.283039+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://powerstore.com/",
@@ -27809,7 +27809,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:04.544509+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://promsun.com/",
@@ -27859,7 +27859,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:04.635021+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://provenenergysystems.com/",
@@ -28251,7 +28251,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:06.353962+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.rainshadowsolar.com/",
@@ -28397,7 +28397,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:06.730799+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://reliablesolarsolutions.com/",
@@ -28750,7 +28750,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:08.457740+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.robcoelectriclv.com/",
@@ -29126,7 +29126,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:10.021545+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://scspsolar.com/",
@@ -29168,7 +29168,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:10.192472+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://solarpricediscovery.com/",
@@ -29918,7 +29918,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:12.432442+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.siroiselectric.com/",
@@ -30014,7 +30014,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:12.642875+00:00",
-      "importableRecordCount": 2,
+      "importableRecordCount": 3,
       "checkedPages": [
         {
           "url": "https://sollunasolar.com/",
@@ -30129,7 +30129,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:12.997563+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.solalt.com/",
@@ -30317,7 +30317,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:13.798301+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.energylabsinc.com/",
@@ -30405,7 +30405,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:14.205075+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://solargaines.com/",
@@ -30616,7 +30616,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:15.439307+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://solaroneenergy.com/",
@@ -30708,7 +30708,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:15.616982+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://solarpowerpros.com/",
@@ -30881,7 +30881,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:16.273055+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://solarstoreofgreenfield.com/",
@@ -30950,7 +30950,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:16.674009+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.solarpowerpalmdesert.com/",
@@ -31452,7 +31452,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:18.593714+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://southmountain.com/",
@@ -31521,7 +31521,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:18.831913+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://svtsolar.com/",
@@ -31740,7 +31740,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:19.640764+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://stada-energy.com/",
@@ -31821,7 +31821,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:19.775760+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://statelinesolar.net/",
@@ -31886,7 +31886,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:20.232913+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://stellarsolar.net/",
@@ -32209,7 +32209,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:21.326528+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://sunupzerodown.com/",
@@ -32228,7 +32228,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:21.387692+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://sun-windsolutions.com/",
@@ -32297,7 +32297,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:21.832214+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://sunfarmenergy.net/",
@@ -32447,7 +32447,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:22.345566+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://sunwatt.us/",
@@ -32493,7 +32493,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:22.376916+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.sundancepower.com/",
@@ -32589,7 +32589,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:22.822212+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.sunlinkenergy.com/",
@@ -32896,7 +32896,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:23.983195+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://sunwise-solar.com/",
@@ -33073,7 +33073,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:24.704055+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.sweetwaterenergyservices.com/",
@@ -33173,7 +33173,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:25.185384+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://synergy768.com/",
@@ -33346,7 +33346,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:25.572243+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://texassolarguys.com/",
@@ -33511,7 +33511,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:25.996241+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.ticktockenergy.com/",
@@ -33708,7 +33708,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:26.889968+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://truesouthsolar.net/",
@@ -33877,7 +33877,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:27.418866+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://unirac.com/",
@@ -34000,7 +34000,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:27.927255+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.unitedsunenergy.com/",
@@ -34177,7 +34177,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:28.697717+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.bondplumbing.com/",
@@ -34196,7 +34196,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:28.848978+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.vanguardenergypartners.com/",
@@ -35536,7 +35536,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:34.725940+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://aws-solar.com/",
@@ -35632,7 +35632,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:35.396998+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://aesrenew.com/",
@@ -35713,7 +35713,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:35.678938+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://albaenergy.com/",
@@ -35763,7 +35763,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:35.785985+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://allegiance-solar.com/",
@@ -35859,7 +35859,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:36.185105+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.allterrasolar.com/",
@@ -36009,7 +36009,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:36.453745+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.alternative-power.com/",
@@ -36132,7 +36132,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:36.790268+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://anevasolar.com/",
@@ -37054,7 +37054,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:40.590216+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.cbsolarinc.com/",
@@ -37165,7 +37165,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:41.128949+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://cmsolarelectric.com/",
@@ -37315,7 +37315,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:41.738283+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://capitalcitysolar.com/",
@@ -38013,7 +38013,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:44.734396+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.cotuitsolar.com/",
@@ -38236,7 +38236,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:45.468063+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://customsolar.us/",
@@ -38259,7 +38259,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:45.535661+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://dcsenergy.com/",
@@ -39036,7 +39036,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:48.668974+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.earthlighttech.com/",
@@ -39416,7 +39416,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:50.119427+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://empoweredenergysystems.com/",
@@ -39962,7 +39962,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:52.168528+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://fafcosolar.com/",
@@ -40247,7 +40247,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:21:53.907545+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.forecastenergy.com/",
@@ -40815,7 +40815,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:56.321757+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.gogreenelectricinc.com/",
@@ -41179,7 +41179,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:57.943665+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://greenridgesolar.com/",
@@ -41325,7 +41325,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:58.259909+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://greenifyenergysavers.com/",
@@ -41344,7 +41344,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:21:58.375315+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://greenpowerdevelopers.com/",
@@ -41997,7 +41997,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:22:00.637898+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://huntelectric.com/",
@@ -42597,7 +42597,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:03.056022+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://jsunpv.com/",
@@ -43074,7 +43074,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:22:05.005787+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://kuykendallsolar.com/",
@@ -43201,7 +43201,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:05.287625+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://landfillsolar.com/",
@@ -43255,7 +43255,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:05.471013+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://lastmile-energy.com/",
@@ -43554,7 +43554,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:06.288974+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 3,
       "checkedPages": [
         {
           "url": "https://longhornsolar.com/",
@@ -44615,7 +44615,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:22:10.894148+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://nrgcleanpower.com/",
@@ -44734,7 +44734,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:11.505342+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.nstsolar.com/",
@@ -44881,7 +44881,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:11.744900+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://newdominionsolar.com/",
@@ -44977,7 +44977,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:22:12.049803+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://newcenturyelectric.com/",
@@ -45262,7 +45262,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:22:13.516821+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://ogwenergyresources.com/",
@@ -45899,7 +45899,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:22:15.559966+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.panelclaw.com/",
@@ -46137,7 +46137,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:22:16.378631+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://plugitinsolar.com/",
@@ -46368,7 +46368,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:17.138347+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://powerfactorco.com/",
@@ -46418,7 +46418,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:22:17.476845+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.power-guru.com/",
@@ -46518,7 +46518,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:18.286581+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://powerfullygreen.com/",
@@ -47732,7 +47732,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:22:23.245366+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.sonsolarsystems.com/",
@@ -47847,7 +47847,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:23.874511+00:00",
-      "importableRecordCount": 2,
+      "importableRecordCount": 3,
       "checkedPages": [
         {
           "url": "https://seabrightsolar.com/",
@@ -47998,7 +47998,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:24.724264+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://simplepower.energy/",
@@ -48348,7 +48348,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:22:25.764401+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://sol-energy.us/",
@@ -48555,7 +48555,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:26.822760+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.solardesignstudio.com/",
@@ -48701,7 +48701,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:22:27.786004+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://solarplanetinc.com/",
@@ -48812,7 +48812,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:28.074949+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://solarrising.net/",
@@ -48912,7 +48912,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:28.283706+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://solarsmartliving.com/",
@@ -48939,7 +48939,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:22:28.417283+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.solar-states.com/",
@@ -48985,7 +48985,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:22:28.855787+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://solarsymphony.com/",
@@ -49127,7 +49127,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:29.471047+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://solaretribe.com/",
@@ -49392,7 +49392,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:22:31.143213+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://solorasolar.com/",
@@ -49488,7 +49488,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:31.366908+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.spacecitysolar.com/",
@@ -49557,7 +49557,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:22:31.567877+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.standardenergysolutions.com/",
@@ -49626,7 +49626,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:31.660954+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://steiner-electric.com/",
@@ -50471,7 +50471,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:35.291332+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.txspc.com/",
@@ -50548,7 +50548,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:35.525225+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.thegreenpanel.com/",
@@ -51766,7 +51766,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:39.655289+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.westernsolarinc.com/",
@@ -52004,7 +52004,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:40.822673+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://yessolarsolutions.com/",
@@ -52031,7 +52031,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:40.828860+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://yuma-solar.com/",
@@ -52277,7 +52277,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:22:41.539244+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.621energy.com/",
@@ -52950,7 +52950,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:44.075292+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://bcisolar.com/",
@@ -53266,7 +53266,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:22:45.892809+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://brightpower.com/",
@@ -53293,7 +53293,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:22:45.893536+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.buildingenergyvt.com/",
@@ -55262,7 +55262,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:54.384740+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.greenstatepower.com/",
@@ -55615,7 +55615,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:22:56.353336+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://imperialsolar.com/",
@@ -55838,7 +55838,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:22:57.247062+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://johnsonsolar.com/",
@@ -57102,7 +57102,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:02.484057+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://powerlutions.com/",
@@ -57818,7 +57818,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:04.968637+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://solarconnectioninc.com/",
@@ -58178,7 +58178,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:06.660225+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://solterra.com/",
@@ -58404,7 +58404,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:07.943181+00:00",
-      "importableRecordCount": 3,
+      "importableRecordCount": 4,
       "checkedPages": [
         {
           "url": "https://www.sugarhollowsolar.com/",
@@ -58508,7 +58508,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:08.185324+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://suncommon.com/",
@@ -60802,7 +60802,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:16.340748+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.kwsolar.net/",
@@ -60829,7 +60829,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:16.383574+00:00",
-      "importableRecordCount": 4,
+      "importableRecordCount": 5,
       "checkedPages": [
         {
           "url": "https://luminasolar.com/",
@@ -60956,7 +60956,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:16.978918+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://simplersolar.com/",
@@ -61129,7 +61129,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:17.807227+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.myacesolar.com/",
@@ -61302,7 +61302,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:18.405390+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.capefearenergy.com/",
@@ -61583,7 +61583,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:19.453903+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.mwsolarpower.com/",
@@ -61729,7 +61729,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:19.914343+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://radiancesolar.com/",
@@ -61940,7 +61940,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:20.782340+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.allsaveenergy.com/",
@@ -62113,7 +62113,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:21.472992+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.airsunsolar.com/",
@@ -62228,7 +62228,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:21.838024+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.arsenalsolar.com/",
@@ -62469,7 +62469,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:22.751849+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.casolarelectric.com/",
@@ -62780,7 +62780,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:23.594588+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.yourecoenergy.com/",
@@ -62822,7 +62822,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:24.043061+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://epicsolarelectric.com/",
@@ -62964,7 +62964,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:24.553823+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.gmindustries.com/",
@@ -63033,7 +63033,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:24.796527+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.greatertexassolar.com/",
@@ -63129,7 +63129,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:25.069427+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.harvestsolar.net/",
@@ -63152,7 +63152,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:25.077841+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://highnoonsolar.com/",
@@ -63620,7 +63620,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:26.028860+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://michigansolarsolutions.com/",
@@ -64092,7 +64092,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:27.779189+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://solanta.com/",
@@ -64211,7 +64211,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:27.948581+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.steelcitysolar.us/",
@@ -64253,7 +64253,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:28.256982+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://suntalksolar.com/",
@@ -64349,7 +64349,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:28.321983+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "http://txgreenenergy.com/",
@@ -65185,7 +65185,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:30.474951+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.altadenasolar.com/",
@@ -65269,7 +65269,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:30.714425+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.andersolar.com/",
@@ -65484,7 +65484,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:31.403011+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://aztecsolar.com/",
@@ -65841,7 +65841,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:32.839880+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.bostonsolar.us/",
@@ -65945,7 +65945,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:33.016583+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://brightwayenergy.com/",
@@ -66294,7 +66294,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:34.226751+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.carolinamountainsolar.com/",
@@ -66363,7 +66363,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:34.394367+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://cedarcreekenergy.com/",
@@ -66513,7 +66513,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:34.790278+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.go-cleantech.com/",
@@ -66770,7 +66770,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:35.479614+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.dkdenergy.com/",
@@ -67061,7 +67061,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:36.660886+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://elementalenergy.net/",
@@ -67184,7 +67184,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:37.097545+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://goenergize.com/index.html",
@@ -67448,7 +67448,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:38.113333+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.freedomsolarenergy.com/",
@@ -68326,7 +68326,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:40.551638+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://mainesolarsolutions.com/",
@@ -68487,7 +68487,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:41.178015+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.mortonsolar.com/",
@@ -68656,7 +68656,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:41.690582+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://netzerosolar.net/",
@@ -68729,7 +68729,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:41.834817+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.oesolarnm.com/",
@@ -68993,7 +68993,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:43.036623+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "http://pingosolar.com/",
@@ -69104,7 +69104,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:23:43.220504+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.powersyncsolar.com/",
@@ -69158,7 +69158,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:43.340720+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://poe.solar/",
@@ -69262,7 +69262,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:43.676014+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://progressiveenergysolutions.com/",
@@ -69584,7 +69584,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:44.516933+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://renovussolar.com/",
@@ -69941,7 +69941,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:45.724439+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.sbregaelectric.com/",
@@ -71246,7 +71246,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:49.385110+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://sunergysolutionsllc.com/",
@@ -71465,7 +71465,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:50.055986+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.sustainableenergysystems.net/",
@@ -71603,7 +71603,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:50.551822+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.energyshopinc.com/",
@@ -71975,7 +71975,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:51.650639+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.xnergyusa.com/",
@@ -71998,7 +71998,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:51.658564+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.youveesolar.com/",
@@ -73714,7 +73714,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:57.579751+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.commonwealthpowerllc.com/",
@@ -74401,7 +74401,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:23:59.613470+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.evergreen-energyllc.com/",
@@ -74647,7 +74647,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:24:00.290566+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://greenway-solar.com/",
@@ -74949,7 +74949,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:24:01.733148+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.integritysolarsolutions.com/",
@@ -75294,7 +75294,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:24:02.602735+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "http://www.litchfieldhillssolar.com/",
@@ -75378,7 +75378,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:24:03.124563+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://mainstreamgreensolutions.com/",
@@ -75838,7 +75838,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:24:04.200168+00:00",
-      "importableRecordCount": 3,
+      "importableRecordCount": 4,
       "checkedPages": [
         {
           "url": "https://powernw.com/",
@@ -75953,7 +75953,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:24:04.546115+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://pureenergysolar.com/",
@@ -76264,7 +76264,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:24:05.626471+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.silverelectricandsolar.com/",
@@ -76410,7 +76410,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:24:06.211159+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.solarconnexion.com/",
@@ -76801,7 +76801,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:24:07.109283+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://mysolarize.com/",
@@ -76851,7 +76851,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:24:07.275399+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://southcoastgreenlight.com/",
@@ -77084,7 +77084,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:24:08.057409+00:00",
-      "importableRecordCount": 1,
+      "importableRecordCount": 2,
       "checkedPages": [
         {
           "url": "https://www.sundog.solar/",
@@ -77437,7 +77437,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:24:09.291510+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.truepowersolar.com/",
@@ -77667,7 +77667,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:24:09.649758+00:00",
-      "importableRecordCount": 2,
+      "importableRecordCount": 3,
       "checkedPages": [
         {
           "url": "https://www.whidbeysunwind.com/",
@@ -77721,7 +77721,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:24:09.805890+00:00",
-      "importableRecordCount": 2,
+      "importableRecordCount": 3,
       "checkedPages": [
         {
           "url": "https://www.wright-way.com/",
@@ -78450,7 +78450,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "candidates_found",
       "checkedAt": "2026-11-06T14:24:12.357793+00:00",
-      "importableRecordCount": 2,
+      "importableRecordCount": 3,
       "checkedPages": [
         {
           "url": "https://www.cmielectric.com/",
@@ -79151,7 +79151,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:24:14.638717+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.jdenergysolutions.com/",
@@ -79750,7 +79750,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:24:16.586697+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://www.quadstatesolar.com/",
@@ -80087,7 +80087,7 @@
       "listing_status": "unclaimed",
       "websiteResearchStatus": "no_findings_in_crawled_pages",
       "checkedAt": "2026-11-06T14:24:18.013699+00:00",
-      "importableRecordCount": 0,
+      "importableRecordCount": 1,
       "checkedPages": [
         {
           "url": "https://supremepowerinc.com/",

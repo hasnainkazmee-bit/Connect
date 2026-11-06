@@ -81,7 +81,10 @@ test("company owner can add and edit a sourced credential through the profile", 
     await page.getByRole("button", { name: "About", exact: true }).click();
     await page
       .locator(".credentials-card")
-      .getByRole("button", { name: "Add", exact: true })
+      .getByRole("button", {
+        name: "Add credential or directory listing",
+        exact: true,
+      })
       .click();
     await page
       .getByLabel("Name", { exact: true })
