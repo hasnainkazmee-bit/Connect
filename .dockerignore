@@ -10,7 +10,10 @@ sunhub-community
 target
 .toolchains
 apps/android
+apps/macos
+apps/windows
 
 .env.*
 !.env.example
 .backups
+.secrets

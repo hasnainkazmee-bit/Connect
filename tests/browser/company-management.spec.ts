@@ -120,6 +120,9 @@ for (const size of [
         })
         .click();
       const writing = dialog.getByRole("textbox", { name: "Update content" });
+      await dialog
+        .getByRole("button", { name: "Press release", exact: true })
+        .click();
       await writing.fill("How we built a better rooftop");
       await dialog
         .getByRole("button", { name: "Heading", exact: true })
@@ -152,19 +155,15 @@ for (const size of [
         .getByRole("button", { name: "Preview", exact: true })
         .click();
       await expect(
-        dialog.getByRole("heading", { name: "How we built a better rooftop" }),
+        dialog
+          .locator(".publisher-preview")
+          .getByRole("heading", { name: "How we built a better rooftop" }),
       ).toBeVisible();
       await page.screenshot({
         path: "test-results/publishing-preview-" + size.name + ".png",
       });
       await dialog
         .getByRole("button", { name: "Publish", exact: true })
-        .click();
-      await expect(
-        dialog.getByRole("heading", { name: "How would you like to publish?" }),
-      ).toBeVisible();
-      await dialog
-        .getByRole("button", { name: "Press release", exact: true })
         .click();
       await expect(dialog).toHaveCount(0);
       await expect(

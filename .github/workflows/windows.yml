@@ -1,0 +1,102 @@
+name: Connect Windows
+on:
+  push:
+    paths:
+      - 'apps/windows/**'
+      - 'apps/web/public/assets/connect-icon.png'
+      - '.github/workflows/windows.yml'
+  pull_request:
+    paths:
+      - 'apps/windows/**'
+      - 'apps/web/public/assets/connect-icon.png'
+      - '.github/workflows/windows.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: [win-x64, win-arm64]
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: 'true'
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Report toolchain
+        run: |
+          dotnet --info
+          $iscc = Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Inno Setup 6/ISCC.exe'
+          if (-not (Test-Path $iscc)) { throw 'The runner must provide Inno Setup 6.' }
+          Write-Host "Inno Setup compiler: $iscc (engine version checked during compilation)"
+      - name: Test shared navigation and security rules
+        run: dotnet run --project apps/windows/Connect.Core.Tests/Connect.Core.Tests.csproj --configuration Release
+      - name: Publish self-contained native app
+        run: ./apps/windows/build.ps1 -Runtime '${{ matrix.runtime }}'
+      - name: Build guided Windows installer
+        id: package
+        run: ./apps/windows/package.ps1 -Runtime '${{ matrix.runtime }}' -SkipBuild
+      - name: Verify real install, repair, and uninstall
+        if: matrix.runtime == 'win-x64'
+        run: |
+          $setups = @(Get-ChildItem apps/windows/artifacts/*-win-x64-Setup.exe)
+          if ($setups.Count -ne 1) { throw 'Expected exactly one x64 installer.' }
+          ./apps/windows/tests/test-installer.ps1 -SetupPath $setups[0].FullName
+      - name: Test native WebView2 workflows against local fixtures
+        if: always() && matrix.runtime == 'win-x64' && steps.package.outcome == 'success'
+        timeout-minutes: 5
+        run: |
+          $bootstrapper = Join-Path $PWD 'apps/windows/.build/tools/MicrosoftEdgeWebView2Setup.exe'
+          & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File apps/windows/installer/Ensure-WebView2.ps1 -BootstrapperPath $bootstrapper
+          if ($LASTEXITCODE -notin @(0, 3010)) { throw 'Microsoft WebView2 prerequisite validation failed.' }
+          $output = Join-Path $PWD 'apps/windows/.build/native-smoke'
+          New-Item -ItemType Directory -Force -Path $output | Out-Null
+          $fixture = Start-Process node -ArgumentList 'apps/windows/tests/fixture.mjs' -PassThru -RedirectStandardOutput "$output/fixture.log" -RedirectStandardError "$output/fixture-error.log"
+          try {
+            $ready = $false
+            for ($attempt = 0; $attempt -lt 30; $attempt++) {
+              try {
+                Invoke-WebRequest http://127.0.0.1:4196 -TimeoutSec 1 | Out-Null
+                $ready = $true
+                break
+              } catch { Start-Sleep -Milliseconds 300 }
+            }
+            if (-not $ready) { throw 'Local Windows smoke fixture did not become ready.' }
+            dotnet run --project apps/windows/Connect.Windows.Smoke -c Release -- http://127.0.0.1:4196 http://127.0.0.1:4197 $output
+            if ($LASTEXITCODE -ne 0) { throw 'Native Windows smoke checks failed.' }
+          } finally {
+            if (-not $fixture.HasExited) { Stop-Process -Id $fixture.Id }
+          }
+      - name: Upload Windows verification evidence
+        if: always() && matrix.runtime == 'win-x64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Connect-Windows-verification
+          path: |
+            apps/windows/.build/installer-test/
+            apps/windows/.build/native-smoke/*.png
+            apps/windows/.build/native-smoke/*.json
+            apps/windows/.build/native-smoke/*.log
+            apps/windows/.build/native-smoke/*.txt
+          retention-days: 14
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Connect-Windows-${{ matrix.runtime }}
+          path: |
+            apps/windows/artifacts/*-Setup.exe
+            apps/windows/artifacts/*.sha256
+          retention-days: 14
+          if-no-files-found: error

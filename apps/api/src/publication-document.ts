@@ -14,6 +14,35 @@ export type DocumentNode = {
   marks?: { type: string; attrs?: Record<string, any> }[];
   content?: DocumentNode[];
 };
+
+// Posts keep their caption separate from the ordered post_media attachments.
+// Normalize older clients' inline images without discarding text formatting.
+export function postCaptionDocument(
+  document: DocumentNode | null,
+): DocumentNode | null {
+  if (!document) return null;
+  const caption = (node: DocumentNode): DocumentNode => ({
+    ...node,
+    ...(node.content
+      ? {
+          content: node.content.flatMap((child) =>
+            child.type === "image"
+              ? child.attrs?.title?.trim()
+                ? [
+                    {
+                      type: "paragraph",
+                      content: [{ type: "text", text: child.attrs.title }],
+                    },
+                  ]
+                : []
+              : [caption(child)],
+          ),
+        }
+      : {}),
+  });
+  return caption(document);
+}
+
 export function validateDocument(input: unknown): {
   document: DocumentNode | null;
   text: string;

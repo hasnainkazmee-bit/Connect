@@ -8,7 +8,11 @@ import { fileTypeFromFile } from "file-type";
 import { pool, tx, HttpError } from "./db.js";
 import { requireAdmin } from "./auth.js";
 import { checkQuota, storeFile, deferDelete } from "./storage.js";
-import { publicationKind, validateDocument } from "./publication-document.js";
+import {
+  postCaptionDocument,
+  publicationKind,
+  validateDocument,
+} from "./publication-document.js";
 
 const uuid = z.string().uuid();
 export function publishingRoutes(uploadDir: string) {
@@ -56,7 +60,6 @@ export function publishingRoutes(uploadDir: string) {
       })
       .parse(req.body);
     const doc = validateDocument(b.document);
-    const body = doc.document ? doc.text : b.body;
     const result = await tx(async (db) => {
       const current = (
         await db.query(
@@ -93,6 +96,13 @@ export function publishingRoutes(uploadDir: string) {
           ))
       )
         throw new HttpError(400, "Choose media uploaded to this story.");
+      // Validate ownership before normalization so a hidden inline image cannot
+      // bypass the attachment boundary. Existing uploads remain attached below.
+      const stored =
+        kind === "post"
+          ? validateDocument(postCaptionDocument(doc.document))
+          : doc;
+      const body = stored.document ? stored.text : b.body;
       if (b.status === "published") {
         if (kind === "post" && !body && !media.length)
           throw new HttpError(
@@ -129,7 +139,7 @@ export function publishingRoutes(uploadDir: string) {
             b.title,
             b.subtitle,
             body,
-            doc.document,
+            stored.document,
             b.status,
             b.coverMediaId,
             id,

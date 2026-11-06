@@ -62,15 +62,168 @@ constructor(application: Application, apiUrl: String = BuildConfig.API_URL) :
     val pages = mutableStateMapOf<String, JSONObject>()
     private val loads = mutableMapOf<String, Job>()
     private val writes = Mutex()
-    private var epoch = 0
+    @Volatile private var epoch = 0
+    @Volatile private var loggingOut = false
     private var foreground = false
     private var watcher: EventWatch? = null
     private var watchJob: Job? = null
     private var pollJob: Job? = null
     private var sessionJob: Job? = null
     private var refreshJob: Job? = null
+    private var notificationEvents: Job? = null
+    private var notificationRefresh: Job? = null
+    private var notificationRefreshAgain = false
+    private val seenNotifications = linkedSetOf<String>()
+    internal val readNotificationIds = mutableStateMapOf<String, Boolean>()
+    private var readNotificationsJob: Job? = null
     var session by mutableStateOf<JSONObject?>(null)
         private set
+
+    var sessionReady by mutableStateOf(false)
+        private set
+    internal var notificationTap by mutableStateOf<PushNotice?>(null)
+        private set
+
+    fun handleNotificationIntent(intent: Intent?) {
+        val raw = intent?.getStringExtra(PushNotifications.EXTRA) ?: return
+        intent.removeExtra(PushNotifications.EXTRA)
+        if (raw.length > 4096) return
+        val notice = runCatching { PushNotice.parse(JSONObject(raw)) }.getOrNull() ?: return
+        if (PushDeviceStore(getApplication()).accepts(notice)) notificationTap = notice
+    }
+    fun consumeNotificationTap() { notificationTap = null }
+
+    private fun persistSession(enablePush: Boolean = false) {
+        val captured = epoch
+        val userId = session?.optJSONObject("user")?.text("id")
+        val cookie = client?.sessionCookie() ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            synchronized(PushNotifications.lock) {
+                if (!loggingOut && epoch == captured && session?.optJSONObject("user")?.text("id") == userId) {
+                    store.save(cookie)
+                    if (enablePush) PushNotifications.session(getApplication(), userId)
+                }
+            }
+        }
+    }
+
+    private fun verifiedSession(value: JSONObject) {
+        sessionReady = true
+        val userId = value.optJSONObject("user")?.text("id")
+        // Clear another account's binding before asynchronous persistence or FCM delivery.
+        if (PushDeviceStore(getApplication()).binding()?.userId != userId) PushNotifications.clear(getApplication())
+        persistSession(enablePush = true)
+        refreshNotifications()
+    }
+
+    fun refreshNotifications(refreshSettings: Boolean = false) {
+        if (!signedIn || client == null) return
+        if (refreshSettings) pages.remove("/notifications/config")
+        notificationRefreshAgain = true
+        if (notificationRefresh?.isActive == true) return
+        val captured = epoch
+        notificationRefresh = viewModelScope.launch {
+            do {
+                notificationRefreshAgain = false
+                val paths = listOf("/notifications") + listOf("/notifications/config", "/notifications/preferences").filter { !pages.containsKey(it) }
+                for (path in paths) {
+                    try {
+                        val value = fetchJson(path)
+                        if (epoch == captured) {
+                            pages[path] = value
+                            if (path == "/notifications") acceptReadNotifications(value.optJSONArray("notifications").objects())
+                        }
+                    } catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) { /* Existing activity stays visible while offline. */ }
+                }
+            } while (notificationRefreshAgain && epoch == captured)
+        }
+    }
+
+    internal fun acceptReadNotifications(rows: List<JSONObject>) {
+        confirmNotificationsRead(rows.filter { !it.isNull("read_at") && it.text("read_at").isNotBlank() }.map { it.text("id") })
+    }
+
+    private fun confirmNotificationsRead(ids: Collection<String>) {
+        val userId = session?.optJSONObject("user")?.text("id") ?: return
+        val valid = ids.mapNotNull { NotificationDestination.uuid(it) }
+        valid.forEach { readNotificationIds[it] = true }
+        PushNotifications.clearRead(getApplication(), userId, valid)
+    }
+
+    internal fun markNotificationsSeen(ids: Collection<String>) {
+        if (!signedIn) return
+        seenNotifications.addAll(ids.mapNotNull { NotificationDestination.uuid(it) }.filter { it !in readNotificationIds })
+        if (readNotificationsJob?.isActive == true) return
+        val captured = epoch
+        readNotificationsJob = viewModelScope.launch {
+            while (seenNotifications.isNotEmpty() && captured == epoch) {
+                delay(180)
+                val batch = seenNotifications.take(100)
+                try {
+                    jsonRequest("POST", "/notifications/read", JSONObject().put("ids", JSONArray(batch)))
+                    if (captured == epoch) { seenNotifications.removeAll(batch.toSet()); confirmNotificationsRead(batch); refreshNotifications() }
+                } catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { delay(5_000) }
+            }
+        }
+    }
+
+    internal fun markNotificationContextRead(kind: String, id: String) {
+        if (!signedIn || kind !in setOf("company_conversation", "personal_conversation", "post") || NotificationDestination.uuid(id) == null) return
+        val captured = epoch
+        viewModelScope.launch {
+            try {
+                val result = jsonRequest("POST", "/notifications/read-context", JSONObject().put("kind", kind).put("id", id))
+                if (captured == epoch) { confirmNotificationsRead(result.optJSONArray("ids").strings()); refreshNotifications() }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* Reopening or the next live change retries without losing content. */ }
+        }
+    }
+
+    fun disablePush() {
+        val old = PushNotifications.clear(getApplication(), optOut = true)
+        old?.deviceId?.let { id -> viewModelScope.launch { runCatching { jsonRequest("DELETE", "/notifications/devices/$id") } } }
+    }
+
+    internal suspend fun openNotification(destination: NotificationDestination, companyId: String?): JSONObject? {
+        val capturedUser = session?.optJSONObject("user")?.text("id") ?: return null
+        if (companyId != null && companyId != company?.text("id") && !individual) {
+            if (companies.none { it.text("id") == companyId }) error("You no longer have access to this company.")
+            val updated = writes.withLock { jsonRequest("POST", "/session/company", JSONObject().put("companyId", companyId)) }
+            if (session?.optJSONObject("user")?.text("id") != capturedUser) return null
+            resetContent(); session = updated; profileId = null; chatCompany = null
+            verifiedSession(updated)
+        }
+        return when (destination.route) {
+            "conversation" -> {
+                val data = fetchJson("/network")
+                if (session?.optJSONObject("user")?.text("id") != capturedUser) return null
+                pages["/network"] = data
+                selectTab(Tab.Messages)
+                data.optJSONArray("connections").objects().find { it.text("id") == destination.id }?.optJSONObject("company")?.let(::chat)
+                null
+            }
+            "companyChat" -> {
+                val data = fetchJson("/companies/${destination.id}")
+                if (session?.optJSONObject("user")?.text("id") != capturedUser) return null
+                pages["/companies/${destination.id}"] = data
+                chat(data.getJSONObject("company"))
+                null
+            }
+            "personal" -> {
+                val data = fetchJson("/personal-inbox/${destination.id}")
+                if (session?.optJSONObject("user")?.text("id") != capturedUser) return null
+                selectTab(Tab.Messages)
+                pages["/personal-inbox/${destination.id}"] = data
+                data.optJSONObject("thread")
+            }
+            "post" -> fetchJson("/posts/${destination.id}")
+            "profile" -> { profile(destination.id!!); null }
+            "messages" -> { selectTab(Tab.Messages); null }
+            else -> null
+        }
+    }
 
     var verificationChallenge by mutableStateOf("")
         private set
@@ -91,6 +244,7 @@ constructor(application: Application, apiUrl: String = BuildConfig.API_URL) :
             if (value.has("user")) {
                 session = value
                 resetContent()
+                verifiedSession(value)
                 if (company != null) load("/network")
                 load("/feed?scope=all")
             }
@@ -98,7 +252,7 @@ constructor(application: Application, apiUrl: String = BuildConfig.API_URL) :
                 .optString("challengeId")
                 .takeIf { it.isNotBlank() && it != "null" }
                 ?.let { verificationChallenge = it }
-            viewModelScope.launch(Dispatchers.IO) { store.save(client!!.sessionCookie()) }
+            persistSession()
             done(value)
         }
 
@@ -279,6 +433,7 @@ constructor(application: Application, apiUrl: String = BuildConfig.API_URL) :
                     offline = false
                     val hadAccount = signedIn
                     session = value
+                    verifiedSession(value)
                     if (value.optJSONObject("user") == null) {
                         if (hadAccount) clearLocalSession()
                         load("/feed?scope=all")
@@ -386,9 +541,10 @@ constructor(application: Application, apiUrl: String = BuildConfig.API_URL) :
     private fun authenticated(response: JSONObject) {
         resetContent()
         session = response
+        verifiedSession(response)
         verificationChallenge =
             response.optString("challengeId").takeUnless { it == "null" }.orEmpty()
-        viewModelScope.launch(Dispatchers.IO) { store.save(client!!.sessionCookie()) }
+        persistSession()
         loadSession()
         if (company != null) load("/network")
         load("/feed?scope=all")
@@ -426,6 +582,8 @@ constructor(application: Application, apiUrl: String = BuildConfig.API_URL) :
         viewModelScope.launch {
             if (busy) return@launch
             busy = true
+            loggingOut = true
+            synchronized(PushNotifications.lock) { PushNotifications.clear(getApplication()) }
             observe(false)
             try {
                 runCatching {
@@ -436,6 +594,7 @@ constructor(application: Application, apiUrl: String = BuildConfig.API_URL) :
                 clearLocalSession()
                 load("/feed?scope=all")
             } finally {
+                loggingOut = false
                 busy = false
             }
         }
@@ -445,9 +604,17 @@ constructor(application: Application, apiUrl: String = BuildConfig.API_URL) :
         loads.values.forEach { it.cancel() }
         loads.clear()
         pages.clear()
+        notificationRefresh?.cancel()
+        notificationEvents?.cancel()
+        readNotificationsJob?.cancel()
+        seenNotifications.clear()
+        readNotificationIds.clear()
     }
 
     private suspend fun clearLocalSession() {
+        PushNotifications.clear(getApplication())
+        notificationTap = null
+        sessionReady = true
         cancelSunhubSignIn()
         resetContent()
         watchJob?.cancel()
@@ -456,8 +623,10 @@ constructor(application: Application, apiUrl: String = BuildConfig.API_URL) :
         watcher?.cancel()
         watcher = null
         withContext(Dispatchers.IO) {
-            client?.clearSession()
-            store.clear()
+            synchronized(PushNotifications.lock) {
+                client?.clearSession()
+                store.clear()
+            }
             File(getApplication<Application>().cacheDir, "attachments").deleteRecursively()
             File(getApplication<Application>().cacheDir, "uploads").deleteRecursively()
         }
@@ -704,11 +873,27 @@ constructor(application: Application, apiUrl: String = BuildConfig.API_URL) :
     fun observe(active: Boolean) {
         val wasForeground = foreground
         foreground = active
+        PushNotifications.foreground = active
+        if (active && !wasForeground) refreshNotifications()
         watchJob?.cancel()
         pollJob?.cancel()
         watcher?.cancel()
         watcher = null
         if (active && !wasForeground && offline) retryConnection()
+        notificationEvents?.cancel()
+        if (active && signedIn && client != null && !loggingOut) {
+            val observedUser = session?.optJSONObject("user")?.text("id")
+            notificationEvents = viewModelScope.launch {
+                while (isActive && foreground && session?.optJSONObject("user")?.text("id") == observedUser) {
+                    val cookie = client?.sessionCookie().orEmpty()
+                    if (cookie.isBlank()) break
+                    if (!NotificationEvents.listen(baseUrl, cookie) {
+                        viewModelScope.launch { if (foreground && session?.optJSONObject("user")?.text("id") == observedUser) refreshNotifications() }
+                    }) break
+                    delay(5_000)
+                }
+            }
+        }
         if (!active || company == null || client == null) return
         val observedEpoch = epoch
         if (BuildConfig.POLL_EVENTS) {
@@ -742,6 +927,7 @@ constructor(application: Application, apiUrl: String = BuildConfig.API_URL) :
                                                     delay(120)
                                                     if (foreground && epoch == observedEpoch) {
                                                         load("/network", true)
+                                                        refreshNotifications()
                                                         chatCompany?.let {
                                                             load(
                                                                 "/companies/${it.optString("id")}",

@@ -409,7 +409,7 @@ test("publishing, company profiles, customer accounts, and employee access", asy
     },
   );
   await t.test(
-    "choosing a format at publish preserves the full writing document and failed choices remain private",
+    "posts separate captions from attachments and failed format changes remain private",
     async () => {
       const generic = (await a("/publications", { kind: "press_release" }))
         .data;
@@ -440,7 +440,11 @@ test("publishing, company profiles, customer accounts, and employee access", asy
           },
           {
             type: "image",
-            attrs: { src: attachment.data.url, alt: "Completed rooftop" },
+            attrs: {
+              src: attachment.data.url,
+              alt: "Completed rooftop",
+              title: "Our first completed rooftop.",
+            },
           },
           {
             type: "paragraph",
@@ -469,6 +473,55 @@ test("publishing, company profiles, customer accounts, and employee access", asy
       assert.equal(saved.status, 200, JSON.stringify(saved.data));
       assert.match(saved.data.body, /project\nOur team/);
       assert.equal((await anon("/posts/" + generic.id)).status, 404);
+      const foreignImage = await a(
+        "/publications/" + generic.id,
+        {
+          kind: "post",
+          document: {
+            ...document,
+            content: [
+              ...document.content,
+              {
+                type: "blockquote",
+                content: [
+                  {
+                    type: "image",
+                    attrs: { src: "/api/post-media/" + randomUUID() },
+                  },
+                ],
+              },
+            ],
+          },
+          status: "draft",
+          version: saved.data.version,
+        },
+        "PATCH",
+      );
+      assert.equal(
+        foreignImage.status,
+        400,
+        "Post normalization must still validate image ownership",
+      );
+      assert.equal(
+        (await a("/posts/" + generic.id)).data.version,
+        saved.data.version,
+      );
+      const postDraft = await a(
+        "/publications/" + generic.id,
+        {
+          kind: "post",
+          document,
+          status: "draft",
+          version: saved.data.version,
+        },
+        "PATCH",
+      );
+      assert.equal(postDraft.status, 200, JSON.stringify(postDraft.data));
+      assert.equal(postDraft.data.document.content.length, 3);
+      assert.equal(
+        (await a("/posts/" + generic.id)).data.media[0].id,
+        attachment.data.id,
+      );
       const update = await a(
         "/publications/" + generic.id,
         {
@@ -477,14 +530,20 @@ test("publishing, company profiles, customer accounts, and employee access", asy
           subtitle: "",
           document,
           status: "published",
-          version: saved.data.version,
+          version: postDraft.data.version,
         },
         "PATCH",
       );
       assert.equal(update.status, 200, JSON.stringify(update.data));
       const visible = (await anon("/posts/" + generic.id)).data;
       assert.equal(visible.kind, "post");
-      assert.equal(visible.document.content[1].attrs.src, attachment.data.url);
+      assert.equal(visible.document.content.length, 3);
+      assert.equal(visible.media[0].id, attachment.data.id);
+      assert.match(visible.body, /project\nOur team/);
+      assert.match(
+        visible.body,
+        /today\.\nOur first completed rooftop\.\nMore progress next week\./,
+      );
       assert.deepEqual(visible.document.content[2].content[0].marks, [
         { type: "bold" },
       ]);
@@ -552,7 +611,8 @@ test("publishing, company profiles, customer accounts, and employee access", asy
   await t.test(
     "post media limits match the quick composer and release images preserve descriptions",
     async () => {
-      const quick = (await a("/publications", { kind: "post" })).data;
+      const quick = (await a("/publications", {})).data;
+      assert.equal(quick.kind, "post", "New publications default to a post");
       const upload = async (id, name = "solar.jpg", bytes) => {
         const form = new FormData();
         form.set(

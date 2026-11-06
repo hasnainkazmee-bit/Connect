@@ -74,12 +74,14 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         communityModel.handleSunhubCallback(intent.data)
+        communityModel.handleNotificationIntent(intent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         communityModel.handleSunhubCallback(intent?.data)
+        communityModel.handleNotificationIntent(intent)
         setContent {
             MaterialTheme(
                 shapes = ConnectShapes,
@@ -190,8 +192,62 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
         remember(model.session?.optJSONObject("user")?.text("id"), model.company?.text("id")) {
             mutableStateOf<JSONObject?>(null)
         }
+    var notificationsOpen by rememberSaveable { mutableStateOf(false) }
+    var notificationPost by remember(model.session?.optJSONObject("user")?.text("id")) { mutableStateOf<JSONObject?>(null) }
+    var notificationComments by remember(model.session?.optJSONObject("user")?.text("id")) { mutableStateOf<String?>(null) }
+    var notificationDraft by remember(model.session?.optJSONObject("user")?.text("id")) { mutableStateOf<String?>(null) }
+    var notificationError by remember { mutableStateOf<String?>(null) }
+    val notificationScope = rememberCoroutineScope()
+    val notificationContext = LocalContext.current
+    fun openNotification(url: String, companyId: String?, id: String?) {
+        val destination = NotificationDestination.parse(url) ?: return
+        val userId = model.session?.optJSONObject("user")?.text("id") ?: return
+        notificationsOpen = false
+        notificationScope.launch {
+            try {
+                val result = model.openNotification(destination, companyId)
+                if (model.session?.optJSONObject("user")?.text("id") != userId) return@launch
+                when (destination.route) {
+                    "updates" -> { updateInfo = true; updates.check(true) }
+                    "personal" -> personalThread = result
+                    "post" -> { notificationPost = result; if (destination.commentId != null) notificationComments = destination.id }
+                    "invite" -> notificationContext.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(BuildConfig.API_URL + destination.id)))
+                }
+                id?.let { model.markNotificationsSeen(listOf(it)) }
+                model.refreshNotifications()
+            } catch (_: Exception) { notificationError = "This notification is no longer available, or your access has changed." }
+        }
+    }
+    LaunchedEffect(model.notificationTap, model.sessionReady, model.busy, createPost, companyDrafts, security) {
+        val notice = model.notificationTap ?: return@LaunchedEffect
+        if (!model.sessionReady || model.busy || createPost || companyDrafts || security) return@LaunchedEffect
+        model.consumeNotificationTap()
+        if (model.session?.optJSONObject("user")?.text("id") == notice.userId && PushDeviceStore(notificationContext).accepts(notice)) {
+            finishWelcome()
+            openNotification(notice.url, notice.companyId, notice.id)
+        }
+    }
+    if (notificationsOpen && model.signedIn) NotificationsScreen(model, { notificationsOpen = false }) { item ->
+        openNotification(item.text("url"), NotificationDestination.uuid(item.text("company_id")), NotificationDestination.uuid(item.text("id")))
+    }
+    notificationPost?.let { post ->
+        WorkSheet(model, publicationLabel(post.text("kind")), { notificationPost = null }) {
+            NotificationContextSeen(model, "post", post.text("id"))
+            PublicationBody(model, post)
+            TextButton(onClick = { notificationComments = post.text("id") }) { Text("View comments") }
+        }
+    }
+    notificationComments?.let { postId ->
+        PostCommentsSheet(model, postId, { notificationComments = null }, { auth = true }, notificationDraft) { body, reply ->
+            notificationDraft = JSONObject().put("body", body).put("target", reply).toString()
+        }
+    }
+    notificationError?.let { message ->
+        AlertDialog(onDismissRequest = { notificationError = null }, title = { Text("Notification") }, text = { Text(message) }, confirmButton = { TextButton(onClick = { notificationError = null }) { Text("Got it") } })
+    }
     var peopleInbox by rememberSaveable { mutableStateOf(false) }
     var employeeAccess by remember { mutableStateOf(false) }
+    SideEffect { PushNotifications.obscured = auth || security || setupCompany || createPost || companyDrafts || notificationsOpen || notificationPost != null || notificationComments != null || updateInfo || employeeAccess || account }
     if (employeeAccess && model.admin) EmployeeAccess(model) { employeeAccess = false }
     val screenStates = rememberSaveableStateHolder()
     val tabs =
@@ -364,6 +420,11 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
                             }
                     },
                     actions = {
+                        if (model.signedIn) IconButton(onClick = { notificationsOpen = true; model.refreshNotifications() }) {
+                            BadgedBox(badge = { val unread = model.pages["/notifications"]?.optInt("unread") ?: 0; if (unread > 0) Badge { Text(if (unread > 99) "99+" else unread.toString()) } }) {
+                                Icon(Icons.Outlined.NotificationsNone, "Notifications")
+                            }
+                        }
                         if (model.signedIn)
                             Box {
                                 IconButton(onClick = { account = true }) {
@@ -419,6 +480,10 @@ fun ConnectApp(model: CommunityModel = viewModel()) {
                                                 employeeAccess = true
                                             },
                                         )
+                                    DropdownMenuItem(
+                                        text = { Text("Notifications") },
+                                        onClick = { account = false; notificationsOpen = true; model.refreshNotifications() },
+                                    )
                                     DropdownMenuItem(
                                         text = { Text("App updates") },
                                         onClick = {
@@ -1114,6 +1179,7 @@ private fun FeedScreen(
     }
     readPost?.let { post ->
         WorkSheet(model, publicationLabel(post.text("kind")), { readPost = null }) {
+            NotificationContextSeen(model, "post", post.text("id"))
             PublicationBody(model, post)
         }
     }
@@ -1167,17 +1233,17 @@ internal fun PostMedia(model: CommunityModel, media: JSONObject, ratio: Float = 
             AsyncImage(
                 publicationImage(model, media.text("url")),
                 media.optString("alt").ifBlank { "Post image" },
-                Modifier.fillMaxWidth().aspectRatio(ratio).background(Pale).clickable {
+                Modifier.fillMaxWidth().aspectRatio(ratio).testTag("post-media-frame").background(Pale).clickable {
                     fullImage = true
                 },
                 contentScale = ContentScale.Fit,
             )
         media.optString("mime").startsWith("video/") -> {
             var play by rememberSaveable(uri) { mutableStateOf(false) }
-            if (play) NativeVideo(model, uri)
+            if (play) NativeVideo(model, uri, ratio)
             else
                 Box(
-                    Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Ink),
+                    Modifier.fillMaxWidth().aspectRatio(ratio).testTag("post-media-frame").background(Ink),
                     contentAlignment = Alignment.Center,
                 ) {
                     FilledTonalButton(onClick = { play = true }) {
@@ -1187,18 +1253,27 @@ internal fun PostMedia(model: CommunityModel, media: JSONObject, ratio: Float = 
                 }
         }
         else ->
-            TextButton(
-                onClick = { model.openPublicationMedia(media) },
-                modifier = Modifier.padding(12.dp),
+            Box(
+                Modifier.fillMaxWidth().aspectRatio(ratio).testTag("post-media-frame").background(Pale),
+                contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Outlined.Description, null)
-                Text(media.optString("name", "Open document"))
+                Column(
+                    Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Icon(Icons.Outlined.Description, null, Modifier.size(48.dp), tint = Muted)
+                    Text(media.optString("name", "Document"), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    ConnectOutlinedButton(onClick = { model.openPublicationMedia(media) }) {
+                        Text("Open document")
+                    }
+                }
             }
     }
 }
 
 @Composable
-private fun NativeVideo(model: CommunityModel, uri: String) {
+private fun NativeVideo(model: CommunityModel, uri: String, ratio: Float) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current
     val player =
@@ -1228,8 +1303,11 @@ private fun NativeVideo(model: CommunityModel, uri: String) {
         }
     }
     AndroidView(
-        factory = { PlayerView(it).apply { this.player = player } },
-        modifier = Modifier.fillMaxWidth().height(230.dp),
+        factory = { PlayerView(it).apply {
+            this.player = player
+            resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+        } },
+        modifier = Modifier.fillMaxWidth().aspectRatio(ratio).testTag("post-media-frame"),
     )
 }
 
@@ -1238,6 +1316,12 @@ private fun ChatScreen(model: CommunityModel) {
     val company = model.chatCompany ?: return
     val id = company.optString("id")
     val connection = model.currentConnection
+    DisposableEffect(connection?.text("id"), model.company?.text("id")) {
+        PushNotifications.activeConversation = connection?.text("id")
+        PushNotifications.activeCompany = model.company?.text("id")
+        onDispose { PushNotifications.activeConversation = null; PushNotifications.activeCompany = null }
+    }
+    NotificationContextSeen(model, "company_conversation", connection?.text("id"), visible = !PushNotifications.obscured)
     val request = model.currentRequest
     val incoming = request?.optString("to_id") == model.company?.optString("id")
     val relationship = model.pages["/companies/$id"]?.optJSONObject("relationship")

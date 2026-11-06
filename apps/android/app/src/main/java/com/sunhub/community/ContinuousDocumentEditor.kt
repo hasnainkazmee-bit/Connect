@@ -505,7 +505,7 @@ internal class DocumentEditText(
                 InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
         setSingleLine(false)
         setHorizontallyScrolling(false)
-        setLineSpacing(8f, 1.12f)
+        setLineSpacing(0f, 1.15f)
         minLines = 9
         isVerticalScrollBarEnabled = false
         load(state.document())
@@ -862,6 +862,7 @@ internal fun ContinuousDocumentEditor(
     hint: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    minimumLines: Int = 9,
 ) {
     state.onChange = change
     state.synchronize(value)
@@ -924,6 +925,7 @@ internal fun ContinuousDocumentEditor(
         },
         update = {
             it.isEnabled = enabled
+            it.minLines = minimumLines
             it.hint = hint
             it.load(value)
         },

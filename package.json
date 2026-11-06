@@ -18,7 +18,10 @@
     "test": "node tests/run.mjs",
     "test:ui": "node tests/run.mjs --ui",
     "test:android-core": "node tests/run.mjs --rust",
-    "test:android": "node tests/run.mjs --android"
+    "test:android": "node tests/run.mjs --android",
+    "build:macos": "./apps/macos/build.sh",
+    "package:macos": "./apps/macos/package.sh",
+    "test:macos": "./apps/macos/test-policy.sh && ./apps/macos/test-webkit.sh"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0",

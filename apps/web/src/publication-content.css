@@ -1,11 +1,14 @@
 .story-prose {
   font-size: clamp(16px, 1.15vw, 18px);
-  line-height: 1.85;
+  line-height: 1.6;
   color: var(--ink, #203342);
   overflow-wrap: anywhere;
 }
 .story-prose p {
-  margin: 0 0 21px;
+  margin: 0 0 0.6em;
+}
+.story-prose p:last-child {
+  margin-bottom: 0;
 }
 .story-prose h2 {
   font-size: clamp(23px, 2vw, 28px) !important;

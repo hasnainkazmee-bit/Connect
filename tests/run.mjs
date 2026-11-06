@@ -38,6 +38,10 @@ const env = {
   AUTH_TOKEN_SECRET: "connect-isolated-test-secret-not-for-production-2026",
   STORAGE_BACKEND: "local",
   SMTP_HOST: "",
+  WEB_PUSH_PUBLIC_KEY: "",
+  WEB_PUSH_PRIVATE_KEY: "",
+  FIREBASE_SERVICE_ACCOUNT_FILE: "",
+  PUSH_WORKER_DISABLED: "true",
 };
 const run = (cmd, args) =>
   new Promise((resolve, reject) => {
@@ -82,6 +86,7 @@ try {
     "tests/sunhub-sso.test.mjs",
     "tests/publishing-profiles.test.mjs",
     "tests/directory.test.mjs",
+    "tests/notifications.test.mjs",
   ]) {
     env.REQUIRE_EMAIL_VERIFICATION =
       suite === "tests/accounts.test.mjs" ? "true" : "false";

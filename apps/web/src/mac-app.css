@@ -1,0 +1,7 @@
+/* AppKit menu state stays Mac-only; layout and palette live in desktop-app.css. */
+.connect-mac.mac-native-selects
+  .discovery-selects
+  select[aria-expanded="true"] {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus) 15%, transparent);
+}

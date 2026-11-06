@@ -39,6 +39,8 @@ import {
   writingHeadline,
   writingText,
   inlineImageUrls,
+  postCaptionDocument,
+  documentFromText,
 } from "./publication-writing";
 import "./publishing.css";
 
@@ -64,30 +66,36 @@ type Draft = {
 };
 const emptyDoc = { type: "doc", content: [{ type: "paragraph" }] };
 export function Publisher({
-  initialKind: _initialKind = "post",
+  initialKind = "post",
   initialMedia,
+  initialText = "",
+  initialClose,
   publicationId,
   onPublished,
 }: {
   initialKind?: PublicationKind;
   initialMedia?: "image" | "video" | "document";
+  initialText?: string;
+  initialClose?: () => void;
   publicationId?: string;
   onPublished?: () => void;
 }) {
   const { company, close, refresh, toast } = useApp();
   const { adjustPhoto, photoAdjuster } = usePhotoAdjuster();
-  // A generous draft keeps every format open. The public format is chosen at Publish.
-  const [kind, setKind] = useState<PublicationKind>("press_release");
-  const [body, setBody] = useState(""),
-    [doc, setDoc] = useState<any>(emptyDoc);
+  const [kind, setKind] = useState<PublicationKind>(initialKind);
+  const richBackup = useRef<{ document: any; caption: string } | null>(null);
+  const startingDocument = useRef(
+    initialText ? documentFromText(initialText) : emptyDoc,
+  );
+  const [body, setBody] = useState(initialText),
+    [doc, setDoc] = useState<any>(startingDocument.current);
   const [media, setMedia] = useState<Media[]>([]),
     [cover, setCover] = useState<string | null>(null);
   const [busy, setBusy] = useState(false),
     [saving, setSaving] = useState(false),
     [saved, setSaved] = useState("");
   const [error, setError] = useState(""),
-    [preview, setPreview] = useState(false),
-    [choosingFormat, setChoosingFormat] = useState(false);
+    [preview, setPreview] = useState(false);
   const [progress, setProgress] = useState<number | null>(null),
     [loading, setLoading] = useState(!!publicationId);
   const [linkOpen, setLinkOpen] = useState(false),
@@ -97,9 +105,8 @@ export function Publisher({
     [moreTools, setMoreTools] = useState(false),
     [mediaDetails, setMediaDetails] = useState(false);
   const linkInput = useRef<HTMLInputElement>(null),
-    morePanel = useRef<HTMLDivElement>(null),
-    formatPanel = useRef<HTMLDivElement>(null);
-  const uploadIntent = useRef<"attachment" | "cover" | "inline">("inline");
+    morePanel = useRef<HTMLDivElement>(null);
+  const uploadIntent = useRef<"attachment" | "cover" | "inline">("attachment");
   const uploadAction = useRef<
     (files: File[], intent?: "attachment" | "cover" | "inline") => void
   >(() => {});
@@ -109,6 +116,7 @@ export function Publisher({
   );
   const uploadLock = useRef(false),
     [mediaSaving, setMediaSaving] = useState(false);
+  const resumedClose = useRef(false);
   const closing = useRef(false),
     operations = useRef(new AbortController()),
     activeUpload = useRef<XMLHttpRequest | null>(null);
@@ -130,7 +138,7 @@ export function Publisher({
     subtitle: "",
     body,
     document: doc,
-    coverMediaId: cover,
+    coverMediaId: kind === "post" ? null : cover,
   };
   const latest = useRef(snapshot);
   latest.current = snapshot;
@@ -146,7 +154,7 @@ export function Publisher({
         placeholder: "What’s happening at your company?",
       }),
     ],
-    content: emptyDoc,
+    content: startingDocument.current,
     editorProps: {
       attributes: {
         "aria-label": "Update content",
@@ -173,7 +181,7 @@ export function Publisher({
           left: event.clientX,
           top: event.clientY,
         });
-        if (position)
+        if (position && latest.current.kind !== "post")
           view.dispatch(
             view.state.tr.setSelection(
               TextSelection.near(view.state.doc.resolve(position.pos)),
@@ -184,8 +192,14 @@ export function Publisher({
       },
     },
     onUpdate: ({ editor }) => {
-      const document = editor.getJSON(),
-        text = editor.getText({ blockSeparator: "\n" });
+      const rawDocument = editor.getJSON();
+      const document =
+        latest.current.kind === "post"
+          ? postCaptionDocument(rawDocument)
+          : rawDocument;
+      if (latest.current.kind === "post" && inlineImageUrls(rawDocument).size)
+        editor.commands.setContent(document, { emitUpdate: false });
+      const text = writingText(document);
       setDoc(document);
       setBody(text);
       latest.current = { ...latest.current, document, body: text };
@@ -204,6 +218,11 @@ export function Publisher({
       quote: editor?.isActive("blockquote") || false,
     }),
   });
+  useEffect(() => {
+    if (publicationId || !editor) return;
+    const frame = requestAnimationFrame(() => editor.commands.focus("end"));
+    return () => cancelAnimationFrame(frame);
+  }, [editor, publicationId]);
   useLayoutEffect(() => {
     if (linkOpen) linkInput.current?.focus();
   }, [linkOpen]);
@@ -211,12 +230,6 @@ export function Publisher({
     if (moreTools)
       morePanel.current?.querySelector<HTMLButtonElement>("button")?.focus();
   }, [moreTools]);
-  useLayoutEffect(() => {
-    if (choosingFormat)
-      formatPanel.current
-        ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
-        ?.focus();
-  }, [choosingFormat]);
   useEffect(() => {
     mounted.current = true;
     operations.current = new AbortController();
@@ -228,15 +241,15 @@ export function Publisher({
     };
   }, []);
   useEffect(() => {
-    editor?.setEditable(!busy && !choosingFormat && !closing.current, false);
-  }, [editor, busy, choosingFormat]);
+    editor?.setEditable(!busy && !closing.current, false);
+  }, [editor, busy]);
   useEffect(() => {
     if (!publicationId || !editor) return;
     let cancelled = false;
     api<Draft>("/posts/" + publicationId)
       .then((p) => {
         if (cancelled) return;
-        const loadedDocument = editableDocument(
+        let loadedDocument = editableDocument(
           p.document,
           p.body,
           p.title,
@@ -245,6 +258,7 @@ export function Publisher({
         const loadedMedia = p.media || [],
           existingCover = loadedMedia.find((m) => m.id === p.cover_media_id);
         if (
+          p.kind !== "post" &&
           existingCover &&
           !inlineImageUrls(loadedDocument).has(existingCover.url)
         )
@@ -257,13 +271,22 @@ export function Publisher({
           version: p.version,
           status: p.status as "draft" | "published",
         };
-        const loadedKind = p.status === "published" ? p.kind : "press_release";
+        const loadedKind = p.kind || "post";
+        if (loadedKind === "post") {
+          richBackup.current = {
+            document: loadedDocument,
+            caption: JSON.stringify(postCaptionDocument(loadedDocument)),
+          };
+          loadedDocument = postCaptionDocument(loadedDocument);
+        }
         setKind(loadedKind);
         setDoc(loadedDocument);
         setBody(writingText(loadedDocument));
         setMedia(loadedMedia);
         setCover(p.cover_media_id);
         editor.commands.setContent(loadedDocument, { emitUpdate: false });
+        if (loadedKind === "post" && richBackup.current)
+          richBackup.current.caption = JSON.stringify(editor.getJSON());
         setSaved(
           JSON.stringify({
             kind: loadedKind,
@@ -385,6 +408,19 @@ export function Publisher({
     )
       return;
     const owner = operations.current;
+    if (
+      latest.current.kind === "post" &&
+      (media.length + files.length > 4 ||
+        ([...media.map((m) => m.mime), ...files.map((f) => f.type)].some(
+          (mime) => !mime.startsWith("image/"),
+        ) &&
+          media.length + files.length > 1))
+    ) {
+      setError(
+        "A Post can have up to 4 photos, or one video or PDF. Choose Press release for more attachments.",
+      );
+      return;
+    }
     if (media.length + files.length > 20) {
       setError("You can attach up to 20 photos, videos, or files.");
       return;
@@ -481,7 +517,11 @@ export function Publisher({
           setCover(m.id);
           latest.current = { ...latest.current, coverMediaId: m.id };
         }
-        if (intent === "inline" && m.mime.startsWith("image/"))
+        if (
+          latest.current.kind !== "post" &&
+          intent === "inline" &&
+          m.mime.startsWith("image/")
+        )
           editor
             ?.chain()
             .focus()
@@ -511,7 +551,9 @@ export function Publisher({
   };
   const choose = (
     type: "image" | "video" | "document",
-    intent: "attachment" | "cover" | "inline" = "inline",
+    intent: "attachment" | "cover" | "inline" = kind === "post"
+      ? "attachment"
+      : "inline",
   ) => {
     uploadIntent.current = intent;
     setMediaKind(type);
@@ -594,11 +636,6 @@ export function Publisher({
         event.preventDefault();
         return;
       }
-      if (choosingFormat) {
-        event.preventDefault();
-        setChoosingFormat(false);
-        return;
-      }
       if (
         mediaSaving ||
         pendingDescriptions.current.size ||
@@ -612,7 +649,12 @@ export function Publisher({
     window.addEventListener("connect:modal-close", closeRequest);
     return () =>
       window.removeEventListener("connect:modal-close", closeRequest);
-  }, [busy, mediaSaving, body, fingerprint, saved, choosingFormat]);
+  }, [busy, mediaSaving, body, fingerprint, saved]);
+  useEffect(() => {
+    if (!initialClose || !editor || resumedClose.current) return;
+    resumedClose.current = true;
+    void saveAndClose(initialClose);
+  }, [initialClose, editor]);
   if (!company)
     return (
       <div className="publisher-empty">
@@ -626,7 +668,7 @@ export function Publisher({
         <LoaderCircle className="spin" /> Opening your draft…
       </div>
     );
-  const inlineIds = inlineImageUrls(doc),
+  const inlineIds = kind === "post" ? new Set<string>() : inlineImageUrls(doc),
     headline = writingHeadline(doc);
   const remainingMedia = media.filter((m) => !inlineIds.has(m.url));
   const updateAllowed =
@@ -635,16 +677,95 @@ export function Publisher({
     (!media.some((m) => !m.mime.startsWith("image/")) || media.length <= 1);
   const releaseAllowed =
     headline.length >= 3 && body.trim().length >= 20 && body.length <= 50000;
-  async function publishAs(value: "post" | "press_release") {
+  function changeKind(value: "post" | "press_release") {
+    if (busy || closing.current || kind === value) return;
+    if (value === "post" && !updateAllowed) {
+      setError(
+        "A Post supports up to 4,000 characters and 4 photos, or one video or PDF. Your press release is unchanged.",
+      );
+      return;
+    }
+    let next = editor?.getJSON() || doc;
+    if (value === "post") {
+      const caption = postCaptionDocument(next);
+      richBackup.current = { document: next, caption: JSON.stringify(caption) };
+      next = caption;
+    } else if (richBackup.current) {
+      const backup = richBackup.current;
+      if (JSON.stringify(next) === backup.caption) {
+        const restore = (node: any): any => {
+          if (node.type === "image") {
+            const attached = media.find((m) => m.url === node.attrs?.src);
+            return attached
+              ? { ...node, attrs: { ...node.attrs, alt: attached.alt } }
+              : null;
+          }
+          return {
+            ...node,
+            ...(node.content
+              ? { content: node.content.map(restore).filter(Boolean) }
+              : {}),
+          };
+        };
+        next = restore(backup.document);
+      } else {
+        const photos: any[] = [];
+        const collect = (node: any) => {
+          if (
+            node?.type === "image" &&
+            media.some((m) => m.url === node.attrs?.src)
+          )
+            photos.push({
+              ...structuredClone(node),
+              attrs: {
+                ...node.attrs,
+                alt: media.find((m) => m.url === node.attrs.src)?.alt || "",
+                title: null,
+              },
+            });
+          node?.content?.forEach(collect);
+        };
+        collect(backup.document);
+        next = { ...next, content: [...(next.content || []), ...photos] };
+      }
+    }
+    setKind(value);
+    setDoc(next);
+    setBody(writingText(next));
+    latest.current = {
+      ...latest.current,
+      kind: value,
+      document: next,
+      body: writingText(next),
+      title: "",
+      subtitle: "",
+    };
+    editor?.commands.setContent(next, { emitUpdate: false });
+    if (value === "post" && editor && richBackup.current)
+      richBackup.current.caption = JSON.stringify(editor.getJSON());
+    setError("");
+    setMoreTools(false);
+    setLinkOpen(false);
+  }
+  async function publishCurrent() {
+    if (busy || published.current || closing.current) return;
+    const owner = operations.current;
     setBusy(true);
     published.current = true;
+    editor?.setEditable(false, false);
     setError("");
     try {
       await flushMediaSaves();
+      assertOwner(owner);
+      const value = latest.current.kind;
       await persist("published", {
         kind: value,
         title: value === "post" ? "" : writingHeadline(latest.current.document),
         subtitle: "",
+        document:
+          value === "post"
+            ? postCaptionDocument(latest.current.document)
+            : latest.current.document,
         coverMediaId:
           value === "post"
             ? null
@@ -652,14 +773,17 @@ export function Publisher({
               media.find((m) => m.mime.startsWith("image/"))?.id ||
               null,
       });
+      assertOwner(owner);
       refresh();
       close();
-      toast("Published. Your update is now on your company profile.");
+      toast(value === "post" ? "Post published." : "Press release published.");
       onPublished?.();
-    } catch {
+    } catch (e) {
       published.current = false;
+      if (mounted.current && !owner.signal.aborted)
+        setError((e as Error).message);
     } finally {
-      setBusy(false);
+      if (mounted.current && !owner.signal.aborted) setBusy(false);
     }
   }
   async function removeMedia(m: Media) {
@@ -695,7 +819,7 @@ export function Publisher({
     }
   }
   return (
-    <div className="publisher publisher-onebox">
+    <div className="publisher publisher-onebox" data-publication-kind={kind}>
       {photoAdjuster}
       <header className="publisher-top">
         <button
@@ -717,20 +841,17 @@ export function Publisher({
           {preview
             ? "Preview"
             : publicationId
-              ? "Edit update"
-              : "Create an update"}
+              ? "Edit publication"
+              : "Create a post"}
         </h2>
         <button
           className="button primary publish-button"
           disabled={
-            busy || body.length > 50000 || (!body.trim() && !media.length)
+            busy ||
+            (kind === "post" ? !updateAllowed : !releaseAllowed) ||
+            (!body.trim() && !media.length)
           }
-          onClick={() => {
-            setChoosingFormat(true);
-            setMoreTools(false);
-            setLinkOpen(false);
-            setError("");
-          }}
+          onClick={() => void publishCurrent()}
         >
           {busy
             ? closing.current
@@ -779,70 +900,41 @@ export function Publisher({
           )}
         </span>
       </div>
-      {choosingFormat && (
-        <div
-          className="publisher-choice"
-          ref={formatPanel}
-          role="group"
-          aria-labelledby="publish-choice-title"
+      <div
+        className="publisher-formats"
+        role="group"
+        aria-label="Publication format"
+      >
+        <button
+          type="button"
+          aria-pressed={kind === "post"}
+          disabled={busy}
+          onClick={() => changeKind("post")}
         >
-          <div className="publisher-choice-heading">
-            <h3 id="publish-choice-title">How would you like to publish?</h3>
-            <button
-              className="icon-button"
-              aria-label="Close publishing choices"
-              disabled={busy}
-              onClick={() => setChoosingFormat(false)}
-            >
-              <X size={18} />
-            </button>
-          </div>
-          <div className="publisher-choice-options">
-            <button
-              aria-label="Update"
-              disabled={busy || !updateAllowed}
-              onClick={() => void publishAs("post")}
-            >
-              <MessageSquare size={24} />
-              <span>
-                <strong>Update</strong>
-                <small>
-                  {updateAllowed
-                    ? "Share a moment, project, or company news."
-                    : "Up to 4,000 characters and 4 photos, or one video or PDF."}
-                </small>
-              </span>
-              <ArrowUpRight size={18} />
-            </button>
-            <button
-              aria-label="Press release"
-              disabled={busy || !releaseAllowed}
-              onClick={() => void publishAs("press_release")}
-            >
-              <Newspaper size={24} />
-              <span>
-                <strong>Press release</strong>
-                <small>
-                  {releaseAllowed
-                    ? "Your first line becomes the headline."
-                    : "Start with a headline and add at least 20 characters."}
-                </small>
-              </span>
-              <ArrowUpRight size={18} />
-            </button>
-          </div>
-          <button
-            className="publisher-keep-writing"
-            disabled={busy}
-            onClick={() => setChoosingFormat(false)}
-          >
-            Keep writing
-          </button>
-        </div>
+          <MessageSquare size={17} />
+          Post
+        </button>
+        <button
+          type="button"
+          aria-pressed={kind !== "post"}
+          disabled={busy}
+          onClick={() => changeKind("press_release")}
+        >
+          <Newspaper size={17} />
+          Press release
+        </button>
+      </div>
+      {kind !== "post" && (
+        <p className="publisher-format-hint">
+          Your first line becomes the headline. Add photos anywhere in your
+          story.
+        </p>
       )}
       {preview ? (
         <article className="publisher-preview">
-          <RichDocument document={doc} />
+          <RichDocument
+            document={kind === "post" ? postCaptionDocument(doc) : doc}
+          />
           <MediaGallery
             media={remainingMedia}
             companyName={company.name}
@@ -1052,7 +1144,7 @@ export function Publisher({
                   onClick={() => choose("image", "inline")}
                   disabled={busy}
                 >
-                  Insert photo
+                  {kind === "post" ? "Add photo" : "Insert photo"}
                 </button>
                 <button
                   onClick={() => choose("video", "attachment")}
@@ -1075,7 +1167,7 @@ export function Publisher({
             >
               <button
                 type="button"
-                disabled={busy || choosingFormat}
+                disabled={busy}
                 title="Add photo"
                 aria-label="Add photo"
                 onMouseDown={(event) => event.preventDefault()}
@@ -1085,7 +1177,7 @@ export function Publisher({
               </button>
               <button
                 type="button"
-                disabled={busy || choosingFormat}
+                disabled={busy}
                 title="Link"
                 aria-label="Link"
                 aria-pressed={linkOpen || textStyle?.link || false}
@@ -1100,7 +1192,7 @@ export function Publisher({
               </button>
               <button
                 type="button"
-                disabled={busy || choosingFormat}
+                disabled={busy}
                 title="Heading"
                 aria-label="Heading"
                 aria-pressed={textStyle?.heading || false}
@@ -1113,7 +1205,7 @@ export function Publisher({
               </button>
               <button
                 type="button"
-                disabled={busy || choosingFormat}
+                disabled={busy}
                 title="Subheading"
                 aria-label="Subheading"
                 aria-pressed={textStyle?.subheading || false}
@@ -1126,7 +1218,7 @@ export function Publisher({
               </button>
               <button
                 type="button"
-                disabled={busy || choosingFormat}
+                disabled={busy}
                 title="More formatting"
                 aria-label="More formatting"
                 aria-expanded={moreTools}
@@ -1144,11 +1236,15 @@ export function Publisher({
         <div className="publisher-submit">
           <span
             className={
-              "word-count " + (body.length > 50000 ? "over-limit" : "")
+              "word-count " +
+              (body.length > (kind === "post" ? 4000 : 50000)
+                ? "over-limit"
+                : "")
             }
           >
             {body.length > 3500
-              ? body.length.toLocaleString() + " characters"
+              ? body.length.toLocaleString() +
+                (kind === "post" ? " / 4,000" : " / 50,000")
               : ""}
           </span>
           <button
@@ -1164,11 +1260,13 @@ export function Publisher({
             className="button"
             disabled={busy}
             onClick={async () => {
+              const owner = operations.current;
               try {
                 await flushMediaSaves();
+                if (published.current) return;
                 if (!preview) await persist();
-                setPreview(!preview);
-                setChoosingFormat(false);
+                assertOwner(owner);
+                if (!published.current) setPreview(!preview);
               } catch (e) {
                 setError((e as Error).message);
               }

@@ -2,6 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 const base = process.env.API_TEST_URL || "http://localhost:4101";
+test("notification worker is JavaScript with browser and CDN caching disabled", async () => {
+  const response = await fetch(base + "/push-sw.js");
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type"), /javascript/);
+  assert.match(response.headers.get("cache-control"), /no-store/);
+  assert.equal(response.headers.get("cdn-cache-control"), "no-store");
+  assert.equal(response.headers.get("cloudflare-cdn-cache-control"), "no-store");
+  assert.equal(response.headers.get("service-worker-allowed"), "/");
+  assert.match(await response.text(), /addEventListener\(["']push["']/);
+});
 function client() {
   let cookie = "";
   return async (path, body, options = {}) => {

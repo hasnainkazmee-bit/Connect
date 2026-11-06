@@ -45,32 +45,69 @@ internal object PublicationWriting {
                 textBlock(subtitle),
             )
         }
-        // Legacy covers and gallery photos become part of the same visible writing canvas.
-        val inline = inlineImageUrls(document)
-        val images =
-            initial?.optJSONArray("media").objects().filter {
-                it.text("mime").startsWith("image/") && it.text("url") !in inline
-            }
-        images.forEach { media ->
-            val image =
-                JSONObject()
-                    .put("type", "image")
-                    .put(
-                        "attrs",
-                        JSONObject().put("src", media.text("url")).put("alt", media.text("alt")),
-                    )
-            if (media.text("id") == initial?.text("cover_media_id")) {
-                val intro = if (title.isNotBlank()) 1 else 0
-                nodes.add(
-                    (intro + if (subtitle.isNotBlank()) 1 else 0).coerceAtMost(nodes.size),
-                    image,
-                )
-            } else nodes.add(image)
-        }
+        // Attachments stay separate unless the writer explicitly placed them inline.
         if (nodes.isEmpty())
             nodes.add(JSONObject().put("type", "paragraph").put("content", JSONArray()))
         return document.put("content", JSONArray(nodes))
     }
+
+    /** Posts keep all writing, including existing visible photo captions. */
+    fun caption(document: JSONObject): JSONObject = JSONObject(document.toString()).apply {
+        document.optJSONArray("content")?.let { children ->
+            put("content", JSONArray(children.objects().mapNotNull { child ->
+                if (child.text("type") == "image")
+                    child.optJSONObject("attrs")?.text("title")?.takeIf { it.isNotBlank() }?.let { textBlock(it) }
+                else caption(child)
+            }))
+        }
+    }
+
+    /** An unchanged switch is exact. Edited captions remain prose, never resurrected metadata. */
+    fun restoreInline(caption: JSONObject, reference: JSONObject): JSONObject {
+        if (caption.toString() == PublicationWriting.caption(reference).toString()) return JSONObject(reference.toString())
+        return restoreEditedInline(caption, reference)
+    }
+
+    private fun restoredImage(original: JSONObject) = JSONObject(original.toString()).apply {
+        optJSONObject("attrs")?.remove("title")
+    }
+
+    private fun restoreEditedInline(caption: JSONObject, reference: JSONObject): JSONObject {
+        val restored = JSONObject(caption.toString())
+        val current = restored.optJSONArray("content")?.objects()?.toMutableList() ?: return restored
+        val originals = reference.optJSONArray("content").objects()
+        var index = 0
+        originals.forEach { original ->
+            if (original.text("type") == "image") {
+                current.add(index.coerceAtMost(current.size), restoredImage(original))
+                index++
+                // A legacy photo caption is now an editable paragraph. Preserve its edits.
+                if (!original.optJSONObject("attrs")?.text("title").isNullOrBlank() &&
+                    current.getOrNull(index)?.text("type") == "paragraph") index++
+            } else {
+                current.getOrNull(index)?.let { child ->
+                    if (child.text("type") == original.text("type"))
+                        current[index] = restoreEditedInline(child, original)
+                    else {
+                        // Structural edits can remove an anchor; keep its photos after the writing.
+                        imageNodes(original).forEach { current.add(restoredImage(it)) }
+                    }
+                } ?: imageNodes(original).forEach { current.add(restoredImage(it)) }
+                index++
+            }
+        }
+        return restored.put("content", JSONArray(current))
+    }
+
+    private fun imageNodes(node: JSONObject): List<JSONObject> =
+        if (node.text("type") == "image") listOf(node)
+        else node.optJSONArray("content").objects().flatMap(::imageNodes)
+
+    fun attachments(post: JSONObject): List<JSONObject> =
+        post.optJSONArray("media").objects().distinctBy { it.text("url").ifBlank { it.text("id") } }
+
+    fun acceptsPostMedia(media: List<JSONObject>) =
+        media.size <= 4 && (media.all { it.text("mime").startsWith("image/") } || media.size <= 1)
 
     private fun firstLine(document: JSONObject): String =
         RichDocumentCodec.plain(document)

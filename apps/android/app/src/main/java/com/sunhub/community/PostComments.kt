@@ -47,6 +47,7 @@ internal fun PostCommentsSheet(
     savedDraft: String?,
     saveDraft: (String, String?) -> Unit,
 ) {
+    NotificationContextSeen(model, "post", id)
     val base = "/posts/$id/comments"
     val scope = rememberCoroutineScope()
     val list = rememberLazyListState()

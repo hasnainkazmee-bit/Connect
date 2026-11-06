@@ -696,6 +696,31 @@ select:focus-visible {
 .web-update-notice {
   box-shadow: var(--shadow-chrome);
 }
+.web-update-notice .update-download {
+  flex-shrink: 0;
+  border-radius: var(--radius-control);
+  background: var(--brand);
+  color: var(--on-brand);
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.desktop-update-notice {
+  flex-wrap: wrap;
+  max-width: min(650px, calc(100% - 32px));
+}
+.desktop-update-notice > div {
+  flex: 1 1 220px;
+}
+.desktop-update-notice .update-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+}
 .team-permissions {
   border-radius: 0 0 var(--radius-card) var(--radius-card);
 }

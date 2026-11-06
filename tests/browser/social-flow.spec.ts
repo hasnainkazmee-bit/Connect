@@ -67,10 +67,6 @@ test("company publishes photos and video, another follows and comments", async (
     .getByRole("dialog")
     .getByRole("button", { name: "Publish", exact: true })
     .click();
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Update", exact: true })
-    .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   const photoPost = page
     .locator(".feed-post")
@@ -95,10 +91,6 @@ test("company publishes photos and video, another follows and comments", async (
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Publish", exact: true })
-    .click();
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Update", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   const videoPost = page

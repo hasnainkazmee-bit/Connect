@@ -80,6 +80,7 @@ The feeds are chronological and use exact sequence cursors. Following includes t
 
 ```text
 apps/android/             Native Kotlin/Jetpack Compose Android app
+apps/macos/               Native AppKit + WebKit Mac app, shared live Connect UI
 crates/mobile-core/       Rust networking, cache, uploads and event stream
 apps/web/                 React + TypeScript + Vite; responsive UI
 apps/api/src/             Express + TypeScript; authorization and business rules
@@ -127,7 +128,9 @@ Server setup and backup instructions: [infra/DEPLOYMENT.md](infra/DEPLOYMENT.md)
 
 ## Publishing and company workspaces
 
-Companies write in one continuous canvas, then choose Update or Press release at publish time. The first writing line supplies the press-release headline; the full document, formatting, and image positions remain intact. Existing titles/subtitles are preserved in the writing canvas, and older articles and case studies remain readable as company updates. The editor supports headings, lists, quotes, links, inline images, video and PDF attachments, image descriptions, drafts, and previews. Drafts and their files stay private to authorized company members; optimistic versions prevent one editor from overwriting another editor’s changes. Publishing and profile management require an owner or administrator.
+New company publications start as a **Post**: write a caption, add media, and select Publish directly. The caption appears above a consistent square media viewport in the editor preview, feed, company profile, and post details on web, Mac, Windows, and Android. Photos and videos fit inside that viewport without cutting off their content; empty space preserves the full image unless the author deliberately crops it during upload.
+
+Choose **Press release** explicitly for a continuous document with headings, lists, quotes, links, and inline photos. Its first writing line supplies the headline, and inline media retains its chosen aspect ratio and position. Switching formats preserves the writing and attachments, with the selected format's limits checked before publishing. Existing titles/subtitles remain in the writing canvas, and older articles and case studies remain readable as company updates. Both formats support video and PDF attachments, image descriptions, drafts, and previews. Drafts and their files stay private to authorized company members; optimistic versions prevent one editor from overwriting another editor’s changes. Publishing and profile management require an owner or administrator.
 
 Company profiles use `/company-username` on the app origin. Usernames are lowercase, unique, reserve application routes, and cannot reuse another company’s previous address. Previous usernames and `/company/...` links continue to resolve. Signup suggests a readable name; profile editing can claim another available username. Profiles include company facts, portfolio projects, achievements, people, customer ratings, and reviews.
 
@@ -136,6 +139,18 @@ Company employees have their own company-account login, with owner, administrato
 Individual accounts can follow companies, leave customer reviews, and start message requests with companies. They cannot publish, create company profiles, or join company teams. The People inbox keeps these conversations separate from company-to-company connections. Accepting an individual’s message request opens that conversation without creating a company connection. Employees of a company cannot review their own company.
 
 Android uses a floating capsule navigation with a central Create action. Phone layouts use bottom navigation. Horizontal swipes move between main tabs; editing, chat details, and horizontal content keep their own gestures. Android keeps tab scroll state and uses native Compose paging. Web builds check for a newer server release and offer a refresh. Android checks the release manifest, downloads only from the project’s GitHub releases, verifies the checksum, package, version, and signing certificate, and asks Android to confirm installation. Native changes require an APK update; API and web changes do not.
+
+### macOS app
+
+Connect for Mac uses a native AppKit sidebar and toolbar with a desktop workspace rendered by the system WebKit engine. It shares the existing backend, accounts, directory, publishing, and messaging. The Mac layout omits the website header/footer and uses compact controls and a full-height inbox. It includes a persistent sign-in store, centered Sunhub authentication popups, native file selection and downloads, keyboard navigation, find, zoom, and connection recovery. Closing the main window retains the session and drafts; quitting checks for unsaved work.
+
+On a Mac, run `npm run package:macos` to build a universal Apple Silicon/Intel installer for macOS 13 or later. The local installer is written to `apps/macos/artifacts/Connect-0.1.0-macos-universal.dmg`. Run `npm run test:macos` for the URL-policy and local WebKit regression checks. Installation, signing, and current limitations are documented in [apps/macos/README.md](apps/macos/README.md). Default builds are ad-hoc signed local test builds, not Apple-notarized public releases. Web improvements load from the live service; native host upgrades require a new app build.
+
+### Windows app
+
+Connect for Windows uses a native WPF window, sidebar, toolbar, menus, and sign-in popup around the shared live workspace in Microsoft WebView2. It supports Windows window snapping, light/dark/system appearance, persistent sessions, native file selection and downloads, and permission-aware publishing controls. The workspace hides duplicate web navigation while retaining the existing accounts, directory, feed, and messages.
+
+Windows builds produce separate x64 and ARM64 Setup installers with Start menu integration, optional desktop shortcuts, repair/upgrade support, and uninstall registration. Installation is per user and preserves session data. See [apps/windows/README.md](apps/windows/README.md) for build commands, prerequisites, validation, and limitations. Initial installers are unsigned; native upgrades require a new Setup installer, while shared workspace changes arrive from the live service.
 
 ### Optional Sign in with Sunhub
 

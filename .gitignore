@@ -17,3 +17,10 @@ apps/android/app/src/main/jniLibs/
 
 /apps/android/artifacts/
 /.backups/
+/.secrets/
+
+/apps/windows/.build/
+/apps/windows/artifacts/
+/apps/windows/**/bin/
+/apps/windows/**/obj/
+/apps/windows/Connect.Windows/Assets/Connect.ico
