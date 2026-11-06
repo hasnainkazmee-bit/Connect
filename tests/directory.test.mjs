@@ -11,7 +11,9 @@ if (!new URL(process.env.DATABASE_URL).pathname.endsWith("_test"))
 const db = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 test("verified company corrections do not repeat inaccurate source labels", async () => {
   const records = await loadMasterCompanySnapshot(process.cwd());
-  const barnhart = records.find((record) => record.domain === "barnhartpump.com");
+  const barnhart = records.find(
+    (record) => record.domain === "barnhartpump.com",
+  );
   assert.equal(barnhart?.type, "Service provider");
   assert.equal(barnhart?.location, "Peyton, CO");
   assert.equal(barnhart?.services[0], "Solar water pumps");
@@ -153,6 +155,70 @@ test("public directory, ownership claims and shared company identity", async (t)
           ).size,
           27,
         );
+      },
+    );
+    await t.test(
+      "current certifications and qualifications lead across pagination without promoting listings or expired credentials",
+      async () => {
+        const marker = "Credentials " + randomUUID().slice(0, 8);
+        const certifiedIds = [];
+        for (let i = 0; i < 25; i++) {
+          const company = await fixture(
+            `Z ${marker} ${String(i).padStart(2, "0")}`,
+            ["Austin, TX"],
+          );
+          certifiedIds.push(company.id);
+          await db.query(
+            "INSERT INTO company_credentials(company_id,category,title,scope,scope_detail,source_url,evidence_basis,valid_until) VALUES($1,$2,'Current credential','personnel','Named professionals only','https://example.test/current','issuer',CURRENT_DATE)",
+            [company.id, i % 2 ? "qualification" : "certification"],
+          );
+        }
+        const listed = await fixture(`A Listed ${marker}`, ["Austin, TX"]);
+        const expired = await fixture(`B Expired ${marker}`, ["Austin, TX"]);
+        const bare = await fixture(`C Bare ${marker}`, ["Austin, TX"]);
+        await db.query(
+          "UPDATE companies SET logo_url='/assets/companies/lighthouse-solar.png' WHERE id=ANY($1::uuid[])",
+          [[listed.id, expired.id, bare.id]],
+        );
+        for (const category of ["directory", "ranking", "membership"])
+          await db.query(
+            "INSERT INTO company_credentials(company_id,category,title,scope,scope_detail,source_url,evidence_basis) VALUES($1,$2,$2,'company','Public listing only','https://example.test/listing','directory')",
+            [listed.id, category],
+          );
+        await db.query(
+          "INSERT INTO company_credentials(company_id,category,title,scope,scope_detail,source_url,evidence_basis,valid_until) VALUES($1,'certification','Expired certification','company','Old certificate','https://example.test/expired','issuer',CURRENT_DATE-1)",
+          [expired.id],
+        );
+        const search =
+          "/companies?q=" +
+          encodeURIComponent(marker) +
+          "&type=Installer&area=TX";
+        const first = (await anon(search)).data;
+        const second = (await anon(search + "&page=2")).data;
+        assert.equal(first.total, 28);
+        assert.equal(first.companies.length, 24);
+        assert.ok(
+          first.companies.every((company) => company.certification_count === 1),
+        );
+        assert.ok(certifiedIds.includes(second.companies[0].id));
+        assert.ok(
+          second.companies
+            .slice(1)
+            .every(
+              (company) =>
+                company.certification_count === 0 &&
+                company.certifications.length === 0,
+            ),
+        );
+        const all = [...first.companies, ...second.companies];
+        assert.equal(new Set(all.map((company) => company.id)).size, 28);
+        for (const company of all.filter(
+          (company) => company.certification_count,
+        )) {
+          assert.equal(company.certifications[0].title, "Current credential");
+          assert.equal(company.certifications[0].scope, "personnel");
+          assert.equal(company.certifications[0].evidence_basis, "issuer");
+        }
       },
     );
     const wrong = await register("outsider-" + suffix + "@example.test"),

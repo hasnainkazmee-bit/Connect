@@ -26,6 +26,11 @@ export type Company = {
   is_demo?: boolean;
   rating_average?: number | null;
   review_count?: number;
+  certification_count?: number;
+  certifications?: Pick<
+    Credential,
+    "id" | "title" | "category" | "scope" | "scope_detail" | "evidence_basis"
+  >[];
 };
 export type Session = {
   user: null | {
@@ -91,7 +96,8 @@ export type Profile = {
 export type Credential = {
   id: string;
   catalog_key: string | null;
-  category: "certification" | "qualification" | "ranking" | "directory" | "membership";
+  category:
+    "certification" | "qualification" | "ranking" | "directory" | "membership";
   title: string;
   organization: string;
   scope: "company" | "product" | "personnel";

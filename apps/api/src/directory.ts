@@ -108,8 +108,18 @@ export async function directorySearch(input: Record<string, unknown>) {
     ) || ["united states", "us", "usa"].includes(country);
   const globalSupply = usArea || country === "canada";
   const { rows } = await pool.query(
-    `WITH filtered AS (
+    `WITH certified AS (
+      SELECT company_id,count(*)::int AS certification_count,
+        json_agg(json_build_object('id',id,'title',title,'category',category,'scope',scope,'scope_detail',scope_detail,'evidence_basis',evidence_basis)
+          ORDER BY (evidence_basis='issuer') DESC,title,id) AS certifications
+      FROM company_credentials
+      WHERE category IN ('certification','qualification')
+        AND (valid_until IS NULL OR valid_until>=CURRENT_DATE)
+      GROUP BY company_id
+    ), filtered AS (
       SELECT c.*,r.rating_average,r.review_count,
+        COALESCE(cert.certification_count,0) AS certification_count,
+        COALESCE(cert.certifications,'[]'::json) AS certifications,
         (c.logo_url <> '') AS has_logo,
         (
           (c.cover_url <> '' AND c.cover_url <> '/assets/solar.jpg')::int * 3 +
@@ -125,6 +135,7 @@ export async function directorySearch(input: Record<string, unknown>) {
           (c.established IS NOT NULL)::int
         ) AS profile_score
       FROM companies c
+      LEFT JOIN certified cert ON cert.company_id=c.id
       LEFT JOIN LATERAL (SELECT round(avg(rating),1)::float AS rating_average,count(*)::int AS review_count FROM company_reviews r WHERE r.company_id=c.id AND NOT EXISTS(SELECT 1 FROM memberships m WHERE m.company_id=c.id AND m.user_id=r.user_id)) r ON true
       WHERE NOT c.is_demo
       AND ($1='' OR ($10<>'' AND c.name_key LIKE '%'||$10||'%') OR concat_ws(' ',c.name,c.tagline,c.description,c.location,array_to_string(c.services,' '),array_to_string(c.service_areas,' ')) ILIKE '%'||$1||'%')
@@ -133,11 +144,11 @@ export async function directorySearch(input: Record<string, unknown>) {
       AND ($5='' OR c.location ILIKE '%'||$5||'%') AND ($6='' OR $6=ANY(c.audiences))
     ), paged AS (
       SELECT * FROM filtered
-      ORDER BY has_logo DESC,profile_score DESC,(listing_status='managed') DESC,name,id
+      ORDER BY (certification_count>0) DESC,has_logo DESC,profile_score DESC,(listing_status='managed') DESC,name,id
       LIMIT 24 OFFSET $7
     )
     SELECT COALESCE((SELECT json_agg(to_jsonb(paged)-'has_logo'-'profile_score'
-      ORDER BY has_logo DESC,profile_score DESC,(listing_status='managed') DESC,name,id) FROM paged),'[]') AS companies,
+      ORDER BY (certification_count>0) DESC,has_logo DESC,profile_score DESC,(listing_status='managed') DESC,name,id) FROM paged),'[]') AS companies,
     (SELECT count(*)::int FROM filtered) AS total,
     ARRAY(SELECT DISTINCT unnest(services) AS value FROM companies WHERE NOT is_demo ORDER BY value) AS services,
     ARRAY(SELECT DISTINCT unnest(service_areas) AS value FROM companies WHERE NOT is_demo ORDER BY value) AS areas,

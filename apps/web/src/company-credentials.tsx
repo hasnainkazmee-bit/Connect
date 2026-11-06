@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { ArrowUpRight, Award, Globe, Plus, Pencil } from "lucide-react";
+import {
+  ArrowUpRight,
+  Award,
+  ChevronDown,
+  Globe,
+  Plus,
+  Pencil,
+  Users,
+} from "lucide-react";
 import { api } from "./api";
 import { useApp } from "./context";
 import {
@@ -43,13 +51,30 @@ export function CompanyCredentials({
   editable: boolean;
 }) {
   const { open } = useApp();
+  const groups = [
+    {
+      label: "",
+      rows: items.filter(
+        (item) =>
+          item.category === "certification" ||
+          item.category === "qualification",
+      ),
+    },
+    {
+      label: "Industry recognition",
+      rows: items.filter(
+        (item) => item.category === "ranking" || item.category === "membership",
+      ),
+    },
+    {
+      label: "Directory profiles",
+      rows: items.filter((item) => item.category === "directory"),
+    },
+  ];
   return (
     <section className="profile-card credentials-card">
       <div className="profile-section-heading">
-        <div>
-          <h2>Credentials & industry presence</h2>
-          <p>Certifications, qualifications, and places to learn more.</p>
-        </div>
+        <h2>Credentials</h2>
         {editable && (
           <button
             className="button small"
@@ -61,61 +86,88 @@ export function CompanyCredentials({
           </button>
         )}
       </div>
-      {([false, true] as const).map((directory) => {
-        const rows = items.filter(
-          (item) => (item.category === "directory") === directory,
-        );
-        return rows.length ? (
-          <div key={String(directory)} className="credential-group">
-            <h3>
-              {directory ? "Around the industry" : "Credentials & recognition"}
-            </h3>
-            {rows.map((item) => {
+      {groups
+        .filter((group) => group.rows.length)
+        .map((group) => (
+          <div className="credential-group" key={group.label}>
+            {group.label && (
+              <h3 className="credential-group-label">{group.label}</h3>
+            )}
+            {group.rows.map((item) => {
               const expired =
                 !!item.valid_until &&
                 item.valid_until.slice(0, 10) <
                   new Date().toISOString().slice(0, 10);
+              const Icon =
+                item.category === "directory"
+                  ? Globe
+                  : item.scope === "personnel"
+                    ? Users
+                    : Award;
               return (
-                <article className="achievement" key={item.id}>
-                  <span className="achievement-icon">
-                    {directory ? <Globe size={22} /> : <Award size={22} />}
-                  </span>
-                  <div className="credential-content">
-                    <small>
-                      {categories[item.category]} · {scopes[item.scope]}
-                    </small>
-                    <h3>{item.title}</h3>
-                    <small>
-                      {[item.organization, item.period]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </small>
-                    <p>{item.scope_detail}</p>
-                    {item.description && <p>{item.description}</p>}
-                    {item.valid_until && (
-                      <p>
-                        {expired ? "Expired" : "Valid until"}:{" "}
-                        {date(item.valid_until)}
-                      </p>
-                    )}
-                    <a
-                      href={item.source_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {directory ? "View listing" : "View source"}
-                      <ArrowUpRight size={13} />
-                    </a>
-                    <small className="credential-evidence">
-                      {evidence[item.evidence_basis]}
-                      {item.checked_at
-                        ? ` · Source checked ${date(item.checked_at)}`
-                        : " · Not independently reviewed"}
-                    </small>
-                  </div>
+                <article className="credential-entry" key={item.id}>
+                  <details className="credential-disclosure">
+                    <summary className="credential-summary">
+                      <span className="credential-icon">
+                        <Icon size={18} aria-hidden="true" />
+                      </span>
+                      <div className="credential-summary-text">
+                        <h3>{item.title}</h3>
+                        <span className="credential-meta">
+                          {[
+                            categories[item.category],
+                            item.period,
+                            scopes[item.scope],
+                            evidence[item.evidence_basis],
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                        {expired && (
+                          <span className="credential-meta">
+                            Expired: {date(item.valid_until!)}
+                          </span>
+                        )}
+                      </div>
+                      <ChevronDown
+                        className="credential-chevron"
+                        size={16}
+                        aria-hidden="true"
+                      />
+                    </summary>
+                    <div className="credential-detail">
+                      <p>{item.scope_detail}</p>
+                      {item.description && <p>{item.description}</p>}
+                      {item.organization && (
+                        <p className="credential-meta">{item.organization}</p>
+                      )}
+                      {item.valid_until && !expired && (
+                        <p className="credential-meta">
+                          Valid until: {date(item.valid_until)}
+                        </p>
+                      )}
+                      <div className="credential-proof">
+                        <span>
+                          {item.checked_at
+                            ? `Source checked ${date(item.checked_at)}`
+                            : "Not independently reviewed"}
+                        </span>
+                        <a
+                          href={item.source_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {item.category === "directory"
+                            ? "View listing"
+                            : "View source"}
+                          <ArrowUpRight size={14} aria-hidden="true" />
+                        </a>
+                      </div>
+                    </div>
+                  </details>
                   {editable && !item.catalog_key && (
                     <button
-                      className="icon-button"
+                      className="icon-button credential-edit"
                       aria-label={`Edit ${item.title}`}
                       onClick={() => open(<CredentialEditor item={item} />)}
                     >
@@ -126,18 +178,8 @@ export function CompanyCredentials({
               );
             })}
           </div>
-        ) : null;
-      })}
-      {!items.length && (
-        <p className="profile-empty compact">
-          No sourced credentials added yet.
-        </p>
-      )}
-      <p className="credential-note">
-        Product certificates apply to the named models. Personnel qualifications
-        belong to people. Rankings and directory listings are separate from
-        certifications.
-      </p>
+        ))}
+      {!items.length && <p className="muted">No credentials added yet.</p>}
     </section>
   );
 }

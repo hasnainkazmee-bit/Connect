@@ -297,6 +297,42 @@
   font-size: 10px;
   color: #7d8d9a;
 }
+.discovery-certifications {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+}
+.discovery-certificate,
+.discovery-certificate-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  padding: 5px 9px;
+  background: var(--surface-muted);
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.discovery-certificate svg {
+  flex-shrink: 0;
+  color: var(--brand-ink);
+}
+.discovery-certificate > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.discovery-certificate-more {
+  color: var(--muted);
+}
 .discovery-card-footer > span {
   display: flex;
   align-items: center;

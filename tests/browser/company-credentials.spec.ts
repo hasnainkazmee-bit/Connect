@@ -25,8 +25,12 @@ for (const width of [1440, 390])
       await page.goto(`/${username}`);
       const card = page.locator(".credentials-card");
       await expect(
-        card.getByRole("heading", { name: "Credentials & industry presence" }),
+        card.getByRole("heading", { name: "Credentials", exact: true }),
       ).toBeVisible();
+      await expect(card.getByText("Only the Example-400 model")).toBeHidden();
+      await card
+        .getByRole("heading", { name: "UL 61730 documentation" })
+        .click();
       await expect(card.getByText("Only the Example-400 model")).toBeVisible();
       await expect(
         card.getByText("Company-reported", { exact: false }),
@@ -35,6 +39,7 @@ for (const width of [1440, 390])
       await expect(
         card.getByRole("link", { name: "View source" }),
       ).toHaveAttribute("href", "https://example.test/certificate");
+      await card.getByRole("heading", { name: "EnergySage profile" }).click();
       await expect(
         card.getByRole("link", { name: "View listing" }),
       ).toHaveAttribute("href", "https://www.energysage.com/supplier/example/");
@@ -105,6 +110,9 @@ test("company owner can add and edit a sourced credential through the profile", 
     await expect(
       card.getByRole("heading", { name: "UL 61730 test documentation" }),
     ).toBeVisible();
+    await card
+      .getByRole("heading", { name: "UL 61730 test documentation" })
+      .click();
     await expect(
       card.getByText("Not independently reviewed", { exact: false }),
     ).toBeVisible();

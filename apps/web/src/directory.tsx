@@ -8,6 +8,7 @@ import {
 import {
   ArrowRight,
   ArrowUpRight,
+  Award,
   Building2,
   Check,
   Factory,
@@ -312,6 +313,31 @@ export function Directory({ home = false }: { home?: boolean }) {
                   <p className="discovery-tagline">
                     {c.tagline || "Explore this company’s services and work."}
                   </p>
+                  {!!c.certifications?.length && (
+                    <div
+                      className="discovery-certifications"
+                      aria-label="Certifications and qualifications"
+                    >
+                      {c.certifications.slice(0, 2).map((certificate) => (
+                        <span
+                          className="discovery-certificate"
+                          key={certificate.id}
+                          title={`${certificate.title} · ${certificate.scope} · ${certificate.evidence_basis === "company" ? "Company-reported" : certificate.evidence_basis === "issuer" ? "Issuer source" : "Directory source"}\n${certificate.scope_detail}`}
+                        >
+                          <Award size={14} aria-hidden="true" />
+                          <span>{certificate.title}</span>
+                        </span>
+                      ))}
+                      {(c.certification_count || 0) > 2 && (
+                        <span
+                          className="discovery-certificate-more"
+                          title={`${c.certification_count! - 2} more certifications and qualifications`}
+                        >
+                          +{c.certification_count! - 2}
+                        </span>
+                      )}
+                    </div>
+                  )}
                   <div className="discovery-facts">
                     <span>
                       <MapPin size={14} />
