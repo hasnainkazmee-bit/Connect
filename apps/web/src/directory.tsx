@@ -12,11 +12,15 @@ import {
   Check,
   Factory,
   Globe,
+  Hammer,
   HardHat,
   LoaderCircle,
+  MapPinned,
   MapPin,
   Search,
   Star,
+  Truck,
+  Wrench,
   X,
 } from "lucide-react";
 import { api } from "./api";
@@ -38,8 +42,12 @@ type Results = {
 const categories = [
   { label: "All companies", value: "", icon: Building2 },
   { label: "Installers", value: "Installer", icon: HardHat },
-  { label: "Manufacturers", value: "Manufacturer", icon: Factory },
   { label: "EPCs", value: "EPC", icon: Building2 },
+  { label: "Manufacturers", value: "Manufacturer", icon: Factory },
+  { label: "Contractors", value: "Contractor", icon: Hammer },
+  { label: "Developers", value: "Developer", icon: MapPinned },
+  { label: "Distributors", value: "Distributor", icon: Truck },
+  { label: "Service providers", value: "Service provider", icon: Wrench },
 ];
 export function Directory({ home = false }: { home?: boolean }) {
   const { session, revision, createCompany, signIn } = useApp();
@@ -203,9 +211,6 @@ export function Directory({ home = false }: { home?: boolean }) {
             >
               <Icon size={17} />
               {label}
-              {value && data?.types?.[value] ? (
-                <small>{data.types[value]}</small>
-              ) : null}
             </button>
           ))}
         </nav>
@@ -220,6 +225,7 @@ export function Directory({ home = false }: { home?: boolean }) {
               "Installer",
               "Manufacturer",
               "EPC",
+              "Contractor",
               "Developer",
               "Distributor",
               "Service provider",

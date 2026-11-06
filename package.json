@@ -14,6 +14,8 @@
     "migrate": "npm run migrate -w apps/api",
     "seed": "npm run seed -w apps/api",
     "directory:import": "node apps/api/dist/import-directory.js",
+    "directory:import-master": "node apps/api/dist/import-master-companies.js",
+    "directory:cache-logos": "node apps/api/dist/import-company-logos.js",
     "directory:claims": "node apps/api/dist/review-claims.js",
     "directory:credentials": "node apps/api/dist/import-credentials.js",
     "credentials:research": "python3 tools/research-credentials.py",

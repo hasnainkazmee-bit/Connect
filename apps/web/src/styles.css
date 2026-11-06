@@ -666,7 +666,7 @@ fieldset {
   justify-content: center;
   flex-shrink: 0;
   overflow: hidden;
-  background: #fafcfb;
+  background: #fff;
   color: #244d3d;
 }
 .company-logo.leaf {

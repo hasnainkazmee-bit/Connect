@@ -223,7 +223,7 @@ export function publicPages() {
           name: c.name,
           url: origin + canonical,
           description,
-          logo: c.logo_url ? origin + c.logo_url : undefined,
+          logo: c.logo_url ? new URL(c.logo_url, origin).href : undefined,
           sameAs: c.website ? [c.website] : undefined,
           areaServed: c.service_areas,
           telephone: c.phone || undefined,

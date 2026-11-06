@@ -617,11 +617,24 @@ test("durable account-bound notification inbox and delivery", async (t) => {
   await t.test(
     "Android update delivery rechecks installed versions and never crosses to web",
     async () => {
+      // Earlier scenarios register an older Android installation for this user.
+      // Keep this scenario to one installation so the inbox expectation is exact.
+      await db.query(
+        "DELETE FROM push_devices WHERE user_id=$1 AND platform='android'",
+        [C.user.id],
+      );
       await db.query(
         "DELETE FROM notification_releases WHERE platform='android' AND version IN('1000001','1000002')",
       );
       const reg = { ...registration(), appVersionCode: 1000001 };
-      const device = (await c("/notifications/devices", reg)).data.id;
+      const registered = await c("/notifications/devices", reg);
+      assert.equal(registered.status, 201, JSON.stringify(registered.data));
+      const device = registered.data.id;
+      const version = await db.query(
+        "SELECT app_version_code FROM push_devices WHERE id=$1",
+        [device],
+      );
+      assert.equal(Number(version.rows[0]?.app_version_code), 1000001);
       await recordNotificationRelease(
         "android",
         "1000001",

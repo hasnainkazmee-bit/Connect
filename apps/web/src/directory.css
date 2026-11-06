@@ -115,10 +115,10 @@
 }
 .discovery-categories {
   display: flex;
+  flex-wrap: wrap;
   gap: 7px;
   border-bottom: 1px solid #dce5ec;
   padding-bottom: 13px;
-  overflow: auto;
 }
 .discovery-categories button {
   display: flex;
@@ -220,7 +220,7 @@
   width: 110px;
   height: 48px;
   border-radius: 0;
-  background: transparent;
+  background: #fff;
   box-shadow: none;
   padding: 0;
 }
@@ -719,7 +719,10 @@
     font-size: 10px;
   }
   .discovery-categories {
+    flex-wrap: nowrap;
     gap: 2px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
   }
   .discovery-categories button {
     padding: 9px 10px;

@@ -4,10 +4,18 @@ import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { spawnSync } from "node:child_process";
 import { directoryCatalog } from "../apps/api/dist/directory-catalog.js";
+import { loadMasterCompanySnapshot } from "../apps/api/dist/master-company-import.js";
 const base = process.env.API_TEST_URL || "http://localhost:4101";
 if (!new URL(process.env.DATABASE_URL).pathname.endsWith("_test"))
   throw new Error("Use an isolated test database.");
 const db = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+test("verified company corrections do not repeat inaccurate source labels", async () => {
+  const records = await loadMasterCompanySnapshot(process.cwd());
+  const barnhart = records.find((record) => record.domain === "barnhartpump.com");
+  assert.equal(barnhart?.type, "Service provider");
+  assert.equal(barnhart?.location, "Peyton, CO");
+  assert.equal(barnhart?.services[0], "Solar water pumps");
+});
 function client() {
   let cookie = "";
   return async (path, body, method = body === undefined ? "GET" : "POST") => {
@@ -103,6 +111,47 @@ test("public directory, ownership claims and shared company identity", async (t)
         assert.equal(
           (await anon("/companies/" + c.username)).data.company.listing_status,
           "unclaimed",
+        );
+      },
+    );
+    await t.test(
+      "complete profiles lead each result page and listings without logos come last",
+      async () => {
+        const marker = "Ranking " + suffix;
+        const bare = [];
+        for (let i = 0; i < 25; i++)
+          bare.push(await fixture(`Bare ${marker} ${i}`, ["Austin, TX"]));
+        const withLogo = await fixture(`Z Logo ${marker}`, ["Austin, TX"]);
+        const complete = await fixture(`Y Complete ${marker}`, ["Austin, TX"]);
+        await db.query(
+          "UPDATE companies SET logo_url='/assets/companies/lighthouse-solar.png' WHERE id=ANY($1::uuid[])",
+          [[withLogo.id, complete.id]],
+        );
+        await db.query(
+          "UPDATE companies SET cover_url='/assets/companies/lighthouse-solar.png',tagline='Solar for every home',description=$2,phone='+1 512 555 0142',employee_count='11–50',established=2010 WHERE id=$1",
+          [
+            complete.id,
+            "A detailed company profile with services, locations, and a long track record helping customers.",
+          ],
+        );
+        const search = "/companies?q=" + encodeURIComponent(marker);
+        const first = (await anon(search)).data;
+        const second = (await anon(search + "&page=2")).data;
+        assert.equal(first.total, 27);
+        assert.deepEqual(
+          first.companies.slice(0, 2).map((company) => company.id),
+          [complete.id, withLogo.id],
+        );
+        assert.equal(first.companies.length, 24);
+        assert.equal(second.companies.length, 3);
+        assert.ok(second.companies.every((company) => !company.logo_url));
+        assert.equal(
+          new Set(
+            [...first.companies, ...second.companies].map(
+              (company) => company.id,
+            ),
+          ).size,
+          27,
         );
       },
     );
