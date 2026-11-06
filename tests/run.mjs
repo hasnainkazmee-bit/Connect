@@ -86,6 +86,8 @@ try {
     "tests/sunhub-sso.test.mjs",
     "tests/publishing-profiles.test.mjs",
     "tests/directory.test.mjs",
+    "tests/credentials.test.mjs",
+    "tests/credential-batches.test.mjs",
     "tests/notifications.test.mjs",
   ]) {
     env.REQUIRE_EMAIL_VERIFICATION =

@@ -238,6 +238,34 @@ internal fun CompanyProfileScreen(
                             }
                     }
                 }
+                if (data.optJSONArray("credentials").objects().isNotEmpty()) item {
+                    ProfileSection("Credentials & industry presence") {
+                        data.optJSONArray("credentials").objects().forEach { credential ->
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                val category = when (credential.text("category")) {
+                                    "directory" -> "Directory listing"
+                                    "ranking" -> "Industry ranking"
+                                    "qualification" -> "Professional qualification"
+                                    "membership" -> "Industry membership"
+                                    else -> "Certification"
+                                }
+                                Text("$category · ${credential.text("scope")}", style = MaterialTheme.typography.labelSmall, color = Muted)
+                                Text(credential.text("title"), style = MaterialTheme.typography.titleSmall)
+                                Text(listOf(credential.text("organization"), credential.text("period")).filter { it.isNotBlank() }.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = Muted)
+                                Text(credential.text("scope_detail"), style = MaterialTheme.typography.bodyMedium)
+                                if (credential.text("description").isNotBlank()) Text(credential.text("description"), style = MaterialTheme.typography.bodySmall, color = Muted)
+                                if (credential.text("valid_until").isNotBlank()) Text("Expiry: ${credential.text("valid_until").take(10)}", style = MaterialTheme.typography.bodySmall)
+                                val sourceLabel = when (credential.text("evidence_basis")) { "issuer" -> "Issuer source"; "directory" -> "Directory source"; else -> "Company-reported" }
+                                val checked = credential.text("checked_at").take(10)
+                                Text(sourceLabel + if (checked.isNotBlank()) " · Source checked $checked" else " · Not independently reviewed", style = MaterialTheme.typography.labelSmall, color = Muted)
+                                val link = credential.text("source_url")
+                                if (link.startsWith("https://")) TextButton(onClick = { uri.openUri(link) }) { Text(if (credential.text("category") == "directory") "View listing" else "View source") }
+                                HorizontalDivider()
+                            }
+                        }
+                        Text("Product certificates apply to named models. Personnel qualifications belong to people. Rankings and listings are separate from certifications.", style = MaterialTheme.typography.bodySmall, color = Muted)
+                    }
+                }
                 if (edit || data.optJSONArray("achievements").objects().isNotEmpty()) item {
                     ProfileSection("Achievements", if (edit) ({ add("achievement") }) else null) {
                         data.optJSONArray("achievements").objects().forEach { a ->

@@ -18,6 +18,8 @@ apps/android/app/src/main/jniLibs/
 /apps/android/artifacts/
 /.backups/
 /.secrets/
+/.research/
+__pycache__/
 
 /apps/windows/.build/
 /apps/windows/artifacts/

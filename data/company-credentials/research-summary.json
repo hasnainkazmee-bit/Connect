@@ -1,0 +1,36 @@
+{
+  "generatedAt": "2026-11-06T14:32:47.317429+00:00",
+  "inventoryCompanies": 3339,
+  "attemptedCompanies": 3339,
+  "websiteResearchStatusCounts": {
+    "no_findings_in_crawled_pages": 2460,
+    "candidates_found": 828,
+    "access_or_identity_review": 50,
+    "no_website": 1
+  },
+  "websitePagesFetched": 7497,
+  "directoryProfilesAttempted": 323,
+  "directoryProfileStatusCounts": {
+    "profile_identity_matched": 114,
+    "identity_review": 193,
+    "fetch_failed": 16
+  },
+  "importableRecords": 516,
+  "companiesWithImportableRecords": 380,
+  "evidenceBasisCounts": {
+    "directory": 118,
+    "company": 377,
+    "issuer": 21
+  },
+  "reviewMethodCounts": {
+    "directory_profile_identity_match": 112,
+    "first_party_explicit_claim": 342,
+    "issuer_directory_domain_match": 6,
+    "manual": 56
+  },
+  "notes": [
+    "Company-reported claims are not issuer verification.",
+    "No findings means no qualifying evidence in checked pages, not absence of credentials.",
+    "These research artifacts do not establish a production deployment or import."
+  ]
+}

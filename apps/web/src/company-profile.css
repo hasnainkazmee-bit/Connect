@@ -1465,3 +1465,8 @@
     padding-inline: 10px;
   }
 }
+.credential-group { margin-top: 24px; }
+.credential-group > h3 { font-size: 14px; color: var(--muted, #687080); margin: 0 0 12px; }
+.credential-content { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.credential-evidence { display: block; margin-top: 10px; }
+.credential-note { font-size: 12px; line-height: 1.6; color: var(--muted, #687080); margin: 20px 0 0; }

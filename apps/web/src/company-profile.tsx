@@ -45,6 +45,7 @@ import {
   useAction,
 } from "./management";
 import type { Profile } from "./types";
+import { CompanyCredentials } from "./company-credentials";
 import "./company-profile.css";
 
 function MemberTitle({
@@ -785,6 +786,7 @@ export function CompanyProfileView({
                 </div>
               )}
             </section>
+            {(editable || !!data.credentials?.length) && <CompanyCredentials items={data.credentials} editable={editable} />}
             {(editable || !!data.achievements?.length) && achievements}
           </div>
         ) : tab === "Portfolio" ? (

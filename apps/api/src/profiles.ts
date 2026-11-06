@@ -140,7 +140,8 @@ export async function ensureUsername(
 }
 const reviewVisible = `NOT EXISTS(SELECT 1 FROM memberships m WHERE m.user_id=r.user_id AND m.company_id=r.company_id)`;
 export async function profileExtras(companyId: string) {
-  const [achievements, reviews] = await Promise.all([
+  const [achievements, reviews, credentials] = await Promise.all([
+    // Keep sourced credentials separate from company-authored achievements.
     pool.query(
       "SELECT * FROM company_achievements WHERE company_id=$1 ORDER BY year DESC NULLS LAST,created_at DESC",
       [companyId],
@@ -149,6 +150,7 @@ export async function profileExtras(companyId: string) {
       `SELECT count(*)::int AS count,round(avg(rating),1)::float AS average,json_build_array(count(*) FILTER(WHERE rating=5),count(*) FILTER(WHERE rating=4),count(*) FILTER(WHERE rating=3),count(*) FILTER(WHERE rating=2),count(*) FILTER(WHERE rating=1)) AS bins FROM company_reviews r WHERE company_id=$1 AND ${reviewVisible}`,
       [companyId],
     ),
+    pool.query("SELECT *,valid_until::text AS valid_until FROM company_credentials WHERE company_id=$1 ORDER BY category,title,id", [companyId]),
   ]);
   const stats = reviews.rows[0];
   const distribution = [5, 4, 3, 2, 1].map((rating, index) => ({
@@ -157,6 +159,7 @@ export async function profileExtras(companyId: string) {
   }));
   return {
     achievements: achievements.rows,
+    credentials: credentials.rows,
     rating: { average: stats.average, count: stats.count, distribution },
   };
 }

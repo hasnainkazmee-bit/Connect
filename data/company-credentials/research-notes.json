@@ -1,0 +1,14 @@
+{
+  "notes": [
+    {
+      "companyId": "f3784648-887f-46da-94a4-fe4f1ce4b28c",
+      "companyName": "MNK Solar",
+      "status": "identity_unresolved",
+      "note": "The app identifies an Ohio company with no website. Public search surfaced namesakes in Germany and Greece. Neither identity was attached to this profile, and no credential was inferred.",
+      "excludedNamesakeSources": [
+        "https://mnksolar.de/impressum/",
+        "https://directory.acci.gr/companies/details/136089954"
+      ]
+    }
+  ]
+}

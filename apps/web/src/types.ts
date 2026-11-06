@@ -80,12 +80,28 @@ export type Rating = {
   distribution: { rating: number; count: number }[];
 };
 export type Profile = {
+  credentials?: Credential[];
   company: Company;
   projects: Project[];
   team: { id: string; name: string; title: string }[];
   relationship: Relationship;
   achievements: Achievement[];
   rating: Rating;
+};
+export type Credential = {
+  id: string;
+  catalog_key: string | null;
+  category: "certification" | "qualification" | "ranking" | "directory" | "membership";
+  title: string;
+  organization: string;
+  scope: "company" | "product" | "personnel";
+  scope_detail: string;
+  description: string;
+  source_url: string;
+  evidence_basis: "issuer" | "company" | "directory";
+  period: string;
+  valid_until: string | null;
+  checked_at: string | null;
 };
 export type ConnectionRequest = {
   id: string;
