@@ -1504,6 +1504,12 @@
   flex: 1;
   min-width: 0;
 }
+.credential-link {
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
 .credential-summary {
   display: flex;
   align-items: flex-start;
@@ -1544,7 +1550,15 @@
   color: var(--ink);
   margin: 0;
 }
+.credential-summary strong {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--ink);
+}
 .credential-summary:hover h3,
+.credential-link:hover strong,
 .credential-disclosure[open] .credential-summary h3 {
   color: var(--brand-ink);
 }

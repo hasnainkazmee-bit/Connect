@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import pg from "pg";
 
 for (const width of [1440, 390, 2560])
-  test(`public company credentials show scope and evidence at ${width}px`, async ({
+  test(`public company certifications show names and sources at ${width}px`, async ({
     page,
   }) => {
     const db = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -30,17 +30,13 @@ for (const width of [1440, 390, 2560])
           exact: true,
         }),
       ).toBeVisible();
-      await expect(card.getByText("Only the Example-400 model")).toBeHidden();
-      await card
-        .getByRole("heading", { name: "UL 61730 documentation" })
-        .click();
-      await expect(card.getByText("Only the Example-400 model")).toBeVisible();
-      await expect(
-        card.getByText("Company-reported", { exact: false }),
-      ).toBeVisible();
+      await expect(card.getByText("Only the Example-400 model")).toHaveCount(0);
+      await expect(card.getByText("Company-reported")).toHaveCount(0);
       await expect(card.getByText("Expired: Dec 31, 2025")).toBeVisible();
       await expect(
-        card.getByRole("link", { name: "View source" }),
+        card.getByRole("link", {
+          name: "UL 61730 documentation — view source",
+        }),
       ).toHaveAttribute("href", "https://example.test/certificate");
       await card.getByRole("heading", { name: "EnergySage profile" }).click();
       await expect(
@@ -121,14 +117,11 @@ test("company owner can add and edit a sourced credential through the profile", 
     await page.getByRole("button", { name: "Save", exact: true }).click();
     const card = page.locator(".credentials-card");
     await expect(
-      card.getByRole("heading", { name: "UL 61730 test documentation" }),
+      card.getByRole("link", {
+        name: "UL 61730 test documentation — view source",
+      }),
     ).toBeVisible();
-    await card
-      .getByRole("heading", { name: "UL 61730 test documentation" })
-      .click();
-    await expect(
-      card.getByText("Not independently reviewed", { exact: false }),
-    ).toBeVisible();
+    await expect(card.getByText("Not independently reviewed")).toHaveCount(0);
     await card
       .getByRole("button", { name: "Edit UL 61730 test documentation" })
       .click();
@@ -140,7 +133,9 @@ test("company owner can add and edit a sourced credential through the profile", 
       .fill("Revised UL documentation");
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(
-      card.getByRole("heading", { name: "Revised UL documentation" }),
+      card.getByRole("link", {
+        name: "Revised UL documentation — view source",
+      }),
     ).toBeVisible();
   } finally {
     if (companyId)

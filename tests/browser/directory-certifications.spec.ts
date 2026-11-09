@@ -46,10 +46,7 @@ for (const width of [1440, 390])
       ).toContainText("UL 61730");
       await expect(
         cards.first().locator(".discovery-certificate").first(),
-      ).toHaveAttribute(
-        "title",
-        /product.*Issuer source[\s\S]*Example-400 model only/,
-      );
+      ).toHaveAttribute("title", "UL 61730");
       await expect(
         cards.first().locator(".discovery-certificate-more"),
       ).toHaveText("+2");
@@ -78,7 +75,7 @@ for (const width of [1440, 390])
       await expect(
         page
           .locator(".credentials-card")
-          .getByRole("heading", { name: "UL 61730", exact: true }),
+          .getByRole("link", { name: "UL 61730 — view source" }),
       ).toBeVisible();
       await page.goto(`/directory?q=${encodeURIComponent(marker)}`);
       await page.locator(".discovery-card").last().click();

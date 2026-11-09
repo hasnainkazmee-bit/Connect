@@ -530,7 +530,7 @@ export function Directory({ home = false }: { home?: boolean }) {
                                   <span
                                     className="discovery-certificate"
                                     key={certificate.id}
-                                    title={`${certificate.title} · ${certificate.scope} · ${certificate.evidence_basis === "company" ? "Company-reported" : certificate.evidence_basis === "issuer" ? "Issuer source" : "Directory source"}\n${certificate.scope_detail}`}
+                                    title={certificate.title}
                                   >
                                     {certificate.title}
                                   </span>
@@ -583,7 +583,9 @@ export function Directory({ home = false }: { home?: boolean }) {
                       )}
                     </div>
                   )}
-                  <div className={`discovery-card-footer${c.review_count || c.google_review_count ? " has-ratings" : ""}`}>
+                  <div
+                    className={`discovery-card-footer${c.review_count || c.google_review_count ? " has-ratings" : ""}`}
+                  >
                     {(!!c.review_count || !!c.google_review_count) && (
                       <div className="discovery-rating-sources">
                         {!!c.review_count && (

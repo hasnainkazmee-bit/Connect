@@ -77,7 +77,6 @@ export function CompanyCredentials({
       <div className="profile-section-heading">
         <div>
           <h2>Credentials & presence</h2>
-          <p>Certifications, recognition, and listings, with sources.</p>
         </div>
         {editable && (
           <button
@@ -112,70 +111,100 @@ export function CompanyCredentials({
                         item.category === "qualification"
                       ? FileText
                       : Award;
+              const certification =
+                item.category === "certification" ||
+                item.category === "qualification";
               return (
                 <article
                   className={`credential-entry credential-${item.category}`}
                   key={item.id}
                 >
-                  <details className="credential-disclosure">
-                    <summary className="credential-summary">
+                  {certification ? (
+                    <a
+                      className="credential-summary credential-link"
+                      href={item.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`${item.title} — view source`}
+                    >
                       <span className="credential-icon">
                         <Icon size={18} aria-hidden="true" />
                       </span>
-                      <div className="credential-summary-text">
-                        <h3>{item.title}</h3>
-                        <span className="credential-meta">
-                          {[
-                            categories[item.category],
-                            item.period,
-                            scopes[item.scope],
-                            evidence[item.evidence_basis],
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </span>
+                      <span className="credential-summary-text">
+                        <strong>{item.title}</strong>
                         {expired && (
                           <span className="credential-meta">
                             Expired: {date(item.valid_until!)}
                           </span>
                         )}
-                      </div>
-                      <ChevronDown
+                      </span>
+                      <ArrowUpRight
                         className="credential-chevron"
                         size={16}
                         aria-hidden="true"
                       />
-                    </summary>
-                    <div className="credential-detail">
-                      <p>{item.scope_detail}</p>
-                      {item.description && <p>{item.description}</p>}
-                      {item.organization && (
-                        <p className="credential-meta">{item.organization}</p>
-                      )}
-                      {item.valid_until && !expired && (
-                        <p className="credential-meta">
-                          Valid until: {date(item.valid_until)}
-                        </p>
-                      )}
-                      <div className="credential-proof">
-                        <span>
-                          {item.checked_at
-                            ? `Source checked ${date(item.checked_at)}`
-                            : "Not independently reviewed"}
+                    </a>
+                  ) : (
+                    <details className="credential-disclosure">
+                      <summary className="credential-summary">
+                        <span className="credential-icon">
+                          <Icon size={18} aria-hidden="true" />
                         </span>
-                        <a
-                          href={item.source_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {item.category === "directory"
-                            ? "View listing"
-                            : "View source"}
-                          <ArrowUpRight size={14} aria-hidden="true" />
-                        </a>
+                        <div className="credential-summary-text">
+                          <h3>{item.title}</h3>
+                          <span className="credential-meta">
+                            {[
+                              categories[item.category],
+                              item.period,
+                              scopes[item.scope],
+                              evidence[item.evidence_basis],
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
+                          {expired && (
+                            <span className="credential-meta">
+                              Expired: {date(item.valid_until!)}
+                            </span>
+                          )}
+                        </div>
+                        <ChevronDown
+                          className="credential-chevron"
+                          size={16}
+                          aria-hidden="true"
+                        />
+                      </summary>
+                      <div className="credential-detail">
+                        <p>{item.scope_detail}</p>
+                        {item.description && <p>{item.description}</p>}
+                        {item.organization && (
+                          <p className="credential-meta">{item.organization}</p>
+                        )}
+                        {item.valid_until && !expired && (
+                          <p className="credential-meta">
+                            Valid until: {date(item.valid_until)}
+                          </p>
+                        )}
+                        <div className="credential-proof">
+                          <span>
+                            {item.checked_at
+                              ? `Source checked ${date(item.checked_at)}`
+                              : "Not independently reviewed"}
+                          </span>
+                          <a
+                            href={item.source_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {item.category === "directory"
+                              ? "View listing"
+                              : "View source"}
+                            <ArrowUpRight size={14} aria-hidden="true" />
+                          </a>
+                        </div>
                       </div>
-                    </div>
-                  </details>
+                    </details>
+                  )}
                   {editable && !item.catalog_key && (
                     <button
                       className="icon-button credential-edit"
@@ -205,10 +234,7 @@ function CredentialEditor({ item }: { item?: Credential }) {
     <section className="manage-dialog">
       <header className="manage-heading">
         <h2>{item ? "Edit credential" : "Add credential or listing"}</h2>
-        <p>
-          Add a public source and describe exactly what it covers. Company
-          submissions are labeled company-reported.
-        </p>
+        <p>Add the name and a link to the public source.</p>
       </header>
       <form
         className="manage-form"
