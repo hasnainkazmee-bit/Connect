@@ -52,9 +52,18 @@ for (const viewport of windows) {
           .querySelector(".primary-nav")!
           .getBoundingClientRect()
           .toJSON(),
-        header: document.querySelector(".header-inner")!.getBoundingClientRect().toJSON(),
-        main: document.querySelector(".app-main")!.getBoundingClientRect().toJSON(),
-        discovery: document.querySelector(".discovery")!.getBoundingClientRect().toJSON(),
+        header: document
+          .querySelector(".header-inner")!
+          .getBoundingClientRect()
+          .toJSON(),
+        main: document
+          .querySelector(".app-main")!
+          .getBoundingClientRect()
+          .toJSON(),
+        discovery: document
+          .querySelector(".discovery")!
+          .getBoundingClientRect()
+          .toJSON(),
       };
     });
 
@@ -78,6 +87,13 @@ for (const viewport of windows) {
     }
     if (viewport.width <= 720) {
       expect(Math.round(layout.nav.bottom)).toEqual(viewport.height);
+      const companyType = layout.controls.find(
+        (control) => control.name === "Company type",
+      );
+      const certification = layout.controls.find(
+        (control) => control.name === "Certifications and qualifications",
+      );
+      expect(certification?.width).toBeCloseTo(companyType!.width, 0);
     }
 
     await page

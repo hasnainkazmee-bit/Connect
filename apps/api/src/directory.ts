@@ -93,7 +93,8 @@ export async function directorySearch(input: Record<string, unknown>) {
     service = clean(input.service, 80),
     area = clean(input.area, 60),
     office = clean(input.office),
-    audience = clean(input.audience, 40);
+    audience = clean(input.audience, 40),
+    certification = clean(input.certification, 180).toLowerCase();
   const page = z.coerce
     .number()
     .int()
@@ -153,6 +154,13 @@ export async function directorySearch(input: Record<string, unknown>) {
       AND ($2='' OR c.type=$2) AND ($3='' OR $3=ANY(c.services))
       AND ($4::text[]='{}' OR EXISTS(SELECT 1 FROM unnest(c.service_areas) a,unnest($4::text[]) t WHERE lower(a)=t OR split_part(lower(a),',',1)=t) OR (c.type='Manufacturer' AND (($8 AND 'United States'=ANY(c.service_areas)) OR ($9 AND 'Worldwide'=ANY(c.service_areas)))))
       AND ($5='' OR c.location ILIKE '%'||$5||'%') AND ($6='' OR $6=ANY(c.audiences))
+      AND ($11='' OR EXISTS (
+        SELECT 1 FROM company_credentials credential
+        WHERE credential.company_id=c.id
+          AND credential.category IN ('certification','qualification')
+          AND (credential.valid_until IS NULL OR credential.valid_until>=CURRENT_DATE)
+          AND lower(btrim(credential.title))=$11
+      ))
     ), paged AS (
       SELECT * FROM filtered
       ORDER BY (certification_count>0) DESC,has_logo DESC,profile_score DESC,(listing_status='managed') DESC,name,id
@@ -163,7 +171,19 @@ export async function directorySearch(input: Record<string, unknown>) {
     (SELECT count(*)::int FROM filtered) AS total,
     ARRAY(SELECT DISTINCT unnest(services) AS value FROM companies WHERE NOT is_demo ORDER BY value) AS services,
     ARRAY(SELECT DISTINCT unnest(service_areas) AS value FROM companies WHERE NOT is_demo ORDER BY value) AS areas,
-    (SELECT json_object_agg(type,total) FROM (SELECT type,count(*)::int AS total FROM companies WHERE NOT is_demo GROUP BY type) counts) AS types`,
+    (SELECT json_object_agg(type,total) FROM (SELECT type,count(*)::int AS total FROM companies WHERE NOT is_demo GROUP BY type) counts) AS types,
+    (SELECT COALESCE(json_agg(json_build_object('value',value,'label',label,'organization',organization,'count',total)
+      ORDER BY organization,total DESC,label),'[]'::json) FROM (
+        SELECT lower(btrim(credential.title)) AS value,
+          min(credential.title) AS label,
+          min(credential.organization) AS organization,
+          count(DISTINCT credential.company_id)::int AS total
+        FROM company_credentials credential
+        JOIN companies company ON company.id=credential.company_id AND NOT company.is_demo
+        WHERE credential.category IN ('certification','qualification')
+          AND (credential.valid_until IS NULL OR credential.valid_until>=CURRENT_DATE)
+        GROUP BY lower(btrim(credential.title))
+      ) available_certifications) AS certifications`,
     [
       literal(q),
       type,
@@ -175,6 +195,7 @@ export async function directorySearch(input: Record<string, unknown>) {
       usArea,
       globalSupply,
       normalizedName(q),
+      certification,
     ],
   );
   return { ...rows[0], page, pageSize: 24, places: directoryPlaces };

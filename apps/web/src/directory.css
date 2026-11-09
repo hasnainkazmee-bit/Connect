@@ -158,6 +158,9 @@
   font-size: 12px;
   min-height: 36px;
 }
+.discovery-selects .discovery-certification-select {
+  max-width: 240px;
+}
 .discovery-selects .text-button {
   display: flex;
   gap: 5px;
@@ -833,6 +836,11 @@
   }
   .discovery-selects select:first-child {
     display: none;
+  }
+  .discovery-selects .discovery-certification-select {
+    flex-basis: 100%;
+    width: 100%;
+    max-width: 100%;
   }
   .discovery-results-heading > span:last-child {
     display: none;

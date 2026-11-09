@@ -37,6 +37,12 @@ type Results = {
   services: string[];
   areas: string[];
   types: Record<string, number>;
+  certifications: {
+    value: string;
+    label: string;
+    organization: string;
+    count: number;
+  }[];
   page: number;
   pageSize: number;
   places: { slug: string; name: string; region: string }[];
@@ -122,6 +128,7 @@ export function Directory({ home = false }: { home?: boolean }) {
     type ||
     area ||
     query.get("service") ||
+    query.get("certification") ||
     query.get("audience") ||
     query.get("office")
   );
@@ -274,6 +281,31 @@ export function Directory({ home = false }: { home?: boolean }) {
             <option value="Residential">For my home</option>
             <option value="Commercial">For my business</option>
             <option value="Utility-scale">Utility-scale</option>
+          </select>
+          <select
+            className="discovery-certification-select"
+            aria-label="Certifications and qualifications"
+            value={query.get("certification") || ""}
+            onChange={(e) => change("certification", e.target.value)}
+          >
+            <option value="">Any certification</option>
+            {Object.entries(
+              (data?.certifications || []).reduce<
+                Record<string, Results["certifications"]>
+              >((groups, item) => {
+                const organization = item.organization || "Other credentials";
+                (groups[organization] ||= []).push(item);
+                return groups;
+              }, {}),
+            ).map(([organization, certifications]) => (
+              <optgroup key={organization} label={organization}>
+                {certifications.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label} ({item.count})
+                  </option>
+                ))}
+              </optgroup>
+            ))}
           </select>
           {filtered && (
             <button className="text-button" onClick={clear}>
