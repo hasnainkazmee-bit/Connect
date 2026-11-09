@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Link,
   useNavigate,
@@ -51,6 +51,26 @@ const categories = [
   { label: "Distributors", value: "Distributor", icon: Truck },
   { label: "Service providers", value: "Service provider", icon: Wrench },
 ];
+function cardClass(company: Company) {
+  const hasEvidence = !!(
+    company.certifications?.length || company.directory_profiles?.length
+  );
+  const isSparse = !(
+    company.tagline ||
+    company.description ||
+    company.location ||
+    company.service_areas.length ||
+    company.services.length ||
+    hasEvidence
+  );
+  return [
+    "discovery-card",
+    hasEvidence && "has-evidence",
+    isSparse && "is-sparse",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
 export function Directory({ home = false }: { home?: boolean }) {
   const { session, revision, createCompany, signIn } = useApp();
   const navigate = useNavigate();
@@ -65,7 +85,6 @@ export function Directory({ home = false }: { home?: boolean }) {
   const [data, setData] = useState<Results | null>(null),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true);
-  const gridRef = useRef<HTMLElement>(null);
   const type = query.get("type") || "",
     area = query.get("area") || "",
     q = query.get("q") || "";
@@ -91,53 +110,6 @@ export function Directory({ home = false }: { home?: boolean }) {
       ? `Solar installers serving ${placeName} | Connect`
       : "Find solar companies | Connect";
   }, [placeName]);
-  useLayoutEffect(() => {
-    const grid = gridRef.current;
-    if (!grid || !data?.companies.length) return;
-    const cards = Array.from(grid.children).filter(
-      (child): child is HTMLElement => child instanceof HTMLElement,
-    );
-    let frame = 0;
-    const layout = () => {
-      // Keep search order across the row, while each column packs according
-      // to the actual card height. Sparse listings never reserve an empty slot.
-      const columns =
-        window.innerWidth <= 720
-          ? 1
-          : Math.max(1, Math.floor((grid.clientWidth + 16) / 316));
-      const template = `repeat(${columns}, minmax(0, 1fr))`;
-      if (grid.style.gridTemplateColumns !== template)
-        grid.style.gridTemplateColumns = template;
-      const rowGap = Number.parseFloat(getComputedStyle(grid).rowGap) || 0;
-      const nextRow = Array<number>(columns).fill(1);
-      cards.forEach((card, index) => {
-        const column = index % columns;
-        const span = Math.ceil(
-          (card.getBoundingClientRect().height + rowGap) / (1 + rowGap),
-        );
-        const gridColumn = String(column + 1);
-        const gridRow = `${nextRow[column]} / span ${span}`;
-        if (card.style.gridColumn !== gridColumn)
-          card.style.gridColumn = gridColumn;
-        if (card.style.gridRow !== gridRow) card.style.gridRow = gridRow;
-        nextRow[column] += span;
-      });
-    };
-    const schedule = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(layout);
-    };
-    layout();
-    const observer = new ResizeObserver(schedule);
-    observer.observe(grid);
-    cards.forEach((card) => observer.observe(card));
-    window.addEventListener("resize", schedule);
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-      window.removeEventListener("resize", schedule);
-    };
-  }, [data?.companies]);
   const change = (key: string, value: string) => {
     const next = new URLSearchParams(query);
     next.delete("page");
@@ -342,12 +314,11 @@ export function Directory({ home = false }: { home?: boolean }) {
         <>
           <section
             className="discovery-grid"
-            ref={gridRef}
             aria-label="Company listings"
             aria-busy={loading}
           >
             {data?.companies.map((c) => (
-              <article className="discovery-card" key={c.id}>
+              <article className={cardClass(c)} key={c.id}>
                 <Link
                   className="discovery-card-link"
                   to={"/" + (c.username || c.slug)}
@@ -357,7 +328,7 @@ export function Directory({ home = false }: { home?: boolean }) {
                     <span className="discovery-type">{c.type}</span>
                   </div>
                   <h2>
-                    {c.name}
+                    <span>{c.name}</span>
                     <ArrowUpRight size={17} />
                   </h2>
                   {(c.tagline || c.description) && (
@@ -411,7 +382,7 @@ export function Directory({ home = false }: { home?: boolean }) {
                             </span>
                             <span className="discovery-evidence-values">
                               {c.certifications
-                                .slice(0, 2)
+                                .slice(0, 1)
                                 .map((certificate) => (
                                   <span
                                     className="discovery-certificate"
@@ -421,12 +392,12 @@ export function Directory({ home = false }: { home?: boolean }) {
                                     {certificate.title}
                                   </span>
                                 ))}
-                              {(c.certification_count || 0) > 2 && (
+                              {(c.certification_count || 0) > 1 && (
                                 <span
                                   className="discovery-certificate-more"
-                                  title={`${c.certification_count! - 2} more certifications and qualifications`}
+                                  aria-label={`${c.certification_count! - 1} more certifications and qualifications`}
                                 >
-                                  +{c.certification_count! - 2}
+                                  +{c.certification_count! - 1}
                                 </span>
                               )}
                             </span>
@@ -445,7 +416,7 @@ export function Directory({ home = false }: { home?: boolean }) {
                             </span>
                             <span className="discovery-evidence-values">
                               {c.directory_profiles
-                                .slice(0, 2)
+                                .slice(0, 1)
                                 .map((listing) => (
                                   <span
                                     className="discovery-directory-name"
@@ -455,9 +426,12 @@ export function Directory({ home = false }: { home?: boolean }) {
                                     {listing.organization || listing.title}
                                   </span>
                                 ))}
-                              {(c.directory_profile_count || 0) > 2 && (
-                                <span className="discovery-directory-more">
-                                  +{c.directory_profile_count! - 2}
+                              {(c.directory_profile_count || 0) > 1 && (
+                                <span
+                                  className="discovery-directory-more"
+                                  aria-label={`${c.directory_profile_count! - 1} more directory profiles`}
+                                >
+                                  +{c.directory_profile_count! - 1}
                                 </span>
                               )}
                             </span>

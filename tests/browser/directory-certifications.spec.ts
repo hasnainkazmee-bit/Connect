@@ -39,7 +39,7 @@ for (const width of [1440, 390])
       await expect(cards).toHaveCount(2);
       await expect(cards.first()).toContainText("Z Certified");
       await expect(cards.first().locator(".discovery-certificate")).toHaveCount(
-        2,
+        1,
       );
       await expect(
         cards.first().locator(".discovery-certificate").first(),
@@ -52,7 +52,7 @@ for (const width of [1440, 390])
       );
       await expect(
         cards.first().locator(".discovery-certificate-more"),
-      ).toHaveText("+1");
+      ).toHaveText("+2");
       await expect(
         cards.last().locator(".discovery-certifications"),
       ).toHaveCount(0);

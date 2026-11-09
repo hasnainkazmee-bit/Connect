@@ -2,8 +2,8 @@ import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import pg from "pg";
 
-for (const width of [1440, 390])
-  test(`directory cards follow the information each company has at ${width}px`, async ({
+for (const width of [1440, 390, 320])
+  test(`directory cards keep a uniform size at ${width}px`, async ({
     page,
   }) => {
     const db = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -54,35 +54,44 @@ for (const width of [1440, 390])
         const cards = [...document.querySelectorAll(".discovery-card")];
         return cards.map((card) => {
           const footer = card.querySelector(".discovery-card-footer")!;
-          const previous = footer.previousElementSibling!;
+          const heading = card.querySelector("h2")!;
           return {
             name: card.querySelector("h2")?.textContent?.trim() || "",
             x: card.getBoundingClientRect().x,
             y: card.getBoundingClientRect().y,
             height: card.getBoundingClientRect().height,
-            contentGap:
-              footer.getBoundingClientRect().top -
-              previous.getBoundingClientRect().bottom,
+            footerBottom: footer.getBoundingClientRect().bottom,
+            cardBottom: card.getBoundingClientRect().bottom,
+            headingTop: heading.getBoundingClientRect().top,
+            cardTop: card.getBoundingClientRect().top,
+            scrollHeight: card.scrollHeight,
+            clientHeight: card.clientHeight,
           };
         });
       });
       expect(
-        Math.max(...dimensions.map((card) => card.contentGap)),
-      ).toBeLessThanOrEqual(26);
-      expect(
-        dimensions.find((card) => card.name === `Complete ${marker}`)!.height,
-      ).toBeGreaterThan(
-        dimensions.find((card) => card.name === `New ${marker}`)!.height + 55,
-      );
+        Math.max(...dimensions.map((card) => card.height)) -
+          Math.min(...dimensions.map((card) => card.height)),
+      ).toBeLessThanOrEqual(1);
+      for (const card of dimensions) {
+        expect(card.scrollHeight).toBeLessThanOrEqual(card.clientHeight + 1);
+        expect(card.cardBottom - card.footerBottom).toBeGreaterThanOrEqual(-1);
+        expect(card.cardBottom - card.footerBottom).toBeLessThanOrEqual(2);
+      }
+      const sparseCard = dimensions.find((card) => card.name === `New ${marker}`)!;
+      expect(sparseCard.headingTop - sparseCard.cardTop).toBeGreaterThan(65);
       const columns = new Map<number, typeof dimensions>();
       for (const card of dimensions) {
         const x = Math.round(card.x);
         columns.set(x, [...(columns.get(x) || []), card]);
       }
-      expect(columns.size).toBe(width === 390 ? 1 : 3);
+      expect(columns.size).toBe(width <= 390 ? 1 : 3);
       for (const column of columns.values()) {
         for (let index = 1; index < column.length; index++) {
           const previous = column[index - 1];
+          expect(
+            column[index].y - previous.y - previous.height,
+          ).toBeGreaterThanOrEqual(0);
           expect(
             column[index].y - previous.y - previous.height,
           ).toBeLessThanOrEqual(28);
