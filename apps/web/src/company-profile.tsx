@@ -33,7 +33,7 @@ import { useApp } from "./context";
 import { Avatar, Logo } from "./identity";
 import { CompanyUpdates, FollowButton, SocialStats } from "./social";
 import { CompanyReviews, Stars } from "./reviews";
-import { GoogleReviews } from "./google-reviews";
+import { GoogleRating } from "./google-rating";
 import {
   AchievementEditor,
   BrandEditor,
@@ -499,6 +499,7 @@ export function CompanyProfileView({
                 <span>No reviews yet</span>
               )}
             </button>
+            <GoogleRating companyId={c.id} />
             {c.employee_count && c.listing_status !== "unclaimed" && (
               <button
                 className="presence-team-link"
@@ -790,7 +791,12 @@ export function CompanyProfileView({
                 </div>
               )}
             </section>
-            {(editable || !!data.credentials?.length) && <CompanyCredentials items={data.credentials} editable={editable} />}
+            {(editable || !!data.credentials?.length) && (
+              <CompanyCredentials
+                items={data.credentials}
+                editable={editable}
+              />
+            )}
             {(editable || !!data.achievements?.length) && achievements}
           </div>
         ) : tab === "Portfolio" ? (
@@ -963,12 +969,9 @@ export function CompanyProfileView({
             )}
           </section>
         ) : (
-          <>
-            <section className="profile-card">
-              <CompanyReviews target={c} />
-            </section>
-            <GoogleReviews companyId={c.id} />
-          </>
+          <section className="profile-card">
+            <CompanyReviews target={c} />
+          </section>
         )}
       </div>
     </div>

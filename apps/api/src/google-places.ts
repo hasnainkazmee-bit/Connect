@@ -7,20 +7,6 @@ const uuid = z.string().uuid();
 const detailsUrl = (id: string) =>
   `https://places.googleapis.com/v1/places/${encodeURIComponent(id)}`;
 
-type GoogleReview = {
-  name?: string;
-  rating?: number;
-  relativePublishTimeDescription?: string;
-  publishTime?: string;
-  visitDate?: { year?: number; month?: number };
-  text?: { text?: string };
-  googleMapsUri?: string;
-  authorAttribution?: {
-    displayName?: string;
-    uri?: string;
-    photoUri?: string;
-  };
-};
 type GooglePlace = {
   id?: string;
   displayName?: { text?: string };
@@ -29,13 +15,12 @@ type GooglePlace = {
   googleMapsUri?: string;
   rating?: number;
   userRatingCount?: number;
-  reviews?: GoogleReview[];
   attributions?: { provider?: string; providerUri?: string }[];
 };
 
 async function fetchPlace(id: string, fields: string): Promise<GooglePlace> {
   const key = process.env.GOOGLE_PLACES_API_KEY;
-  if (!key) throw new HttpError(503, "Google reviews are not configured.");
+  if (!key) throw new HttpError(503, "Google ratings are not configured.");
   const response = await fetch(detailsUrl(id), {
     headers: {
       "X-Goog-Api-Key": key,
@@ -44,7 +29,7 @@ async function fetchPlace(id: string, fields: string): Promise<GooglePlace> {
     signal: AbortSignal.timeout(6000),
   });
   if (!response.ok)
-    throw new HttpError(502, "Google reviews are temporarily unavailable.");
+    throw new HttpError(502, "Google ratings are temporarily unavailable.");
   const place = (await response.json()) as GooglePlace;
   if (place.id !== id)
     throw new HttpError(502, "Google returned a different place.");
@@ -54,7 +39,7 @@ async function fetchPlace(id: string, fields: string): Promise<GooglePlace> {
 export function googlePlacesRoutes() {
   const router = Router();
   router.get(
-    "/companies/:id/google-reviews",
+    "/companies/:id/google-rating",
     rateLimit({
       windowMs: 15 * 60 * 1000,
       limit: 30,
@@ -72,7 +57,7 @@ export function googlePlacesRoutes() {
       if (!match) return res.json({ linked: false });
       const place = await fetchPlace(
         match.place_id,
-        "id,googleMapsUri,rating,userRatingCount,reviews,attributions",
+        "id,googleMapsUri,rating,userRatingCount,attributions",
       );
       res.json({
         linked: true,
@@ -82,18 +67,6 @@ export function googlePlacesRoutes() {
         rating: place.rating ?? null,
         count: place.userRatingCount ?? 0,
         attributions: place.attributions || [],
-        reviews: (place.reviews || [])
-          .filter((review) => review.googleMapsUri)
-          .map((review) => ({
-            id: review.name,
-            rating: review.rating ?? null,
-            body: review.text?.text || "",
-            published: review.relativePublishTimeDescription || "",
-            publishedAt: review.publishTime || null,
-            visitDate: review.visitDate || null,
-            googleMapsUri: review.googleMapsUri,
-            author: review.authorAttribution || null,
-          })),
       });
     },
   );

@@ -1,0 +1,57 @@
+.presence-google-rating-wrap {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: var(--control-height);
+}
+.presence-google-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: var(--control-height);
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.8125rem;
+}
+.presence-google-rating:hover {
+  color: var(--ink);
+}
+.presence-google-rating img {
+  display: block;
+  width: auto;
+  height: 18px;
+  margin: 10px 10px 5px;
+}
+.presence-google-rating .google-logo-dark {
+  display: none;
+}
+@media (prefers-color-scheme: dark) {
+  html.connect-desktop .presence-google-rating .google-logo-light {
+    display: none;
+  }
+  html.connect-desktop .presence-google-rating .google-logo-dark {
+    display: block;
+  }
+}
+.presence-google-score {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.presence-google-score svg {
+  color: var(--brand-ink);
+}
+.presence-google-score strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+.google-data-providers {
+  display: inline-flex;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.google-data-providers a {
+  color: inherit;
+}
