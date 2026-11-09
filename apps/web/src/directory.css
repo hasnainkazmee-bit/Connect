@@ -165,14 +165,14 @@
 }
 .discovery-certification-trigger {
   width: 100%;
-  min-height: 44px;
-  padding: 7px 11px;
+  min-height: var(--control-height);
+  padding: 7px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   background: var(--surface);
   color: var(--ink);
   text-align: left;
@@ -231,7 +231,7 @@
   gap: 8px;
   padding: 8px 10px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   color: var(--muted);
 }
 .discovery-certification-search input {
