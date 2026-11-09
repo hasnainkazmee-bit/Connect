@@ -8,10 +8,11 @@ import {
 import {
   ArrowRight,
   ArrowUpRight,
-  Award,
   Building2,
   Check,
   Factory,
+  ExternalLink,
+  FileText,
   Globe,
   Hammer,
   HardHat,
@@ -315,50 +316,59 @@ export function Directory({ home = false }: { home?: boolean }) {
                   </p>
                   {!!c.certifications?.length && (
                     <div
-                      className="discovery-certifications"
+                      className="discovery-evidence-row discovery-certifications"
                       aria-label="Certifications and qualifications"
                     >
-                      {c.certifications.slice(0, 2).map((certificate) => (
-                        <span
-                          className="discovery-certificate"
-                          key={certificate.id}
-                          title={`${certificate.title} · ${certificate.scope} · ${certificate.evidence_basis === "company" ? "Company-reported" : certificate.evidence_basis === "issuer" ? "Issuer source" : "Directory source"}\n${certificate.scope_detail}`}
-                        >
-                          <Award size={14} aria-hidden="true" />
-                          <span>{certificate.title}</span>
+                      <FileText size={15} aria-hidden="true" />
+                      <div className="discovery-evidence-content">
+                        <span className="discovery-evidence-label">Credentials</span>
+                        <span className="discovery-evidence-values">
+                          {c.certifications.slice(0, 2).map((certificate) => (
+                            <span
+                              className="discovery-certificate"
+                              key={certificate.id}
+                              title={`${certificate.title} · ${certificate.scope} · ${certificate.evidence_basis === "company" ? "Company-reported" : certificate.evidence_basis === "issuer" ? "Issuer source" : "Directory source"}\n${certificate.scope_detail}`}
+                            >
+                              {certificate.title}
+                            </span>
+                          ))}
+                          {(c.certification_count || 0) > 2 && (
+                            <span
+                              className="discovery-certificate-more"
+                              title={`${c.certification_count! - 2} more certifications and qualifications`}
+                            >
+                              +{c.certification_count! - 2}
+                            </span>
+                          )}
                         </span>
-                      ))}
-                      {(c.certification_count || 0) > 2 && (
-                        <span
-                          className="discovery-certificate-more"
-                          title={`${c.certification_count! - 2} more certifications and qualifications`}
-                        >
-                          +{c.certification_count! - 2}
-                        </span>
-                      )}
+                      </div>
                     </div>
                   )}
                   {!!c.directory_profiles?.length && (
                     <div
-                      className="discovery-directory-profiles"
+                      className="discovery-evidence-row discovery-directory-profiles"
                       aria-label="External directory profiles"
                     >
-                      <Globe size={14} aria-hidden="true" />
-                      <span>Also listed on</span>
-                      {c.directory_profiles.slice(0, 2).map((listing) => (
-                        <span
-                          className="discovery-directory-name"
-                          key={listing.id}
-                          title={`${listing.title} · ${listing.scope_detail}`}
-                        >
-                          {listing.organization || listing.title}
+                      <ExternalLink size={15} aria-hidden="true" />
+                      <div className="discovery-evidence-content">
+                        <span className="discovery-evidence-label">Listed on</span>
+                        <span className="discovery-evidence-values">
+                          {c.directory_profiles.slice(0, 2).map((listing) => (
+                            <span
+                              className="discovery-directory-name"
+                              key={listing.id}
+                              title={`${listing.title} · ${listing.scope_detail}`}
+                            >
+                              {listing.organization || listing.title}
+                            </span>
+                          ))}
+                          {(c.directory_profile_count || 0) > 2 && (
+                            <span className="discovery-directory-more">
+                              +{c.directory_profile_count! - 2}
+                            </span>
+                          )}
                         </span>
-                      ))}
-                      {(c.directory_profile_count || 0) > 2 && (
-                        <span className="discovery-directory-more">
-                          +{c.directory_profile_count! - 2}
-                        </span>
-                      )}
+                      </div>
                     </div>
                   )}
                   <div className="discovery-facts">

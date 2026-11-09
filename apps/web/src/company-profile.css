@@ -1466,15 +1466,15 @@
     padding-inline: 10px;
   }
 }
-/* A compact evidence shelf keeps every record visible without turning the
-   company profile into an endorsement or an oversized list. */
+/* Credentials follow the same quiet fact-row pattern as the rest of the
+   public profile; source details stay one tap away. */
 .credentials-card .profile-section-heading {
   margin-bottom: var(--space-5);
 }
 .credential-group {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr));
-  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+  gap: 0 var(--space-5);
 }
 .credential-group + .credential-group {
   margin-top: var(--space-5);
@@ -1484,35 +1484,21 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  color: var(--ink);
+  color: var(--muted);
   font-size: 0.8125rem;
-  font-weight: 650;
-  margin: 0 0 var(--space-1);
+  font-weight: 600;
+  margin: 0 0 var(--space-2);
 }
 .credential-group-label span {
-  display: grid;
-  place-items: center;
-  min-width: 24px;
-  height: 24px;
-  padding-inline: 6px;
-  border-radius: var(--radius-control);
-  background: var(--surface-muted);
   color: var(--muted);
   font-size: 0.75rem;
+  font-weight: 400;
 }
 .credential-entry {
   display: flex;
   align-items: flex-start;
   min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: var(--surface);
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.credential-entry:hover,
-.credential-entry:has(.credential-disclosure[open]) {
-  border-color: #b9cddc;
-  box-shadow: var(--shadow-chrome);
+  border-top: 1px solid var(--line);
 }
 .credential-disclosure {
   flex: 1;
@@ -1520,10 +1506,10 @@
 }
 .credential-summary {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-3);
-  min-height: 82px;
-  padding: var(--space-3);
+  min-height: 68px;
+  padding: var(--space-3) 0;
   list-style: none;
   cursor: pointer;
 }
@@ -1536,18 +1522,15 @@
   border-radius: 12px;
 }
 .credential-icon {
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: var(--brand-soft);
-  color: var(--brand-ink);
+  width: 20px;
+  min-height: 24px;
+  color: #92a3b0;
 }
-.credential-directory .credential-icon {
-  background: var(--surface-muted);
-  color: var(--muted);
+.credential-icon svg {
+  stroke-width: 1.75;
 }
 .credential-summary-text {
   flex: 1;
@@ -1555,21 +1538,26 @@
   overflow-wrap: anywhere;
 }
 .credential-summary h3 {
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 600;
-  line-height: 1.5;
+  line-height: 1.6;
   color: var(--ink);
   margin: 0;
+}
+.credential-summary:hover h3,
+.credential-disclosure[open] .credential-summary h3 {
+  color: var(--brand-ink);
 }
 .credential-meta {
   display: block;
   color: var(--muted);
   font-size: 0.75rem;
-  line-height: 1.6;
-  margin-top: var(--space-1);
+  line-height: 1.5;
+  margin-top: 2px;
 }
 .credential-chevron {
   flex-shrink: 0;
+  margin-top: 4px;
   color: var(--muted);
   transition: transform 0.15s;
 }
@@ -1577,7 +1565,7 @@
   transform: rotate(180deg);
 }
 .credential-detail {
-  padding: 0 var(--space-4) var(--space-4);
+  padding: 0 0 var(--space-4) 32px;
   color: var(--muted);
   font-size: 0.8125rem;
   line-height: 1.7;

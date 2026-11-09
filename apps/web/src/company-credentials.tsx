@@ -3,7 +3,8 @@ import {
   ArrowUpRight,
   Award,
   ChevronDown,
-  Globe,
+  ExternalLink,
+  FileText,
   Plus,
   Pencil,
   Users,
@@ -104,10 +105,13 @@ export function CompanyCredentials({
                   new Date().toISOString().slice(0, 10);
               const Icon =
                 item.category === "directory"
-                  ? Globe
+                  ? ExternalLink
                   : item.scope === "personnel"
                     ? Users
-                    : Award;
+                    : item.category === "certification" ||
+                        item.category === "qualification"
+                      ? FileText
+                      : Award;
               return (
                 <article
                   className={`credential-entry credential-${item.category}`}

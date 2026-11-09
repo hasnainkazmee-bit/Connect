@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import pg from "pg";
 
 for (const width of [1440, 390])
-  test(`directory cards show current certification badges and open the profile at ${width}px`, async ({
+  test(`directory cards show credentials and listings in the company detail style at ${width}px`, async ({
     page,
   }) => {
     const db = new pg.Pool({ connectionString: process.env.DATABASE_URL });

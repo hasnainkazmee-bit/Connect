@@ -297,71 +297,47 @@
   font-size: 10px;
   color: #7d8d9a;
 }
-.discovery-certifications {
+.discovery-evidence-row {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  margin: 0 0 var(--space-4);
-}
-.discovery-certificate,
-.discovery-certificate-more {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  align-items: flex-start;
+  gap: 8px;
   min-width: 0;
-  max-width: 100%;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  padding: 5px 9px;
-  background: var(--surface-muted);
+  margin: 0 0 var(--space-3);
+}
+.discovery-evidence-row > svg {
+  flex: none;
+  margin-top: 3px;
+  color: #92a3b0;
+  stroke-width: 1.75;
+}
+.discovery-evidence-content {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.discovery-evidence-label {
+  color: var(--muted);
+  font-size: 0.6875rem;
+  line-height: 1.35;
+}
+.discovery-evidence-values {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
   color: var(--ink);
   font-size: 0.75rem;
   font-weight: 500;
   line-height: 1.5;
 }
-.discovery-certificate svg {
-  flex-shrink: 0;
-  color: var(--brand-ink);
-}
-.discovery-certificate > span {
+.discovery-certificate,
+.discovery-directory-name {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
-.discovery-certificate-more {
-  color: var(--muted);
-}
-.discovery-directory-profiles {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin: 0 0 var(--space-4);
-  color: var(--muted);
-  font-size: 0.75rem;
-  line-height: 1.5;
-}
-.discovery-directory-profiles > svg {
-  flex: none;
-  color: var(--muted);
-}
-.discovery-directory-name,
-.discovery-directory-more {
-  min-width: 0;
-  max-width: 100%;
-  padding: 4px 9px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  background: var(--surface);
-  color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.discovery-certificate-more,
 .discovery-directory-more {
   color: var(--muted);
+  font-weight: 400;
 }
 .discovery-card-footer > span {
   display: flex;
