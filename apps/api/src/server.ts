@@ -29,6 +29,7 @@ import { publishingRoutes } from "./publishing.js";
 import { personalMessagesRoutes } from "./personal-messages.js";
 import { accountRoutes, sessionPayload as mePayload } from "./accounts.js";
 import { sunhubSsoRoutes } from "./sunhub-sso.js";
+import { sunhubIntegrationRoutes } from "./sunhub-integration.js";
 import { flushMail } from "./mail.js";
 import {
   storeBuffer,
@@ -188,6 +189,7 @@ app.use("/api/auth", (req, res, next) =>
 );
 app.use("/api", accountRoutes());
 app.use("/api", sunhubSsoRoutes());
+app.use("/api", sunhubIntegrationRoutes());
 app.use("/api", profileRoutes());
 app.use("/api", credentialRoutes());
 app.use("/api", googlePlacesRoutes());

@@ -45,6 +45,7 @@ services:
       REQUIRE_EMAIL_VERIFICATION: "true"
       SUNHUB_SSO_ISSUER: ${SUNHUB_SSO_ISSUER:-}
       SUNHUB_SSO_CLIENT_ID: ${SUNHUB_SSO_CLIENT_ID:-sunhub-connect}
+      CONNECT_SUNHUB_SYNC_TOKEN: ${CONNECT_SUNHUB_SYNC_TOKEN:-}
       SMTP_HOST: ${SMTP_HOST:?Set the account email provider}
       SMTP_PORT: ${SMTP_PORT:-465}
       SMTP_SECURE: ${SMTP_SECURE:-true}
