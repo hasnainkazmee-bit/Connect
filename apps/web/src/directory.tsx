@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Link,
   useNavigate,
@@ -65,6 +65,7 @@ export function Directory({ home = false }: { home?: boolean }) {
   const [data, setData] = useState<Results | null>(null),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true);
+  const gridRef = useRef<HTMLElement>(null);
   const type = query.get("type") || "",
     area = query.get("area") || "",
     q = query.get("q") || "";
@@ -90,6 +91,53 @@ export function Directory({ home = false }: { home?: boolean }) {
       ? `Solar installers serving ${placeName} | Connect`
       : "Find solar companies | Connect";
   }, [placeName]);
+  useLayoutEffect(() => {
+    const grid = gridRef.current;
+    if (!grid || !data?.companies.length) return;
+    const cards = Array.from(grid.children).filter(
+      (child): child is HTMLElement => child instanceof HTMLElement,
+    );
+    let frame = 0;
+    const layout = () => {
+      // Keep search order across the row, while each column packs according
+      // to the actual card height. Sparse listings never reserve an empty slot.
+      const columns =
+        window.innerWidth <= 720
+          ? 1
+          : Math.max(1, Math.floor((grid.clientWidth + 16) / 316));
+      const template = `repeat(${columns}, minmax(0, 1fr))`;
+      if (grid.style.gridTemplateColumns !== template)
+        grid.style.gridTemplateColumns = template;
+      const rowGap = Number.parseFloat(getComputedStyle(grid).rowGap) || 0;
+      const nextRow = Array<number>(columns).fill(1);
+      cards.forEach((card, index) => {
+        const column = index % columns;
+        const span = Math.ceil(
+          (card.getBoundingClientRect().height + rowGap) / (1 + rowGap),
+        );
+        const gridColumn = String(column + 1);
+        const gridRow = `${nextRow[column]} / span ${span}`;
+        if (card.style.gridColumn !== gridColumn)
+          card.style.gridColumn = gridColumn;
+        if (card.style.gridRow !== gridRow) card.style.gridRow = gridRow;
+        nextRow[column] += span;
+      });
+    };
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(layout);
+    };
+    layout();
+    const observer = new ResizeObserver(schedule);
+    observer.observe(grid);
+    cards.forEach((card) => observer.observe(card));
+    window.addEventListener("resize", schedule);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("resize", schedule);
+    };
+  }, [data?.companies]);
   const change = (key: string, value: string) => {
     const next = new URLSearchParams(query);
     next.delete("page");
@@ -294,6 +342,7 @@ export function Directory({ home = false }: { home?: boolean }) {
         <>
           <section
             className="discovery-grid"
+            ref={gridRef}
             aria-label="Company listings"
             aria-busy={loading}
           >
@@ -304,110 +353,126 @@ export function Directory({ home = false }: { home?: boolean }) {
                   to={"/" + (c.username || c.slug)}
                 >
                   <div className="discovery-card-top">
-                    <Logo company={c} />
+                    {c.logo_url && <Logo company={c} />}
                     <span className="discovery-type">{c.type}</span>
                   </div>
                   <h2>
                     {c.name}
                     <ArrowUpRight size={17} />
                   </h2>
-                  <p className="discovery-tagline">
-                    {c.tagline || "Explore this company’s services and work."}
-                  </p>
-                  {!!c.certifications?.length && (
-                    <div
-                      className="discovery-evidence-row discovery-certifications"
-                      aria-label="Certifications and qualifications"
-                    >
-                      <FileText size={15} aria-hidden="true" />
-                      <div className="discovery-evidence-content">
-                        <span className="discovery-evidence-label">Credentials</span>
-                        <span className="discovery-evidence-values">
-                          {c.certifications.slice(0, 2).map((certificate) => (
-                            <span
-                              className="discovery-certificate"
-                              key={certificate.id}
-                              title={`${certificate.title} · ${certificate.scope} · ${certificate.evidence_basis === "company" ? "Company-reported" : certificate.evidence_basis === "issuer" ? "Issuer source" : "Directory source"}\n${certificate.scope_detail}`}
-                            >
-                              {certificate.title}
-                            </span>
-                          ))}
-                          {(c.certification_count || 0) > 2 && (
-                            <span
-                              className="discovery-certificate-more"
-                              title={`${c.certification_count! - 2} more certifications and qualifications`}
-                            >
-                              +{c.certification_count! - 2}
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                    </div>
+                  {(c.tagline || c.description) && (
+                    <p className="discovery-tagline">
+                      {c.tagline || c.description}
+                    </p>
                   )}
-                  {!!c.directory_profiles?.length && (
-                    <div
-                      className="discovery-evidence-row discovery-directory-profiles"
-                      aria-label="External directory profiles"
-                    >
-                      <ExternalLink size={15} aria-hidden="true" />
-                      <div className="discovery-evidence-content">
-                        <span className="discovery-evidence-label">Listed on</span>
-                        <span className="discovery-evidence-values">
-                          {c.directory_profiles.slice(0, 2).map((listing) => (
-                            <span
-                              className="discovery-directory-name"
-                              key={listing.id}
-                              title={`${listing.title} · ${listing.scope_detail}`}
-                            >
-                              {listing.organization || listing.title}
-                            </span>
-                          ))}
-                          {(c.directory_profile_count || 0) > 2 && (
-                            <span className="discovery-directory-more">
-                              +{c.directory_profile_count! - 2}
-                            </span>
-                          )}
+                  {(!!c.location || !!c.service_areas.length) && (
+                    <div className="discovery-facts">
+                      {c.location && (
+                        <span>
+                          <MapPin size={14} />
+                          {c.location}
                         </span>
-                      </div>
-                    </div>
-                  )}
-                  <div className="discovery-facts">
-                    <span>
-                      <MapPin size={14} />
-                      {c.location || "Location not added"}
-                    </span>
-                    <span>
-                      <Globe size={14} />
-                      <span>
-                        {c.service_areas.length
-                          ? (c.type === "Manufacturer"
+                      )}
+                      {!!c.service_areas.length && (
+                        <span>
+                          <Globe size={14} />
+                          <span>
+                            {(c.type === "Manufacturer"
                               ? "Supplies "
                               : "Serves ") +
-                            c.service_areas.slice(0, 2).join(" · ") +
-                            (c.service_areas.length > 2
-                              ? ` +${c.service_areas.length - 2}`
-                              : "")
-                          : "Ask about service coverage"}
-                      </span>
-                    </span>
-                  </div>
-                  <div className="discovery-tags">
-                    {c.services.slice(0, 3).map((s) => (
-                      <span key={s}>{s}</span>
-                    ))}
-                  </div>
-                  <div className="discovery-card-footer">
-                    <span>
-                      {c.review_count ? (
-                        <>
-                          <Star size={14} />
-                          <b>{c.rating_average?.toFixed(1)}</b> (
-                          {c.review_count})
-                        </>
-                      ) : (
-                        "No Connect reviews yet"
+                              c.service_areas.slice(0, 2).join(" · ") +
+                              (c.service_areas.length > 2
+                                ? ` +${c.service_areas.length - 2}`
+                                : "")}
+                          </span>
+                        </span>
                       )}
-                    </span>
+                    </div>
+                  )}
+                  {!!c.services.length && (
+                    <div className="discovery-tags">
+                      {c.services.slice(0, 3).map((s) => (
+                        <span key={s}>{s}</span>
+                      ))}
+                    </div>
+                  )}
+                  {(!!c.certifications?.length ||
+                    !!c.directory_profiles?.length) && (
+                    <div className="discovery-evidence">
+                      {!!c.certifications?.length && (
+                        <div
+                          className="discovery-evidence-row discovery-certifications"
+                          aria-label="Certifications and qualifications"
+                        >
+                          <FileText size={15} aria-hidden="true" />
+                          <div className="discovery-evidence-content">
+                            <span className="discovery-evidence-label">
+                              Credentials
+                            </span>
+                            <span className="discovery-evidence-values">
+                              {c.certifications
+                                .slice(0, 2)
+                                .map((certificate) => (
+                                  <span
+                                    className="discovery-certificate"
+                                    key={certificate.id}
+                                    title={`${certificate.title} · ${certificate.scope} · ${certificate.evidence_basis === "company" ? "Company-reported" : certificate.evidence_basis === "issuer" ? "Issuer source" : "Directory source"}\n${certificate.scope_detail}`}
+                                  >
+                                    {certificate.title}
+                                  </span>
+                                ))}
+                              {(c.certification_count || 0) > 2 && (
+                                <span
+                                  className="discovery-certificate-more"
+                                  title={`${c.certification_count! - 2} more certifications and qualifications`}
+                                >
+                                  +{c.certification_count! - 2}
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      {!!c.directory_profiles?.length && (
+                        <div
+                          className="discovery-evidence-row discovery-directory-profiles"
+                          aria-label="External directory profiles"
+                        >
+                          <ExternalLink size={15} aria-hidden="true" />
+                          <div className="discovery-evidence-content">
+                            <span className="discovery-evidence-label">
+                              Listed on
+                            </span>
+                            <span className="discovery-evidence-values">
+                              {c.directory_profiles
+                                .slice(0, 2)
+                                .map((listing) => (
+                                  <span
+                                    className="discovery-directory-name"
+                                    key={listing.id}
+                                    title={`${listing.title} · ${listing.scope_detail}`}
+                                  >
+                                    {listing.organization || listing.title}
+                                  </span>
+                                ))}
+                              {(c.directory_profile_count || 0) > 2 && (
+                                <span className="discovery-directory-more">
+                                  +{c.directory_profile_count! - 2}
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="discovery-card-footer">
+                    {!!c.review_count && (
+                      <span>
+                        <Star size={14} />
+                        <b>{c.rating_average?.toFixed(1)}</b> ({c.review_count})
+                      </span>
+                    )}
                     <span>
                       {c.listing_status === "unclaimed" ? (
                         "View company"

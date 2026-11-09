@@ -183,7 +183,10 @@
 .discovery-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  grid-auto-rows: 1px;
+  column-gap: 16px;
+  row-gap: 12px;
+  align-items: start;
   transition: opacity 0.15s;
 }
 .discovery-grid[aria-busy="true"] {
@@ -206,7 +209,6 @@
 .discovery-card-link {
   display: flex;
   flex-direction: column;
-  height: 100%;
   padding: 22px 20px 0;
 }
 .discovery-card-top {
@@ -214,7 +216,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 22px;
+  margin-bottom: 16px;
 }
 .discovery-card .company-logo {
   width: 110px;
@@ -253,15 +255,18 @@
   font-size: 12px;
   line-height: 1.65;
   color: #677b8d;
-  margin: 8px 0 17px;
-  min-height: 40px;
+  margin: 8px 0 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 .discovery-facts {
   display: grid;
   gap: 7px;
   font-size: 11px;
   color: #62778a;
-  margin-top: auto;
+  margin-top: 16px;
 }
 .discovery-facts > span {
   display: flex;
@@ -278,8 +283,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
-  margin-top: 16px;
-  margin-bottom: 19px;
+  margin-top: 14px;
 }
 .discovery-tags > span {
   font-size: 10px;
@@ -293,16 +297,25 @@
   display: flex;
   justify-content: space-between;
   gap: 8px;
+  margin-top: 16px;
   padding: 13px 0;
   font-size: 10px;
   color: #7d8d9a;
+}
+.discovery-evidence {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid #edf1f5;
 }
 .discovery-evidence-row {
   display: flex;
   align-items: flex-start;
   gap: 8px;
   min-width: 0;
-  margin: 0 0 var(--space-3);
+  margin: 0;
 }
 .discovery-evidence-row > svg {
   flex: none;
@@ -347,6 +360,7 @@
 .discovery-card-footer > span:last-child {
   color: #3f607a;
   gap: 7px;
+  margin-left: auto;
 }
 .discovery-online {
   width: 5px;
@@ -676,7 +690,7 @@
     max-width: 1280px;
   }
   .discovery-grid {
-    gap: 20px;
+    column-gap: 20px;
   }
   .discovery-card-link {
     padding: 25px 24px 0;
