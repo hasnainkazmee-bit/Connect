@@ -48,6 +48,29 @@ export function googlePlacesRoutes() {
     }),
     async (req, res) => {
       const id = uuid.parse(req.params.id);
+      const ownerAuthorized = (
+        await pool.query<{
+          google_maps_uri: string | null;
+          location_title: string | null;
+          rating: number | null;
+          review_count: number | null;
+        }>(
+          `SELECT google_maps_uri,location_title,rating,review_count FROM google_business_connections
+           WHERE company_id=$1 AND location_name IS NOT NULL AND rating_fetched_at>now()-interval '30 days'`,
+          [id],
+        )
+      ).rows[0];
+      if (ownerAuthorized)
+        return res.json({
+          linked: true,
+          googleMapsUri:
+            ownerAuthorized.google_maps_uri ||
+            `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ownerAuthorized.location_title || "")}`,
+          locationTitle: ownerAuthorized.location_title,
+          rating: ownerAuthorized.rating,
+          count: ownerAuthorized.review_count || 0,
+          attributions: [],
+        });
       const match = (
         await pool.query<{ place_id: string }>(
           "SELECT place_id FROM company_google_places WHERE company_id=$1",

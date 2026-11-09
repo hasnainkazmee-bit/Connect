@@ -1,0 +1,130 @@
+.google-business-panel {
+  margin-top: var(--space-5);
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface, #fff);
+}
+.google-business-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.google-business-head h3 {
+  margin: 0 0 3px;
+  font-size: 1rem;
+  color: var(--ink);
+}
+.google-business-head p,
+.google-business-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+.google-business-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+.google-business-icon img {
+  width: 25px;
+  height: 25px;
+  object-fit: contain;
+}
+.google-business-connect {
+  margin: 17px 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.google-business-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  margin-top: 16px;
+}
+.google-business-error {
+  color: #9f392a;
+  font-size: 0.8125rem;
+  margin: 12px 0 0;
+}
+.google-business-linked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px 16px;
+  margin-top: 17px;
+}
+.google-business-linked-title,
+.google-business-linked-score {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+}
+.google-business-linked-title {
+  color: var(--ink);
+  font-weight: 600;
+}
+.google-business-linked-title svg {
+  color: #20855a;
+}
+.google-business-linked-score {
+  color: var(--muted);
+}
+.google-business-linked-score svg {
+  color: var(--brand-ink);
+}
+.google-business-disconnect {
+  padding: 5px 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.google-business-locations {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  max-height: 280px;
+  overflow: auto;
+}
+.google-business-locations button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: var(--surface, #fff);
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+.google-business-locations button:hover {
+  border-color: var(--brand-ink);
+}
+.google-business-locations button span {
+  display: grid;
+  gap: 3px;
+}
+.google-business-locations button small {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.google-business-panel > .google-business-hint {
+  margin-top: 13px;
+}

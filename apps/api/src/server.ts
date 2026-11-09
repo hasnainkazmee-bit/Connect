@@ -7,6 +7,10 @@ import {
 import { publicPages } from "./public-pages.js";
 import { credentialRoutes } from "./credentials.js";
 import { googlePlacesRoutes } from "./google-places.js";
+import {
+  googleBusinessRoutes,
+  refreshGoogleBusinessRatings,
+} from "./google-business.js";
 import { employeeInvitationRoutes } from "./employee-invitations.js";
 import { androidRelease } from "./mobile-release.js";
 import { desktopRelease } from "./desktop-release.js";
@@ -187,6 +191,7 @@ app.use("/api", sunhubSsoRoutes());
 app.use("/api", profileRoutes());
 app.use("/api", credentialRoutes());
 app.use("/api", googlePlacesRoutes());
+app.use("/api", googleBusinessRoutes());
 app.use("/api", directoryRoutes());
 app.use("/api", personalMessagesRoutes());
 app.post("/api/auth/logout", async (req, res) => {
@@ -1032,7 +1037,9 @@ app.get("/push-sw.js", (_req, res, next) => {
   res.sendFile(
     path.join(root, "apps/web/dist/push-sw.js"),
     { cacheControl: false, lastModified: false },
-    (error) => { if (error) next(error); },
+    (error) => {
+      if (error) next(error);
+    },
   );
 });
 app.use(express.static(path.join(root, "apps/web/dist"), { index: false }));
@@ -1101,11 +1108,24 @@ void recordNotificationRelease(
   "Connect " + androidRelease.versionName + " is available",
   "Install the latest Connect update from app settings.",
 ).catch(() => console.error("Unable to record the app release."));
+const googleRatingTimer = setInterval(
+  () => {
+    void refreshGoogleBusinessRatings().catch(() =>
+      console.error("Unable to refresh Google Business Profile ratings."),
+    );
+  },
+  6 * 60 * 60 * 1000,
+);
+googleRatingTimer.unref();
+setTimeout(
+  () => void refreshGoogleBusinessRatings().catch(() => {}),
+  30000,
+).unref();
 const cleanupTimer = setInterval(() => {
   void pruneNotifications().catch(() => {});
   void pool
     .query(
-      "DELETE FROM sessions WHERE expires_at<now(); DELETE FROM auth_limits WHERE expires_at<now(); DELETE FROM auth_challenges WHERE expires_at<now()-interval '1 day'; DELETE FROM email_outbox WHERE expires_at<now()-interval '7 days'; DELETE FROM auth_events WHERE created_at<now()-interval '90 days'; DELETE FROM oidc_flows WHERE expires_at<now(); DELETE FROM mobile_auth_handoffs WHERE expires_at<now()",
+      "DELETE FROM sessions WHERE expires_at<now(); DELETE FROM auth_limits WHERE expires_at<now(); DELETE FROM auth_challenges WHERE expires_at<now()-interval '1 day'; DELETE FROM email_outbox WHERE expires_at<now()-interval '7 days'; DELETE FROM auth_events WHERE created_at<now()-interval '90 days'; DELETE FROM oidc_flows WHERE expires_at<now(); DELETE FROM mobile_auth_handoffs WHERE expires_at<now(); DELETE FROM google_business_oauth_states WHERE expires_at<now()",
     )
     .catch(() => {});
 }, 3600000);
@@ -1113,6 +1133,7 @@ cleanupTimer.unref();
 const stop = () => {
   clearInterval(mailTimer);
   clearInterval(pushTimer);
+  clearInterval(googleRatingTimer);
   clearInterval(cleanupTimer);
   closeNotificationStreams();
   for (const responses of listeners.values())

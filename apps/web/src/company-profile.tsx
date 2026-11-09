@@ -34,6 +34,7 @@ import { Avatar, Logo } from "./identity";
 import { CompanyUpdates, FollowButton, SocialStats } from "./social";
 import { CompanyReviews, Stars } from "./reviews";
 import { GoogleRating } from "./google-rating";
+import { GoogleBusinessManager } from "./google-business-manager";
 import {
   AchievementEditor,
   BrandEditor,
@@ -492,11 +493,12 @@ export function CompanyProfileView({
               />
               {data.rating?.count ? (
                 <>
+                  <span>Connect</span>
                   <strong>{data.rating.average?.toFixed(1)}</strong>
                   <span>({data.rating.count} reviews)</span>
                 </>
               ) : (
-                <span>No reviews yet</span>
+                <span>Connect · no reviews yet</span>
               )}
             </button>
             <GoogleRating
@@ -975,6 +977,7 @@ export function CompanyProfileView({
         ) : (
           <section className="profile-card">
             <CompanyReviews target={c} />
+            {editable && <GoogleBusinessManager />}
           </section>
         )}
       </div>

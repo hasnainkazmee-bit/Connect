@@ -26,6 +26,9 @@ export type Company = {
   is_demo?: boolean;
   rating_average?: number | null;
   review_count?: number;
+  google_rating?: number | null;
+  google_review_count?: number | null;
+  google_location_title?: string | null;
   certification_count?: number;
   certifications?: Pick<
     Credential,

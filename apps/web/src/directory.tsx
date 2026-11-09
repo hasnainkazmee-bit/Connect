@@ -583,12 +583,35 @@ export function Directory({ home = false }: { home?: boolean }) {
                       )}
                     </div>
                   )}
-                  <div className="discovery-card-footer">
-                    {!!c.review_count && (
-                      <span>
-                        <Star size={14} />
-                        <b>{c.rating_average?.toFixed(1)}</b> ({c.review_count})
-                      </span>
+                  <div className={`discovery-card-footer${c.review_count || c.google_review_count ? " has-ratings" : ""}`}>
+                    {(!!c.review_count || !!c.google_review_count) && (
+                      <div className="discovery-rating-sources">
+                        {!!c.review_count && (
+                          <span
+                            aria-label={`Connect rating ${c.rating_average?.toFixed(1)} out of 5 from ${c.review_count} reviews`}
+                          >
+                            <Star
+                              size={13}
+                              fill="currentColor"
+                              aria-hidden="true"
+                            />
+                            <b>{c.rating_average?.toFixed(1)}</b>
+                            <small>Connect</small>
+                          </span>
+                        )}
+                        {!!c.google_review_count && c.google_rating != null && (
+                          <span
+                            aria-label={`Google rating ${c.google_rating.toFixed(1)} out of 5 from ${c.google_review_count} reviews for ${c.google_location_title || c.name}`}
+                          >
+                            <img
+                              src="/assets/google-maps-darkgray.svg"
+                              alt=""
+                              aria-hidden="true"
+                            />
+                            <b>{c.google_rating.toFixed(1)}</b>
+                          </span>
+                        )}
+                      </div>
                     )}
                     <span>
                       {c.listing_status === "unclaimed" ? (

@@ -8,6 +8,7 @@ type GoogleRatingData = {
   googleMapsUri?: string;
   rating?: number | null;
   count?: number;
+  locationTitle?: string | null;
   attributions?: { provider?: string; providerUri?: string }[];
 };
 
@@ -69,7 +70,7 @@ export function GoogleRating({
         target="_blank"
         rel="noopener noreferrer"
         className="presence-google-rating"
-        aria-label={`Google Maps rating ${data.rating.toFixed(1)} out of 5 from ${data.count || 0} ratings`}
+        aria-label={`Google Maps rating ${data.rating.toFixed(1)} out of 5 from ${data.count || 0} ratings${data.locationTitle ? ` for ${data.locationTitle}` : ""}`}
       >
         <img
           className="google-logo-light"

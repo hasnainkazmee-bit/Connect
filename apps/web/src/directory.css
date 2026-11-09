@@ -512,6 +512,32 @@
   align-items: center;
   gap: 4px;
 }
+.discovery-rating-sources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  min-width: 0;
+}
+.discovery-rating-sources > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  color: #4b6173;
+}
+.discovery-rating-sources svg {
+  color: var(--brand-ink);
+}
+.discovery-rating-sources img {
+  width: 54px;
+  height: 12px;
+  object-fit: contain;
+}
+.discovery-rating-sources small {
+  font-size: inherit;
+  color: #7d8d9a;
+}
 .discovery-card-footer > span:last-child {
   color: #3f607a;
   gap: 7px;
@@ -995,6 +1021,16 @@
   .discovery-card-footer {
     font-size: 11px;
     padding: 14px 0;
+  }
+  .discovery-card-footer.has-ratings > span:last-child {
+    font-size: 0;
+  }
+  .discovery-card-footer.has-ratings > span:last-child::before {
+    content: "View";
+    font-size: 11px;
+  }
+  .discovery-card-footer.has-ratings .discovery-online {
+    display: none;
   }
   .discovery-bottom {
     grid-template-columns: 1fr;
