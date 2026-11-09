@@ -33,6 +33,7 @@ import { useApp } from "./context";
 import { Avatar, Logo } from "./identity";
 import { CompanyUpdates, FollowButton, SocialStats } from "./social";
 import { CompanyReviews, Stars } from "./reviews";
+import { GoogleReviews } from "./google-reviews";
 import {
   AchievementEditor,
   BrandEditor,
@@ -962,9 +963,12 @@ export function CompanyProfileView({
             )}
           </section>
         ) : (
-          <section className="profile-card">
-            <CompanyReviews target={c} />
-          </section>
+          <>
+            <section className="profile-card">
+              <CompanyReviews target={c} />
+            </section>
+            <GoogleReviews companyId={c.id} />
+          </>
         )}
       </div>
     </div>

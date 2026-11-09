@@ -93,8 +93,17 @@ export async function directorySearch(input: Record<string, unknown>) {
     service = clean(input.service, 80),
     area = clean(input.area, 60),
     office = clean(input.office),
-    audience = clean(input.audience, 40),
-    certification = clean(input.certification, 180).toLowerCase();
+    audience = clean(input.audience, 40);
+  const certifications = [
+    ...new Set(
+      (Array.isArray(input.certification)
+        ? input.certification
+        : [input.certification]
+      )
+        .map((value) => clean(value, 180).toLowerCase())
+        .filter(Boolean),
+    ),
+  ].slice(0, 20);
   const page = z.coerce
     .number()
     .int()
@@ -154,12 +163,12 @@ export async function directorySearch(input: Record<string, unknown>) {
       AND ($2='' OR c.type=$2) AND ($3='' OR $3=ANY(c.services))
       AND ($4::text[]='{}' OR EXISTS(SELECT 1 FROM unnest(c.service_areas) a,unnest($4::text[]) t WHERE lower(a)=t OR split_part(lower(a),',',1)=t) OR (c.type='Manufacturer' AND (($8 AND 'United States'=ANY(c.service_areas)) OR ($9 AND 'Worldwide'=ANY(c.service_areas)))))
       AND ($5='' OR c.location ILIKE '%'||$5||'%') AND ($6='' OR $6=ANY(c.audiences))
-      AND ($11='' OR EXISTS (
+      AND (cardinality($11::text[])=0 OR EXISTS (
         SELECT 1 FROM company_credentials credential
         WHERE credential.company_id=c.id
           AND credential.category IN ('certification','qualification')
           AND (credential.valid_until IS NULL OR credential.valid_until>=CURRENT_DATE)
-          AND lower(btrim(credential.title))=$11
+          AND lower(btrim(credential.title))=ANY($11::text[])
       ))
     ), paged AS (
       SELECT * FROM filtered
@@ -195,7 +204,7 @@ export async function directorySearch(input: Record<string, unknown>) {
       usArea,
       globalSupply,
       normalizedName(q),
-      certification,
+      certifications,
     ],
   );
   return { ...rows[0], page, pageSize: 24, places: directoryPlaces };

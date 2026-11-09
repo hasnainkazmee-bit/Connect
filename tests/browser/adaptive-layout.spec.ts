@@ -28,7 +28,7 @@ for (const viewport of windows) {
       };
       const controls = Array.from(
         document.querySelectorAll(
-          ".header-actions .button, .primary-nav > a, .discovery-search .button, .discovery-categories button, .discovery-selects select",
+          ".header-actions .button, .primary-nav > a, .discovery-search .button, .discovery-categories button, .discovery-selects select, .discovery-certification-trigger",
         ),
       )
         .filter(visible)

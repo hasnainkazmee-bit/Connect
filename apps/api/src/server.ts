@@ -6,6 +6,7 @@ import {
 } from "./directory.js";
 import { publicPages } from "./public-pages.js";
 import { credentialRoutes } from "./credentials.js";
+import { googlePlacesRoutes } from "./google-places.js";
 import { employeeInvitationRoutes } from "./employee-invitations.js";
 import { androidRelease } from "./mobile-release.js";
 import { desktopRelease } from "./desktop-release.js";
@@ -185,6 +186,7 @@ app.use("/api", accountRoutes());
 app.use("/api", sunhubSsoRoutes());
 app.use("/api", profileRoutes());
 app.use("/api", credentialRoutes());
+app.use("/api", googlePlacesRoutes());
 app.use("/api", directoryRoutes());
 app.use("/api", personalMessagesRoutes());
 app.post("/api/auth/logout", async (req, res) => {

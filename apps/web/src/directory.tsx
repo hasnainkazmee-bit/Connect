@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Link,
   useNavigate,
@@ -10,6 +10,7 @@ import {
   ArrowUpRight,
   Building2,
   Check,
+  ChevronDown,
   Factory,
   ExternalLink,
   FileText,
@@ -91,6 +92,9 @@ export function Directory({ home = false }: { home?: boolean }) {
   const [data, setData] = useState<Results | null>(null),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true);
+  const [certificationOpen, setCertificationOpen] = useState(false);
+  const [certificationSearch, setCertificationSearch] = useState("");
+  const certificationRef = useRef<HTMLDivElement>(null);
   const type = query.get("type") || "",
     area = query.get("area") || "",
     q = query.get("q") || "";
@@ -116,6 +120,22 @@ export function Directory({ home = false }: { home?: boolean }) {
       ? `Solar installers serving ${placeName} | Connect`
       : "Find solar companies | Connect";
   }, [placeName]);
+  useEffect(() => {
+    if (!certificationOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!certificationRef.current?.contains(event.target as Node))
+        setCertificationOpen(false);
+    };
+    const closeEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCertificationOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeEscape);
+    };
+  }, [certificationOpen]);
   const change = (key: string, value: string) => {
     const next = new URLSearchParams(query);
     next.delete("page");
@@ -123,12 +143,26 @@ export function Directory({ home = false }: { home?: boolean }) {
     if (place) navigate("/directory?" + next.toString());
     else setParams(next);
   };
+  const selectedCertifications = query.getAll("certification");
+  const changeCertifications = (values: string[]) => {
+    const next = new URLSearchParams(query);
+    next.delete("page");
+    next.delete("certification");
+    values.forEach((value) => next.append("certification", value));
+    if (place) navigate("/directory?" + next.toString());
+    else setParams(next);
+  };
+  const availableCertifications = (data?.certifications || []).filter((item) =>
+    `${item.label} ${item.organization}`
+      .toLowerCase()
+      .includes(certificationSearch.trim().toLowerCase()),
+  );
   const filtered = !!(
     q ||
     type ||
     area ||
     query.get("service") ||
-    query.get("certification") ||
+    selectedCertifications.length ||
     query.get("audience") ||
     query.get("office")
   );
@@ -282,31 +316,108 @@ export function Directory({ home = false }: { home?: boolean }) {
             <option value="Commercial">For my business</option>
             <option value="Utility-scale">Utility-scale</option>
           </select>
-          <select
-            className="discovery-certification-select"
-            aria-label="Certifications and qualifications"
-            value={query.get("certification") || ""}
-            onChange={(e) => change("certification", e.target.value)}
+          <div
+            className="discovery-certification-filter"
+            ref={certificationRef}
           >
-            <option value="">Any certification</option>
-            {Object.entries(
-              (data?.certifications || []).reduce<
-                Record<string, Results["certifications"]>
-              >((groups, item) => {
-                const organization = item.organization || "Other credentials";
-                (groups[organization] ||= []).push(item);
-                return groups;
-              }, {}),
-            ).map(([organization, certifications]) => (
-              <optgroup key={organization} label={organization}>
-                {certifications.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label} ({item.count})
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+            <button
+              type="button"
+              className="discovery-certification-trigger"
+              aria-label="Certifications and qualifications"
+              aria-expanded={certificationOpen}
+              aria-controls="discovery-certification-options"
+              onClick={() => setCertificationOpen((open) => !open)}
+            >
+              <span>
+                {selectedCertifications.length === 0
+                  ? "Any certification"
+                  : selectedCertifications.length === 1
+                    ? data?.certifications.find(
+                        (item) => item.value === selectedCertifications[0],
+                      )?.label || selectedCertifications[0]
+                    : `${selectedCertifications.length} certifications`}
+              </span>
+              <ChevronDown size={15} />
+            </button>
+            {certificationOpen && (
+              <div
+                className="discovery-certification-menu"
+                id="discovery-certification-options"
+              >
+                <div className="discovery-certification-menu-header">
+                  <strong>Certifications</strong>
+                  {selectedCertifications.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => changeCertifications([])}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <p>Show companies with any selected credential.</p>
+                <label className="discovery-certification-search">
+                  <Search size={15} />
+                  <input
+                    aria-label="Search certifications"
+                    value={certificationSearch}
+                    onChange={(event) =>
+                      setCertificationSearch(event.target.value)
+                    }
+                    placeholder="Search certifications"
+                  />
+                </label>
+                <div className="discovery-certification-options">
+                  {Object.entries(
+                    availableCertifications.reduce<
+                      Record<string, Results["certifications"]>
+                    >((groups, item) => {
+                      const organization =
+                        item.organization || "Other credentials";
+                      (groups[organization] ||= []).push(item);
+                      return groups;
+                    }, {}),
+                  ).map(([organization, certifications]) => (
+                    <div
+                      key={organization}
+                      className="discovery-certification-group"
+                    >
+                      <h3>{organization}</h3>
+                      {certifications.map((item) => (
+                        <label
+                          key={item.value}
+                          className="discovery-certification-option"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedCertifications.includes(
+                              item.value,
+                            )}
+                            onChange={(event) =>
+                              changeCertifications(
+                                event.target.checked
+                                  ? [...selectedCertifications, item.value]
+                                  : selectedCertifications.filter(
+                                      (value) => value !== item.value,
+                                    ),
+                              )
+                            }
+                          />
+                          <span>{item.label}</span>
+                          <small>{item.count}</small>
+                        </label>
+                      ))}
+                    </div>
+                  ))}
+                  {!availableCertifications.length && (
+                    <div className="discovery-certification-none">
+                      No matching certifications
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
           {filtered && (
             <button className="text-button" onClick={clear}>
               <X size={14} />
