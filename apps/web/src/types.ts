@@ -31,6 +31,11 @@ export type Company = {
     Credential,
     "id" | "title" | "category" | "scope" | "scope_detail" | "evidence_basis"
   >[];
+  directory_profile_count?: number;
+  directory_profiles?: Pick<
+    Credential,
+    "id" | "title" | "organization" | "scope_detail" | "evidence_basis"
+  >[];
 };
 export type Session = {
   user: null | {

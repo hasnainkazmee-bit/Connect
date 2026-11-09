@@ -1,0 +1,42 @@
+/* Browser pages share one viewport-based frame. The installed desktop apps
+   retain their native edge-to-edge workspace layout. */
+html:not(.connect-desktop) .header-inner,
+html:not(.connect-desktop) .app-main,
+html:not(.connect-desktop) .site-footer {
+  box-sizing: border-box;
+  width: 80%;
+  max-width: none;
+  margin-inline: auto;
+  padding-inline: 0;
+}
+
+html:not(.connect-desktop) .discovery,
+html:not(.connect-desktop) .company-home,
+html:not(.connect-desktop) .newsroom {
+  width: 100%;
+  max-width: none;
+}
+
+html:not(.connect-desktop) .feed-layout {
+  grid-template-columns: minmax(0, 1.7fr) minmax(264px, 1fr);
+}
+
+@media (max-width: 1050px) {
+  html:not(.connect-desktop) .feed-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* At phone widths, a literal ten-percent gutter would squeeze touch controls
+   and text. Keep the same aligned frame with a practical 16px inset. */
+@media (max-width: 720px) {
+  html:not(.connect-desktop) .header-inner,
+  html:not(.connect-desktop) .app-main:not(.messages-view),
+  html:not(.connect-desktop) .site-footer {
+    width: calc(100% - 32px);
+  }
+  html:not(.connect-desktop) .app-main.messages-view {
+    width: 100%;
+    padding-inline: 8px;
+  }
+}

@@ -5,8 +5,10 @@ const windows = [
   { width: 390, height: 844 },
   { width: 768, height: 1024 },
   { width: 1024, height: 768 },
+  { width: 1221, height: 900 },
   { width: 1440, height: 1000 },
   { width: 1920, height: 1080 },
+  { width: 2560, height: 1440 },
   { width: 844, height: 390 },
 ];
 
@@ -50,6 +52,9 @@ for (const viewport of windows) {
           .querySelector(".primary-nav")!
           .getBoundingClientRect()
           .toJSON(),
+        header: document.querySelector(".header-inner")!.getBoundingClientRect().toJSON(),
+        main: document.querySelector(".app-main")!.getBoundingClientRect().toJSON(),
+        discovery: document.querySelector(".discovery")!.getBoundingClientRect().toJSON(),
       };
     });
 
@@ -62,6 +67,15 @@ for (const viewport of windows) {
     }
     expect(layout.primaryColors[0]).toEqual("rgb(255, 107, 11)");
     expect(layout.primaryColors[1]).toEqual(layout.primaryColors[0]);
+    if (viewport.width > 720) {
+      for (const frame of [layout.header, layout.main, layout.discovery]) {
+        expect(frame.width).toBeCloseTo(viewport.width * 0.8, 0);
+        expect(frame.left).toBeCloseTo(viewport.width * 0.1, 0);
+      }
+    } else {
+      expect(layout.header.left).toBeCloseTo(16, 0);
+      expect(layout.main.left).toBeCloseTo(16, 0);
+    }
     if (viewport.width <= 720) {
       expect(Math.round(layout.nav.bottom)).toEqual(viewport.height);
     }

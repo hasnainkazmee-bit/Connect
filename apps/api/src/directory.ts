@@ -116,10 +116,20 @@ export async function directorySearch(input: Record<string, unknown>) {
       WHERE category IN ('certification','qualification')
         AND (valid_until IS NULL OR valid_until>=CURRENT_DATE)
       GROUP BY company_id
+    ), listed AS (
+      SELECT company_id,count(*)::int AS directory_profile_count,
+        json_agg(json_build_object('id',id,'title',title,'organization',organization,'scope_detail',scope_detail,'evidence_basis',evidence_basis)
+          ORDER BY title,id) AS directory_profiles
+      FROM company_credentials
+      WHERE category='directory'
+        AND (valid_until IS NULL OR valid_until>=CURRENT_DATE)
+      GROUP BY company_id
     ), filtered AS (
       SELECT c.*,r.rating_average,r.review_count,
         COALESCE(cert.certification_count,0) AS certification_count,
         COALESCE(cert.certifications,'[]'::json) AS certifications,
+        COALESCE(listed.directory_profile_count,0) AS directory_profile_count,
+        COALESCE(listed.directory_profiles,'[]'::json) AS directory_profiles,
         (c.logo_url <> '') AS has_logo,
         (
           (c.cover_url <> '' AND c.cover_url <> '/assets/solar.jpg')::int * 3 +
@@ -136,6 +146,7 @@ export async function directorySearch(input: Record<string, unknown>) {
         ) AS profile_score
       FROM companies c
       LEFT JOIN certified cert ON cert.company_id=c.id
+      LEFT JOIN listed ON listed.company_id=c.id
       LEFT JOIN LATERAL (SELECT round(avg(rating),1)::float AS rating_average,count(*)::int AS review_count FROM company_reviews r WHERE r.company_id=c.id AND NOT EXISTS(SELECT 1 FROM memberships m WHERE m.company_id=c.id AND m.user_id=r.user_id)) r ON true
       WHERE NOT c.is_demo
       AND ($1='' OR ($10<>'' AND c.name_key LIKE '%'||$10||'%') OR concat_ws(' ',c.name,c.tagline,c.description,c.location,array_to_string(c.services,' '),array_to_string(c.service_areas,' ')) ILIKE '%'||$1||'%')

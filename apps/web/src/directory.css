@@ -333,6 +333,36 @@
 .discovery-certificate-more {
   color: var(--muted);
 }
+.discovery-directory-profiles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 var(--space-4);
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+.discovery-directory-profiles > svg {
+  flex: none;
+  color: var(--muted);
+}
+.discovery-directory-name,
+.discovery-directory-more {
+  min-width: 0;
+  max-width: 100%;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.discovery-directory-more {
+  color: var(--muted);
+}
 .discovery-card-footer > span {
   display: flex;
   align-items: center;

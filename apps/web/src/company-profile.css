@@ -976,9 +976,10 @@
 .presence-showcase.has-image {
   aspect-ratio: 4 / 5;
   min-height: 0;
-  max-height: none;
-  width: 100%;
+  max-height: 700px;
+  width: min(100%, 560px);
   align-self: start;
+  justify-self: end;
 }
 
 .presence-showcase.has-image > img {
@@ -1465,26 +1466,53 @@
     padding-inline: 10px;
   }
 }
-/* Profile credentials use the same type, dividers and controls as company facts. */
+/* A compact evidence shelf keeps every record visible without turning the
+   company profile into an endorsement or an oversized list. */
 .credentials-card .profile-section-heading {
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+.credential-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr));
+  gap: var(--space-3);
 }
 .credential-group + .credential-group {
   margin-top: var(--space-5);
 }
 .credential-group-label {
-  color: var(--muted);
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--ink);
   font-size: 0.8125rem;
-  font-weight: 600;
-  margin: 0 0 var(--space-2);
+  font-weight: 650;
+  margin: 0 0 var(--space-1);
+}
+.credential-group-label span {
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding-inline: 6px;
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 0.75rem;
 }
 .credential-entry {
   display: flex;
   align-items: flex-start;
-  border-bottom: 1px solid var(--line);
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.credential-entry:last-child {
-  border-bottom: 0;
+.credential-entry:hover,
+.credential-entry:has(.credential-disclosure[open]) {
+  border-color: #b9cddc;
+  box-shadow: var(--shadow-chrome);
 }
 .credential-disclosure {
   flex: 1;
@@ -1494,8 +1522,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  min-height: 72px;
-  padding: var(--space-3) 0;
+  min-height: 82px;
+  padding: var(--space-3);
   list-style: none;
   cursor: pointer;
 }
@@ -1511,11 +1539,15 @@
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--surface-muted);
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--brand-soft);
   color: var(--brand-ink);
+}
+.credential-directory .credential-icon {
+  background: var(--surface-muted);
+  color: var(--muted);
 }
 .credential-summary-text {
   flex: 1;
@@ -1545,7 +1577,7 @@
   transform: rotate(180deg);
 }
 .credential-detail {
-  padding: 0 0 var(--space-4) 48px;
+  padding: 0 var(--space-4) var(--space-4);
   color: var(--muted);
   font-size: 0.8125rem;
   line-height: 1.7;
@@ -1578,5 +1610,23 @@
 }
 .credential-edit {
   flex-shrink: 0;
-  margin-top: var(--space-2);
+  margin: var(--space-2) var(--space-2) 0 0;
+}
+@media (min-width: 1600px) {
+  .presence-introduction {
+    justify-content: center;
+  }
+  .about-sections:has(> .credentials-card) {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+  .about-sections > .profile-card:not(.about-main):not(.credentials-card) {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 1050px) {
+  .credential-group {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

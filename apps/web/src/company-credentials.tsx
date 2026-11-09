@@ -53,7 +53,7 @@ export function CompanyCredentials({
   const { open } = useApp();
   const groups = [
     {
-      label: "",
+      label: "Certifications & qualifications",
       rows: items.filter(
         (item) =>
           item.category === "certification" ||
@@ -74,7 +74,10 @@ export function CompanyCredentials({
   return (
     <section className="profile-card credentials-card">
       <div className="profile-section-heading">
-        <h2>Credentials</h2>
+        <div>
+          <h2>Credentials & presence</h2>
+          <p>Certifications, recognition, and listings, with sources.</p>
+        </div>
         {editable && (
           <button
             className="button small"
@@ -90,9 +93,10 @@ export function CompanyCredentials({
         .filter((group) => group.rows.length)
         .map((group) => (
           <div className="credential-group" key={group.label}>
-            {group.label && (
-              <h3 className="credential-group-label">{group.label}</h3>
-            )}
+            <h3 className="credential-group-label">
+              {group.label}
+              <span>{group.rows.length}</span>
+            </h3>
             {group.rows.map((item) => {
               const expired =
                 !!item.valid_until &&
@@ -105,7 +109,10 @@ export function CompanyCredentials({
                     ? Users
                     : Award;
               return (
-                <article className="credential-entry" key={item.id}>
+                <article
+                  className={`credential-entry credential-${item.category}`}
+                  key={item.id}
+                >
                   <details className="credential-disclosure">
                     <summary className="credential-summary">
                       <span className="credential-icon">

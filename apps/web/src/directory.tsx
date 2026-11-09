@@ -338,6 +338,29 @@ export function Directory({ home = false }: { home?: boolean }) {
                       )}
                     </div>
                   )}
+                  {!!c.directory_profiles?.length && (
+                    <div
+                      className="discovery-directory-profiles"
+                      aria-label="External directory profiles"
+                    >
+                      <Globe size={14} aria-hidden="true" />
+                      <span>Also listed on</span>
+                      {c.directory_profiles.slice(0, 2).map((listing) => (
+                        <span
+                          className="discovery-directory-name"
+                          key={listing.id}
+                          title={`${listing.title} · ${listing.scope_detail}`}
+                        >
+                          {listing.organization || listing.title}
+                        </span>
+                      ))}
+                      {(c.directory_profile_count || 0) > 2 && (
+                        <span className="discovery-directory-more">
+                          +{c.directory_profile_count! - 2}
+                        </span>
+                      )}
+                    </div>
+                  )}
                   <div className="discovery-facts">
                     <span>
                       <MapPin size={14} />

@@ -26,7 +26,7 @@ for (const width of [1440, 390])
           ).rows[0].id,
         );
       await db.query(
-        "INSERT INTO company_credentials(company_id,category,title,scope,scope_detail,source_url,evidence_basis) VALUES($1,'certification','UL 61730','product','Example-400 model only','https://example.test/ul','issuer'),($1,'qualification','NABCEP professionals','personnel','Named professionals only','https://example.test/nabcep','company'),($1,'certification','A long certification title for checking narrow directory cards','company','Named entity','https://example.test/long','company'),($2,'directory','EnergySage profile','company','Public listing only','https://example.test/listing','directory')",
+        "INSERT INTO company_credentials(company_id,category,title,organization,scope,scope_detail,source_url,evidence_basis) VALUES($1,'certification','UL 61730','','product','Example-400 model only','https://example.test/ul','issuer'),($1,'qualification','NABCEP professionals','','personnel','Named professionals only','https://example.test/nabcep','company'),($1,'certification','A long certification title for checking narrow directory cards','','company','Named entity','https://example.test/long','company'),($2,'directory','EnergySage profile','EnergySage','company','Public listing only','https://example.test/listing','directory')",
         ids,
       );
       await db.query(
@@ -56,6 +56,15 @@ for (const width of [1440, 390])
       await expect(
         cards.last().locator(".discovery-certifications"),
       ).toHaveCount(0);
+      await expect(
+        cards.last().locator(".discovery-directory-profiles"),
+      ).toContainText("EnergySage");
+      await expect(
+        cards.last().locator(".discovery-directory-name"),
+      ).toHaveText("EnergySage");
+      await expect(
+        cards.last().locator(".discovery-directory-name"),
+      ).toHaveAttribute("title", /Public listing only/);
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth,
@@ -70,6 +79,13 @@ for (const width of [1440, 390])
         page
           .locator(".credentials-card")
           .getByRole("heading", { name: "UL 61730", exact: true }),
+      ).toBeVisible();
+      await page.goto(`/directory?q=${encodeURIComponent(marker)}`);
+      await page.locator(".discovery-card").last().click();
+      await expect(
+        page
+          .locator(".credentials-card")
+          .getByRole("heading", { name: "EnergySage profile" }),
       ).toBeVisible();
     } finally {
       if (ids.length)

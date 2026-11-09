@@ -125,7 +125,9 @@ test("newsroom reflows, filters publications and keeps gallery photos uncropped"
     const stream = await page
       .getByRole("region", { name: "Company feed" })
       .boundingBox();
-    expect(stream!.width).toBeLessThanOrEqual(721);
+    expect(stream!.width).toBeLessThanOrEqual(
+      width > 720 ? width * 0.8 + 1 : width - 32 + 1,
+    );
     const toolbar = page.locator(".feed-controls");
     const toolbarBounds = (await toolbar.boundingBox())!;
     expect(

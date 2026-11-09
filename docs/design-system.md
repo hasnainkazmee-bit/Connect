@@ -105,7 +105,9 @@ For publishing, verify caption-before-media order and a square Post viewport wit
 
 ## Verified on 2 November 2026
 
-The web build was checked at 320, 390, 768, 1024, 1440, and 1920px, with additional 1101/1200px header checks and an 844×390 landscape window. Directory/account controls, signed-in feed, publishing, profiles, and chat were reviewed. Browser regression checks cover gallery navigation, release cover/inline photos, draft restoration, partial upload failure, and permission/session flows.
+The web build was checked at 320, 390, 768, 1024, 1221, 1440, 1920, and 2560px, with additional 1101/1200px header checks and an 844×390 landscape window. Directory/account controls, signed-in feed, publishing, profiles, and chat were reviewed. Browser regression checks cover gallery navigation, release cover/inline photos, draft restoration, partial upload failure, and permission/session flows.
+
+Browser pages now share a fluid 80%-of-viewport frame for the wordmark, top navigation, page content, and footer. There is no fixed desktop width cap. Phones use a 16px frame inset so text and touch controls remain usable; full-screen mobile messaging and the installed desktop shells retain their purpose-built layouts. Directory cards expand into more columns as space allows; ultrawide company profiles pair About with sourced credentials when both exist and keep cover art at a comfortable display size.
 
 Actual Chrome page zoom at 200% was also checked in a disposable browser profile: a 1440×1000 window produced a 720×456 layout viewport at DPR 2. The directory, signed-in feed, and press-release editor reflowed without horizontal page or dialog overflow; fields and close controls remained reachable. This was browser zoom, not CSS scaling or pinch zoom.
 

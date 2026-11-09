@@ -4,6 +4,8 @@ Profiles have a dedicated sourced section, separate from company-authored achiev
 
 Records distinguish certification, professional qualification, industry ranking, directory listing and membership. Every record includes its organization, company/product/personnel scope, scope details, HTTPS evidence URL and evidence basis. Period, expiry and source-check date remain separate: checking a page does not renew a certificate or establish current validity.
 
+Directory cards preview up to two current certifications or qualifications and show the remaining count. External directory presence has a separate "Also listed on" row with directory names, so a listing is not presented as a certificate. The full public profile shows every record, grouped by credentials, industry recognition, and directory profiles, with scope, evidence basis, expiry, source-check date, and a direct evidence link. Expired records remain visible on profiles but never become current badges on directory cards.
+
 Company administrators can add, edit and remove their own records. Those submissions are always company-reported and have no independent review date. Administrators cannot change or delete operator-sourced catalog records through the profile API. Contact the operator to correct a sourced record. The API never fetches submitted URLs.
 
 ## Import public research

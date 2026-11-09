@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import pg from "pg";
 
-for (const width of [1440, 390])
+for (const width of [1440, 390, 2560])
   test(`public company credentials show scope and evidence at ${width}px`, async ({
     page,
   }) => {
@@ -25,7 +25,10 @@ for (const width of [1440, 390])
       await page.goto(`/${username}`);
       const card = page.locator(".credentials-card");
       await expect(
-        card.getByRole("heading", { name: "Credentials", exact: true }),
+        card.getByRole("heading", {
+          name: "Credentials & presence",
+          exact: true,
+        }),
       ).toBeVisible();
       await expect(card.getByText("Only the Example-400 model")).toBeHidden();
       await card
@@ -43,6 +46,16 @@ for (const width of [1440, 390])
       await expect(
         card.getByRole("link", { name: "View listing" }),
       ).toHaveAttribute("href", "https://www.energysage.com/supplier/example/");
+      if (width === 2560) {
+        const cover = await page.locator(".presence-showcase.has-image").boundingBox();
+        const about = await page.locator(".about-main").boundingBox();
+        const evidence = await card.boundingBox();
+        const credential = await card.locator(".credential-entry").first().boundingBox();
+        expect(cover!.height).toBeLessThanOrEqual(701);
+        expect(evidence!.x).toBeGreaterThan(about!.x + about!.width);
+        expect(evidence!.y).toBeCloseTo(about!.y, 0);
+        expect(credential!.width).toBeLessThanOrEqual(600);
+      }
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth,

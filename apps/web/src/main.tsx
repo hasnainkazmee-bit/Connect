@@ -113,6 +113,7 @@ import "./social.css";
 import "./desktop-app.css";
 import "./mac-app.css";
 import "./windows-app.css";
+import "./web-frame.css";
 
 const date = (s: string) =>
   new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric" });
