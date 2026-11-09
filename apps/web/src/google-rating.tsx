@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Star } from "lucide-react";
+import { ExternalLink, Star } from "lucide-react";
 import { api } from "./api";
 import "./google-rating.css";
 
@@ -11,7 +11,15 @@ type GoogleRatingData = {
   attributions?: { provider?: string; providerUri?: string }[];
 };
 
-export function GoogleRating({ companyId }: { companyId: string }) {
+export function GoogleRating({
+  companyId,
+  companyName,
+  location,
+}: {
+  companyId: string;
+  companyName: string;
+  location: string;
+}) {
   const [data, setData] = useState<GoogleRatingData | null>(null);
   useEffect(() => {
     const abort = new AbortController();
@@ -27,7 +35,33 @@ export function GoogleRating({ companyId }: { companyId: string }) {
       });
     return () => abort.abort();
   }, [companyId]);
-  if (!data?.linked || data.rating == null) return null;
+  const mapsSearch = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    [companyName.trim(), location.trim()].filter(Boolean).join(" "),
+  )}`;
+  if (!data?.linked || data.rating == null) {
+    return (
+      <a
+        href={mapsSearch}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="presence-google-rating presence-google-lookup"
+        aria-label={`Check ${companyName}'s rating on Google Maps`}
+      >
+        <img
+          className="google-logo-light"
+          src="/assets/google-maps-darkgray.svg"
+          alt=""
+        />
+        <img
+          className="google-logo-dark"
+          src="/assets/google-maps-white.svg"
+          alt=""
+        />
+        <span>Check rating</span>
+        <ExternalLink size={13} aria-hidden="true" />
+      </a>
+    );
+  }
   return (
     <span className="presence-google-rating-wrap">
       <a

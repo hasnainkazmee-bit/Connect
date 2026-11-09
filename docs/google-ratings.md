@@ -1,8 +1,8 @@
 # Google ratings for Connect companies
 
-Connect keeps its own customer reviews separate from the Google Maps rating. A matched company profile may show a compact Google Maps rating with the average, rating count, and a link to the Google listing. Connect does not copy Google review text or reviewer details.
+Connect keeps its own customer reviews separate from the Google Maps rating. Without a Places API key, each company profile shows a keyless Google Maps search link labeled "Check rating." The visitor sees Google's current rating on Google Maps and can confirm the correct listing. Connect does not claim that the search result is a verified match, copy the rating, or store Google review text or reviewer details.
 
-The database stores only a verified Google Place ID per company. It never stores Google ratings or Places search results. The profile retrieves the current rating and count through Places API (New) when a visitor opens the profile. A company without a verified match has no Google rating; a failed Google request does not replace Connect reviews. Directory cards do not make 24 paid Google requests per page.
+The database stores only a verified Google Place ID per company. It never stores Google ratings or Places search results. If Places API (New) is enabled later, a matched profile can show a live rating and count with Google attribution. When there is no match, key, or response, the keyless Maps search link remains available. Directory cards do not make 24 paid Google requests per page.
 
 ## Enable
 
@@ -14,3 +14,4 @@ The database stores only a verified Google Place ID per company. It never stores
 The Place Details field mask requests `id,googleMapsUri,rating,userRatingCount,attributions`. It deliberately omits `reviews`, which keeps this in Google's Place Details Enterprise tier instead of Enterprise + Atmosphere.
 
 Official references: [Place Details](https://developers.google.com/maps/documentation/places/web-service/place-details), [Text Search](https://developers.google.com/maps/documentation/places/web-service/text-search), [Places display and storage rules](https://developers.google.com/maps/documentation/places/web-service/policies), [Place IDs](https://developers.google.com/maps/documentation/places/web-service/place-id).
+The [Maps URLs guide](https://developers.google.com/maps/documentation/urls/get-started) confirms that search links do not require a Google API key. These links cannot return a numeric rating to Connect.

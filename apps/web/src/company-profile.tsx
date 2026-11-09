@@ -499,7 +499,11 @@ export function CompanyProfileView({
                 <span>No reviews yet</span>
               )}
             </button>
-            <GoogleRating companyId={c.id} />
+            <GoogleRating
+              companyId={c.id}
+              companyName={c.name}
+              location={c.location}
+            />
             {c.employee_count && c.listing_status !== "unclaimed" && (
               <button
                 className="presence-team-link"

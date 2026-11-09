@@ -17,6 +17,9 @@
 .presence-google-rating:hover {
   color: var(--ink);
 }
+.presence-google-lookup {
+  gap: 6px;
+}
 .presence-google-rating img {
   display: block;
   width: auto;
