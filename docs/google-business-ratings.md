@@ -11,7 +11,7 @@ Google's Business Profile APIs have no usage fee for approved projects, but appr
 3. Generate a 32-byte random key, base64-encoded. Set `GOOGLE_BUSINESS_CLIENT_ID`, `GOOGLE_BUSINESS_CLIENT_SECRET`, and `GOOGLE_BUSINESS_TOKEN_KEY` in the protected server environment. Never commit them or distribute them with an app.
 4. Redeploy the Connect app after setting the variables. An owner/admin will then see **Connect Google Business Profile** on their profile's Reviews tab. They authorize Google access and choose a location whose name or website matches their Connect company.
 
-The API encrypts refresh tokens with AES-256-GCM, binding each ciphertext to its company ID. Only a company owner/admin can manage the connection. It stores one selected Google location per company, refreshes its aggregate rating about daily, and hides a snapshot older than 30 days. The company may disconnect at any time. Disconnecting removes Connect's token and score; the owner can also revoke the grant in their Google account.
+The API encrypts refresh tokens with AES-256-GCM, binding each ciphertext to its company ID. Only a company owner/admin can manage the connection. It stores one selected Google location per company, refreshes its aggregate rating about daily, and removes score snapshots older than 30 days. The company may disconnect at any time. Disconnecting removes Connect's token and score; the owner can also revoke the grant in their Google account.
 
 The old optional Places API route remains as a fallback for a manually matched Place ID if a server-side Places key is configured. It is not needed for the owner-authorized route.
 

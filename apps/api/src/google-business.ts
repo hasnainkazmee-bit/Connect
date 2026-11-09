@@ -232,6 +232,13 @@ async function fetchRating(
 }
 
 export async function refreshGoogleBusinessRatings() {
+  // Google-provided score snapshots are temporary. Remove expired data rather
+  // than merely hiding it from public queries when refreshes stop succeeding.
+  await pool.query(
+    `UPDATE google_business_connections
+     SET rating=NULL,review_count=NULL,rating_fetched_at=NULL,updated_at=now()
+     WHERE rating_fetched_at <= now()-interval '30 days'`,
+  );
   if (!configured()) return;
   const rows = (
     await pool.query<Connection>(
@@ -258,7 +265,7 @@ export async function refreshGoogleBusinessRatings() {
         [row.company_id, result.rating, result.count, row.location_name],
       );
     } catch {
-      // Keep the last valid snapshot; public queries hide it after 30 days.
+      // Keep a recent snapshot; expired scores are removed on the next pass.
     }
   }
 }

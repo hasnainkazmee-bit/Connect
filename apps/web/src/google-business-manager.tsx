@@ -132,8 +132,9 @@ export function GoogleBusinessManager() {
           </button>
           <p className="google-business-hint">
             Only a company owner or admin can connect a verified Google listing.
-            Google asks for Business Profile access; Connect reads your rating
-            and review count only.
+            Google grants Business Profile management permission; Connect uses
+            it only to read the rating and review count for the location you
+            choose.
           </p>
         </>
       ) : status.locationName ? (
