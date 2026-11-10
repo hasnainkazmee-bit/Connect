@@ -146,6 +146,46 @@ try {
     await img.evaluate((i) => i.decode());
     assert.ok(await img.evaluate((i) => i.naturalWidth > 0));
   }
+  // The signed-out posting action stays inside its centered explanation.
+  for (const width of [320, 390, 768, 1024, 1440, 1920]) {
+    await publicPage.setViewportSize({ width, height: 1000 });
+    await visit(publicPage, "/jobs/new");
+    await noOverflow(publicPage, `signed-out post entry ${width}`);
+    const card = await publicPage.locator(".job-access-card").boundingBox();
+    const action = await publicPage
+      .getByRole("button", { name: "Sign in to post a job", exact: true })
+      .boundingBox();
+    assert.ok(
+      card &&
+        action &&
+        action.x >= card.x &&
+        action.x + action.width <= card.x + card.width + 1,
+      "Sign-in action belongs inside the access panel",
+    );
+    assert.ok(
+      Math.abs(action.x + action.width / 2 - width / 2) < 2,
+      "Sign-in action is centered",
+    );
+  }
+  await publicPage.setViewportSize({ width: 1440, height: 1000 });
+  await publicPage.screenshot({
+    path: path.join(out, "signed-out-posting.png"),
+  });
+  await publicPage
+    .getByRole("button", { name: "Sign in to post a job", exact: true })
+    .click();
+  const auth = publicPage.locator(".account-experience");
+  await auth
+    .getByLabel("Work email", { exact: true })
+    .fill("demo01@connect.example");
+  await auth.getByLabel("Password", { exact: true }).fill(password);
+  await auth.getByRole("button", { name: "Sign in", exact: true }).click();
+  await publicPage.getByLabel("Job title", { exact: true }).waitFor();
+  assert.equal(
+    new URL(publicPage.url()).pathname,
+    "/jobs/new",
+    "Signing in returns directly to posting",
+  );
   const hirer = await context("demo01@connect.example"),
     provider = await context("demo11@connect.example");
   const h = await hirer.newPage(),
@@ -305,7 +345,7 @@ try {
   await h.waitForURL(/\/jobs\/[0-9a-f-]{36}$/);
   const route = new URL(h.url()).pathname;
   await h
-    .getByRole("heading", { name: "What’s needed", exact: true })
+    .getByRole("heading", { name: "What’s needed.", exact: true })
     .waitFor();
   assert.equal(await h.locator(".job-attachment-card").count(), 2);
   const detail = await (await hirer.request.get(base + "/api" + route)).json();
@@ -428,6 +468,15 @@ try {
     path: path.join(out, "company-profile.png"),
     fullPage: true,
   });
+  await p
+    .getByRole("button", {
+      name: "View project: Residential solar project in Phoenix",
+      exact: true,
+    })
+    .click();
+  await p.locator(".provider-project-dialog").waitFor();
+  await p.locator(".provider-project-dialog img").evaluate((i) => i.decode());
+  await p.locator(".modal-close").click();
   await visit(h, "/jobs/new");
   await h
     .getByLabel("Job title", { exact: true })

@@ -93,9 +93,10 @@ export function ProviderDirectory() {
   };
   return (
     <div className="jobs-page provider-directory">
-      <div className="jobs-heading">
+      <div className="jobs-heading market-page-heading">
         <div>
-          <h1>Find companies</h1>
+          <span className="editorial-label">EXPERTISE FOR THE WORK AHEAD</span>
+          <h1>Find companies.</h1>
           <p>
             Solar companies with the services, experience, and coverage you
             need.
@@ -121,7 +122,7 @@ export function ProviderDirectory() {
             onChange={(e) => setLocation(e.target.value)}
           />
         </label>
-        <button className="jobs-button jobs-secondary" type="submit">
+        <button className="jobs-button jobs-primary" type="submit">
           Find companies <ArrowRight size={16} />
         </button>
       </form>

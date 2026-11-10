@@ -212,7 +212,9 @@ export function MarketplaceLanding() {
           <span /> THE SOLAR WORK MARKETPLACE{" "}
           <span className="landing-sunhub">BY SUNHUB</span>
         </div>
-        <h1 id="landing-title">Solar runs on people.</h1>
+        <h1 id="landing-title">
+          Solar runs on <span>people.</span>
+        </h1>
         <div className="landing-hero-intro">
           <p>
             A crew for next week. An electrician for tomorrow. A partner for the

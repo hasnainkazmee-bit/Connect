@@ -180,9 +180,9 @@ export function AuthExperience({
         </h1>
         <p>
           {mode === "login"
-            ? "Pick up where your last conversation left off."
+            ? "Your jobs, quotes, and company. All in one place."
             : mode === "register"
-              ? "Meet the companies moving solar forward."
+              ? "Find work and hire the companies moving solar forward."
               : mode === "forgot"
                 ? "We’ll email you a six-digit code to reset it."
                 : `If an account exists for ${email}, a code is on its way.`}

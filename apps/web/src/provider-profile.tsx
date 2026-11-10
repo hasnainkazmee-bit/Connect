@@ -3,11 +3,13 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowRight,
-  BriefcaseBusiness,
+  ArrowUpRight,
+  CalendarDays,
+  Globe2,
+  Users,
   FileBadge,
   ExternalLink,
   MapPin,
-  MessageCircle,
   Pencil,
   Star,
   Wrench,
@@ -19,7 +21,7 @@ import {
   PortfolioEditor,
   useUnsavedChanges,
 } from "./management";
-import type { Company, Profile } from "./types";
+import type { Company, Profile, Project } from "./types";
 
 type Provider = Company & {
   trades: string[];
@@ -201,6 +203,7 @@ export function ProviderProfilePage() {
     [provider, setProvider] = useState<Provider | null>(null),
     [stats, setStats] = useState<Stats | null>(null),
     [updates, setUpdates] = useState<Update[]>([]);
+  const [coverFailed, setCoverFailed] = useState(false);
   const [showInvite, setShowInvite] = useState(false),
     [inviting, setInviting] = useState(false);
   const [jobs, setJobs] = useState<{ id: string; title: string }[]>([]),
@@ -211,6 +214,7 @@ export function ProviderProfilePage() {
     let live = true;
     setError("");
     setProfile(null);
+    setCoverFailed(false);
     setProvider(null);
     setUpdates([]);
     setChosen("");
@@ -292,226 +296,362 @@ export function ProviderProfilePage() {
     return (
       <div className="jobs-page job-loading">Loading provider profile…</div>
     );
+  const owner = mine?.id === c.id && admin;
+  const cover =
+    c.cover_url &&
+    (c.is_demo ||
+      !["/assets/solar.jpg", "/assets/office.jpg"].includes(c.cover_url))
+      ? c.cover_url
+      : "";
+  const services = c.trades.length ? c.trades : c.services;
+  const credentials = profile.credentials || [];
+  const credentialLabel = {
+    certification: "Certification",
+    qualification: "Qualification",
+    ranking: "Industry ranking",
+    directory: "Directory listing",
+    membership: "Membership",
+  };
   return (
-    <div className="jobs-page provider-profile">
+    <div className="jobs-page provider-profile editorial-profile">
       <Link className="job-back" to={back ? "/jobs/" + back : "/providers"}>
         <ArrowLeft size={16} />
-        {back ? "Back to job" : "Service providers"}
+        {back ? "Back to job" : "Find companies"}
       </Link>
-      <section className="provider-profile-hero">
-        <div className="provider-profile-logo">
-          {c.logo_url ? (
-            <img
-              src={
-                c.is_demo && c.logo_url.startsWith("/assets/demo-logos/")
-                  ? c.logo_url.replace(/\.svg$/, "-mark.svg")
-                  : c.logo_url
-              }
-              alt=""
-            />
-          ) : null}
-        </div>
-        <div className="provider-profile-heading">
-          <div className="provider-overline">
-            {c.is_demo
-              ? "DEMO COMPANY"
-              : c.listing_status === "managed"
-                ? c.type.toUpperCase()
-                : "PUBLIC LISTING"}
+      <header
+        className={`provider-profile-hero ${cover && !coverFailed ? "has-cover" : ""}`}
+      >
+        <div className="provider-hero-copy">
+          <div className="provider-identity-row">
+            <div
+              className={`provider-profile-logo ${c.is_demo ? "is-demo" : ""}`}
+            >
+              {c.logo_url && (
+                <img
+                  src={
+                    c.is_demo && c.logo_url.startsWith("/assets/demo-logos/")
+                      ? c.logo_url.replace(/\.svg$/, "-mark.svg")
+                      : c.logo_url
+                  }
+                  alt=""
+                  onError={(e) => {
+                    e.currentTarget.style.visibility = "hidden";
+                  }}
+                />
+              )}
+            </div>
+            <span className="provider-overline">
+              {c.type}
+              {c.is_demo
+                ? " · Demo company"
+                : c.listing_status === "unclaimed"
+                  ? " · Public listing"
+                  : ""}
+            </span>
           </div>
-          <h1>{c.name}</h1>
-          <p>{c.tagline || c.type}</p>
-          <span>
-            <MapPin size={15} />
-            {c.location || "Location not listed"}
-          </span>
-        </div>
-        <div className="provider-profile-actions">
-          {mine?.id === c.id && admin ? (
-            <>
-              <button
-                className="jobs-button jobs-primary"
-                onClick={() => open(<ProfileEditor target={c} />)}
-              >
-                <Pencil size={16} /> Edit profile
-              </button>
-              <button
-                className="jobs-button jobs-secondary"
-                onClick={() =>
-                  open(<WorkDetailsEditor provider={c} onSaved={refresh} />)
-                }
-              >
-                <Wrench size={16} /> Edit work details
-              </button>
-            </>
-          ) : (
-            <>
-              {c.listing_status === "unclaimed" ? (
-                <>
-                  {c.website && (
-                    <a
-                      className="jobs-button jobs-primary"
-                      href={c.website}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Visit website
-                      <ExternalLink size={16} />
-                    </a>
-                  )}
-                  <Link
-                    className="jobs-button jobs-secondary"
-                    to={"/claim/" + (c.username || c.slug)}
-                  >
-                    Is this your company?
-                  </Link>
-                </>
-              ) : (
-                mine?.id !== c.id && (
+          <div className="provider-profile-heading">
+            <h1>{c.name}</h1>
+            {c.tagline && <p>{c.tagline}</p>}
+          </div>
+          <div className="provider-profile-actions">
+            {mine?.id === c.id && admin ? (
+              <>
+                <button
+                  className="jobs-button jobs-primary"
+                  onClick={() => open(<ProfileEditor target={c} />)}
+                >
+                  <Pencil size={16} /> Edit profile
+                </button>
+                <button
+                  className="jobs-button jobs-secondary"
+                  onClick={() =>
+                    open(<WorkDetailsEditor provider={c} onSaved={refresh} />)
+                  }
+                >
+                  <Wrench size={16} /> Edit work details
+                </button>
+              </>
+            ) : (
+              <>
+                {c.listing_status === "unclaimed" ? (
                   <>
-                    {!mine ? (
-                      <button
+                    {c.website && (
+                      <a
                         className="jobs-button jobs-primary"
-                        onClick={signIn}
+                        href={c.website}
+                        target="_blank"
+                        rel="noreferrer"
                       >
-                        Sign in to invite
-                      </button>
-                    ) : (
-                      admin &&
-                      !!mine.is_demo === !!c.is_demo && (
+                        Visit website
+                        <ExternalLink size={16} />
+                      </a>
+                    )}
+                    <Link
+                      className="jobs-button jobs-secondary"
+                      to={"/claim/" + (c.username || c.slug)}
+                    >
+                      Is this your company?
+                    </Link>
+                  </>
+                ) : (
+                  mine?.id !== c.id && (
+                    <>
+                      {!mine ? (
                         <button
                           className="jobs-button jobs-primary"
-                          onClick={() => setShowInvite((v) => !v)}
+                          onClick={signIn}
                         >
-                          Invite to a job
-                          <ArrowRight size={16} />
+                          Sign in to invite
                         </button>
-                      )
-                    )}
-                    {showInvite && (
-                      <div className="provider-invite">
-                        {jobs.length ? (
-                          <>
-                            <select
-                              aria-label="Choose a job to invite this company to"
-                              value={chosen}
-                              onChange={(e) => setChosen(e.target.value)}
-                            >
-                              <option value="">Choose your open job</option>
-                              {jobs.map((j) => (
-                                <option key={j.id} value={j.id}>
-                                  {j.title}
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              className="jobs-button jobs-secondary"
-                              disabled={!chosen || inviting}
-                              onClick={() => void invite()}
-                            >
-                              {inviting ? "Sending…" : "Send invitation"}
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <small>
-                              Post a job first, then invite this company to
-                              quote.
-                            </small>
-                            <Link
-                              className="jobs-button jobs-secondary"
-                              to="/jobs/new"
-                            >
-                              Post a job
-                            </Link>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )
-              )}
-            </>
-          )}
+                      ) : (
+                        admin &&
+                        !!mine.is_demo === !!c.is_demo && (
+                          <button
+                            className="jobs-button jobs-primary"
+                            onClick={() => setShowInvite((v) => !v)}
+                          >
+                            Invite to a job
+                            <ArrowRight size={16} />
+                          </button>
+                        )
+                      )}
+                      {showInvite && (
+                        <div className="provider-invite">
+                          {jobs.length ? (
+                            <>
+                              <select
+                                aria-label="Choose a job to invite this company to"
+                                value={chosen}
+                                onChange={(e) => setChosen(e.target.value)}
+                              >
+                                <option value="">Choose your open job</option>
+                                {jobs.map((j) => (
+                                  <option key={j.id} value={j.id}>
+                                    {j.title}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                className="jobs-button jobs-secondary"
+                                disabled={!chosen || inviting}
+                                onClick={() => void invite()}
+                              >
+                                {inviting ? "Sending…" : "Send invitation"}
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <small>
+                                Post a job first, then invite this company to
+                                quote.
+                              </small>
+                              <Link
+                                className="jobs-button jobs-secondary"
+                                to="/jobs/new"
+                              >
+                                Post a job
+                              </Link>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )
+                )}
+              </>
+            )}
+          </div>
         </div>
-      </section>
+        {cover && !coverFailed && (
+          <figure className="provider-cover">
+            <img
+              src={cover}
+              alt={`${c.name} company cover`}
+              onError={() => setCoverFailed(true)}
+            />
+            <figcaption>
+              <span>
+                {c.is_demo
+                  ? "Illustrative image · Demo company"
+                  : "Company cover"}
+              </span>
+            </figcaption>
+          </figure>
+        )}
+      </header>
+      <dl className="provider-fact-band">
+        {c.location && (
+          <div>
+            <dt>
+              <MapPin size={16} /> Based in
+            </dt>
+            <dd>{c.location}</dd>
+          </div>
+        )}
+        {c.service_areas.length > 0 && (
+          <div>
+            <dt>
+              <Globe2 size={16} /> Working across
+            </dt>
+            <dd>
+              {c.service_areas.slice(0, 2).join(" · ")}
+              {c.service_areas.length > 2 && (
+                <a href="#coverage"> +{c.service_areas.length - 2} areas</a>
+              )}
+            </dd>
+          </div>
+        )}
+        {c.crew_size && (
+          <div>
+            <dt>
+              <Users size={16} /> Team
+            </dt>
+            <dd>{c.crew_size}</dd>
+          </div>
+        )}
+        {c.established && (
+          <div>
+            <dt>
+              <CalendarDays size={16} /> Established
+            </dt>
+            <dd>{c.established}</dd>
+          </div>
+        )}
+      </dl>
       <nav
         className="provider-profile-nav"
         aria-label="Company profile sections"
       >
         <a href="#overview">Overview</a>
-        {profile.projects.length > 0 && <a href="#recent-work">Recent work</a>}
-        {!!profile.credentials?.length && (
-          <a href="#credentials">Credentials</a>
+        {(profile.projects.length > 0 || owner) && (
+          <a href="#recent-work">
+            Recent work <span>{profile.projects.length}</span>
+          </a>
         )}
-        <a href="#company-reviews">Reviews</a>
+        {!!credentials.length && (
+          <a href="#credentials">
+            Credentials <span>{credentials.length}</span>
+          </a>
+        )}
+        <a href="#company-reviews">
+          Reviews
+          {stats && stats.reviewCount > 0 && <span>{stats.reviewCount}</span>}
+        </a>
       </nav>
       <div className="provider-profile-layout">
         <div className="provider-profile-content">
-          <section className="jobs-panel" id="overview">
-            <h2>What we do</h2>
-            <p className="provider-about">
-              {c.description ||
-                c.tagline ||
-                "This company has not added a description yet."}
-            </p>
-          </section>
-          {(c.trades.length > 0 || c.services.length > 0) && (
-            <section className="jobs-panel">
-              <h2>Work we take on</h2>
-              <div className="job-service-chips">
-                {(c.trades.length ? c.trades : c.services).map((x) => (
-                  <span key={x}>
-                    <Wrench size={14} />
-                    {x}
-                  </span>
+          <section className="profile-editorial-section" id="overview">
+            <span className="editorial-label">THE COMPANY</span>
+            <h2>What we do.</h2>
+            {c.description || c.tagline ? (
+              <p className="provider-about">{c.description || c.tagline}</p>
+            ) : (
+              <p className="job-muted">
+                {owner
+                  ? "Tell companies about your team and the work you take on."
+                  : `${c.name} is listed as a ${c.type.toLowerCase()}${c.location ? " based in " + c.location : ""}.`}
+              </p>
+            )}
+            {services.length > 0 && (
+              <div className="provider-service-list" aria-label="Services">
+                {services.map((service, i) => (
+                  <div key={service}>
+                    <span>{String(i + 1).padStart(2, "0")}</span>
+                    <h3>{service}</h3>
+                  </div>
                 ))}
               </div>
-              {c.project_types.length > 0 && (
-                <>
-                  <h3>Project types</h3>
-                  <div className="job-service-chips">
-                    {c.project_types.map((x) => (
-                      <span key={x}>{x}</span>
-                    ))}
-                  </div>
-                </>
-              )}
-            </section>
-          )}
-          {(profile.projects.length > 0 || (mine?.id === c.id && admin)) && (
-            <section className="jobs-panel" id="recent-work">
-              <div className="jobs-section-title">
-                <h2>Recent work</h2>
-                {mine?.id === c.id && admin && (
+            )}
+            {c.project_types.length > 0 && (
+              <div className="provider-project-types">
+                <span>Project types</span>
+                <p>{c.project_types.join(" · ")}</p>
+              </div>
+            )}
+          </section>
+          {(profile.projects.length > 0 || owner) && (
+            <section className="profile-editorial-section" id="recent-work">
+              <div className="profile-section-heading">
+                <div>
+                  <span className="editorial-label">
+                    EXPERIENCE IN THE FIELD
+                  </span>
+                  <h2>Recent work.</h2>
+                </div>
+                {owner && (
                   <button
-                    className="job-text-button"
+                    className="jobs-button jobs-secondary"
                     onClick={() => open(<PortfolioEditor />)}
                   >
-                    Add project
+                    Add project <ArrowRight size={16} />
                   </button>
                 )}
               </div>
               {!profile.projects.length && (
                 <p className="job-muted">
-                  Show hiring companies what your team has delivered. Add your
-                  first project with photos, scope, and location.
+                  Show what your team has delivered. Add project photos, scope,
+                  and location.
                 </p>
               )}
-              <div className="job-project-grid">
-                {profile.projects.slice(0, 6).map((x) => (
-                  <article key={x.id}>
-                    {x.image_url && <img src={x.image_url} alt="" />}
-                    <h3>{x.name}</h3>
-                    <small>
-                      <MapPin size={13} />
-                      {x.location}
-                    </small>
-                    <p>{x.description}</p>
-                    {mine?.id === c.id && admin && (
+              <div className="provider-work-grid">
+                {profile.projects.map((project) => (
+                  <article
+                    key={project.id}
+                    className={project.image_url ? "" : "project-without-image"}
+                  >
+                    <button
+                      className="provider-project-open"
+                      onClick={() =>
+                        open(
+                          <ProviderProject
+                            project={project}
+                            demo={!!c.is_demo}
+                          />,
+                        )
+                      }
+                      aria-label={`View project: ${project.name}`}
+                    >
+                      {project.image_url && (
+                        <div className="provider-project-photo">
+                          <img
+                            src={project.image_url}
+                            alt={project.name}
+                            loading="lazy"
+                            onError={(e) => {
+                              e.currentTarget.parentElement!.style.display =
+                                "none";
+                            }}
+                          />
+                          <span>
+                            <ArrowUpRight size={20} />
+                          </span>
+                        </div>
+                      )}
+                      <span className="provider-project-caption">
+                        <small>
+                          {[
+                            project.location,
+                            project.size,
+                            project.completed_year,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </small>
+                        <strong>{project.name}</strong>
+                        <span>{project.description}</span>
+                        {!project.image_url && (
+                          <span className="project-open-link">
+                            View project <ArrowRight size={16} />
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                    {owner && (
                       <button
                         className="job-text-button"
-                        onClick={() => open(<PortfolioEditor project={x} />)}
+                        onClick={() =>
+                          open(<PortfolioEditor project={project} />)
+                        }
                       >
                         Edit project
                       </button>
@@ -521,141 +661,225 @@ export function ProviderProfilePage() {
               </div>
             </section>
           )}
-          {updates.length > 0 && (
-            <section className="jobs-panel provider-updates">
-              <h2>Company updates</h2>
-              {updates.map((x) => (
-                <article key={x.id}>
-                  <span>
-                    {x.kind === "press_release" ? "PRESS RELEASE" : "UPDATE"}
-                  </span>
-                  <h3>{x.title || x.body.slice(0, 70)}</h3>
-                  <p>{x.body.slice(0, 180)}</p>
-                </article>
-              ))}
-            </section>
-          )}
-        </div>
-        <aside className="jobs-aside">
-          <section className="jobs-panel">
-            <h2>Where we work</h2>
-            <p>
-              <MapPin size={16} /> Based in{" "}
-              {c.location || "Location not listed"}
-            </p>
-            {c.service_areas.length > 0 && (
-              <div className="job-service-chips">
-                {c.service_areas.slice(0, 16).map((x) => (
-                  <span key={x}>{x}</span>
+          {(credentials.length > 0 ||
+            c.license_details ||
+            c.insurance_details) && (
+            <section className="profile-editorial-section" id="credentials">
+              <span className="editorial-label">
+                QUALIFICATIONS & COMPANY DETAILS
+              </span>
+              <h2>Credentials.</h2>
+              <div className="provider-credential-list">
+                {credentials.map((credential) => (
+                  <div key={credential.id}>
+                    <FileBadge size={22} />
+                    <div>
+                      <small>{credentialLabel[credential.category]}</small>
+                      {credential.source_url ? (
+                        <a
+                          href={credential.source_url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <h3>{credential.title}</h3>
+                          <ArrowUpRight size={16} />
+                        </a>
+                      ) : (
+                        <h3>{credential.title}</h3>
+                      )}
+                      <p>
+                        {[credential.organization, credential.period]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    </div>
+                  </div>
                 ))}
               </div>
-            )}
-          </section>
-          {(c.availability || c.crew_size || c.capacity) && (
-            <section className="jobs-panel">
-              <h2>Availability & capacity</h2>
-              {c.availability && (
-                <div className="job-side-fact">
-                  <b>Availability</b>
-                  <span>{c.availability}</span>
-                </div>
-              )}
-              {c.crew_size && (
-                <div className="job-side-fact">
-                  <b>Crew</b>
-                  <span>{c.crew_size}</span>
-                </div>
-              )}
-              {c.capacity && (
-                <div className="job-side-fact">
-                  <b>Capacity</b>
-                  <span>{c.capacity}</span>
-                </div>
-              )}
-            </section>
-          )}
-          <section className="jobs-panel">
-            <h2>Company details</h2>
-            <div className="job-side-fact">
-              <b>Type</b>
-              <span>{c.type}</span>
-            </div>
-            {c.established && (
-              <div className="job-side-fact">
-                <b>Founded</b>
-                <span>{c.established}</span>
-              </div>
-            )}
-            {c.website && (
-              <div className="job-side-fact">
-                <b>Website</b>
-                <a href={c.website} target="_blank" rel="noreferrer">
-                  {c.website.replace(/^https?:\/\//, "")} ↗
-                </a>
-              </div>
-            )}
-          </section>
-          {(c.license_details ||
-            c.insurance_details ||
-            !!profile.credentials?.length) && (
-            <section className="jobs-panel" id="credentials">
-              <h2>Credentials & coverage</h2>
-              {profile.credentials?.slice(0, 5).map((x) => (
-                <div className="job-credential" key={x.id}>
-                  <FileBadge size={16} />
-                  <span>
-                    {x.source_url ? (
-                      <a href={x.source_url} target="_blank" rel="noreferrer">
-                        <b>{x.title}</b>
-                      </a>
-                    ) : (
-                      <b>{x.title}</b>
-                    )}
-                    <small>{x.organization}</small>
-                  </span>
-                </div>
-              ))}
               {c.license_details && (
-                <div className="job-side-fact">
-                  <b>License details · company provided</b>
-                  <span>{c.license_details}</span>
+                <div className="profile-detail-row">
+                  <b>License details</b>
+                  <p>{c.license_details}</p>
                 </div>
               )}
               {c.insurance_details && (
-                <div className="job-side-fact">
-                  <b>Insurance · company provided</b>
-                  <span>{c.insurance_details}</span>
+                <div className="profile-detail-row">
+                  <b>Insurance</b>
+                  <p>{c.insurance_details}</p>
                 </div>
               )}
             </section>
           )}
-          <section className="jobs-panel" id="company-reviews">
-            <h2>Connect job reviews</h2>
+          <section className="profile-editorial-section" id="company-reviews">
+            <span className="editorial-label">WORKING TOGETHER</span>
+            <h2>Connect job reviews.</h2>
             {stats && stats.reviewCount > 0 ? (
               <>
-                <div className="job-rating">
+                <div className="provider-review-summary">
                   <strong>{stats.rating.toFixed(1)}</strong>
-                  <span>
-                    <Star size={17} fill="currentColor" />
-                    {stats.reviewCount} reviews
-                  </span>
-                </div>
-                <p>{stats.completedJobs} completed jobs</p>
-                {stats.reviews.slice(0, 3).map((x) => (
-                  <div className="job-profile-review" key={x.id}>
-                    <b>
-                      {x.reviewer} · {x.rating}/5
-                    </b>
-                    <p>{x.text}</p>
+                  <div>
+                    <Star size={20} fill="currentColor" />
+                    <span>
+                      {stats.reviewCount} reviews · {stats.completedJobs}{" "}
+                      completed jobs
+                    </span>
                   </div>
+                </div>
+                {stats.reviews.map((review) => (
+                  <article className="provider-review" key={review.id}>
+                    <div>
+                      <b>{review.reviewer}</b>
+                      <span>
+                        <Star size={14} fill="currentColor" /> {review.rating}/5
+                      </span>
+                    </div>
+                    <p>{review.text}</p>
+                  </article>
                 ))}
               </>
             ) : (
               <p className="job-muted">No Connect job reviews yet.</p>
             )}
           </section>
+          {updates.length > 0 && (
+            <section className="profile-editorial-section provider-updates">
+              <span className="editorial-label">FROM THE COMPANY</span>
+              <h2>Latest updates.</h2>
+              {updates.map((update) => (
+                <article key={update.id}>
+                  <span>
+                    {update.kind === "press_release"
+                      ? "PRESS RELEASE"
+                      : "UPDATE"}{" "}
+                    ·{" "}
+                    {new Date(update.published_at).toLocaleDateString(
+                      undefined,
+                      { month: "short", day: "numeric", year: "numeric" },
+                    )}
+                  </span>
+                  <h3>{update.title || update.body.slice(0, 70)}</h3>
+                  <p>{update.body.slice(0, 240)}</p>
+                </article>
+              ))}
+            </section>
+          )}
+        </div>
+        <aside className="provider-company-aside">
+          {(c.availability || c.capacity) && (
+            <section className="provider-capacity">
+              <span className="editorial-label">LET’S GET TO WORK</span>
+              <h2>{c.availability || "Team capacity"}</h2>
+              {c.capacity && <p>{c.capacity}</p>}
+              {owner && (
+                <button
+                  className="job-text-button"
+                  onClick={() =>
+                    open(<WorkDetailsEditor provider={c} onSaved={refresh} />)
+                  }
+                >
+                  Update availability <ArrowRight size={15} />
+                </button>
+              )}
+            </section>
+          )}
+          <section className="provider-aside-section" id="coverage">
+            <h2>Where we work</h2>
+            {c.location && (
+              <p className="provider-based-in">
+                <MapPin size={16} />
+                {c.location}
+              </p>
+            )}
+            {c.service_areas.length > 0 && (
+              <div className="provider-area-list">
+                {c.service_areas.map((area) => (
+                  <span key={area}>{area}</span>
+                ))}
+              </div>
+            )}
+          </section>
+          <section className="provider-aside-section">
+            <h2>Company details</h2>
+            <dl className="provider-detail-list">
+              <div>
+                <dt>Business type</dt>
+                <dd>{c.type}</dd>
+              </div>
+              {c.employee_count && (
+                <div>
+                  <dt>Company size</dt>
+                  <dd>{c.employee_count}</dd>
+                </div>
+              )}
+              {c.established && (
+                <div>
+                  <dt>Founded</dt>
+                  <dd>{c.established}</dd>
+                </div>
+              )}
+              {c.website && (
+                <div>
+                  <dt>Website</dt>
+                  <dd>
+                    <a href={c.website} target="_blank" rel="noreferrer">
+                      {c.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}{" "}
+                      <ArrowUpRight size={15} />
+                    </a>
+                  </dd>
+                </div>
+              )}
+            </dl>
+          </section>
+          {c.listing_status === "unclaimed" && (
+            <div className="provider-claim-note">
+              <h3>Make this profile yours.</h3>
+              <p>
+                Manage your company details, showcase your work, and receive job
+                invitations.
+              </p>
+              <Link to={"/claim/" + (c.username || c.slug)}>
+                Claim company profile <ArrowRight size={16} />
+              </Link>
+            </div>
+          )}
         </aside>
       </div>
     </div>
+  );
+}
+
+function ProviderProject({
+  project,
+  demo,
+}: {
+  project: Project;
+  demo: boolean;
+}) {
+  return (
+    <section className="manage-dialog provider-project-dialog">
+      {project.image_url && <img src={project.image_url} alt={project.name} />}
+      <div>
+        <span className="editorial-label">
+          {demo ? "ILLUSTRATIVE DEMO PROJECT" : "COMPANY PROJECT"}
+        </span>
+        <h2>{project.name}</h2>
+        <p className="provider-project-location">
+          {[project.location, project.size, project.completed_year]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+        <p>{project.description}</p>
+        {project.url && (
+          <a
+            className="jobs-button jobs-secondary"
+            href={project.url}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Project website <ArrowUpRight size={16} />
+          </a>
+        )}
+      </div>
+    </section>
   );
 }

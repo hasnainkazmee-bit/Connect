@@ -119,6 +119,7 @@ import "./mac-app.css";
 import "./windows-app.css";
 import "./web-frame.css";
 import "./marketplace.css";
+import "./marketplace-brand.css";
 
 const date = (s: string) =>
   new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -650,7 +651,7 @@ function App() {
                 !/^\/jobs\/[^/]+\/edit$/.test(location.pathname) && (
                   <Link
                     to="/jobs/new"
-                    className="jobs-button jobs-secondary header-post-job"
+                    className="jobs-button jobs-primary header-post-job"
                   >
                     <Plus size={18} /> Post a job
                   </Link>

@@ -22,9 +22,9 @@ Do not invent a budget, project size, availability, rating, or credential to fil
 ## Layout and controls
 
 - One frame aligns the brand, navigation, and page content: 80% of wide screens, 24px side insets on intermediate screens, 16px on phones.
-- A single primary color uses Connect orange with dark text. Neutral secondary controls, navy text, faded blue surfaces, rounded panels and pill buttons are shared across routes.
-- Reserve vivid orange for the main action. Navigation, selected filters, and supporting actions use neutral colors; disabled primary actions use gray rather than faded orange.
-- Find work uses one continuous list, with quiet work-type filters to the left. Job titles lead; metadata and company identity recede. Promotional side panels are omitted.
+- A single primary color uses Connect orange with dark text. Neutral secondary controls, dark ink, white space, restrained faded-blue supporting surfaces, rounded panels and pill buttons are shared across routes.
+- Reserve vivid orange for the main action. Selected navigation and work filters may also use orange; supporting actions use neutral colors; disabled primary actions use gray rather than faded orange.
+- Find work uses a single column of readable job cards, with work-type filters to the left. Job titles lead; metadata and company identity recede. Promotional side panels are omitted.
 - Posting follows five focused steps: The job, Work details, Where & when, Budget, and Review. The current question and a short explanation sit beside the fields on desktop and above them on mobile. The budget is explicitly either open to quotes or a total amount; hourly billing is not implied. Completed steps can be revisited, and review offers direct edit links. Editing a reviewed section returns directly to review. All values and pending files survive navigation. Save draft accepts an incomplete brief, while publishing validates every step. Native radio cards work with a pointer or the keyboard. The bottom action remains reachable, and no public job is created until Publish job is chosen.
 - At phone widths, the quote action stays in a compact bottom bar while reading an open job. The equivalent desktop action sits alongside the brief.
 - Primary controls are at least 44px high. Forms have persistent labels; search inputs do not render a second nested border. Keyboard focus remains visible.
@@ -67,3 +67,13 @@ The public homepage uses the same 80% frame, brand ink, orange action, faded blu
 The art direction takes visual hierarchy and a people-led introduction from [Airzon's marketplace reference](https://dribbble.com/shots/27653963--Talent-Marketplace-Landing-Page-Minimal-Hero-Section). Original solar-work imagery and Connect's product workflows replace the reference's assets and layout details. The posting flow applies [Upwork's documented title, scope, budget, and review approach](https://support.upwork.com/hc/en-us/articles/211063408-How-to-post-a-job), adapted for company services, crews, remote work, and total-price quotes.
 
 Image provenance, final asset paths, and generation prompts are in [marketplace-imagery.md](marketplace-imagery.md). Mobile receives a 93 KiB hero derivative; the desktop hero is about 347 KiB. The planning image loads lazily. Images reserve their dimensions, and the walkthrough never auto-advances. Keyboard focus and reduced-motion settings are respected.
+
+## Connect editorial identity
+
+The complete web marketplace shares `marketplace-brand.css`, informed by [K2 Systems](https://k2-systems.com/en/). White and dark ink carry the interface. Sunhub orange is used sparingly for primary actions, selected states, and thin section accents; broad information panels remain neutral. Larger titles, deliberate section spacing, consistent line icons, and generous imagery provide personality without making every detail compete.
+
+Company profiles lead with the company identity, useful tagline, and its own cover when available. Generic built-in covers are omitted from real listings, and missing images do not create empty hero frames. Actual profile facts form a compact strip; services, project previews, credentials, and job reviews each have a clear reading order. All credentials remain accessible with their original category and source; directory listings and rankings are not relabelled certifications. Project images open an accessible dialog for a closer look. Availability, service areas, and contact information sit in a supporting column. Incomplete profiles render only available facts.
+
+Job pages put the title and company first, with the budget and the role-appropriate next action alongside. Location, timing, duration, and team size appear in a single strip above the full brief. Quote comparison, progress, messages, and payment reporting retain the existing authorization and lifecycle. The sidebar is sized to its contents. All information remains readable without image-dependent heights.
+
+The signed-out posting entry keeps its explanation and sign-in button together in a centered panel. Signing in returns to `/jobs/new` and opens the posting flow. Responsive browser verification includes action alignment, continuation after sign-in, project previews, and the full job-to-quote workflow.

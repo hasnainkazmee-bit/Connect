@@ -8,6 +8,7 @@ import {
 import {
   ArrowLeft,
   ArrowRight,
+  ArrowUpRight,
   BriefcaseBusiness,
   Building2,
   CalendarDays,
@@ -251,19 +252,25 @@ function JobCard({
           <strong>{job.title || "Untitled draft"}</strong>
           <span className="job-location">
             <MapPin size={14} />
-            {job.location || "Location to be added"}
+            {job.work_arrangement === "remote"
+              ? "Remote"
+              : job.location || "Location to be added"}
             {job.work_arrangement === "hybrid" && " · Hybrid"}
           </span>
           {job.description && (
             <p className="job-card-description">{job.description}</p>
           )}
         </div>
-        {job.budget_cents != null && (
-          <div className="job-card-budget">
-            <strong>{money(job.budget_cents)}</strong>
-            <small>Total budget</small>
-          </div>
-        )}
+        <div className="job-card-budget">
+          <strong>
+            {job.budget_cents != null
+              ? money(job.budget_cents)
+              : "Open to quotes"}
+          </strong>
+          <small>
+            {job.budget_cents != null ? "Total budget" : "Propose your price"}
+          </small>
+        </div>
       </div>
       <div className="job-chips">
         {job.people_needed && (
@@ -438,9 +445,12 @@ export function JobsPage({ mine = false }: { mine?: boolean }) {
     );
   return (
     <div className={`jobs-page work-discovery ${mine ? "my-work-page" : ""}`}>
-      <div className="jobs-heading">
+      <div className="jobs-heading market-page-heading">
         <div>
-          <h1>{mine ? "My jobs" : "Find work"}</h1>
+          <span className="editorial-label">
+            {mine ? "YOUR COMPANY WORKSPACE" : "THE SOLAR WORK MARKETPLACE"}
+          </span>
+          <h1>{mine ? "My jobs." : "Find work."}</h1>
           <p>
             {mine
               ? "Track the work you hire for and the work you take on."
@@ -505,7 +515,7 @@ export function JobsPage({ mine = false }: { mine?: boolean }) {
                   </option>
                 ))}
               </select>
-              <button className="jobs-button jobs-secondary" type="submit">
+              <button className="jobs-button jobs-primary" type="submit">
                 Search
                 <ArrowRight size={16} />
               </button>
@@ -945,29 +955,42 @@ export function NewJobPage() {
     );
   if (!company)
     return (
-      <div className="jobs-page">
-        <JobEmpty
-          title="Post as a company"
-          detail={
-            session.user
-              ? "Create a company profile to post work and receive quotes."
-              : "Sign in with a company account to post work and receive quotes."
-          }
-        />
-        <button
-          className="jobs-button jobs-primary"
-          onClick={
-            session.user && session.user.account_type !== "individual"
-              ? createCompany
-              : signIn
-          }
+      <div className="jobs-page job-access-page">
+        <section
+          className="job-access-card"
+          aria-labelledby="post-access-title"
         >
-          {session.user?.account_type === "individual"
-            ? "Use a company account"
-            : session.user
-              ? "Create company profile"
-              : "Sign in"}
-        </button>
+          <span className="job-access-icon">
+            <BriefcaseBusiness size={27} />
+          </span>
+          <span className="editorial-label">LET’S GET YOUR JOB STARTED</span>
+          <h1 id="post-access-title">Good help starts here.</h1>
+          <p>
+            {session.user?.account_type === "individual"
+              ? "Use a company account to post a job and receive quotes."
+              : session.user
+                ? "Add your company profile to post work and receive quotes from solar professionals."
+                : "Sign in to post your job, compare quotes, and find the right company for the work."}
+          </p>
+          <button
+            className="jobs-button jobs-primary"
+            onClick={
+              session.user && session.user.account_type !== "individual"
+                ? createCompany
+                : signIn
+            }
+          >
+            {session.user?.account_type === "individual"
+              ? "Use a company account"
+              : session.user
+                ? "Create company profile"
+                : "Sign in to post a job"}
+            <ArrowRight size={18} />
+          </button>
+          <Link className="job-access-back" to="/providers">
+            Explore companies first <ArrowUpRight size={15} />
+          </Link>
+        </section>
       </div>
     );
   if (!admin)
@@ -1995,8 +2018,8 @@ export function JobDetailPage() {
         <ArrowLeft size={18} />
         {hirer ? "My jobs" : "Find work"}
       </Link>
-      <div className="job-detail-heading">
-        <div>
+      <header className="job-detail-heading editorial-job-hero">
+        <div className="job-detail-title">
           <div className="job-detail-kicker">
             <span>{workLabel(job.trade)}</span>
             <span className={`job-status ${cls(job.status)}`}>
@@ -2011,46 +2034,139 @@ export function JobDetailPage() {
             >
               {detail.hiringCompany.name}
             </Link>
-            {detail.selected?.company && (
-              <>
-                <span>↔</span>
-                <Link
-                  to={`/jobs/companies/${detail.selected.company.slug}?back=${id}`}
-                >
-                  {detail.selected.company.name}
-                </Link>
-              </>
-            )}
-            {job.location && (
-              <>
-                <span>·</span>
-                <MapPin size={15} />
-                {job.location}
-              </>
-            )}
+            <span className="job-posted-date">
+              Posted {date(job.created_at)}
+            </span>
           </div>
-        </div>
-        {hirer && admin && ["draft", "open"].includes(job.status) && (
-          <div className="job-form-actions">
-            {detail.quotes.length === 0 && (
+          {detail.selected?.company && (
+            <div className="job-selected-company">
+              <span>Working with</span>
               <Link
-                className="jobs-button jobs-secondary"
-                to={`/jobs/${id}/edit`}
+                to={`/jobs/companies/${detail.selected.company.slug}?back=${id}`}
               >
-                Edit {job.status === "draft" ? "draft" : "job"}
+                {detail.selected.company.name}
+                <ArrowUpRight size={15} />
               </Link>
-            )}
-            {job.status === "open" && (
+            </div>
+          )}
+          {hirer && admin && ["draft", "open"].includes(job.status) && (
+            <div className="job-form-actions">
+              {detail.quotes.length === 0 && (
+                <Link
+                  className="jobs-button jobs-secondary"
+                  to={`/jobs/${id}/edit`}
+                >
+                  Edit {job.status === "draft" ? "draft" : "job"}
+                </Link>
+              )}
+              {job.status === "open" && (
+                <button
+                  className="jobs-button jobs-secondary"
+                  onClick={() => setShowInvite(!showInvite)}
+                >
+                  <Users size={17} /> Invite companies
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        <aside className="job-at-a-glance" aria-label="Job at a glance">
+          <span className="editorial-label">
+            {detail.selected
+              ? "AGREED QUOTE"
+              : job.budget_cents != null
+                ? "TOTAL BUDGET"
+                : "BUDGET"}
+          </span>
+          <strong>
+            {detail.selected
+              ? money(detail.selected.amount_cents)
+              : job.budget_cents != null
+                ? money(job.budget_cents)
+                : "Open to quotes"}
+          </strong>
+          {job.quote_deadline && <p>Quotes by {date(job.quote_deadline)}</p>}
+          {canQuote && !quoteEditing && (
+            <button
+              className="jobs-button jobs-primary job-quote-cta"
+              onClick={editQuote}
+            >
+              {detail.ownQuote ? "Edit your quote" : "Send a quote"}
+              <ArrowUpRight size={18} />
+            </button>
+          )}
+          {!company &&
+            !hirer &&
+            job.status === "open" &&
+            (!job.quote_deadline ||
+              new Date(job.quote_deadline).getTime() >= Date.now()) && (
               <button
-                className="jobs-button jobs-secondary"
-                onClick={() => setShowInvite(!showInvite)}
+                className="jobs-button jobs-primary"
+                onClick={
+                  session.user && session.user.account_type !== "individual"
+                    ? createCompany
+                    : signIn
+                }
               >
-                <Users size={17} /> Invite companies
+                {session.user?.account_type === "individual"
+                  ? "Use a company account"
+                  : session.user
+                    ? "Create company profile"
+                    : "Sign in to quote"}
+                <ArrowRight size={16} />
               </button>
             )}
+          {hirer && job.status === "open" && (
+            <a
+              className="jobs-button jobs-secondary"
+              href={detail.quotes.length ? "#received-quotes" : "#job-brief"}
+            >
+              {detail.quotes.length
+                ? `Review ${detail.quotes.length} ${detail.quotes.length === 1 ? "quote" : "quotes"}`
+                : "View job brief"}
+              <ArrowRight size={16} />
+            </a>
+          )}
+        </aside>
+      </header>
+      <dl className="job-summary-strip">
+        <div>
+          <dt>
+            <MapPin size={16} /> Location
+          </dt>
+          <dd>
+            {job.work_arrangement === "remote"
+              ? "Remote"
+              : job.location || "To be agreed"}
+            {job.work_arrangement === "hybrid" ? " · Hybrid" : ""}
+          </dd>
+        </div>
+        <div>
+          <dt>
+            <CalendarDays size={16} /> Start
+          </dt>
+          <dd>{job.start_window || "Flexible"}</dd>
+        </div>
+        {job.expected_duration && (
+          <div>
+            <dt>
+              <Clock3 size={16} /> Duration
+            </dt>
+            <dd>{job.expected_duration}</dd>
           </div>
         )}
-      </div>
+        {job.people_needed && (
+          <div>
+            <dt>
+              <Users size={16} /> Team needed
+            </dt>
+            <dd>
+              {job.people_needed}{" "}
+              {job.people_needed === 1 ? "person" : "people"}
+            </dd>
+          </div>
+        )}
+      </dl>
       {detail.hiringCompany.is_demo && (
         <p className="job-demo-note">
           Demo job · Fictional example for testing
@@ -2443,7 +2559,7 @@ export function JobDetailPage() {
         <div className="jobs-detail-layout">
           <section className="jobs-detail-main">
             {hirer && job.status === "open" && detail.quotes.length > 0 && (
-              <div className="jobs-panel job-compare">
+              <div className="jobs-panel job-compare" id="received-quotes">
                 <div className="jobs-section-title">
                   <h2>
                     {detail.quotes.length} quote
@@ -2684,33 +2800,9 @@ export function JobDetailPage() {
               </div>
             )}
             {
-              <div className="jobs-panel job-brief">
-                <h2>What’s needed</h2>
-                <dl className="job-brief-facts">
-                  <div>
-                    <dt>Location</dt>
-                    <dd>
-                      {job.location}
-                      {job.work_arrangement === "hybrid" ? " · Hybrid" : ""}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Start</dt>
-                    <dd>{job.start_window || "Flexible"}</dd>
-                  </div>
-                  {job.expected_duration && (
-                    <div>
-                      <dt>Duration</dt>
-                      <dd>{job.expected_duration}</dd>
-                    </div>
-                  )}
-                  {job.people_needed && (
-                    <div>
-                      <dt>People needed</dt>
-                      <dd>{job.people_needed}</dd>
-                    </div>
-                  )}
-                </dl>
+              <div className="jobs-panel job-brief" id="job-brief">
+                <span className="editorial-label">THE BRIEF</span>
+                <h2>What’s needed.</h2>
                 <p className="job-description">
                   {job.description ||
                     "Add the scope before publishing this draft."}
@@ -2753,11 +2845,18 @@ export function JobDetailPage() {
                     </span>
                   )}
                 </div>
-                <FileList
-                  files={detail.files.filter(
-                    (f) => !f.quote_id && !f.update_id,
-                  )}
-                />
+                {detail.files.some(
+                  (file) => !file.quote_id && !file.update_id,
+                ) && (
+                  <div className="job-brief-attachments">
+                    <h3>Plans & attachments</h3>{" "}
+                    <FileList
+                      files={detail.files.filter(
+                        (f) => !f.quote_id && !f.update_id,
+                      )}
+                    />
+                  </div>
+                )}
               </div>
             }
             {detail.ownQuote && !quoteEditing && (
@@ -2982,30 +3081,6 @@ export function JobDetailPage() {
                 </form>
               </div>
             )}
-            {!company && !hirer && job.status === "open" && (
-              <div className="jobs-panel job-accept">
-                <h2>Interested in this job?</h2>
-                <p>
-                  {session.user
-                    ? "A company profile is needed to send a quote."
-                    : "Sign in with your company account to send a quote."}
-                </p>
-                <button
-                  className="jobs-button jobs-primary"
-                  onClick={
-                    session.user && session.user.account_type !== "individual"
-                      ? createCompany
-                      : signIn
-                  }
-                >
-                  {session.user?.account_type === "individual"
-                    ? "Use a company account"
-                    : session.user
-                      ? "Create company profile"
-                      : "Sign in"}
-                </button>
-              </div>
-            )}
           </section>
           <aside className="jobs-aside">
             {job.status === "review" && hirer && admin && (
@@ -3085,19 +3160,8 @@ export function JobDetailPage() {
                     ? "Quote details"
                     : participant
                       ? "Job details"
-                      : canQuote && !quoteEditing
-                        ? "Interested in this work?"
-                        : "Hiring company"}
+                      : "Hiring company"}
                 </h2>
-                {canQuote && !quoteEditing && (
-                  <button
-                    className="jobs-button jobs-primary job-quote-cta"
-                    onClick={editQuote}
-                  >
-                    {detail.ownQuote ? "Edit your quote" : "Send a quote"}
-                    <ArrowRight size={16} />
-                  </button>
-                )}
                 {!hirer && company && !sameEnvironment && (
                   <p className="job-muted">
                     {job.company?.is_demo || detail.hiringCompany.is_demo
@@ -3227,28 +3291,6 @@ export function JobDetailPage() {
                       <div className="job-side-fact">
                         <b>Agreed quote</b>
                         <span>{money(detail.selected.amount_cents)}</span>
-                      </div>
-                    )}
-                    {!detail.selected && (
-                      <div className="job-side-fact">
-                        <b>Total budget</b>
-                        <span>
-                          {job.budget_cents != null
-                            ? money(job.budget_cents)
-                            : "Open to quotes"}
-                        </span>
-                      </div>
-                    )}
-                    {job.quote_deadline && (
-                      <div className="job-side-fact">
-                        <b>Quote deadline</b>
-                        <span>{date(job.quote_deadline)}</span>
-                      </div>
-                    )}
-                    {job.start_window && (
-                      <div className="job-side-fact">
-                        <b>Start</b>
-                        <span>{job.start_window}</span>
                       </div>
                     )}
                     {job.exact_address && (
