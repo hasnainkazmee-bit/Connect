@@ -378,6 +378,7 @@ export function AuthExperience({
 const types = [
   "Installer",
   "EPC",
+  "Contractor",
   "Developer",
   "Distributor",
   "Manufacturer",

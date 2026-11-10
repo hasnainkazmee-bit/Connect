@@ -536,12 +536,12 @@ test("public directory, ownership claims and shared company identity", async (t)
             [c.id, owner.user.id],
           )
         ).rows[0];
-        const story = await fetch(base + "/posts/" + publication.id);
-        assert.equal(story.status, 200);
-        const storyHtml = await story.text();
+        const story = await fetch(base + "/posts/" + publication.id, { redirect: "manual" });
+        assert.equal(story.status, 301);
+        assert.equal(story.headers.get("location"), "/" + c.username);
+        const storyHtml = await (await fetch(base + "/" + c.username)).text();
         assert.match(storyHtml, /A company story/);
         assert.match(storyHtml, /&lt;script&gt;/);
-        assert.ok(!storyHtml.includes("noindex"));
         await db.query("UPDATE posts SET status='draft' WHERE id=$1", [
           publication.id,
         ]);
@@ -557,13 +557,18 @@ test("public directory, ownership claims and shared company identity", async (t)
         const jobsPage = await fetch(base + "/jobs");
         assert.equal(jobsPage.status, 200);
         assert.match(await jobsPage.text(), /Find solar jobs \| Connect/);
+        const homePage = await fetch(base + "/");
+        assert.equal(homePage.status, 200);
+        assert.match(await homePage.text(), /Find the people who move solar projects forward/);
+        const providersPage = await fetch(base + "/providers");
+        assert.equal(providersPage.status, 200);
+        assert.match(await providersPage.text(), /Find the right crew for the work/);
         const privateJobsPage = await fetch(base + "/jobs/mine");
         assert.equal(privateJobsPage.status, 200);
         assert.match(await privateJobsPage.text(), /noindex,follow/);
-        assert.equal(
-          (await fetch(base + "/directory/installers/not-a-place")).status,
-          404,
-        );
+        const oldDirectory = await fetch(base + "/directory/installers/not-a-place", { redirect: "manual" });
+        assert.equal(oldDirectory.status, 301);
+        assert.equal(oldDirectory.headers.get("location"), "/providers");
         assert.equal(
           (await fetch(base + "/assets/not-a-real-file.js")).status,
           404,

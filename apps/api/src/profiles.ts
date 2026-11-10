@@ -150,7 +150,10 @@ export async function profileExtras(companyId: string) {
       `SELECT count(*)::int AS count,round(avg(rating),1)::float AS average,json_build_array(count(*) FILTER(WHERE rating=5),count(*) FILTER(WHERE rating=4),count(*) FILTER(WHERE rating=3),count(*) FILTER(WHERE rating=2),count(*) FILTER(WHERE rating=1)) AS bins FROM company_reviews r WHERE company_id=$1 AND ${reviewVisible}`,
       [companyId],
     ),
-    pool.query("SELECT *,valid_until::text AS valid_until FROM company_credentials WHERE company_id=$1 ORDER BY category,title,id", [companyId]),
+    pool.query(
+      "SELECT *,valid_until::text AS valid_until FROM company_credentials WHERE company_id=$1 ORDER BY category,title,id",
+      [companyId],
+    ),
   ]);
   const stats = reviews.rows[0];
   const distribution = [5, 4, 3, 2, 1].map((rating, index) => ({
@@ -192,6 +195,7 @@ export function profileRoutes() {
         type: z.enum([
           "Installer",
           "EPC",
+          "Contractor",
           "Developer",
           "Distributor",
           "Manufacturer",

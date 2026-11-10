@@ -6,14 +6,14 @@ const base = process.env.JOBS_TEST_URL || "http://127.0.0.1:4201";
 const db = new pg.Client({ connectionString: process.env.DATABASE_URL });
 await db.connect();
 
-async function account(name) {
+async function account(name, isDemo = false) {
   const slug = `jobs-test-${name.toLowerCase()}-${randomUUID().slice(0, 8)}`;
   const user = (await db.query("INSERT INTO users(email,name,password_hash,email_verified_at,onboarding_completed_at) VALUES($1,$2,'test',now(),now()) RETURNING id", [`${slug}@example.test`, name])).rows[0].id;
-  const company = (await db.query("INSERT INTO companies(slug,name,username) VALUES($1,$2,$1) RETURNING id", [slug, `${name} Solar`])).rows[0].id;
+  const company = (await db.query("INSERT INTO companies(slug,name,username,is_demo) VALUES($1,$2,$1,$3) RETURNING id", [slug, `${name} Solar`, isDemo])).rows[0].id;
   await db.query("INSERT INTO memberships(user_id,company_id,role) VALUES($1,$2,'owner')", [user, company]);
   const token = randomBytes(32).toString("hex");
   await db.query("INSERT INTO sessions(token_hash,user_id,company_id,expires_at) VALUES($1,$2,$3,now()+interval '1 hour')", [createHash("sha256").update(token).digest("hex"), user, company]);
-  return { cookie: `connect_session=${token}`, company };
+  return { cookie: `connect_session=${token}`, company, slug };
 }
 async function call(path, account, method = "GET", body) {
   const res = await fetch(base + path, { method, headers: { ...(account ? { cookie: account.cookie } : {}), ...(body ? { "content-type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined });
@@ -22,7 +22,10 @@ async function call(path, account, method = "GET", body) {
   return json;
 }
 try {
-  const hirer = await account("Hirer"), provider = await account("Provider"), other = await account("Other");
+  const hirer = await account("Hirer"), provider = await account("Provider"), other = await account("Other"), demo = await account("Demo", true);
+  assert.equal((await call(`/jobs/providers?q=${provider.slug}`)).providers.some(p => p.id === provider.company), true);
+  assert.equal((await call(`/jobs/providers?q=${demo.slug}&sample=true`)).providers.some(p => p.id === demo.company), true);
+  assert.equal((await call(`/jobs/providers?q=${demo.slug}`)).total, 0);
   const draft = await call("/jobs", hirer, "POST", { title: "", description: "", location: "", trade: "installation", status: "draft" });
   assert.equal((await call(`/jobs/${draft.id}`, hirer)).job.status, "draft");
   await call(`/jobs/${draft.id}`, hirer, "PATCH", { title: "Install systems near Austin", description: "Install ten systems in the greater Austin area.", location: "Austin, TX", trade: "installation", status: "open" });
@@ -30,6 +33,10 @@ try {
   const created = await call("/jobs", hirer, "POST", { title: "Install rooftop systems in Austin", description: "Install and commission 18 residential rooftop solar systems in Austin.", trade: "installation", location: "Austin, TX", exactAddress: "Private Test Road 12", startWindow: "Next month", budgetCents: 6000000 });
   const id = created.id;
   assert.ok(id);
+  const demoQuote = await fetch(`${base}/jobs/${id}/quote`, { method: "POST", headers: { cookie: demo.cookie, "content-type": "application/json" }, body: JSON.stringify({ amountCents: 5000000, note: "A demo account must not quote a real job." }) });
+  assert.equal(demoQuote.status, 403);
+  await call(`/jobs/${id}/invite`, hirer, "POST", { companyIds: [demo.company] });
+  assert.equal((await db.query("SELECT count(*)::int AS n FROM job_invitations WHERE job_id=$1 AND provider_company_id=$2", [id, demo.company])).rows[0].n, 0);
   const pdf = new Uint8Array(Buffer.from("%PDF-1.4\nConnect test attachment\n"));
   const uploaded = await fetch(`${base}/jobs/${id}/files?name=plan.pdf`, { method: "POST", headers: { cookie: hirer.cookie, "content-type": "application/pdf" }, body: pdf });
   assert.equal(uploaded.status, 201);

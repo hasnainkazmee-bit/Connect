@@ -232,7 +232,130 @@ async fn notify(
 fn company_json() -> &'static str {
     "json_build_object('id',c.id,'name',c.name,'slug',c.slug,'username',c.username,\
      'logo_url',c.logo_url,'logo_style',c.logo_style,'location',c.location,'type',c.type,\
-     'tagline',c.tagline,'description',c.description,'services',c.services,'service_areas',c.service_areas)"
+     'tagline',c.tagline,'description',c.description,'services',c.services,'service_areas',c.service_areas,
+     'is_demo',c.is_demo)"
+}
+
+#[derive(Deserialize)]
+struct ProviderSearch {
+    q: Option<String>,
+    trade: Option<String>,
+    location: Option<String>,
+    kind: Option<String>,
+    sample: Option<bool>,
+    page: Option<i64>,
+}
+async fn list_providers(
+    State(app): State<Arc<App>>,
+    Query(search): Query<ProviderSearch>,
+) -> Result<Json<Value>> {
+    let page = search.page.unwrap_or(1).clamp(1, 1000);
+    let sample = search.sample.unwrap_or(false);
+    let q = search.q.unwrap_or_default();
+    let trade = search.trade.unwrap_or_default();
+    let location = search.location.unwrap_or_default();
+    let kind = search.kind.unwrap_or_default();
+    let rows: Vec<String> = sqlx::query_scalar(
+        "SELECT (to_jsonb(c)||jsonb_build_object(
+          'trades',COALESCE(p.trades,'{}'::text[]),'project_types',COALESCE(p.project_types,'{}'::text[]),
+          'availability',COALESCE(p.availability,''),'crew_size',COALESCE(p.crew_size,''),
+          'capacity',COALESCE(p.capacity,''),'project_count',(SELECT count(*) FROM projects pr WHERE pr.company_id=c.id),
+          'completed_jobs',(SELECT count(*) FROM job_reviews jr WHERE jr.reviewed_company_id=c.id)))::text
+         FROM companies c LEFT JOIN provider_profiles p ON p.company_id=c.id
+         WHERE c.is_demo=$1
+           AND ($2='' OR c.name ILIKE '%'||$2||'%' OR c.slug ILIKE '%'||$2||'%' OR c.description ILIKE '%'||$2||'%' OR
+             EXISTS(SELECT 1 FROM unnest(c.services) s WHERE s ILIKE '%'||$2||'%'))
+           AND ($3='' OR $3=ANY(COALESCE(p.trades,'{}'::text[])) OR
+             EXISTS(SELECT 1 FROM unnest(c.services) s WHERE s ILIKE '%'||$3||'%'))
+           AND ($4='' OR c.location ILIKE '%'||$4||'%' OR
+             EXISTS(SELECT 1 FROM unnest(c.service_areas) a WHERE a ILIKE '%'||$4||'%'))
+           AND ($6='' OR c.type=$6)
+         ORDER BY (c.listing_status='managed') DESC,(c.logo_url<>'') DESC,
+           (length(c.description)>80) DESC,(cardinality(c.services)>0) DESC,c.name
+         LIMIT 24 OFFSET $5"
+    ).bind(sample).bind(&q).bind(&trade)
+     .bind(&location).bind((page-1)*24).bind(&kind).fetch_all(&app.db).await?;
+    let count: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM companies c LEFT JOIN provider_profiles p ON p.company_id=c.id
+         WHERE c.is_demo=$1
+           AND ($2='' OR c.name ILIKE '%'||$2||'%' OR c.slug ILIKE '%'||$2||'%' OR c.description ILIKE '%'||$2||'%' OR
+             EXISTS(SELECT 1 FROM unnest(c.services) s WHERE s ILIKE '%'||$2||'%'))
+           AND ($3='' OR $3=ANY(COALESCE(p.trades,'{}'::text[])) OR
+             EXISTS(SELECT 1 FROM unnest(c.services) s WHERE s ILIKE '%'||$3||'%'))
+           AND ($4='' OR c.location ILIKE '%'||$4||'%' OR
+             EXISTS(SELECT 1 FROM unnest(c.service_areas) a WHERE a ILIKE '%'||$4||'%'))
+           AND ($5='' OR c.type=$5)",
+    )
+    .bind(sample)
+    .bind(&q)
+    .bind(&trade)
+    .bind(&location)
+    .bind(&kind)
+    .fetch_one(&app.db)
+    .await?;
+    Ok(Json(
+        json!({"providers":rows.into_iter().map(parse_json).collect::<Result<Vec<_>>>()?,
+      "total":count,"page":page,"sample":sample}),
+    ))
+}
+async fn provider_detail(
+    State(app): State<Arc<App>>,
+    Path(slug): Path<String>,
+) -> Result<Json<Value>> {
+    let raw: Option<String> = sqlx::query_scalar(
+        "SELECT (to_jsonb(c)||jsonb_build_object('trades',COALESCE(p.trades,'{}'::text[]),
+         'project_types',COALESCE(p.project_types,'{}'::text[]),'availability',COALESCE(p.availability,''),
+         'crew_size',COALESCE(p.crew_size,''),'capacity',COALESCE(p.capacity,''),
+         'license_details',COALESCE(p.license_details,''),'insurance_details',COALESCE(p.insurance_details,'')))::text
+         FROM companies c LEFT JOIN provider_profiles p ON p.company_id=c.id
+         WHERE c.slug=$1 OR c.username=$1 OR c.id::text=$1 LIMIT 1"
+    ).bind(slug).fetch_optional(&app.db).await?;
+    Ok(Json(
+        json!({"provider":parse_json(raw.ok_or_else(not_found)?)?}),
+    ))
+}
+async fn update_provider(
+    State(app): State<Arc<App>>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Result<Json<Value>> {
+    let a = company_actor(&app, &headers, true).await?;
+    let company = a.company.as_deref().unwrap();
+    let strings = |key: &str, max: usize| -> Result<Vec<String>> {
+        let values = body
+            .get(key)
+            .and_then(Value::as_array)
+            .ok_or_else(|| bad("Check the profile fields."))?;
+        if values.len() > max {
+            return Err(bad("Too many profile items."));
+        }
+        values
+            .iter()
+            .map(|v| {
+                let s = v.as_str().unwrap_or("").trim();
+                if s.is_empty() || s.len() > 80 {
+                    Err(bad("Check the profile fields."))
+                } else {
+                    Ok(s.to_string())
+                }
+            })
+            .collect()
+    };
+    let trades = strings("trades", 12)?;
+    let project_types = strings("projectTypes", 12)?;
+    let availability = optional_text(&body, "availability", 160)?;
+    let crew_size = optional_text(&body, "crewSize", 80)?;
+    let capacity = optional_text(&body, "capacity", 160)?;
+    let license = optional_text(&body, "licenseDetails", 1000)?;
+    let insurance = optional_text(&body, "insuranceDetails", 1000)?;
+    sqlx::query(
+        "INSERT INTO provider_profiles(company_id,trades,project_types,availability,crew_size,capacity,license_details,insurance_details)
+         VALUES($1::uuid,$2,$3,$4,$5,$6,$7,$8)
+         ON CONFLICT(company_id) DO UPDATE SET trades=$2,project_types=$3,availability=$4,
+           crew_size=$5,capacity=$6,license_details=$7,insurance_details=$8,updated_at=now()"
+    ).bind(company).bind(trades).bind(project_types).bind(availability).bind(crew_size)
+     .bind(capacity).bind(license).bind(insurance).execute(&app.db).await?;
+    Ok(Json(json!({"ok":true})))
 }
 
 #[derive(Deserialize)]
@@ -241,6 +364,7 @@ struct Search {
     trade: Option<String>,
     location: Option<String>,
     page: Option<i64>,
+    sample: Option<bool>,
 }
 async fn list_jobs(
     State(app): State<Arc<App>>,
@@ -261,7 +385,7 @@ async fn list_jobs(
          AND ($1::uuid IS NULL OR j.hiring_company_id<>$1::uuid) \
          AND ($2='' OR j.title ILIKE '%'||$2||'%' OR j.description ILIKE '%'||$2||'%') \
          AND ($3='' OR j.trade=$3) AND ($4='' OR j.location ILIKE '%'||$4||'%') \
-         ORDER BY j.created_at DESC LIMIT 24 OFFSET $5", company_json()
+         AND c.is_demo=$6 ORDER BY j.created_at DESC LIMIT 24 OFFSET $5", company_json()
     );
     let rows: Vec<String> = sqlx::query_scalar(&sql)
         .bind(company)
@@ -269,6 +393,7 @@ async fn list_jobs(
         .bind(search.trade.unwrap_or_default())
         .bind(search.location.unwrap_or_default())
         .bind((page - 1) * 24)
+        .bind(search.sample.unwrap_or(false))
         .fetch_all(&app.db)
         .await?;
     Ok(Json(
@@ -575,8 +700,8 @@ async fn invite_companies(
         if provider == actor.company.as_deref().unwrap() {
             continue;
         }
-        let result = sqlx::query("INSERT INTO job_invitations(job_id,provider_company_id,invited_by) SELECT $1::uuid,id,$3::uuid FROM companies WHERE id=$2::uuid ON CONFLICT DO NOTHING")
-            .bind(&id).bind(provider).bind(&actor.user).execute(&app.db).await?;
+        let result = sqlx::query("INSERT INTO job_invitations(job_id,provider_company_id,invited_by) SELECT $1::uuid,p.id,$3::uuid FROM companies p JOIN companies h ON h.id=$4::uuid WHERE p.id=$2::uuid AND p.is_demo=h.is_demo ON CONFLICT DO NOTHING")
+            .bind(&id).bind(provider).bind(&actor.user).bind(actor.company.as_deref()).execute(&app.db).await?;
         if result.rows_affected() == 0 {
             continue;
         }
@@ -928,10 +1053,18 @@ async fn send_quote(
     let excluded = optional_text(&body, "excluded", 5000)?;
     let payment = optional_text(&body, "paymentTerms", 2000)?;
     let mut tx = app.db.begin().await?;
-    let job = sqlx::query("SELECT hiring_company_id::text AS hirer,title,status,visibility,COALESCE(quote_deadline<now(),false) AS expired FROM jobs WHERE id=$1::uuid FOR UPDATE")
+    let job = sqlx::query("SELECT j.hiring_company_id::text AS hirer,j.title,j.status,j.visibility,COALESCE(j.quote_deadline<now(),false) AS expired,h.is_demo AS sample FROM jobs j JOIN companies h ON h.id=j.hiring_company_id WHERE j.id=$1::uuid FOR UPDATE OF j")
         .bind(&id).fetch_optional(&mut *tx).await?.ok_or_else(not_found)?;
     let hirer: String = job.get("hirer");
     if hirer == company {
+        return Err(forbidden());
+    }
+    let provider_sample: bool =
+        sqlx::query_scalar("SELECT is_demo FROM companies WHERE id=$1::uuid")
+            .bind(company)
+            .fetch_one(&mut *tx)
+            .await?;
+    if provider_sample != job.get::<bool, _>("sample") {
         return Err(forbidden());
     }
     let expired: bool = job.get("expired");
@@ -1236,6 +1369,9 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let routes = Router::new()
         .route("/health", get(health))
         .route("/jobs", get(list_jobs).post(create_job))
+        .route("/jobs/providers", get(list_providers))
+        .route("/jobs/providers/me", axum::routing::patch(update_provider))
+        .route("/jobs/providers/{slug}", get(provider_detail))
         .route("/jobs/mine", get(my_jobs))
         .route("/jobs/companies/{slug}", get(work_profile))
         .route("/jobs/files/{file_id}", get(download_file))

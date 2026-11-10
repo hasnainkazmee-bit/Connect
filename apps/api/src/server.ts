@@ -88,7 +88,9 @@ app.use("/api", (req, res, next) => {
 // Stream job requests before JSON parsing so attachments stay binary. The Rust
 // service checks the same signed session cookie against the shared database.
 app.use("/api/jobs", (req, res) => {
-  const target = new URL(process.env.JOBS_SERVICE_URL || "http://127.0.0.1:4201");
+  const target = new URL(
+    process.env.JOBS_SERVICE_URL || "http://127.0.0.1:4201",
+  );
   const request = http.request(
     {
       hostname: target.hostname,
@@ -109,14 +111,19 @@ app.use("/api/jobs", (req, res) => {
       if (response.headers["content-type"])
         res.setHeader("Content-Type", response.headers["content-type"]);
       if (response.headers["content-disposition"])
-        res.setHeader("Content-Disposition", response.headers["content-disposition"]);
+        res.setHeader(
+          "Content-Disposition",
+          response.headers["content-disposition"],
+        );
       response.pipe(res);
     },
   );
   request.on("timeout", () => request.destroy());
   request.on("error", () => {
     if (!res.headersSent)
-      res.status(502).json({ error: "Jobs are temporarily unavailable. Please try again." });
+      res
+        .status(502)
+        .json({ error: "Jobs are temporarily unavailable. Please try again." });
     else res.end();
   });
   req.pipe(request);
@@ -335,6 +342,7 @@ app.patch("/api/companies/current", requireAdmin, async (req, res) => {
       type: z.enum([
         "Installer",
         "EPC",
+        "Contractor",
         "Developer",
         "Distributor",
         "Manufacturer",

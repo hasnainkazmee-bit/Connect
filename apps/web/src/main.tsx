@@ -99,6 +99,8 @@ import { CompanyMatches } from "./company-matches";
 import { CompanyProfileView } from "./company-profile";
 import { CompanySettings, EmployeeInvite } from "./management";
 import { JobsPage, NewJobPage, JobDetailPage, WorkCompanyPage } from "./jobs";
+import { MarketplaceLanding, ProviderDirectory } from "./providers";
+import { ProviderProfilePage } from "./provider-profile";
 import { Publisher, DraftsDialog, preloadPublisher } from "./composer";
 import {
   DesktopPanel,
@@ -592,177 +594,96 @@ function App() {
         createCompany: () => setModal(<NewCompany />),
       }}
     >
-      {!desktopHost && location.pathname.startsWith("/jobs") && (
+      {!desktopHost && (
         <header className="jobs-site-header">
           <div className="jobs-header-inner">
-            <Link to="/jobs" className="jobs-brand" aria-label="Connect jobs">
+            <Link
+              to="/"
+              className="jobs-brand"
+              aria-label="Connect by Sunhub home"
+            >
               <img src="/assets/sunhub-symbol.png" alt="" />
-              <span><strong>CONNECT</strong><small>by Sunhub</small></span>
+              <span>
+                <strong>CONNECT</strong>
+                <small>by Sunhub</small>
+              </span>
             </Link>
             <nav className="jobs-top-nav" aria-label="Main navigation">
-              <NavLink to="/jobs" className={()=>location.pathname.startsWith("/jobs")&&!location.pathname.startsWith("/jobs/mine")?"active":""}><BriefcaseBusiness size={17}/> Jobs</NavLink>
-              <NavLink to="/jobs/mine" className={({isActive})=>isActive?"active":""}><FileText size={17}/> My jobs</NavLink>
-              <Link to="/directory"><Building2 size={17}/> Companies</Link>
-              <Link to="/messages" onClick={e=>{if(!session.user){e.preventDefault();auth(()=>navigate("/messages"),"/messages")}}}><MessageSquare size={17}/> Inbox{unread>0&&<b className="count">{unread}</b>}</Link>
-            </nav>
-            <div className="jobs-header-actions">
-              {company&&admin&&<Link to="/jobs/new" className="jobs-button jobs-primary"><Plus size={18}/> Post a job</Link>}
-              {session.user&&<details className="notifications"><summary aria-label="Notifications" className="jobs-icon-button"><Bell size={19}/>{notificationInbox.unread>0&&<b className="notification-count">{notificationInbox.unread>9?"9+":notificationInbox.unread}</b>}</summary><div className="dropdown notifications-panel"><NotificationContents/></div></details>}
-              {session.user?<details className="account-menu"><summary aria-label="Account and company menu" title={session.user.name}><Avatar name={session.user.name}/></summary><div className="dropdown"><AccountMenuContents/></div></details>:<button className="jobs-button jobs-primary" onClick={()=>auth()}>Sign in</button>}
-            </div>
-          </div>
-        </header>
-      )}
-      {!desktopHost && !location.pathname.startsWith("/jobs") && (
-        <header className="site-header">
-          <div className="header-inner">
-            <Link className="brand" to="/" aria-label="Connect home">
-              <img src="/assets/connect-logo.png" alt="Connect" />
-            </Link>
-            <nav className="primary-nav" aria-label="Main navigation">
-              {session.user?.account_type === "company" && (
-                <NavLink to="/jobs" end className={({ isActive }) => isActive ? "active" : ""}>
-                  <BriefcaseBusiness size={15} /> Jobs
+              <NavLink
+                to="/"
+                end
+                className={({ isActive }) => (isActive ? "active" : "")}
+              >
+                <BriefcaseBusiness size={17} />{" "}
+                {session.user ? "Find work" : "Home"}
+              </NavLink>
+              {session.user ? (
+                <NavLink
+                  to="/jobs/mine"
+                  className={({ isActive }) => (isActive ? "active" : "")}
+                >
+                  <FileText size={17} /> My jobs
+                </NavLink>
+              ) : (
+                <NavLink
+                  to="/jobs"
+                  className={({ isActive }) => (isActive ? "active" : "")}
+                >
+                  <BriefcaseBusiness size={17} /> Jobs
                 </NavLink>
               )}
               <NavLink
-                className={({ isActive }) =>
-                  "home-nav " + (isActive ? "active" : "")
-                }
-                to="/"
-                end
-                aria-label="Home"
+                to="/providers"
+                className={({ isActive }) => (isActive ? "active" : "")}
               >
-                <House size={15} />
-                <span>Home</span>
+                <Building2 size={17} /> Companies
               </NavLink>
-              {session.user?.account_type === "company" && (
-                <Link to="/jobs/mine" className={location.pathname === "/jobs/mine" ? "active" : ""}>
-                  <FileText size={15} /> My jobs
-                </Link>
-              )}
-              <Link
-                to="/directory"
-                className={
-                  location.pathname === "/directory" ||
-                  location.pathname.startsWith("/company/")
-                    ? "active"
-                    : ""
-                }
-                aria-current={
-                  location.pathname === "/directory" ||
-                  location.pathname.startsWith("/company/")
-                    ? "page"
-                    : undefined
-                }
-              >
-                <Building2 size={15} />
-                Directory
-              </Link>
-              {session.user?.account_type !== "individual" && (
-                <Link
-                  to="/network/connections"
-                  className={
-                    location.pathname.startsWith("/network") ? "active" : ""
-                  }
-                  aria-current={
-                    location.pathname.startsWith("/network")
-                      ? "page"
-                      : undefined
-                  }
-                  onClick={(e) => {
-                    if (!session.user) {
-                      e.preventDefault();
-                      auth(
-                        () => navigate("/network/connections"),
-                        "/network/connections",
-                      );
-                    }
-                  }}
-                >
-                  <Users size={15} />
-                  My Network
-                </Link>
-              )}
-              <NavLink
-                to="/messages"
-                onClick={(e) => {
-                  if (!session.user) {
-                    e.preventDefault();
-                    auth(() => navigate("/messages"), "/messages");
-                  }
-                }}
-              >
-                <MessageSquare size={15} />
-                Messages{unread > 0 && <b className="count">{unread}</b>}
-              </NavLink>
-              {session.user && (
-                <>
-                  {" "}
-                  <span className="nav-divider" />{" "}
-                  <details className="notifications">
-                    <summary aria-label="Notifications" className="icon-button">
-                      <Bell size={17} />
-                      {notificationInbox.unread > 0 && (
-                        <b className="notification-count">
-                          {notificationInbox.unread > 9
-                            ? "9+"
-                            : notificationInbox.unread}
-                        </b>
-                      )}
-                    </summary>
-                    <div className="dropdown notifications-panel">
-                      <NotificationContents />
-                    </div>
-                  </details>
-                </>
-              )}
             </nav>
-            <div className="header-actions">
-              {session.user && !sessionExpired ? (
-                <>
-                  {company && admin && <Link to="/jobs/new" className="button primary jobs-header-post"><Plus size={16}/> Post a job</Link>}
-                  {company && (
-                    <Link
-                      className="my-company-link"
-                      to={"/company/" + company.slug}
-                    >
-                      <Building2 size={15} />
-                      <span>My company</span>
-                    </Link>
-                  )}
-                  <details className="account-menu">
-                    <summary
-                      aria-label="Account and company menu"
-                      title={
-                        session.user.name +
-                        " · " +
-                        (company?.name || "Your account")
-                      }
-                    >
-                      <Avatar name={session.user.name} />
-                    </summary>
-                    <div className="dropdown">
-                      <AccountMenuContents />
-                    </div>
-                  </details>
-                </>
+            <div className="jobs-header-actions">
+              {company && admin && (
+                <Link to="/jobs/new" className="jobs-button jobs-primary">
+                  <Plus size={18} /> Post a job
+                </Link>
+              )}
+              {session.user && (
+                <details className="notifications">
+                  <summary
+                    aria-label="Notifications"
+                    className="jobs-icon-button"
+                  >
+                    <Bell size={19} />
+                    {notificationInbox.unread > 0 && (
+                      <b className="notification-count">
+                        {notificationInbox.unread > 9
+                          ? "9+"
+                          : notificationInbox.unread}
+                      </b>
+                    )}
+                  </summary>
+                  <div className="dropdown notifications-panel">
+                    <NotificationContents />
+                  </div>
+                </details>
+              )}
+              {session.user ? (
+                <details className="account-menu">
+                  <summary
+                    aria-label="Account and company menu"
+                    title={session.user.name}
+                  >
+                    <Avatar name={session.user.name} />
+                  </summary>
+                  <div className="dropdown">
+                    <AccountMenuContents />
+                  </div>
+                </details>
               ) : (
-                <>
-                  {!sessionExpired && (
-                    <button
-                      className="button ghost"
-                      onClick={() =>
-                        setModal(<AuthModal initialMode="register" />)
-                      }
-                    >
-                      Join Connect
-                    </button>
-                  )}
-                  <button className="button primary" onClick={() => auth()}>
-                    Sign in
-                  </button>
-                </>
+                <button
+                  className="jobs-button jobs-primary"
+                  onClick={() => auth()}
+                >
+                  Sign in
+                </button>
               )}
             </div>
           </div>
@@ -784,82 +705,47 @@ function App() {
         <Routes>
           <Route
             path="/"
-            element={session.user ? <HomeFeed /> : <Directory home />}
+            element={session.user ? <JobsPage /> : <MarketplaceLanding />}
           />
-          <Route path="/directory" element={<Directory />} />
+          <Route
+            path="/directory"
+            element={<Navigate to="/providers" replace />}
+          />
+          <Route path="/providers" element={<ProviderDirectory />} />
           <Route path="/jobs" element={<JobsPage />} />
           <Route path="/jobs/mine" element={<JobsPage mine />} />
           <Route path="/jobs/new" element={<NewJobPage />} />
-          <Route path="/jobs/companies/:slug" element={<WorkCompanyPage />} />
+          <Route
+            path="/jobs/companies/:slug"
+            element={<ProviderProfilePage />}
+          />
           <Route path="/jobs/:id/edit" element={<NewJobPage />} />
           <Route path="/jobs/:id" element={<JobDetailPage />} />
-          <Route path="/directory/installers/:place" element={<Directory />} />
+          <Route
+            path="/directory/installers/:place"
+            element={<Navigate to="/providers" replace />}
+          />
           <Route path="/claim/:username?" element={<ClaimCompanyPage />} />
-          <Route path="/posts/:id" element={<PostPage />} />
-          <Route path="/company/:id" element={<CompanyProfile />} />
           <Route
-            path="/network/incoming"
-            element={<Navigate to="/requests" replace />}
+            path="/posts/:id"
+            element={<Navigate to="/providers" replace />}
+          />
+          <Route path="/company/:id" element={<ProviderProfilePage />} />
+          <Route
+            path="/network/*"
+            element={<Navigate to="/jobs/mine" replace />}
           />
           <Route
-            path="/network/sent"
-            element={<Navigate to="/requests/sent" replace />}
+            path="/requests/*"
+            element={<Navigate to="/jobs/mine" replace />}
           />
           <Route
-            path="/network/blocked"
-            element={<Navigate to="/settings/blocked" replace />}
-          />
-          <Route
-            path="/network/messages"
-            element={<Navigate to="/messages" replace />}
-          />
-          <Route
-            path="/requests/:tab?"
-            element={
-              <Protected>
-                <RequestsPage />
-              </Protected>
-            }
+            path="/messages/*"
+            element={<Navigate to="/jobs/mine" replace />}
           />
           <Route
             path="/settings/blocked"
-            element={
-              <Protected>
-                <BlockedCompaniesPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="/network/:tab?"
-            element={
-              <Protected>
-                <NetworkPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="/messages/people/:id?"
-            element={
-              <Protected allowIndividual>
-                <PersonalInbox />
-              </Protected>
-            }
-          />
-          <Route
-            path="/messages/company/:companyId"
-            element={
-              <Protected allowIndividual>
-                <MessagesRoute />
-              </Protected>
-            }
-          />
-          <Route
-            path="/messages/:id?"
-            element={
-              <Protected allowIndividual>
-                <MessagesRoute />
-              </Protected>
-            }
+            element={<Navigate to="/settings" replace />}
           />
           <Route
             path="/settings"
@@ -876,19 +762,19 @@ function App() {
           />
           <Route path="/join/:username" element={<JoinCompanyPage />} />
           <Route path="/invite/:token" element={<InvitePage />} />
-          <Route path="/:username" element={<CompanyProfile />} />
+          <Route path="/:username" element={<ProviderProfilePage />} />
           <Route
             path="*"
             element={
               <Empty
                 title="That page isn’t here."
                 action={
-                  <Link className="button primary" to="/directory">
+                  <Link className="button primary" to="/providers">
                     Explore companies
                   </Link>
                 }
               >
-                Head back to the directory to keep exploring.
+                Explore service providers and open jobs.
               </Empty>
             }
           />
@@ -910,7 +796,9 @@ function App() {
       {incompleteAccount && !needsOnboarding && (
         <div className="setup-reminder">
           <ShieldCheck size={18} />
-          <span>Finish setting up your account to join the conversation.</span>
+          <span>
+            Finish setting up your account to find work and hire providers.
+          </span>
           <button onClick={() => setDeferredOnboarding("")}>
             Continue setup <ArrowRight size={14} />
           </button>
@@ -1013,7 +901,7 @@ function AccountMenuContents({
             refresh();
             document.querySelector(".account-menu")?.removeAttribute("open");
             closeMenu?.();
-            navigate("/network/connections");
+            navigate("/jobs/mine");
           }}
         >
           <Logo company={c} size="tiny" />
@@ -2014,7 +1902,7 @@ function NetworkPage() {
                   Clear search
                 </button>
               ) : (
-                <Link className="button primary" to="/directory">
+                <Link className="button primary" to="/providers">
                   Find companies
                 </Link>
               )

@@ -530,6 +530,7 @@ export function ProfileEditor({ target }: { target: Company }) {
                 {[
                   "Installer",
                   "EPC",
+                  "Contractor",
                   "Developer",
                   "Distributor",
                   "Manufacturer",

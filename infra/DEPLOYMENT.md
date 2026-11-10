@@ -23,6 +23,14 @@ The web app routes `/api/jobs` through the Connect API to a separate Rust servic
 
 Jobs can be drafted, published, quoted, awarded, confirmed, updated, reviewed, and completed. Payment stages record invoice and payment confirmations between companies; Connect does not collect or hold funds. Job addresses, quotes, and attached files remain limited to the relevant companies. Check `docker compose --env-file .env.production -f compose.production.yaml ps app jobs db` and `curl --fail http://127.0.0.1:14100/api/jobs` after a release.
 
+## Marketplace provider profiles and samples
+
+Migration `020_provider_profiles.sql` adds work details to existing companies. Every real company remains in the provider search and keeps its existing identity, services, projects, credentials, and claim status. No company data is replaced or scraped by the marketplace release. New work details are optional until a company updates its profile.
+
+The 20 fictional sample companies, their original SVG logos, sample jobs, projects, updates, quotes, and verified demo accounts are created only by the explicit idempotent `apps/api/dist/seed-marketplace.js` command. Set `ALLOW_DEMO_SEED=true` and a unique `DEMO_PASSWORD` of at least 16 characters; never commit or log that password. Samples carry `is_demo=true`, appear only when the UI's Demo view is selected, and cannot quote or be invited to real jobs. Production startup does not seed them automatically. The accounts use `demo01@connect.example` through `demo20@connect.example`.
+
+The marketplace should eventually serve `sunhubapp.com` with a marketing homepage for visitors and open jobs for signed-in companies. Before changing the Cloudflare route, give the current Sunhub CRM a verified alternate hostname and check its sign-in and callback URLs there. Keep the Connect origin and its Sunhub SSO redirect registration aligned with the final public host. Do not switch the apex route while the CRM is only reachable there.
+
 ## Account email
 
 Chats are stored in PostgreSQL and delivered in-app. SMTP is exclusively for verification and password recovery. The local Docker mail container captures test messages; **it does not deliver to people's email accounts**. Production requires a real SMTP sender in `.env.production`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_REQUIRE_TLS=true`, and a verified `MAIL_FROM`. Port 465 also needs `SMTP_SECURE=true`. Restart only `app` to apply settings. Verification is enforced; do not disable it to work around missing delivery. Codes expire after ten minutes and five incorrect attempts. Outbox payloads are encrypted with a key derived from `AUTH_TOKEN_SECRET` and erased after sending or expiry.

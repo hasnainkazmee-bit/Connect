@@ -141,6 +141,7 @@ const event = (db: PoolClient, user: string, name: string) =>
 const companyTypes = z.enum([
   "Installer",
   "EPC",
+  "Contractor",
   "Developer",
   "Distributor",
   "Manufacturer",
