@@ -84,6 +84,62 @@ try {
     status: "open",
   });
   assert.equal((await call(`/jobs/${draft.id}`, hirer)).job.status, "open");
+  const crew = await call("/jobs", hirer, "POST", {
+    title: "Need four installers for two weeks",
+    description:
+      "Our team needs four experienced installers to help with module and racking installation.",
+    trade: "crew",
+    location: "Dallas, TX",
+    peopleNeeded: 4,
+    expectedDuration: "2 weeks",
+    workArrangement: "onsite",
+  });
+  const crewJob = (await call(`/jobs/${crew.id}`, provider)).job;
+  assert.equal(crewJob.people_needed, 4);
+  assert.equal(crewJob.expected_duration, "2 weeks");
+  assert.equal(crewJob.system_size_kw, null);
+  const crewSearch = await call("/jobs?trade=crew", provider);
+  assert.ok(
+    crewSearch.jobs.some((j) => j.id === crew.id && j.people_needed === 4),
+  );
+  for (const trade of [
+    "permitting",
+    "inspection",
+    "equipment",
+    "logistics",
+    "other",
+  ]) {
+    const request = await call("/jobs", hirer, "POST", {
+      title: `Need solar ${trade} support`,
+      description:
+        "Our solar business needs specialist help. Please send your availability and approach.",
+      trade,
+      location: "Remote",
+      workArrangement: "remote",
+      expectedDuration: "Ongoing",
+    });
+    const detail = (await call(`/jobs/${request.id}`, provider)).job;
+    assert.equal(detail.work_arrangement, "remote");
+  }
+  for (const extra of [
+    { peopleNeeded: 0 },
+    { peopleNeeded: 1.5 },
+    { peopleNeeded: 1001 },
+    { workArrangement: "unknown" },
+  ]) {
+    const invalid = await fetch(`${base}/jobs`, {
+      method: "POST",
+      headers: { cookie: hirer.cookie, "content-type": "application/json" },
+      body: JSON.stringify({
+        title: "Need a qualified crew",
+        description: "This request must reject invalid staffing details.",
+        trade: "crew",
+        location: "Austin, TX",
+        ...extra,
+      }),
+    });
+    assert.equal(invalid.status, 400);
+  }
   const created = await call("/jobs", hirer, "POST", {
     title: "Install rooftop systems in Austin",
     description:

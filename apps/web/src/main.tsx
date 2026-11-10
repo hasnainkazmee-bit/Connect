@@ -610,16 +610,51 @@ function App() {
               </span>
             </Link>
             <nav className="jobs-top-nav" aria-label="Main navigation">
-              <Link to="/jobs" className={location.pathname === "/jobs" || (location.pathname === "/" && !!session.user) ? "active" : ""} aria-current={location.pathname === "/jobs" || (location.pathname === "/" && !!session.user) ? "page" : undefined}><BriefcaseBusiness size={17}/> Find work</Link>
-              <NavLink to="/providers" className={({isActive}) => isActive ? "active" : ""}><Building2 size={17}/> Find companies</NavLink>
-              {session.user ? <NavLink to="/jobs/mine" className={({isActive}) => isActive ? "active" : ""}><FileText size={17}/> My jobs</NavLink> : <Link to="/#how-it-works">How it works</Link>}
+              <Link
+                to="/jobs"
+                className={
+                  location.pathname === "/jobs" ||
+                  (location.pathname === "/" && !!session.user)
+                    ? "active"
+                    : ""
+                }
+                aria-current={
+                  location.pathname === "/jobs" ||
+                  (location.pathname === "/" && !!session.user)
+                    ? "page"
+                    : undefined
+                }
+              >
+                <BriefcaseBusiness size={17} /> Find work
+              </Link>
+              <NavLink
+                to="/providers"
+                className={({ isActive }) => (isActive ? "active" : "")}
+              >
+                <Building2 size={17} /> Find companies
+              </NavLink>
+              {session.user ? (
+                <NavLink
+                  to="/jobs/mine"
+                  className={({ isActive }) => (isActive ? "active" : "")}
+                >
+                  <FileText size={17} /> My jobs
+                </NavLink>
+              ) : (
+                <Link to="/#how-it-works">How it works</Link>
+              )}
             </nav>
             <div className="jobs-header-actions">
-              {(!session.user || (company && admin)) && (
-                <Link to="/jobs/new" className="jobs-button jobs-primary">
-                  <Plus size={18} /> Post a job
-                </Link>
-              )}
+              {(!session.user || (company && admin)) &&
+                location.pathname !== "/jobs/new" &&
+                !/^\/jobs\/[^/]+\/edit$/.test(location.pathname) && (
+                  <Link
+                    to="/jobs/new"
+                    className="jobs-button jobs-secondary header-post-job"
+                  >
+                    <Plus size={18} /> Post a job
+                  </Link>
+                )}
               {session.user && (
                 <details className="notifications">
                   <summary

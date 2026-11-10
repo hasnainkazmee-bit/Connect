@@ -4,11 +4,15 @@
 /* One frame and one control system for the hiring marketplace. */
 :root {
   --market-width: 80%;
-  --market-ink: #203746;
-  --market-muted: #587082;
-  --market-line: #dce6ed;
-  --market-orange: #ff6b0b;
-  --market-canvas: #f3f7fa;
+  --market-ink: #1b303e;
+  --market-muted: #5e7180;
+  --market-line: #e1e7ec;
+  --market-orange: #ff6800;
+  --market-canvas: #f5f8fa;
+  --brand: var(--market-orange);
+  --brand-hover: #ff7300;
+  --brand-ink: var(--market-ink);
+  --brand-soft: #edf2f5;
 }
 body {
   background: var(--market-canvas);
@@ -19,7 +23,7 @@ html:not(.connect-desktop) .app-main {
   max-width: none;
   padding: 0;
   margin-inline: auto;
-  min-height: calc(100dvh - 88px);
+  min-height: calc(100dvh - 80px);
 }
 .jobs-site-header {
   background: rgba(255, 255, 255, 0.96);
@@ -30,7 +34,7 @@ html:not(.connect-desktop) .app-main {
 .jobs-header-inner {
   width: var(--market-width);
   margin: auto;
-  min-height: 88px;
+  min-height: 80px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -80,7 +84,7 @@ html:not(.connect-desktop) .app-main {
   color: var(--market-muted);
   text-decoration: none;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
 }
 .jobs-top-nav a:hover {
@@ -88,8 +92,9 @@ html:not(.connect-desktop) .app-main {
   color: var(--market-ink);
 }
 .jobs-top-nav a.active {
-  background: #fff0e4;
-  color: #8f3900;
+  background: #edf2f5;
+  color: var(--market-ink);
+  font-weight: 650;
 }
 .jobs-header-actions {
   display: flex;
@@ -138,7 +143,7 @@ html:not(.connect-desktop) .app-main {
   border-radius: 999px;
   font-size: 14px;
   line-height: 20px;
-  font-weight: 650;
+  font-weight: 600;
   white-space: normal;
   text-align: center;
 }
@@ -150,8 +155,29 @@ html:not(.connect-desktop) .app-main {
   border: 1px solid var(--market-orange);
 }
 .jobs-primary:hover:not(:disabled) {
-  background: #f7812c;
-  border-color: #f7812c;
+  background: #ff7300;
+  border-color: #ff7300;
+}
+.jobs-page .jobs-primary:disabled {
+  background: #e6ecef;
+  border-color: #e6ecef;
+  color: #73828c;
+  opacity: 1;
+}
+.jobs-site-header .header-post-job {
+  border-color: #c7d1d9;
+}
+.button.selected {
+  color: var(--market-ink);
+  background: #edf2f5;
+  border-color: #d5dfe6;
+}
+.button.primary:disabled,
+.account-experience .account-primary:disabled {
+  background: #e6ecef;
+  border-color: #e6ecef;
+  color: #73828c;
+  opacity: 1;
 }
 .jobs-page
   :is(input, textarea, select):not([type="checkbox"]):not([type="file"]),
@@ -164,6 +190,7 @@ html:not(.connect-desktop) .app-main {
   color: var(--market-ink);
   padding: 11px 13px;
   font: inherit;
+  font-weight: 400;
   font-size: 14px;
   line-height: 1.5;
   min-width: 0;
@@ -371,7 +398,7 @@ html:not(.connect-desktop) .app-main {
 }
 .attachment-add small {
   display: block;
-  color: #667c8a;
+  color: #5e7180;
   font-size: 12px;
   font-weight: 400;
   margin-top: 4px;
@@ -497,7 +524,7 @@ html:not(.connect-desktop) .app-main {
   white-space: nowrap;
 }
 .job-file-viewer header > span {
-  color: #667c8a;
+  color: #5e7180;
   font-size: 12px;
 }
 .job-file-canvas {
@@ -552,7 +579,7 @@ html:not(.connect-desktop) .app-main {
   cursor: pointer;
 }
 .viewer-zoom span {
-  color: #667c8a;
+  color: #5e7180;
   font-size: 12px;
 }
 .job-file-viewer button:disabled {
@@ -563,7 +590,7 @@ html:not(.connect-desktop) .app-main {
   margin: 0;
   padding: 0 24px 14px;
   font-size: 12px;
-  color: #667c8a;
+  color: #5e7180;
 }
 .file-viewer-help a {
   color: inherit;

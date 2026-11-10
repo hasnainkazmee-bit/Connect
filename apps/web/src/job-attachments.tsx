@@ -196,38 +196,42 @@ export function AttachmentPicker({
   onChange,
   label = "Add plans or photos",
   disabled = false,
+  readOnly = false,
 }: {
   files: File[];
   onChange: (files: File[]) => void;
   label?: string;
   disabled?: boolean;
+  readOnly?: boolean;
 }) {
   const { open } = useApp();
   const [error, setError] = useState("");
   const items = files.map(pendingFile);
   return (
     <div className="job-attachment-picker">
-      <label className={`attachment-add ${disabled ? "disabled" : ""}`}>
-        <Paperclip size={19} />
-        <span>
-          <b>{label}</b>
-          <small>Multiple files · PDF, JPG, PNG, WebP · 12 MB each</small>
-        </span>
-        <input
-          aria-label={label}
-          type="file"
-          multiple
-          disabled={disabled}
-          accept=".pdf,image/jpeg,image/png,image/webp"
-          onChange={(e) => {
-            const selected = Array.from(e.target.files || []);
-            const issue = attachmentError(selected);
-            setError(issue);
-            if (!issue) onChange([...files, ...selected]);
-            e.target.value = "";
-          }}
-        />
-      </label>
+      {!readOnly && (
+        <label className={`attachment-add ${disabled ? "disabled" : ""}`}>
+          <Paperclip size={19} />
+          <span>
+            <b>{label}</b>
+            <small>Multiple files · PDF, JPG, PNG, WebP · 12 MB each</small>
+          </span>
+          <input
+            aria-label={label}
+            type="file"
+            multiple
+            disabled={disabled}
+            accept=".pdf,image/jpeg,image/png,image/webp"
+            onChange={(e) => {
+              const selected = Array.from(e.target.files || []);
+              const issue = attachmentError(selected);
+              setError(issue);
+              if (!issue) onChange([...files, ...selected]);
+              e.target.value = "";
+            }}
+          />
+        </label>
+      )}
       {error && (
         <p className="job-error" role="alert">
           {error}
@@ -251,15 +255,17 @@ export function AttachmentPicker({
                   <small>{sizeLabel(item.size)} · Preview</small>
                 </span>
               </button>
-              <button
-                type="button"
-                className="attachment-remove"
-                disabled={disabled}
-                aria-label={`Remove ${item.name}`}
-                onClick={() => onChange(files.filter((_, n) => n !== i))}
-              >
-                <X size={15} />
-              </button>
+              {!readOnly && (
+                <button
+                  type="button"
+                  className="attachment-remove"
+                  disabled={disabled}
+                  aria-label={`Remove ${item.name}`}
+                  onClick={() => onChange(files.filter((_, n) => n !== i))}
+                >
+                  <X size={15} />
+                </button>
+              )}
             </div>
           ))}
         </div>

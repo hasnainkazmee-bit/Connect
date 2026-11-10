@@ -65,9 +65,9 @@ export function publicPages() {
         path.join(root, "apps/web/dist/index.html"),
         "utf8",
       );
-    let title = "Connect by Sunhub | Solar work and project partners",
+    let title = "Connect by Sunhub | Solar work, crews and specialists",
       description =
-        "Find solar project partners, compare quotes, and manage company-to-company work with Connect by Sunhub.",
+        "Find crews, electricians, specialists, and solar business support. Post what you need and compare quotes on Connect by Sunhub.",
       canonical = req.path,
       content = "",
       status = 200,
@@ -90,8 +90,8 @@ export function publicPages() {
     if (req.path === "/") {
       title = "Connect by Sunhub | Find solar work and service providers";
       description =
-        "Hire solar service providers, compare quotes and manage projects on Connect by Sunhub.";
-      content = `<div class="market-landing"><section class="market-hero"><div class="market-hero-copy"><span class="provider-overline">CONNECT BY SUNHUB</span><h1>Good projects. Great partners.</h1><p>Find solar companies for the work ahead. Compare quotes, choose your team, and keep the project moving—all in one place.</p><a class="jobs-button jobs-primary" href="/jobs">Find work →</a> <a class="jobs-button jobs-secondary" href="/providers">Find a company</a></div></section></div>`;
+        "Find crews, specialist services, and support for your solar business on Connect by Sunhub.";
+      content = `<div class="market-landing"><section class="market-hero"><div class="market-hero-copy"><span class="provider-overline">CONNECT BY SUNHUB</span><h1>The right help. For every solar job.</h1><p>Need extra hands, an electrician, or specialist support? Post what you need and hear from solar companies ready to help.</p><a class="jobs-button jobs-primary" href="/jobs">Find work →</a> <a class="jobs-button jobs-secondary" href="/providers">Find a company</a></div></section></div>`;
     } else if (req.path === "/providers") {
       const data =
         await pool.query(`SELECT id,username,slug,name,type,tagline,description,location,logo_url,services,service_areas
@@ -115,7 +115,7 @@ export function publicPages() {
       title =
         segments.length === 1 ? "Find solar jobs | Connect" : "Jobs | Connect";
       description =
-        "Find solar projects, send quotes, and work with companies on Connect.";
+        "Find solar work, crew requests, and specialist opportunities. Send quotes and work with companies on Connect.";
       indexable = segments.length === 1;
       content = "<p class='manage-loading'>Opening jobs…</p>";
     } else if (

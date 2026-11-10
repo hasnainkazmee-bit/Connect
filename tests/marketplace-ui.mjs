@@ -47,7 +47,11 @@ async function visit(p, route) {
     .catch(() => {});
 }
 async function noOverflow(p, name) {
-  assert.equal(await p.locator("main").count(), 1, `${name}: one main landmark`);
+  assert.equal(
+    await p.locator("main").count(),
+    1,
+    `${name}: one main landmark`,
+  );
   const result = await p.evaluate(() => ({
     width: innerWidth,
     scroll: document.documentElement.scrollWidth,
@@ -122,14 +126,20 @@ try {
   await visit(h, "/jobs/new");
   await h
     .getByLabel("Job title", { exact: true })
-    .fill("Install rooftop systems — browser validation");
-  await h.getByLabel("Location", { exact: true }).fill("Austin, TX");
-  await h.getByLabel("Start", { exact: true }).fill("Within 4 weeks");
+    .fill("Need a 4-person installation crew — browser validation");
+  await h.getByLabel("Type of work", { exact: true }).selectOption("crew");
   await h
-    .getByLabel("Describe the work", { exact: true })
+    .getByLabel("City or service area", { exact: true })
+    .fill("Austin, TX");
+  await h.getByLabel("How many people do you need?").fill("4");
+  await h.getByLabel("How long do you need help?").fill("4 weeks");
+  await h.getByLabel("Start date or timing").fill("Within 4 weeks");
+  await h
+    .getByLabel("Describe what you need", { exact: true })
     .fill(
       "Install and commission the rooftop array. Provide site coordination, installation labor, testing records, and final photographs.",
     );
+  await h.getByText("Add more details", { exact: false }).first().click();
   await h
     .getByLabel("Project type", { exact: true })
     .selectOption("commercial");
@@ -141,23 +151,21 @@ try {
   await h
     .getByLabel("Requirements")
     .fill("Current insurance and commercial rooftop experience.");
-  await h.getByLabel("Budget").fill("25000");
+  await h.getByLabel("Total budget").fill("25000");
   const image = await fs.readFile("apps/web/public/assets/solar.jpg");
   const files = [
     { name: "roof-plan.pdf", mimeType: "application/pdf", buffer: pdf() },
     { name: "roof-photo.jpg", mimeType: "image/jpeg", buffer: image },
   ];
   await h
-    .getByLabel("Add plans or photos", { exact: true })
+    .getByLabel("Add files or photos", { exact: true })
     .setInputFiles(files);
   assert.equal(await h.locator(".job-attachment-card").count(), 2);
-  await h
-    .getByLabel("Add plans or photos", { exact: true })
-    .setInputFiles({
-      name: "extra-photo.jpg",
-      mimeType: "image/jpeg",
-      buffer: image,
-    });
+  await h.getByLabel("Add files or photos", { exact: true }).setInputFiles({
+    name: "extra-photo.jpg",
+    mimeType: "image/jpeg",
+    buffer: image,
+  });
   assert.equal(await h.locator(".job-attachment-card").count(), 3);
   await h
     .getByRole("button", { name: "Remove extra-photo.jpg", exact: true })
@@ -176,13 +184,39 @@ try {
   }
   await h.setViewportSize({ width: 1440, height: 1000 });
   await h.screenshot({ path: path.join(out, "post-job.png"), fullPage: true });
+  await h.getByRole("button", { name: "Review job", exact: true }).click();
+  await h
+    .getByRole("heading", { name: "Review your job", exact: true })
+    .waitFor();
+  assert.equal(await h.locator(".job-attachment-card").count(), 2);
+  for (const width of [320, 390, 768, 1024, 1440, 1920]) {
+    await h.setViewportSize({ width, height: 1000 });
+    await noOverflow(h, `review job ${width}`);
+  }
+  await h.getByRole("button", { name: "Edit details", exact: true }).click();
+  assert.equal(
+    await h.getByLabel("How many people do you need?").inputValue(),
+    "4",
+  );
+  assert.equal(await h.locator(".job-attachment-card").count(), 2);
+  await h.getByRole("button", { name: "Review job", exact: true }).click();
+  await h.setViewportSize({ width: 1440, height: 1000 });
+  await h.screenshot({
+    path: path.join(out, "review-job.png"),
+    fullPage: true,
+  });
   await h.getByRole("button", { name: "Publish job", exact: true }).click();
   await h.waitForURL(/\/jobs\/[0-9a-f-]{36}$/);
   const route = new URL(h.url()).pathname;
-  await h.getByRole("heading", { name: "The work", exact: true }).waitFor();
+  await h
+    .getByRole("heading", { name: "What’s needed", exact: true })
+    .waitFor();
   assert.equal(await h.locator(".job-attachment-card").count(), 2);
   const detail = await (await hirer.request.get(base + "/api" + route)).json();
   assert.equal(detail.job.site_count, 3);
+  assert.equal(detail.job.people_needed, 4);
+  assert.equal(detail.job.expected_duration, "4 weeks");
+  assert.equal(detail.job.trade, "crew");
   assert.equal(detail.files.length, 2);
   const pdfFile = detail.files.find((f) => f.mime_type === "application/pdf");
   const preview = await hirer.request.get(
@@ -199,6 +233,13 @@ try {
   await h.screenshot({ path: path.join(out, "pdf-preview.png") });
   await h.locator(".modal-close").click();
   await visit(p, route);
+  for (const width of [320, 390, 768, 1024, 1440, 1920]) {
+    await p.setViewportSize({ width, height: 1000 });
+    await noOverflow(p, `open job ${width}`);
+    if (width <= 768)
+      assert.equal(await p.locator(".job-mobile-action").isVisible(), true);
+  }
+  await p.setViewportSize({ width: 1440, height: 1000 });
   await p.getByRole("button", { name: "Send a quote", exact: true }).click();
   await p.getByLabel("Your price (USD)", { exact: true }).fill("25000");
   await p.getByLabel("Earliest start", { exact: true }).fill("In 3 weeks");
@@ -291,13 +332,43 @@ try {
     path: path.join(out, "company-profile.png"),
     fullPage: true,
   });
+  await visit(h, "/jobs/new");
+  await h
+    .getByLabel("Job title", { exact: true })
+    .fill("Remote solar design support — browser validation");
+  await h.getByLabel("Type of work", { exact: true }).selectOption("design");
+  await h
+    .getByLabel("Describe what you need", { exact: true })
+    .fill(
+      "We need a remote specialist to prepare a complete solar design drawing package.",
+    );
+  await h.getByLabel("Work location", { exact: true }).selectOption("remote");
+  assert.equal(
+    await h.getByLabel("City or service area", { exact: true }).count(),
+    0,
+  );
+  assert.equal(await h.getByLabel("How many people do you need?").count(), 0);
+  await h.getByRole("button", { name: "Review job", exact: true }).click();
+  await h.getByRole("button", { name: "Publish job", exact: true }).click();
+  await h.waitForURL(/\/jobs\/[0-9a-f-]{36}$/);
+  const remote = await (
+    await hirer.request.get(base + "/api" + new URL(h.url()).pathname)
+  ).json();
+  assert.equal(remote.job.work_arrangement, "remote");
+  assert.equal(remote.job.location, "Remote");
+  assert.equal(remote.job.system_size_kw, null);
+  await visit(p, "/jobs?trade=crew&sample=true");
+  assert.equal(
+    await p.locator('.work-type-nav button[aria-pressed="true"]').innerText(),
+    "Crews & labor",
+  );
   assert.deepEqual(failures, [], "No uncaught page exceptions");
   console.log(
     JSON.stringify({
       status: "passed",
       responsiveChecks: reports.length,
       workflow:
-        "multiple attachments, previews, job creation, quote breakdown, comparison, messages, selection, confirmation",
+        "crew and remote requests, review and edit, multiple attachments, previews, quote breakdown, comparison, messages, selection, confirmation",
       screenshots: out,
     }),
   );

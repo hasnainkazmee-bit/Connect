@@ -376,7 +376,7 @@ async fn list_jobs(
     let page = search.page.unwrap_or(1).clamp(1, 1000);
     let sql = format!(
         "SELECT json_build_object('id',j.id,'title',j.title,'description',j.description,'trade',j.trade,\
-         'project_type',j.project_type,'system_size_kw',j.system_size_kw,'site_count',j.site_count,'location',j.location,'postal_code',j.postal_code,'start_window',j.start_window,'budget_cents',j.budget_cents,\
+         'people_needed',j.people_needed,'expected_duration',j.expected_duration,'work_arrangement',j.work_arrangement,'project_type',j.project_type,'system_size_kw',j.system_size_kw,'site_count',j.site_count,'location',j.location,'postal_code',j.postal_code,'start_window',j.start_window,'budget_cents',j.budget_cents,\
          'quote_deadline',j.quote_deadline,'visibility',j.visibility,'status',j.status,'created_at',j.created_at,\
          'company',{},'quote_count',(SELECT count(*) FROM job_quotes q WHERE q.job_id=j.id AND q.status='submitted'),\
          'invited',EXISTS(SELECT 1 FROM job_invitations i WHERE i.job_id=j.id AND i.provider_company_id=$1::uuid))::text \
@@ -404,7 +404,7 @@ async fn my_jobs(State(app): State<Arc<App>>, headers: HeaderMap) -> Result<Json
     let a = company_actor(&app, &headers, false).await?;
     let company = a.company.as_deref().unwrap();
     let sql = format!(
-        "SELECT json_build_object('id',j.id,'title',j.title,'description',j.description,'budget_cents',j.budget_cents,'project_type',j.project_type,'system_size_kw',j.system_size_kw,'site_count',j.site_count,'trade',j.trade,'location',j.location,\
+        "SELECT json_build_object('id',j.id,'title',j.title,'description',j.description,'budget_cents',j.budget_cents,'people_needed',j.people_needed,'expected_duration',j.expected_duration,'work_arrangement',j.work_arrangement,'project_type',j.project_type,'system_size_kw',j.system_size_kw,'site_count',j.site_count,'trade',j.trade,'location',j.location,\
          'start_window',j.start_window,'status',j.status,'created_at',j.created_at,'updated_at',j.updated_at,\
          'hiring_company_id',j.hiring_company_id,'chosen_quote_id',j.chosen_quote_id,'company',{},\
          'quote_count',(SELECT count(*) FROM job_quotes q WHERE q.job_id=j.id AND q.status='submitted'),\
@@ -922,6 +922,9 @@ struct Brief<'a> {
     sites: Option<i64>,
     materials: &'a str,
     requirements: &'a str,
+    people: Option<i64>,
+    duration: &'a str,
+    arrangement: &'a str,
 }
 fn parse_brief(body: &Value) -> Result<Brief<'_>> {
     let project = optional_text(body, "projectType", 30)?;
@@ -948,12 +951,24 @@ fn parse_brief(body: &Value) -> Result<Brief<'_>> {
     if !["to_agree", "hiring_company", "provider"].contains(&materials) {
         return Err(bad("Choose who supplies materials."));
     }
+    let people = match body.get("peopleNeeded").filter(|v| !v.is_null()) {
+        Some(v) => Some(v.as_i64().filter(|v| (1..=1000).contains(v))
+            .ok_or_else(|| bad("Enter a team size between 1 and 1,000."))?),
+        None => None,
+    };
+    let arrangement = body["workArrangement"].as_str().unwrap_or("onsite");
+    if !["onsite", "remote", "hybrid"].contains(&arrangement) {
+        return Err(bad("Choose on site, remote, or hybrid work."));
+    }
     Ok(Brief {
         project,
         size,
         sites,
         materials,
         requirements: optional_text(body, "requirements", 3000)?,
+        people,
+        duration: optional_text(body, "expectedDuration", 120)?,
+        arrangement,
     })
 }
 fn parse_breakdown(body: &Value, amount: i64) -> Result<Value> {
@@ -1008,11 +1023,16 @@ async fn create_job(
     };
     let trade = required_text(&body, "trade", 1, 40)?;
     if ![
+        "crew",
         "installation",
         "electrical",
         "roofing",
         "service",
         "design",
+        "permitting",
+        "inspection",
+        "equipment",
+        "logistics",
         "other",
     ]
     .contains(&trade)
@@ -1039,10 +1059,11 @@ async fn create_job(
     let brief = parse_brief(&body)?;
     let new_id: String = sqlx::query_scalar(
         "INSERT INTO jobs(hiring_company_id,author_id,title,description,trade,location,postal_code,exact_address,\
-         start_window,budget_cents,visibility,quote_deadline,status,project_type,system_size_kw,site_count,materials_by,requirements) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10,$11,NULLIF($12,'')::timestamptz,$13,$14,$15,$16,$17,$18) RETURNING id::text")
+         start_window,budget_cents,visibility,quote_deadline,status,project_type,system_size_kw,site_count,materials_by,requirements,people_needed,expected_duration,work_arrangement) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10,$11,NULLIF($12,'')::timestamptz,$13,$14,$15,$16,$17,$18,$19,$20,$21) RETURNING id::text")
         .bind(a.company.as_deref()).bind(&a.user).bind(title).bind(description).bind(trade).bind(location)
         .bind(postal).bind(exact).bind(start).bind(budget).bind(visibility).bind(deadline).bind(status)
         .bind(brief.project).bind(brief.size).bind(brief.sites).bind(brief.materials).bind(brief.requirements)
+        .bind(brief.people).bind(brief.duration).bind(brief.arrangement)
         .fetch_one(&app.db).await?;
     Ok((StatusCode::CREATED, Json(json!({"id":new_id}))))
 }
@@ -1071,11 +1092,16 @@ async fn edit_job(
     };
     let trade = required_text(&body, "trade", 1, 40)?;
     if ![
+        "crew",
         "installation",
         "electrical",
         "roofing",
         "service",
         "design",
+        "permitting",
+        "inspection",
+        "equipment",
+        "logistics",
         "other",
     ]
     .contains(&trade)
@@ -1124,10 +1150,11 @@ async fn edit_job(
             "Quotes have arrived. This job can no longer be edited.",
         ));
     }
-    sqlx::query("UPDATE jobs SET title=$1,description=$2,trade=$3,location=$4,postal_code=$5,exact_address=$6,start_window=$7,budget_cents=$8,visibility=$9,quote_deadline=NULLIF($10,'')::timestamptz,status=$11,project_type=$13,system_size_kw=$14,site_count=$15,materials_by=$16,requirements=$17,updated_at=now() WHERE id=$12::uuid")
+    sqlx::query("UPDATE jobs SET title=$1,description=$2,trade=$3,location=$4,postal_code=$5,exact_address=$6,start_window=$7,budget_cents=$8,visibility=$9,quote_deadline=NULLIF($10,'')::timestamptz,status=$11,project_type=$13,system_size_kw=$14,site_count=$15,materials_by=$16,requirements=$17,people_needed=$18,expected_duration=$19,work_arrangement=$20,updated_at=now() WHERE id=$12::uuid")
         .bind(title).bind(description).bind(trade).bind(location).bind(postal).bind(exact).bind(start).bind(budget)
         .bind(visibility).bind(deadline).bind(status).bind(&id)
-        .bind(brief.project).bind(brief.size).bind(brief.sites).bind(brief.materials).bind(brief.requirements).execute(&mut *tx).await?;
+        .bind(brief.project).bind(brief.size).bind(brief.sites).bind(brief.materials).bind(brief.requirements)
+        .bind(brief.people).bind(brief.duration).bind(brief.arrangement).execute(&mut *tx).await?;
     tx.commit().await?;
     Ok(Json(json!({"id":id})))
 }

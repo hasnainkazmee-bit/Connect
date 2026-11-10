@@ -14,6 +14,7 @@ import {
   Zap,
   House,
   PenTool,
+  Users,
 } from "lucide-react";
 import { api } from "./api";
 import type { Company } from "./types";
@@ -28,7 +29,18 @@ type Provider = Company & {
   completed_jobs: number;
 };
 type Result = { providers: Provider[]; total: number; page: number };
-const trades = ["Installation", "Electrical", "Roofing", "Service", "Design"];
+const trades = [
+  "Crews",
+  "Installation",
+  "Electrical",
+  "Roofing",
+  "Service",
+  "Design",
+  "Permitting",
+  "Inspection",
+  "Equipment",
+  "Logistics",
+];
 const kinds = [
   "Installer",
   "EPC",
@@ -90,7 +102,7 @@ export function ProviderDirectory() {
     <div className="jobs-page provider-directory">
       <div className="jobs-heading">
         <div>
-          <h1>Find your next project partner.</h1>
+          <h1>Find companies</h1>
           <p>
             Solar companies with the services, experience, and coverage you
             need.
@@ -116,7 +128,7 @@ export function ProviderDirectory() {
             onChange={(e) => setLocation(e.target.value)}
           />
         </label>
-        <button className="jobs-button jobs-primary" type="submit">
+        <button className="jobs-button jobs-secondary" type="submit">
           Find companies <ArrowRight size={16} />
         </button>
       </form>
@@ -298,6 +310,12 @@ export function ProviderDirectory() {
 
 const services = [
   {
+    title: "Crews & labor",
+    detail: "Extra hands when your team needs them",
+    trade: "Crews",
+    icon: Users,
+  },
+  {
     title: "Solar installation",
     detail: "Residential rooftops to commercial arrays",
     trade: "Installation",
@@ -308,12 +326,6 @@ const services = [
     detail: "Wiring, interconnection, and commissioning",
     trade: "Electrical",
     icon: Zap,
-  },
-  {
-    title: "Roofing",
-    detail: "Prepare, repair, and protect the roof",
-    trade: "Roofing",
-    icon: Building2,
   },
   {
     title: "Service & maintenance",
@@ -329,7 +341,7 @@ const services = [
   },
   {
     title: "Explore all companies",
-    detail: "Find the right specialist for your project",
+    detail: "Supplies, permits, logistics, and more",
     trade: "",
     icon: Search,
   },
@@ -343,17 +355,17 @@ export function MarketplaceLanding() {
             THE SOLAR INDUSTRY, WORKING TOGETHER
           </span>
           <h1>
-            Good projects.
+            The right help.
             <br />
-            Great partners.
+            For every solar job.
           </h1>
           <p>
-            Find solar companies for the work ahead. Compare quotes, choose your
-            team, and keep the project moving—all in one place.
+            Need extra hands, an electrician, or specialist support? Post what
+            you need and hear from solar companies ready to help.
           </p>
           <div className="market-hero-actions">
-            <Link to="/providers" className="jobs-button jobs-primary">
-              Find a company <ArrowRight size={18} />
+            <Link to="/jobs/new" className="jobs-button jobs-primary">
+              Post what you need <ArrowRight size={18} />
             </Link>
             <Link to="/jobs" className="jobs-button jobs-secondary">
               Find work
@@ -374,8 +386,8 @@ export function MarketplaceLanding() {
               <BriefcaseBusiness size={22} />
             </span>
             <div>
-              <strong>From the first quote to the final panel.</strong>
-              <span>The right people. A clear way forward.</span>
+              <strong>More skills. More possibilities.</strong>
+              <span>Crews, specialists, and solar businesses. Connected.</span>
             </div>
           </div>
         </div>
@@ -426,7 +438,7 @@ export function MarketplaceLanding() {
               n: "01",
               icon: FileText,
               title: "Tell us about the work",
-              text: "Share the scope, location, and timing. Add plans or photos so companies know exactly what you need.",
+              text: "Need a crew for a week or an engineer for a drawing? Describe the help you need, where, and when.",
             },
             {
               n: "02",
