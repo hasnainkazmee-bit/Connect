@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import {
   Link,
   useNavigate,
@@ -2269,8 +2277,9 @@ export function JobDetailPage() {
           </aside>
         </div>
       ) : (
-        <div
-          className={`jobs-detail-layout workspace-detail-layout ${comparing ? "quote-comparison-layout" : ""}`}
+        <JobDetailLayout
+          comparing={comparing}
+          bounded={!comparing && !activeWork}
         >
           {comparing && (
             <JobBriefSummary
@@ -2696,61 +2705,69 @@ export function JobDetailPage() {
             )}
             {!comparing && !activeWork && (
               <div className="jobs-panel job-brief" id="job-brief">
-                <h2>About this job</h2>
-                <p className="job-description">
-                  {job.description ||
-                    "Add the scope before publishing this draft."}
-                </p>
-                {job.requirements && (
-                  <div className="job-requirements">
-                    <h3>What your team needs</h3>
-                    <p className="job-description">{job.requirements}</p>
+                <h2 id="job-brief-heading">About this job</h2>
+                <div
+                  className="job-brief-content"
+                  role="region"
+                  aria-labelledby="job-brief-heading"
+                  tabIndex={0}
+                >
+                  <p className="job-description">
+                    {job.description ||
+                      "Add the scope before publishing this draft."}
+                  </p>
+                  {job.requirements && (
+                    <div className="job-requirements">
+                      <h3>What your team needs</h3>
+                      <p className="job-description">{job.requirements}</p>
+                    </div>
+                  )}
+                  <div className="job-facts">
+                    {job.project_type && (
+                      <span>
+                        <Building2 size={17} />
+                        {projectLabel(job.project_type)}
+                      </span>
+                    )}
+                    {job.system_size_kw && (
+                      <span>
+                        <Wrench size={17} />
+                        {job.system_size_kw} kW system
+                      </span>
+                    )}
+                    {job.site_count && (
+                      <span>
+                        <MapPin size={17} />
+                        {job.site_count}{" "}
+                        {job.site_count === 1 ? "site" : "sites"}
+                      </span>
+                    )}
+                    {job.materials_by && job.materials_by !== "to_agree" && (
+                      <span>
+                        <Wrench size={17} />
+                        {materialsLabels[job.materials_by]}
+                      </span>
+                    )}
+                    {job.exact_address && (
+                      <span>
+                        <LockKeyhole size={17} />
+                        {job.exact_address}
+                      </span>
+                    )}
                   </div>
-                )}
-                <div className="job-facts">
-                  {job.project_type && (
-                    <span>
-                      <Building2 size={17} />
-                      {projectLabel(job.project_type)}
-                    </span>
-                  )}
-                  {job.system_size_kw && (
-                    <span>
-                      <Wrench size={17} />
-                      {job.system_size_kw} kW system
-                    </span>
-                  )}
-                  {job.site_count && (
-                    <span>
-                      <MapPin size={17} />
-                      {job.site_count} {job.site_count === 1 ? "site" : "sites"}
-                    </span>
-                  )}
-                  {job.materials_by && job.materials_by !== "to_agree" && (
-                    <span>
-                      <Wrench size={17} />
-                      {materialsLabels[job.materials_by]}
-                    </span>
-                  )}
-                  {job.exact_address && (
-                    <span>
-                      <LockKeyhole size={17} />
-                      {job.exact_address}
-                    </span>
+                  {detail.files.some(
+                    (file) => !file.quote_id && !file.update_id,
+                  ) && (
+                    <div className="job-brief-attachments">
+                      <h3>Plans & attachments</h3>{" "}
+                      <FileList
+                        files={detail.files.filter(
+                          (f) => !f.quote_id && !f.update_id,
+                        )}
+                      />
+                    </div>
                   )}
                 </div>
-                {detail.files.some(
-                  (file) => !file.quote_id && !file.update_id,
-                ) && (
-                  <div className="job-brief-attachments">
-                    <h3>Plans & attachments</h3>{" "}
-                    <FileList
-                      files={detail.files.filter(
-                        (f) => !f.quote_id && !f.update_id,
-                      )}
-                    />
-                  </div>
-                )}
               </div>
             )}
             {detail.ownQuote && !quoteEditing && !activeWork && (
@@ -3060,70 +3077,77 @@ export function JobDetailPage() {
                 ))}
               {!activeWork && (
                 <section className="jobs-panel job-details-side">
-                  <h2>Job details</h2>
-                  <div className="job-budget-summary">
-                    <span>
-                      {job.budget_cents != null ? "Total budget" : "Budget"}
-                    </span>
-                    <strong>
-                      {job.budget_cents != null
-                        ? money(job.budget_cents)
-                        : "Open to quotes"}
-                    </strong>
-                  </div>
-                  <div className="job-side-fact">
-                    <b>
-                      <CalendarDays size={16} />
-                      Start
-                    </b>
-                    <span>{job.start_window || "Flexible"}</span>
-                  </div>
-                  {job.expected_duration && (
-                    <div className="job-side-fact">
-                      <b>
-                        <Clock3 size={16} />
-                        Duration
-                      </b>
-                      <span>{job.expected_duration}</span>
+                  <h2 id="job-details-heading">Job details</h2>
+                  <div
+                    className="job-details-content"
+                    role="region"
+                    aria-labelledby="job-details-heading"
+                    tabIndex={0}
+                  >
+                    <div className="job-budget-summary">
+                      <span>
+                        {job.budget_cents != null ? "Total budget" : "Budget"}
+                      </span>
+                      <strong>
+                        {job.budget_cents != null
+                          ? money(job.budget_cents)
+                          : "Open to quotes"}
+                      </strong>
                     </div>
-                  )}
-                  {job.quote_deadline && (
                     <div className="job-side-fact">
                       <b>
                         <CalendarDays size={16} />
-                        Quote deadline
+                        Start
                       </b>
-                      <span>{date(job.quote_deadline)}</span>
+                      <span>{job.start_window || "Flexible"}</span>
                     </div>
-                  )}
-                  <div className="job-company-side">
-                    <JobLogo company={detail.hiringCompany} />
-                    <div>
-                      <strong>{detail.hiringCompany.name}</strong>
-                      <small>
-                        Hiring company · {detail.hiringCompany.location}
-                      </small>
-                      <Link
-                        to={`/jobs/companies/${detail.hiringCompany.slug}?back=${id}`}
+                    {job.expected_duration && (
+                      <div className="job-side-fact">
+                        <b>
+                          <Clock3 size={16} />
+                          Duration
+                        </b>
+                        <span>{job.expected_duration}</span>
+                      </div>
+                    )}
+                    {job.quote_deadline && (
+                      <div className="job-side-fact">
+                        <b>
+                          <CalendarDays size={16} />
+                          Quote deadline
+                        </b>
+                        <span>{date(job.quote_deadline)}</span>
+                      </div>
+                    )}
+                    <div className="job-company-side">
+                      <JobLogo company={detail.hiringCompany} />
+                      <div>
+                        <strong>{detail.hiringCompany.name}</strong>
+                        <small>
+                          Hiring company · {detail.hiringCompany.location}
+                        </small>
+                        <Link
+                          to={`/jobs/companies/${detail.hiringCompany.slug}?back=${id}`}
+                        >
+                          View company profile <ArrowRight size={14} />
+                        </Link>
+                      </div>
+                    </div>
+                    {canMessage && (
+                      <button
+                        className="jobs-button jobs-secondary"
+                        onClick={() => setTab("messages")}
                       >
-                        View company profile <ArrowRight size={14} />
-                      </Link>
-                    </div>
+                        <MessageCircle size={16} />
+                        Job messages
+                      </button>
+                    )}
                   </div>
-                  {canMessage && (
-                    <button
-                      className="jobs-button jobs-secondary"
-                      onClick={() => setTab("messages")}
-                    >
-                      <MessageCircle size={16} />
-                      Job messages
-                    </button>
-                  )}
                 </section>
               )}
             </aside>
           )}
-        </div>
+        </JobDetailLayout>
       )}
       {canQuote && !quoteEditing && (
         <div className="job-mobile-action">
@@ -3142,6 +3166,47 @@ export function JobDetailPage() {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function JobDetailLayout({
+  comparing,
+  bounded,
+  children,
+}: {
+  comparing: boolean;
+  bounded: boolean;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!bounded || !element) return;
+    const measure = () => {
+      // Use the document position so scrolling never changes the reading area.
+      const top = element.getBoundingClientRect().top + window.scrollY;
+      const height = `${Math.max(320, Math.floor(window.innerHeight - top - 24))}px`;
+      if (element.style.getPropertyValue("--job-overview-height") !== height)
+        element.style.setProperty("--job-overview-height", height);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    if (element.parentElement) observer.observe(element.parentElement);
+    const header = document.querySelector(".jobs-site-header");
+    if (header) observer.observe(header);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [bounded]);
+  return (
+    <div
+      ref={ref}
+      className={`jobs-detail-layout workspace-detail-layout ${comparing ? "quote-comparison-layout" : ""} ${bounded ? "job-overview-layout" : ""}`}
+    >
+      {children}
     </div>
   );
 }

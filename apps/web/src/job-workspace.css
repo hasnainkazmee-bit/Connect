@@ -1475,6 +1475,95 @@ body:has(:is(.workspace-posting, .job-workspace, .workspace-inbox)) {
   margin-top: 20px;
   border-top: 1px solid #dce5ee;
 }
+/* Keep the scope and the decision-making facts in one reading workspace. */
+.job-workspace .job-overview-layout :is(.job-brief, .job-details-side) {
+  padding: 0;
+}
+.job-workspace .job-overview-layout :is(.job-brief, .job-details-side) > h2 {
+  flex: none;
+  margin: 0;
+  padding: 24px 26px 20px;
+  font-size: 20px;
+  line-height: 1.3;
+  letter-spacing: -0.4px;
+  color: var(--market-ink);
+}
+.job-brief-content,
+.job-details-content {
+  min-width: 0;
+  padding: 0 26px 26px;
+}
+.job-brief-content > :last-child,
+.job-details-content > :last-child {
+  margin-bottom: 0;
+}
+.job-details-content > .jobs-button {
+  display: flex;
+  width: 100%;
+  margin-top: 16px;
+}
+.job-brief-content:focus-visible,
+.job-details-content:focus-visible {
+  outline: 2px solid #a6bacd;
+  outline-offset: -3px;
+  border-radius: 4px;
+}
+@media (min-width: 701px) {
+  .job-workspace .jobs-detail-layout.job-overview-layout {
+    column-gap: 0;
+    row-gap: 24px;
+    align-items: stretch;
+  }
+  .job-overview-layout > .jobs-detail-main {
+    display: contents;
+  }
+  .job-overview-layout > .jobs-detail-main > :not(.job-brief) {
+    grid-column: 1;
+  }
+  .job-workspace .job-overview-layout > .jobs-aside {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    min-height: 0;
+    max-height: var(--job-overview-height, calc(100dvh - 280px));
+  }
+  .job-workspace .job-overview-layout :is(.job-brief, .job-details-side) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: var(--job-overview-height, calc(100dvh - 280px));
+    overflow: hidden;
+  }
+  .job-workspace .job-overview-layout .job-brief {
+    grid-column: 1;
+    grid-row: 1;
+    border-radius: 16px 0 0 16px;
+    border-right: 0;
+  }
+  .job-workspace .job-overview-layout .job-details-side {
+    position: static;
+    flex: 1;
+    border-radius: 0 16px 16px 0;
+  }
+  .job-overview-layout :is(.job-brief-content, .job-details-content) {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: #b6c7d5 transparent;
+  }
+}
+@media (max-width: 700px) {
+  .job-workspace .job-overview-layout :is(.job-brief, .job-details-side) > h2 {
+    padding: 20px 20px 16px;
+  }
+  .job-brief-content,
+  .job-details-content {
+    padding: 0 20px 20px;
+  }
+}
 :is(.workspace-posting, .job-workspace, .workspace-inbox) .jobs-button {
   min-height: 44px;
 }
