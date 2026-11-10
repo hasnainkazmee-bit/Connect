@@ -29,7 +29,7 @@ Migration `020_provider_profiles.sql` adds work details to existing companies. E
 
 The 20 fictional sample companies, their original SVG logos, sample jobs, projects, updates, quotes, and verified demo accounts are created only by the explicit idempotent `apps/api/dist/seed-marketplace.js` command. Set `ALLOW_DEMO_SEED=true` and a unique `DEMO_PASSWORD` of at least 16 characters; never commit or log that password. Samples carry `is_demo=true`, appear only when the UI's Demo view is selected, and cannot quote or be invited to real jobs. Production startup does not seed them automatically. The accounts use `demo01@connect.example` through `demo20@connect.example`.
 
-The marketplace should eventually serve `sunhubapp.com` with a marketing homepage for visitors and open jobs for signed-in companies. Before changing the Cloudflare route, give the current Sunhub CRM a verified alternate hostname and check its sign-in and callback URLs there. Keep the Connect origin and its Sunhub SSO redirect registration aligned with the final public host. Do not switch the apex route while the CRM is only reachable there.
+The marketplace stays on `connect.sunhubapp.com`, with a marketing homepage for visitors and open jobs for signed-in companies. The separate Sunhub site stays on `sunhubapp.com`. Keep the Connect origin and its Sunhub SSO redirect registration aligned with the Connect host.
 
 ## Account email
 
