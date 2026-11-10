@@ -65,13 +65,18 @@ const uploadDir = path.resolve(root, process.env.UPLOAD_DIR || "uploads");
 await fs.mkdir(uploadDir, { recursive: true });
 app.disable("x-powered-by");
 if (process.env.TRUST_PROXY_HOPS === "1") app.set("trust proxy", 1);
-app.use((_req, res, next) => {
+app.use((req, res, next) => {
+  const jobFilePreview =
+    req.method === "GET" &&
+    /^\/api\/jobs\/files\/[0-9a-f-]{36}$/.test(req.path) &&
+    req.query.preview === "1";
   res.set({
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    "X-Frame-Options": "DENY",
-    "Content-Security-Policy":
-      "default-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    "X-Frame-Options": jobFilePreview ? "SAMEORIGIN" : "DENY",
+    "Content-Security-Policy": jobFilePreview
+      ? "default-src 'none'; frame-ancestors 'self'; base-uri 'none'"
+      : "default-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
   });
   next();
 });

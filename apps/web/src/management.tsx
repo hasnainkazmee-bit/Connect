@@ -1296,9 +1296,7 @@ export function TeamManager() {
                           }
                         >
                           Change to{" "}
-                          {m.role === "admin"
-                            ? "team member"
-                            : "administrator"}
+                          {m.role === "admin" ? "team member" : "administrator"}
                         </button>
                       )}
                       <button
@@ -1399,10 +1397,10 @@ export function TeamManager() {
           <h3>Clear roles. Shared purpose.</h3>
         </div>
         <p>
-          <strong>Administrators</strong> manage publishing, the profile,
-          connections, and employees. <strong>Inbox members</strong> handle
-          conversations. Only the owner can change permissions or remove an
-          administrator.
+          <strong>Administrators</strong> manage jobs, quotes, the company
+          profile, and employees. <strong>Team members</strong> share job
+          messages and progress updates. Only the owner can change permissions
+          or remove an administrator.
         </p>
       </div>
     </section>

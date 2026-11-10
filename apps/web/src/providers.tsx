@@ -1,18 +1,22 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
+  ArrowLeft,
   ArrowRight,
   BriefcaseBusiness,
   Building2,
-  CheckCircle2,
+  CalendarDays,
+  Check,
+  FileText,
   MapPin,
   Search,
-  Star,
   Wrench,
+  Zap,
+  House,
+  PenTool,
 } from "lucide-react";
 import { api } from "./api";
 import type { Company } from "./types";
-import "./providers.css";
 
 type Provider = Company & {
   trades: string[];
@@ -42,64 +46,56 @@ export function ProviderDirectory() {
   const [location, setLocation] = useState(params.get("location") || "");
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [retry, setRetry] = useState(0);
   const sample = params.get("sample") === "true";
+  useEffect(() => {
+    setQuery(params.get("q") || "");
+    setLocation(params.get("location") || "");
+  }, [params]);
   useEffect(() => {
     const controller = new AbortController();
     setError("");
+    setLoading(true);
     api<Result>("/jobs/providers?" + params.toString(), {
       signal: controller.signal,
     })
       .then(setResult)
       .catch((e) => {
         if (!controller.signal.aborted) setError(e.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [params]);
+  }, [params, retry]);
+  const filter = (key: string, value: string) => {
+    const next = new URLSearchParams(params);
+    value ? next.set(key, value) : next.delete(key);
+    if (key !== "page") next.delete("page");
+    setParams(next);
+  };
   const search = (e: FormEvent) => {
     e.preventDefault();
     const next = new URLSearchParams(params);
     for (const [key, value] of [
-      ["q", query],
-      ["location", location],
+      ["q", query.trim()],
+      ["location", location.trim()],
     ])
       value ? next.set(key, value) : next.delete(key);
     next.delete("page");
     setParams(next);
   };
-  const chooseTrade = (trade: string) => {
-    const next = new URLSearchParams(params);
-    trade ? next.set("trade", trade) : next.delete("trade");
-    next.delete("page");
-    setParams(next);
-  };
-  const chooseKind = (kind: string) => {
-    const next = new URLSearchParams(params);
-    kind ? next.set("kind", kind) : next.delete("kind");
-    next.delete("page");
-    setParams(next);
-  };
-  const chooseSample = (value: boolean) => {
-    const next = new URLSearchParams();
-    if (value) next.set("sample", "true");
-    setQuery("");
-    setLocation("");
-    setParams(next);
-  };
   return (
     <div className="jobs-page provider-directory">
-      <div className="provider-intro">
+      <div className="jobs-heading">
         <div>
-          <span className="provider-overline">THE PEOPLE WHO GET IT BUILT</span>
-          <h1>Find the right crew for the work.</h1>
+          <h1>Find your next project partner.</h1>
           <p>
-            Explore solar installers, EPCs, specialist contractors and
-            suppliers. See what they do, where they work and the projects behind
-            their profile.
+            Solar companies with the services, experience, and coverage you
+            need.
           </p>
         </div>
-        <Link className="jobs-button jobs-primary" to="/jobs/new">
-          Post a job <ArrowRight size={17} />
-        </Link>
       </div>
       <form className="provider-search" onSubmit={search}>
         <label>
@@ -126,100 +122,133 @@ export function ProviderDirectory() {
       </form>
       <div className="provider-filters">
         <div className="provider-trades">
-          {["", ...trades].map((trade) => (
-            <button
-              key={trade}
-              className={(params.get("trade") || "") === trade ? "active" : ""}
-              onClick={() => chooseTrade(trade)}
-            >
-              {trade || "All services"}
-            </button>
-          ))}
+          <select
+            aria-label="Service"
+            value={params.get("trade") || ""}
+            onChange={(e) => filter("trade", e.target.value)}
+          >
+            <option value="">All services</option>
+            {trades.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
           <select
             aria-label="Company type"
             value={params.get("kind") || ""}
-            onChange={(e) => chooseKind(e.target.value)}
+            onChange={(e) => filter("kind", e.target.value)}
           >
             <option value="">All company types</option>
-            {kinds.map((kind) => (
-              <option value={kind} key={kind}>
-                {kind}
-              </option>
+            {kinds.map((t) => (
+              <option key={t}>{t}</option>
             ))}
           </select>
+          {["q", "location", "trade", "kind"].some((k) => params.has(k)) && (
+            <button
+              className="job-text-button"
+              onClick={() => setParams(sample ? { sample: "true" } : {})}
+            >
+              Clear filters
+            </button>
+          )}
         </div>
-        <div className="provider-sample-switch">
-          <button
-            className={!sample ? "active" : ""}
-            onClick={() => chooseSample(false)}
-          >
-            Real providers
-          </button>
-          <button
-            className={sample ? "active" : ""}
-            onClick={() => chooseSample(true)}
-          >
-            Demo examples
-          </button>
-        </div>
+        <label className="sample-toggle">
+          <input
+            type="checkbox"
+            checked={sample}
+            onChange={(e) => filter("sample", e.target.checked ? "true" : "")}
+          />
+          Show demo companies
+        </label>
       </div>
-      <div className="provider-results-head">
+      <div className="provider-results-head" aria-live="polite">
         <span>
-          {result ? result.total.toLocaleString() : "…"}{" "}
-          {sample ? "demo" : "solar"} companies
+          {loading
+            ? "Finding companies…"
+            : `${result?.total.toLocaleString() || 0} ${sample ? "demo " : ""}companies`}
         </span>
-        {sample && <strong>Sample profiles for product testing</strong>}
+        <span>
+          {sample
+            ? "Fictional companies for testing"
+            : "Explore services, projects, and credentials"}
+        </span>
       </div>
       {error ? (
-        <p className="job-error">{error}</p>
-      ) : !result ? (
-        <div className="job-loading">Finding providers…</div>
-      ) : result.providers.length ? (
+        <div className="job-empty">
+          <p role="alert" className="job-error">
+            {error}
+          </p>
+          <button
+            className="jobs-button jobs-secondary"
+            onClick={() => setRetry((v) => v + 1)}
+          >
+            Try again
+          </button>
+        </div>
+      ) : loading ? (
+        <div className="provider-grid" aria-label="Loading companies">
+          {Array.from({ length: 6 }, (_, i) => (
+            <div className="provider-card market-skeleton" key={i}>
+              <span />
+              <span />
+              <span />
+            </div>
+          ))}
+        </div>
+      ) : result?.providers.length ? (
         <div className="provider-grid">
           {result.providers.map((c) => (
             <Link to={url(c)} className="provider-card" key={c.id}>
               <div className="provider-card-head">
                 <span className="provider-card-logo">
-                  {c.logo_url ? (
-                    <img src={c.logo_url} alt="" />
-                  ) : (
-                    <Building2 size={25} />
+                  {c.logo_url && (
+                    <img
+                      src={c.logo_url}
+                      alt=""
+                      loading="lazy"
+                      onError={(e) => {
+                        e.currentTarget.style.visibility = "hidden";
+                      }}
+                    />
                   )}
                 </span>
-                <span className="provider-card-type">
-                  {c.is_demo ? "DEMO" : c.type}
-                </span>
+                <span className="provider-card-type">{c.type}</span>
               </div>
               <h2>{c.name}</h2>
               <p className="provider-card-tagline">
-                {c.tagline || c.description || "Solar services"}
+                {c.tagline || c.description || c.type}
               </p>
               <div className="provider-card-meta">
-                <span>
-                  <MapPin size={15} />
-                  {c.location || "Location on request"}
-                </span>
+                {c.location && (
+                  <span>
+                    <MapPin size={15} />
+                    {c.location}
+                  </span>
+                )}
                 <span>
                   <Wrench size={15} />
                   {(c.trades.length ? c.trades : c.services)
-                    .slice(0, 2)
+                    .slice(0, 3)
                     .join(" · ") || c.type}
                 </span>
               </div>
               <div className="provider-card-bottom">
-                {c.availability ? (
-                  <span>
-                    <CheckCircle2 size={15} />
-                    {c.availability}
-                  </span>
-                ) : c.project_count > 0 ? (
-                  <span>
-                    <BriefcaseBusiness size={15} />
-                    {c.project_count} project{c.project_count === 1 ? "" : "s"}
-                  </span>
-                ) : (
-                  <span>View services and coverage</span>
-                )}
+                <span>
+                  {c.availability ? (
+                    <>
+                      <CalendarDays size={14} />
+                      {c.availability}
+                    </>
+                  ) : c.project_count > 0 ? (
+                    <>
+                      <BriefcaseBusiness size={14} />
+                      {c.project_count} projects
+                    </>
+                  ) : c.is_demo ? (
+                    "Demo company"
+                  ) : (
+                    "Company profile"
+                  )}
+                </span>
                 <b>
                   View profile <ArrowRight size={15} />
                 </b>
@@ -229,120 +258,297 @@ export function ProviderDirectory() {
         </div>
       ) : (
         <div className="job-empty">
-          <Search size={27} />
-          <h3>No providers found</h3>
-          <p>Try another service or location.</p>
+          <Search size={26} />
+          <h2>No companies match yet</h2>
+          <p>Try a nearby city, a broader service, or clear your filters.</p>
+          <button
+            className="jobs-button jobs-secondary"
+            onClick={() => setParams(sample ? { sample: "true" } : {})}
+          >
+            Clear filters
+          </button>
         </div>
       )}
-      {result && result.total > result.page * 24 && (
-        <button
-          className="jobs-button jobs-secondary provider-more"
-          onClick={() => {
-            const next = new URLSearchParams(params);
-            next.set("page", String(result.page + 1));
-            setParams(next);
-          }}
-        >
-          Next page <ArrowRight size={16} />
-        </button>
+      {!loading && result && result.total > 24 && (
+        <nav className="market-pagination" aria-label="Company pages">
+          <button
+            className="jobs-button jobs-secondary"
+            disabled={result.page === 1}
+            onClick={() => filter("page", String(result.page - 1))}
+          >
+            <ArrowLeft size={16} />
+            Previous
+          </button>
+          <span>
+            Page {result.page} of {Math.ceil(result.total / 24)}
+          </span>
+          <button
+            className="jobs-button jobs-secondary"
+            disabled={result.page * 24 >= result.total}
+            onClick={() => filter("page", String(result.page + 1))}
+          >
+            Next
+            <ArrowRight size={16} />
+          </button>
+        </nav>
       )}
     </div>
   );
 }
 
+const services = [
+  {
+    title: "Solar installation",
+    detail: "Residential rooftops to commercial arrays",
+    trade: "Installation",
+    icon: House,
+  },
+  {
+    title: "Electrical work",
+    detail: "Wiring, interconnection, and commissioning",
+    trade: "Electrical",
+    icon: Zap,
+  },
+  {
+    title: "Roofing",
+    detail: "Prepare, repair, and protect the roof",
+    trade: "Roofing",
+    icon: Building2,
+  },
+  {
+    title: "Service & maintenance",
+    detail: "Keep systems performing at their best",
+    trade: "Service",
+    icon: Wrench,
+  },
+  {
+    title: "Design & engineering",
+    detail: "Plans, permits, and technical expertise",
+    trade: "Design",
+    icon: PenTool,
+  },
+  {
+    title: "Explore all companies",
+    detail: "Find the right specialist for your project",
+    trade: "",
+    icon: Search,
+  },
+];
 export function MarketplaceLanding() {
   return (
     <div className="market-landing">
       <section className="market-hero">
         <div className="market-hero-copy">
-          <span className="provider-overline">CONNECT BY SUNHUB</span>
-          <h1>Find the people who move solar projects forward.</h1>
+          <span className="provider-overline">
+            THE SOLAR INDUSTRY, WORKING TOGETHER
+          </span>
+          <h1>
+            Good projects.
+            <br />
+            Great partners.
+          </h1>
           <p>
-            Post work, compare quotes and hire trusted solar service providers
-            in one clear place.
+            Find solar companies for the work ahead. Compare quotes, choose your
+            team, and keep the project moving—all in one place.
           </p>
           <div className="market-hero-actions">
-            <Link to="/jobs" className="jobs-button jobs-primary">
-              Find work <ArrowRight size={18} />
+            <Link to="/providers" className="jobs-button jobs-primary">
+              Find a company <ArrowRight size={18} />
             </Link>
-            <Link to="/providers" className="jobs-button jobs-secondary">
-              Find a company
+            <Link to="/jobs" className="jobs-button jobs-secondary">
+              Find work
             </Link>
           </div>
-          <div className="market-hero-proof">
-            <span>
-              <CheckCircle2 size={17} /> Built for solar work
+          <span className="market-byline">
+            Built by Sunhub. Made for solar businesses.
+          </span>
+        </div>
+        <div className="market-hero-visual">
+          <img
+            src="/assets/solar.jpg"
+            alt="Solar panels catching the afternoon sun"
+            fetchPriority="high"
+          />
+          <div className="market-photo-caption">
+            <span className="market-photo-icon">
+              <BriefcaseBusiness size={22} />
             </span>
-            <span>
-              <CheckCircle2 size={17} /> Company to company
-            </span>
-            <span>
-              <CheckCircle2 size={17} /> Clear quotes and updates
-            </span>
+            <div>
+              <strong>From the first quote to the final panel.</strong>
+              <span>The right people. A clear way forward.</span>
+            </div>
           </div>
         </div>
-        <div className="market-hero-preview">
-          <div className="market-preview-top">
-            <span>OPEN PROJECT</span>
-            <BriefcaseBusiness size={23} />
-          </div>
-          <h2>Commercial rooftop installation</h2>
-          <p>Installation crews needed for a multi-site rollout.</p>
+      </section>
+      <section className="market-services">
+        <div className="market-section-heading">
           <div>
-            <span>
-              <MapPin size={15} /> Austin, TX
-            </span>
-            <span>Installation</span>
+            <span className="provider-overline">FIND YOUR SPECIALIST</span>
+            <h2>What needs to get done?</h2>
           </div>
-          <div className="market-preview-footer">
-            <span>Compare companies and quotes</span>
-            <ArrowRight size={20} />
-          </div>
+          <Link to="/providers">
+            Browse companies <ArrowRight size={16} />
+          </Link>
+        </div>
+        <div className="market-service-grid">
+          {services.map(({ title, detail, trade, icon: Icon }) => (
+            <Link
+              key={title}
+              to={
+                "/providers" +
+                (trade ? "?trade=" + encodeURIComponent(trade) : "")
+              }
+            >
+              <Icon size={25} />
+              <h3>{title}</h3>
+              <p>{detail}</p>
+              <ArrowRight size={18} className="service-arrow" />
+            </Link>
+          ))}
         </div>
       </section>
-      <section className="market-paths">
-        <article>
-          <span>01 / HIRE</span>
-          <h2>Need work done?</h2>
+      <section className="market-how" id="how-it-works">
+        <div className="market-section-heading">
+          <div>
+            <span className="provider-overline">
+              LESS BACK AND FORTH. MORE PROGRESS.
+            </span>
+            <h2>One place to get the job done.</h2>
+          </div>
           <p>
-            Describe the job once. Invite companies or compare the quotes that
-            come in.
+            From finding the right company to agreeing on the final details,
+            everyone knows what comes next.
           </p>
-          <Link to="/jobs/new">
-            Post a job <ArrowRight size={16} />
-          </Link>
-        </article>
-        <article>
-          <span>02 / FIND WORK</span>
-          <h2>Have a crew?</h2>
-          <p>
-            Find projects that fit your services and area. Send a detailed quote
-            directly to the hiring company.
-          </p>
-          <Link to="/jobs">
-            Explore jobs <ArrowRight size={16} />
-          </Link>
-        </article>
-        <article>
-          <span>03 / GET FOUND</span>
-          <h2>Show your work.</h2>
-          <p>
-            Your provider profile brings together services, projects, coverage
-            and Connect job reviews.
-          </p>
-          <Link to="/providers">
-            Explore providers <ArrowRight size={16} />
-          </Link>
-        </article>
-      </section>
-      <section className="market-final">
-        <Star size={25} />
-        <h2>Connect. Talk. Build.</h2>
-        <p>Every project starts with the right conversation.</p>
-        <Link to="/providers" className="jobs-button jobs-primary">
-          Explore service providers <ArrowRight size={17} />
+        </div>
+        <div className="market-steps">
+          {[
+            {
+              n: "01",
+              icon: FileText,
+              title: "Tell us about the work",
+              text: "Share the scope, location, and timing. Add plans or photos so companies know exactly what you need.",
+            },
+            {
+              n: "02",
+              icon: UsersIcon,
+              title: "Choose your company",
+              text: "Compare prices, approaches, and availability. Explore past projects and ask questions before deciding.",
+            },
+            {
+              n: "03",
+              icon: Check,
+              title: "Keep work moving",
+              text: "Agree on the job, share progress, and review the finished work. Keep messages and files with the project.",
+            },
+          ].map(({ n, icon: Icon, title, text }) => (
+            <article key={n}>
+              <div>
+                <span>{n}</span>
+                <Icon size={22} />
+              </div>
+              <h3>{title}</h3>
+              <p>{text}</p>
+            </article>
+          ))}
+        </div>
+        <Link className="jobs-button jobs-primary" to="/jobs/new">
+          Post your first job <ArrowRight size={16} />
         </Link>
       </section>
+      <section className="market-provider-cta">
+        <div>
+          <span className="provider-overline">FOR COMPANIES READY TO GROW</span>
+          <h2>
+            Your next project
+            <br />
+            starts with being found.
+          </h2>
+          <p>
+            Put your services, project experience, and coverage in front of
+            companies looking for a team like yours.
+          </p>
+          <div className="market-hero-actions">
+            <Link to="/claim" className="jobs-button jobs-primary">
+              Find and claim your profile <ArrowRight size={17} />
+            </Link>
+            <Link to="/jobs" className="market-light-link">
+              Explore available work <ArrowRight size={16} />
+            </Link>
+          </div>
+        </div>
+        <div className="market-value-list">
+          <p>
+            <Wrench size={22} />
+            <span>
+              <b>Show what you do best</b>Bring your work, services, and
+              credentials together.
+            </span>
+          </p>
+          <p>
+            <MapPin size={22} />
+            <span>
+              <b>Find work that fits</b>Search by the services you offer and
+              where you work.
+            </span>
+          </p>
+          <p>
+            <BriefcaseBusiness size={22} />
+            <span>
+              <b>Turn a quote into a project</b>Have the conversation directly
+              with the hiring company.
+            </span>
+          </p>
+        </div>
+      </section>
+      <section className="market-faq">
+        <div>
+          <span className="provider-overline">A FEW THINGS TO KNOW</span>
+          <h2>
+            Built around
+            <br />
+            how you work.
+          </h2>
+        </div>
+        <div>
+          {[
+            [
+              "Who is Connect for?",
+              "Solar businesses hiring other companies or looking for work: installers, EPCs, electrical and roofing contractors, and specialist service providers.",
+            ],
+            [
+              "Can I both hire and find work?",
+              "Yes. Use the same company account to post jobs and send quotes. My jobs keeps the work you hire for and the work you take on together.",
+            ],
+            [
+              "Is my company already listed?",
+              "It may be. Search for your company and claim its profile to manage the information. If it isn’t listed, you can create a company profile when you join.",
+            ],
+            [
+              "How do quotes and payments work?",
+              "Quotes are private between the hiring company and the provider. Payments happen directly between the companies; Connect lets you record payment stages and confirm their status.",
+            ],
+          ].map(([q, a]) => (
+            <details key={q}>
+              <summary>{q}</summary>
+              <p>{a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+      <footer className="market-footer">
+        <Link to="/" className="market-footer-brand">
+          <img src="/assets/connect-icon.png" alt="" />
+          connect <small>by Sunhub</small>
+        </Link>
+        <nav aria-label="Footer">
+          <Link to="/providers">Find companies</Link>
+          <Link to="/jobs">Find work</Link>
+          <Link to="/jobs/new">Post a job</Link>
+          <Link to="/claim">Claim a profile</Link>
+        </nav>
+        <span>Connect. Talk. Build.</span>
+      </footer>
     </div>
   );
 }
+const UsersIcon = Building2;

@@ -49,4 +49,6 @@ for i,name in enumerate(names):
     second=f'<text x="65" y="49" font-size="14" font-weight="650" fill="{fg}">{html.escape(line2)}</text>' if line2 else ''
     svg=f'''<svg xmlns="http://www.w3.org/2000/svg" width="270" height="72" viewBox="0 0 270 72" role="img" aria-label="{html.escape(name)}"><rect x="4" y="10" width="48" height="48" rx="13" fill="{bg}"/><g transform="translate(4 10)" fill="none" stroke="{fg}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">{marks[i]}</g><text x="65" y="31" font-family="Arial,Helvetica,sans-serif" font-size="{fs}" font-weight="750" letter-spacing="-.5" fill="#173149">{html.escape(line1)}</text>{second}</svg>'''
     (out/(slug+'.svg')).write_text(svg)
+    mark=f'''<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="{bg}"/><g transform="translate(8 8)" fill="none" stroke="{fg}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">{marks[i]}</g></svg>'''
+    (out/(slug+'-mark.svg')).write_text(mark)
 print(f'Generated {len(names)} original demo logo assets')

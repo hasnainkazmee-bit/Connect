@@ -65,9 +65,9 @@ export function publicPages() {
         path.join(root, "apps/web/dist/index.html"),
         "utf8",
       );
-    let title = "Connect. Talk. Celebrate.",
+    let title = "Connect by Sunhub | Solar work and project partners",
       description =
-        "Find solar companies, explore their work and connect with the industry.",
+        "Find solar project partners, compare quotes, and manage company-to-company work with Connect by Sunhub.",
       canonical = req.path,
       content = "",
       status = 200,
@@ -91,7 +91,7 @@ export function publicPages() {
       title = "Connect by Sunhub | Find solar work and service providers";
       description =
         "Hire solar service providers, compare quotes and manage projects on Connect by Sunhub.";
-      content = `<div class="market-landing"><section class="market-hero"><div class="market-hero-copy"><span class="provider-overline">CONNECT BY SUNHUB</span><h1>Find the people who move solar projects forward.</h1><p>Post work, compare quotes and hire solar service providers in one clear place.</p><a class="jobs-button jobs-primary" href="/jobs">Find work →</a> <a class="jobs-button jobs-secondary" href="/providers">Find a company</a></div></section></div>`;
+      content = `<div class="market-landing"><section class="market-hero"><div class="market-hero-copy"><span class="provider-overline">CONNECT BY SUNHUB</span><h1>Good projects. Great partners.</h1><p>Find solar companies for the work ahead. Compare quotes, choose your team, and keep the project moving—all in one place.</p><a class="jobs-button jobs-primary" href="/jobs">Find work →</a> <a class="jobs-button jobs-secondary" href="/providers">Find a company</a></div></section></div>`;
     } else if (req.path === "/providers") {
       const data =
         await pool.query(`SELECT id,username,slug,name,type,tagline,description,location,logo_url,services,service_areas
@@ -193,7 +193,7 @@ export function publicPages() {
       .replace("</head>", meta + "</head>")
       .replace(
         '<div id="root"></div>',
-        `<div id="root"><header class="jobs-site-header"><div class="jobs-header-inner"><a class="jobs-brand" href="/"><img src="/assets/sunhub-symbol.png" alt=""/><span><strong>CONNECT</strong><small>by Sunhub</small></span></a><nav class="jobs-top-nav"><a href="/">Home</a><a href="/jobs">Jobs</a><a href="/providers">Companies</a></nav><div class="jobs-header-actions"><a class="jobs-button jobs-primary" href="/account">Sign in</a></div></div></header><main class="app-main">${content}</main></div>`,
+        `<div id="root"><header class="jobs-site-header"><div class="jobs-header-inner"><a class="jobs-brand" href="/"><img src="/assets/connect-icon.png" alt=""/><span><strong>connect</strong><small>by Sunhub</small></span></a><nav class="jobs-top-nav"><a href="/jobs">Find work</a><a href="/providers">Find companies</a><a href="/#how-it-works">How it works</a></nav><div class="jobs-header-actions"><a class="jobs-button jobs-primary" href="/jobs/new">Post a job</a><a class="jobs-button jobs-secondary" href="/account">Sign in</a></div></div></header><main class="app-main">${content}</main></div>`,
       );
     const csp = String(res.getHeader("Content-Security-Policy") || "");
     res.set(

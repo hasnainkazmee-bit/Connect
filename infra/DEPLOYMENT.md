@@ -60,3 +60,9 @@ Restore into a separate Docker project first. Load `database.dump` into a new Po
 This initial deployment uses one API process and a single-node Garage store. The event stream is in-process; multiple API replicas require a shared event bus. Native Android keeps a private local cache, encrypted session cookies, and retries foreground loading. Quick preview tunnels use polling; named Cloudflare routes support the normal event stream. This is a tested initial deployment, not a claim of high availability or a completed independent security audit.
 
 A failing `/api/ready`, unsent email outbox rows, exhausted `storage_deletions` retries, and failed backups require operator attention. SMTP readiness is separate from DB/object readiness. Never expose Mailpit, Docker, database ports, `.env` files or server credentials publicly.
+
+## Marketplace layout and job briefs
+
+Migration `021_job_briefs_and_quote_breakdowns.sql` is additive and runs with the API startup migrations. Deploy both `app` and `jobs` from the same commit. It stores optional project scope fields and validated quote cost breakdowns. New job publication retains a draft until its selected files have uploaded.
+
+For previously seeded fictional examples, `docker compose --env-file .env.production -f compose.production.yaml exec -T -e ALLOW_DEMO_SEED=true app node apps/api/dist/refine-marketplace-demos.js` enriches only untouched generated example content. It does not change real company records, passwords, or user-edited jobs. See `docs/marketplace-ux.md` for the screen responsibilities and local regression commands.

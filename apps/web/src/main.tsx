@@ -98,7 +98,7 @@ import { ClaimCompanyPage } from "./claim-company";
 import { CompanyMatches } from "./company-matches";
 import { CompanyProfileView } from "./company-profile";
 import { CompanySettings, EmployeeInvite } from "./management";
-import { JobsPage, NewJobPage, JobDetailPage, WorkCompanyPage } from "./jobs";
+import { JobsPage, NewJobPage, JobDetailPage } from "./jobs";
 import { MarketplaceLanding, ProviderDirectory } from "./providers";
 import { ProviderProfilePage } from "./provider-profile";
 import { Publisher, DraftsDialog, preloadPublisher } from "./composer";
@@ -118,6 +118,7 @@ import "./desktop-app.css";
 import "./mac-app.css";
 import "./windows-app.css";
 import "./web-frame.css";
+import "./marketplace.css";
 
 const date = (s: string) =>
   new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -602,45 +603,19 @@ function App() {
               className="jobs-brand"
               aria-label="Connect by Sunhub home"
             >
-              <img src="/assets/sunhub-symbol.png" alt="" />
+              <img src="/assets/connect-icon.png" alt="" />
               <span>
-                <strong>CONNECT</strong>
+                <strong>connect</strong>
                 <small>by Sunhub</small>
               </span>
             </Link>
             <nav className="jobs-top-nav" aria-label="Main navigation">
-              <NavLink
-                to="/"
-                end
-                className={({ isActive }) => (isActive ? "active" : "")}
-              >
-                <BriefcaseBusiness size={17} />{" "}
-                {session.user ? "Find work" : "Home"}
-              </NavLink>
-              {session.user ? (
-                <NavLink
-                  to="/jobs/mine"
-                  className={({ isActive }) => (isActive ? "active" : "")}
-                >
-                  <FileText size={17} /> My jobs
-                </NavLink>
-              ) : (
-                <NavLink
-                  to="/jobs"
-                  className={({ isActive }) => (isActive ? "active" : "")}
-                >
-                  <BriefcaseBusiness size={17} /> Jobs
-                </NavLink>
-              )}
-              <NavLink
-                to="/providers"
-                className={({ isActive }) => (isActive ? "active" : "")}
-              >
-                <Building2 size={17} /> Companies
-              </NavLink>
+              <Link to="/jobs" className={location.pathname === "/jobs" || (location.pathname === "/" && !!session.user) ? "active" : ""} aria-current={location.pathname === "/jobs" || (location.pathname === "/" && !!session.user) ? "page" : undefined}><BriefcaseBusiness size={17}/> Find work</Link>
+              <NavLink to="/providers" className={({isActive}) => isActive ? "active" : ""}><Building2 size={17}/> Find companies</NavLink>
+              {session.user ? <NavLink to="/jobs/mine" className={({isActive}) => isActive ? "active" : ""}><FileText size={17}/> My jobs</NavLink> : <Link to="/#how-it-works">How it works</Link>}
             </nav>
             <div className="jobs-header-actions">
-              {company && admin && (
+              {(!session.user || (company && admin)) && (
                 <Link to="/jobs/new" className="jobs-button jobs-primary">
                   <Plus size={18} /> Post a job
                 </Link>
@@ -679,7 +654,7 @@ function App() {
                 </details>
               ) : (
                 <button
-                  className="jobs-button jobs-primary"
+                  className="jobs-button jobs-secondary header-sign-in"
                   onClick={() => auth()}
                 >
                   Sign in
@@ -804,7 +779,7 @@ function App() {
           </button>
         </div>
       )}
-      {!desktopHost && (
+      {!desktopHost && (location.pathname !== "/" || !!session.user) && (
         <footer className="site-footer">
           <span>
             <img
@@ -813,7 +788,7 @@ function App() {
               alt="Connect"
             />
           </span>
-          <span>Connect. Talk. Celebrate.</span>
+          <span>Connect. Talk. Build.</span>
           <button onClick={() => setModal(<PhotoCredits />)}>
             Photo credits
           </button>

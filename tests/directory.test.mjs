@@ -559,7 +559,7 @@ test("public directory, ownership claims and shared company identity", async (t)
         assert.match(await jobsPage.text(), /Find solar jobs \| Connect/);
         const homePage = await fetch(base + "/");
         assert.equal(homePage.status, 200);
-        assert.match(await homePage.text(), /Find the people who move solar projects forward/);
+        assert.match(await homePage.text(), /Good projects. Great partners./);
         const providersPage = await fetch(base + "/providers");
         assert.equal(providersPage.status, 200);
         assert.match(await providersPage.text(), /Find the right crew for the work/);

@@ -4,7 +4,8 @@ import {
   ArrowLeft,
   ArrowRight,
   BriefcaseBusiness,
-  CheckCircle2,
+  FileBadge,
+  ExternalLink,
   MapPin,
   MessageCircle,
   Pencil,
@@ -13,9 +14,12 @@ import {
 } from "lucide-react";
 import { api, post } from "./api";
 import { useApp } from "./context";
-import { ProfileEditor } from "./management";
+import {
+  ProfileEditor,
+  PortfolioEditor,
+  useUnsavedChanges,
+} from "./management";
 import type { Company, Profile } from "./types";
-import "./providers.css";
 
 type Provider = Company & {
   trades: string[];
@@ -64,6 +68,16 @@ function WorkDetailsEditor({
   const [insurance, setInsurance] = useState(provider.insurance_details || "");
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  useUnsavedChanges(
+    trades !== (provider.trades || []).join(", ") ||
+      projects !== (provider.project_types || []).join(", ") ||
+      availability !== (provider.availability || "") ||
+      crew !== (provider.crew_size || "") ||
+      capacity !== (provider.capacity || "") ||
+      license !== (provider.license_details || "") ||
+      insurance !== (provider.insurance_details || ""),
+    busy,
+  );
   const save = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
@@ -161,6 +175,14 @@ function WorkDetailsEditor({
         </label>
         {error && <p className="job-error">{error}</p>}
         <footer className="manage-footer">
+          <button
+            type="button"
+            className="button secondary"
+            onClick={close}
+            disabled={busy}
+          >
+            Cancel
+          </button>
           <button className="button primary" disabled={busy}>
             {busy ? "Saving…" : "Save work details"}
           </button>
@@ -173,12 +195,14 @@ function WorkDetailsEditor({
 export function ProviderProfilePage() {
   const p = useParams(),
     [params] = useSearchParams(),
-    { company: mine, admin, open, revision, refresh, toast } = useApp();
+    { company: mine, admin, open, revision, refresh, toast, signIn } = useApp();
   const slug = p.slug || p.username || p.id;
   const [profile, setProfile] = useState<Profile | null>(null),
     [provider, setProvider] = useState<Provider | null>(null),
     [stats, setStats] = useState<Stats | null>(null),
     [updates, setUpdates] = useState<Update[]>([]);
+  const [showInvite, setShowInvite] = useState(false),
+    [inviting, setInviting] = useState(false);
   const [jobs, setJobs] = useState<{ id: string; title: string }[]>([]),
     [chosen, setChosen] = useState(""),
     [error, setError] = useState("");
@@ -186,6 +210,11 @@ export function ProviderProfilePage() {
     if (!slug) return;
     let live = true;
     setError("");
+    setProfile(null);
+    setProvider(null);
+    setUpdates([]);
+    setChosen("");
+    setShowInvite(false);
     Promise.all([
       api<Profile>("/companies/" + encodeURIComponent(slug)),
       api<{ provider: Provider }>(
@@ -209,9 +238,13 @@ export function ProviderProfilePage() {
   }, [slug, revision]);
   useEffect(() => {
     if (!provider) return;
-    api<{ posts: Update[] }>("/feed?companyId=" + provider.id)
+    const controller = new AbortController();
+    api<{ posts: Update[] }>("/feed?companyId=" + provider.id, {
+      signal: controller.signal,
+    })
       .then((v) => setUpdates(v.posts.slice(0, 3)))
       .catch(() => {});
+    return () => controller.abort();
   }, [provider?.id]);
   useEffect(() => {
     if (!mine || !admin) return;
@@ -234,12 +267,16 @@ export function ProviderProfilePage() {
   }, [mine?.id, admin]);
   const invite = async () => {
     if (!chosen || !provider) return;
+    setInviting(true);
     try {
       await post("/jobs/" + chosen + "/invite", { companyIds: [provider.id] });
       toast("Invitation sent");
       setChosen("");
+      setShowInvite(false);
     } catch (e) {
-      setError((e as Error).message);
+      toast((e as Error).message);
+    } finally {
+      setInviting(false);
     }
   };
   const c = provider,
@@ -262,11 +299,20 @@ export function ProviderProfilePage() {
         {back ? "Back to job" : "Service providers"}
       </Link>
       <section className="provider-profile-hero">
-        <div className="provider-profile-mark">
-          {c.logo_url ? <img src={c.logo_url} alt="" /> : null}
+        <div className="provider-profile-logo">
+          {c.logo_url ? (
+            <img
+              src={
+                c.is_demo && c.logo_url.startsWith("/assets/demo-logos/")
+                  ? c.logo_url.replace(/\.svg$/, "-mark.svg")
+                  : c.logo_url
+              }
+              alt=""
+            />
+          ) : null}
         </div>
-        <div className="provider-profile-title">
-          <div className="provider-profile-label">
+        <div className="provider-profile-heading">
+          <div className="provider-overline">
             {c.is_demo
               ? "DEMO COMPANY"
               : c.listing_status === "managed"
@@ -284,13 +330,13 @@ export function ProviderProfilePage() {
           {mine?.id === c.id && admin ? (
             <>
               <button
-                className="jobs-button jobs-secondary"
+                className="jobs-button jobs-primary"
                 onClick={() => open(<ProfileEditor target={c} />)}
               >
                 <Pencil size={16} /> Edit profile
               </button>
               <button
-                className="jobs-button jobs-primary"
+                className="jobs-button jobs-secondary"
                 onClick={() =>
                   open(<WorkDetailsEditor provider={c} onSaved={refresh} />)
                 }
@@ -301,47 +347,108 @@ export function ProviderProfilePage() {
           ) : (
             <>
               {c.listing_status === "unclaimed" ? (
-                <Link
-                  className="jobs-button jobs-secondary"
-                  to={"/claim/" + (c.username || c.slug)}
-                >
-                  Claim profile
-                </Link>
+                <>
+                  {c.website && (
+                    <a
+                      className="jobs-button jobs-primary"
+                      href={c.website}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Visit website
+                      <ExternalLink size={16} />
+                    </a>
+                  )}
+                  <Link
+                    className="jobs-button jobs-secondary"
+                    to={"/claim/" + (c.username || c.slug)}
+                  >
+                    Is this your company?
+                  </Link>
+                </>
               ) : (
-                <Link className="jobs-button jobs-secondary" to="/jobs/new">
-                  <BriefcaseBusiness size={16} /> Post a job
-                </Link>
-              )}
-              {admin && jobs.length > 0 && (
-                <div className="provider-invite">
-                  <select
-                    aria-label="Choose job"
-                    value={chosen}
-                    onChange={(e) => setChosen(e.target.value)}
-                  >
-                    <option value="">Choose a job</option>
-                    {jobs.map((j) => (
-                      <option value={j.id} key={j.id}>
-                        {j.title}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    className="jobs-button jobs-primary"
-                    disabled={!chosen}
-                    onClick={() => void invite()}
-                  >
-                    Invite <ArrowRight size={15} />
-                  </button>
-                </div>
+                mine?.id !== c.id && (
+                  <>
+                    {!mine ? (
+                      <button
+                        className="jobs-button jobs-primary"
+                        onClick={signIn}
+                      >
+                        Sign in to invite
+                      </button>
+                    ) : (
+                      admin &&
+                      !!mine.is_demo === !!c.is_demo && (
+                        <button
+                          className="jobs-button jobs-primary"
+                          onClick={() => setShowInvite((v) => !v)}
+                        >
+                          Invite to a job
+                          <ArrowRight size={16} />
+                        </button>
+                      )
+                    )}
+                    {showInvite && (
+                      <div className="provider-invite">
+                        {jobs.length ? (
+                          <>
+                            <select
+                              aria-label="Choose a job to invite this company to"
+                              value={chosen}
+                              onChange={(e) => setChosen(e.target.value)}
+                            >
+                              <option value="">Choose your open job</option>
+                              {jobs.map((j) => (
+                                <option key={j.id} value={j.id}>
+                                  {j.title}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              className="jobs-button jobs-secondary"
+                              disabled={!chosen || inviting}
+                              onClick={() => void invite()}
+                            >
+                              {inviting ? "Sending…" : "Send invitation"}
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <small>
+                              Post a job first, then invite this company to
+                              quote.
+                            </small>
+                            <Link
+                              className="jobs-button jobs-secondary"
+                              to="/jobs/new"
+                            >
+                              Post a job
+                            </Link>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )
               )}
             </>
           )}
         </div>
       </section>
+      <nav
+        className="provider-profile-nav"
+        aria-label="Company profile sections"
+      >
+        <a href="#overview">Overview</a>
+        {profile.projects.length > 0 && <a href="#recent-work">Recent work</a>}
+        {!!profile.credentials?.length && (
+          <a href="#credentials">Credentials</a>
+        )}
+        <a href="#company-reviews">Reviews</a>
+      </nav>
       <div className="provider-profile-layout">
         <main>
-          <section className="jobs-panel">
+          <section className="jobs-panel" id="overview">
             <h2>What we do</h2>
             <p className="provider-about">
               {c.description ||
@@ -372,9 +479,25 @@ export function ProviderProfilePage() {
               )}
             </section>
           )}
-          {profile.projects.length > 0 && (
-            <section className="jobs-panel">
-              <h2>Recent work</h2>
+          {(profile.projects.length > 0 || (mine?.id === c.id && admin)) && (
+            <section className="jobs-panel" id="recent-work">
+              <div className="jobs-section-title">
+                <h2>Recent work</h2>
+                {mine?.id === c.id && admin && (
+                  <button
+                    className="job-text-button"
+                    onClick={() => open(<PortfolioEditor />)}
+                  >
+                    Add project
+                  </button>
+                )}
+              </div>
+              {!profile.projects.length && (
+                <p className="job-muted">
+                  Show hiring companies what your team has delivered. Add your
+                  first project with photos, scope, and location.
+                </p>
+              )}
               <div className="job-project-grid">
                 {profile.projects.slice(0, 6).map((x) => (
                   <article key={x.id}>
@@ -385,6 +508,14 @@ export function ProviderProfilePage() {
                       {x.location}
                     </small>
                     <p>{x.description}</p>
+                    {mine?.id === c.id && admin && (
+                      <button
+                        className="job-text-button"
+                        onClick={() => open(<PortfolioEditor project={x} />)}
+                      >
+                        Edit project
+                      </button>
+                    )}
                   </article>
                 ))}
               </div>
@@ -467,13 +598,19 @@ export function ProviderProfilePage() {
           {(c.license_details ||
             c.insurance_details ||
             !!profile.credentials?.length) && (
-            <section className="jobs-panel">
+            <section className="jobs-panel" id="credentials">
               <h2>Credentials & coverage</h2>
               {profile.credentials?.slice(0, 5).map((x) => (
                 <div className="job-credential" key={x.id}>
-                  <CheckCircle2 size={16} />
+                  <FileBadge size={16} />
                   <span>
-                    <b>{x.title}</b>
+                    {x.source_url ? (
+                      <a href={x.source_url} target="_blank" rel="noreferrer">
+                        <b>{x.title}</b>
+                      </a>
+                    ) : (
+                      <b>{x.title}</b>
+                    )}
                     <small>{x.organization}</small>
                   </span>
                 </div>
@@ -492,7 +629,7 @@ export function ProviderProfilePage() {
               )}
             </section>
           )}
-          <section className="jobs-panel">
+          <section className="jobs-panel" id="company-reviews">
             <h2>Connect job reviews</h2>
             {stats && stats.reviewCount > 0 ? (
               <>

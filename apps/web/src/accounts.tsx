@@ -105,7 +105,7 @@ export function AccountLayout({ children }: { children: ReactNode }) {
             src="/assets/connect-logo.png"
             alt="Connect"
           />
-          <p>Connect. Talk. Celebrate.</p>
+          <p>Connect. Talk. Build.</p>
         </div>
         {children}
       </section>
@@ -227,7 +227,7 @@ export function AuthExperience({
               >
                 <Building2 size={20} />
                 <strong>A company</strong>
-                <small>Publish, connect, and work as a team</small>
+                <small>Post jobs, send quotes, and manage projects</small>
               </button>
               <button
                 type="button"
@@ -236,7 +236,7 @@ export function AuthExperience({
               >
                 <Users size={20} />
                 <strong>An individual</strong>
-                <small>Follow, review, and talk to companies</small>
+                <small>Explore companies and available work</small>
               </button>
             </div>
           </fieldset>
@@ -401,41 +401,31 @@ export function Onboarding({
 }) {
   const { session, company, setSession, refresh, close } = useApp();
   const task = useAction();
+  const navigate = useNavigate();
   const individual = session.user?.account_type === "individual";
   const [username, setUsername] = useState(company?.username || "");
   const [companyName, setCompanyName] = useState(company?.name || "");
   const needsVerification =
     (verificationOnly || session.verificationRequired !== false) &&
     !session.user?.email_verified_at;
-  const [step, setStep] = useState<"company" | "follow">(
-      individual ? "follow" : "company",
+  const [step, setStep] = useState<"company" | "ready">(
+      individual ? "ready" : "company",
     ),
     [challengeId, setChallengeId] = useState(session.challengeId || ""),
     [cooldown, setCooldown] = useState(0),
     [sent, setSent] = useState(!!session.challengeId);
   const [type, setType] = useState(company?.type || "Installer"),
-    [selected, setSelected] = useState<string[]>(company?.services || []),
-    [companies, setCompanies] = useState<Company[]>([]),
-    [follows, setFollows] = useState<string[]>([]);
-  useEffect(() => {
-    if (step === "follow")
-      api<{ companies: Company[] }>("/companies")
-        .then((r) =>
-          setCompanies(
-            r.companies.filter((c) => c.id !== company?.id).slice(0, 6),
-          ),
-        )
-        .catch((e) => task.setError(e.message));
-  }, [step, company?.id]);
+    [selected, setSelected] = useState<string[]>(company?.services || []);
   useEffect(() => {
     if (!cooldown) return;
     const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
     return () => clearTimeout(t);
   }, [cooldown]);
-  const complete = async (ids: string[] = []) => {
-    setSession(await post("/onboarding/complete", { followIds: ids }));
+  const complete = async (destination?: string) => {
+    setSession(await post("/onboarding/complete", { followIds: [] }));
     refresh();
     onDone();
+    if (destination) navigate(destination);
   };
   return (
     <AccountLayout>
@@ -450,7 +440,7 @@ export function Onboarding({
               className={
                 !needsVerification && step === "company"
                   ? "current"
-                  : step === "follow"
+                  : step === "ready"
                     ? "done"
                     : ""
               }
@@ -461,9 +451,9 @@ export function Onboarding({
         )}
         <b />
         <span
-          className={!needsVerification && step === "follow" ? "current" : ""}
+          className={!needsVerification && step === "ready" ? "current" : ""}
         >
-          {individual ? 2 : 3} <i>Community</i>
+          {individual ? 2 : 3} <i>Ready</i>
         </span>
       </div>
       {needsVerification ? (
@@ -565,7 +555,7 @@ export function Onboarding({
                     services: selected,
                   }),
                 );
-                setStep("follow");
+                setStep("ready");
               });
             }}
           >
@@ -667,63 +657,46 @@ export function Onboarding({
       ) : (
         <>
           <div className="account-symbol">
-            <Users />
+            <CheckCheck />
           </div>
           <div className="account-heading">
-            <span className="account-eyebrow">YOUR FEED</span>
-            <h1>Find your people.</h1>
+            <span className="account-eyebrow">YOU’RE READY</span>
+            <h1>
+              {individual
+                ? "Explore the work ahead."
+                : "What’s next for your company?"}
+            </h1>
             <p>
-              Follow companies to see their updates in your feed. Connections
-              start with a conversation.
+              {individual
+                ? "Discover solar businesses and see the projects looking for a team."
+                : "Find projects that fit your team, or find a company to get your next job done. You can do both with this account."}
             </p>
-          </div>
-          <div className="onboarding-companies">
-            {companies.map((c) => (
-              <div key={c.id}>
-                <Logo company={c} />
-                <span>
-                  <strong>{c.name}</strong>
-                  <small>
-                    {c.type} · {c.location}
-                  </small>
-                </span>
-                <button
-                  aria-pressed={follows.includes(c.id)}
-                  onClick={() =>
-                    setFollows(
-                      follows.includes(c.id)
-                        ? follows.filter((id) => id !== c.id)
-                        : [...follows, c.id],
-                    )
-                  }
-                >
-                  {follows.includes(c.id) ? <Check size={16} /> : "+"}
-                  <span>{follows.includes(c.id) ? "Following" : "Follow"}</span>
-                </button>
-              </div>
-            ))}
           </div>
           <ErrorMessage message={task.error} />
           <button
             className="account-primary"
             disabled={task.busy}
-            onClick={() => void task.run(() => complete(follows))}
+            onClick={() => void task.run(() => complete("/jobs"))}
           >
-            {task.busy ? "Finishing up…" : "Let’s go"}
+            {task.busy ? "Finishing up…" : "Find work"}
             <ArrowRight size={18} />
           </button>
           <button
             className="account-link back-link"
             disabled={task.busy}
-            onClick={() => void task.run(() => complete())}
+            onClick={() =>
+              void task.run(() =>
+                complete(individual ? "/providers" : "/jobs/new"),
+              )
+            }
           >
-            I’ll explore first
+            {individual ? "Explore companies" : "I need to hire a company"}
           </button>
         </>
       )}
       <div className="account-footnote">
         <Zap size={15} />
-        Connect. Talk. Celebrate.
+        Connect. Talk. Build.
       </div>
     </AccountLayout>
   );
