@@ -24,14 +24,6 @@ body {
 .jobs-header-inner {
   min-height: 86px;
 }
-.jobs-brand strong {
-  font-size: 29px;
-  letter-spacing: -1.3px;
-}
-.jobs-brand > img {
-  width: 39px;
-  height: 39px;
-}
 .jobs-top-nav a {
   color: var(--market-ink);
   font-weight: 550;
@@ -1463,13 +1455,6 @@ html:not(.connect-desktop) .account-experience .account-panel {
 @media (max-width: 600px) {
   .jobs-page {
     padding-top: 26px;
-  }
-  .jobs-brand strong {
-    font-size: 24px;
-  }
-  .jobs-brand > img {
-    width: 32px;
-    height: 32px;
   }
   .jobs-top-nav a {
     font-size: 12px;

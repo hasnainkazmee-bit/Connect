@@ -44,31 +44,21 @@ html:not(.connect-desktop) .app-main {
 }
 .jobs-brand {
   display: flex;
-  align-items: center;
-  gap: 9px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
   color: var(--market-ink);
   text-decoration: none;
   flex-shrink: 0;
 }
 .jobs-brand > img {
-  width: 35px;
-  height: 35px;
+  width: 164px;
+  height: auto;
   object-fit: contain;
-}
-.jobs-brand > span {
-  display: flex;
-  flex-direction: column;
-}
-.jobs-brand strong {
-  font-size: 25px;
-  letter-spacing: -1px;
-  line-height: 1;
-  font-weight: 700;
 }
 .jobs-brand small {
   font-size: 10px;
   letter-spacing: 0.08em;
-  margin-top: 5px;
   color: var(--market-muted);
 }
 .jobs-top-nav {
@@ -309,12 +299,8 @@ html:not(.connect-desktop) .app-main {
   .jobs-page {
     padding: 24px 0 48px;
   }
-  .jobs-brand strong {
-    font-size: 22px;
-  }
   .jobs-brand > img {
-    width: 30px;
-    height: 30px;
+    width: 132px;
   }
   .jobs-header-actions {
     gap: 6px;
@@ -353,6 +339,9 @@ html:not(.connect-desktop) .app-main {
   }
 }
 @media (max-width: 360px) {
+  .jobs-brand > img {
+    width: 116px;
+  }
   .jobs-brand small {
     display: none;
   }

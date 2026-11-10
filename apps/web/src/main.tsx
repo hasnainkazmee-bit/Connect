@@ -609,11 +609,13 @@ function App() {
               className="jobs-brand"
               aria-label="Connect by Sunhub home"
             >
-              <img src="/assets/connect-icon.png" alt="" />
-              <span>
-                <strong>connect</strong>
-                <small>by Sunhub</small>
-              </span>
+              <img
+                src="/assets/connect-logo.png"
+                alt="Connect"
+                width={1465}
+                height={276}
+              />
+              <small>by Sunhub</small>
             </Link>
             <nav className="jobs-top-nav" aria-label="Main navigation">
               <Link
