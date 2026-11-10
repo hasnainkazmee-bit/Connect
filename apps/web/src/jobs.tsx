@@ -674,6 +674,34 @@ export function JobsPage({ mine = false }: { mine?: boolean }) {
   );
 }
 
+const postingSteps = [
+  {
+    label: "The job",
+    title: "What do you need help with?",
+    hint: "Start with a clear title. A few specific words help the right companies recognize the work they can do.",
+  },
+  {
+    label: "Work details",
+    title: "Give companies the full picture.",
+    hint: "Describe the work and the result you need. Plans, photos, and a little context help companies put together a useful quote.",
+  },
+  {
+    label: "Where & when",
+    title: "Where and when do you need help?",
+    hint: "Let companies check whether their team can be there. It’s fine to leave the timing flexible.",
+  },
+  {
+    label: "Budget",
+    title: "How would you like to get quotes?",
+    hint: "Have a budget in mind? Share it. Need help pricing the work? Let companies propose a total.",
+  },
+  {
+    label: "Review",
+    title: "Review your job",
+    hint: "This is what companies will see. Check the details, make any changes, and publish when you’re ready.",
+  },
+];
+
 export function NewJobPage() {
   const { id } = useParams(),
     { company, admin, session, createCompany, signIn, toast } = useApp(),
@@ -686,13 +714,18 @@ export function NewJobPage() {
   const [materials, setMaterials] = useState("to_agree");
   const [requirements, setRequirements] = useState("");
   const [savingDraft, setSavingDraft] = useState(false);
-  const [step, setStep] = useState<"details" | "review">("details");
+  const [step, setStep] = useState(0);
+  const [furthestStep, setFurthestStep] = useState(0);
+  const [budgetMode, setBudgetMode] = useState("quotes");
   const [people, setPeople] = useState("");
   const [expectedDuration, setExpectedDuration] = useState("");
   const [arrangement, setArrangement] = useState("onsite");
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const moveTo = (next: "details" | "review") => {
+  const formRef = useRef<HTMLFormElement>(null);
+  const moveTo = (next: number) => {
     setStep(next);
+    setFurthestStep((previous) => Math.max(previous, next));
+    setError("");
     window.scrollTo({ top: 0, behavior: "instant" });
     requestAnimationFrame(() => headingRef.current?.focus());
   };
@@ -739,6 +772,7 @@ export function NewJobPage() {
         setBudget(
           job.budget_cents != null ? String(job.budget_cents / 100) : "",
         );
+        setBudgetMode(job.budget_cents ? "fixed" : "quotes");
         setDeadline(
           job.quote_deadline
             ? new Date(job.quote_deadline).toLocaleDateString("en-CA")
@@ -746,10 +780,91 @@ export function NewJobPage() {
         );
         setExact(job.exact_address || "");
         setEditReady(true);
+        setFurthestStep(4);
       })
       .catch((e) => setError(e.message));
   }, [id]);
+  const stageError = (stage: number) => {
+    if (stage === 0 && (title.trim().length < 8 || !trade))
+      return "Add a clear title of at least 8 characters and choose a type of work.";
+    if (stage === 1) {
+      if (description.trim().length < 20)
+        return "Add a little more detail about the work (at least 20 characters).";
+      if (
+        systemSize &&
+        (!Number.isFinite(Number(systemSize)) ||
+          Number(systemSize) < 0.01 ||
+          Number(systemSize) > 100000000)
+      )
+        return "Enter a system size between 0.01 and 100,000,000 kW.";
+      if (
+        siteCount &&
+        (!Number.isInteger(Number(siteCount)) ||
+          Number(siteCount) < 1 ||
+          Number(siteCount) > 100000)
+      )
+        return "Enter a whole number of sites between 1 and 100,000.";
+    }
+    if (stage === 2) {
+      if (arrangement !== "remote" && location.trim().length < 2)
+        return "Add the city or service area where you need help.";
+      if (
+        trade === "crew" &&
+        people &&
+        (!Number.isInteger(Number(people)) ||
+          Number(people) < 1 ||
+          Number(people) > 1000)
+      )
+        return "Enter a whole number of people between 1 and 1,000.";
+    }
+    if (
+      stage === 3 &&
+      budgetMode === "fixed" &&
+      (!budget ||
+        !Number.isFinite(Number(budget)) ||
+        Number(budget) < 1 ||
+        Number(budget) > 1000000000)
+    )
+      return "Enter a total budget between $1 and $1,000,000,000, or choose to receive quotes.";
+    return "";
+  };
+  const review = () => {
+    for (let stage = 0; stage < 4; stage++) {
+      const issue = stageError(stage);
+      if (issue) {
+        moveTo(stage);
+        setError(issue);
+        return false;
+      }
+    }
+    if (step !== 4) moveTo(4);
+    return true;
+  };
+  const next = () => {
+    const issue = stageError(step);
+    if (issue) {
+      setError(issue);
+      return;
+    }
+    if (step === 3 || furthestStep === 4) review();
+    else moveTo(step + 1);
+  };
+  const navigateStage = (target: number) => {
+    if (target <= step) {
+      moveTo(target);
+      return;
+    }
+    if (!formRef.current?.reportValidity()) return;
+    const issue = stageError(step);
+    if (issue) {
+      setError(issue);
+      return;
+    }
+    if (target === 4) review();
+    else moveTo(target);
+  };
   const publish = async (status: "open" | "draft") => {
+    if (status === "open" && !review()) return;
     setSavingDraft(status === "draft");
     setBusy(true);
     setError("");
@@ -768,7 +883,10 @@ export function NewJobPage() {
         workArrangement: arrangement,
         startWindow: start,
         description,
-        budgetCents: budget ? Math.round(Number(budget) * 100) : null,
+        budgetCents:
+          budgetMode === "fixed" && budget
+            ? Math.round(Number(budget) * 100)
+            : null,
         quoteDeadline: deadline
           ? new Date(deadline + "T23:59:59").toISOString()
           : "",
@@ -862,46 +980,47 @@ export function NewJobPage() {
       </div>
     );
   return (
-    <div className="jobs-page job-posting-page">
+    <div className="jobs-page job-posting-page job-wizard">
       <div className="job-posting-top">
         <Link to={id ? `/jobs/${id}` : "/jobs/mine"} className="job-back">
           <ArrowLeft size={16} />
           {id ? "Back to job" : "My jobs"}
         </Link>
-        <span>
-          Posting as <b>{company.name}</b>
+        <span className="job-posting-identity">
+          <JobLogo company={company} />
+          <span>
+            Posting as <b>{company.name}</b>
+          </span>
         </span>
+        <button
+          className="job-text-button"
+          type="button"
+          disabled={busy}
+          onClick={() => void publish("draft")}
+        >
+          {busy && savingDraft ? "Saving…" : "Save draft"}
+        </button>
       </div>
       <div className="job-posting-shell">
-        <nav className="job-posting-steps" aria-label="Posting progress">
-          <button
-            type="button"
-            onClick={() => moveTo("details")}
-            aria-current={step === "details" ? "step" : undefined}
-            disabled={busy}
-          >
-            <span>{step === "review" ? <Check size={13} /> : "1"}</span>Details
-          </button>
-          <i />
-          <span aria-current={step === "review" ? "step" : undefined}>
-            <span>2</span>Review & post
-          </span>
+        <nav className="job-wizard-progress" aria-label="Posting progress">
+          <ol>
+            {postingSteps.map((s, i) => (
+              <li key={s.label}>
+                <button
+                  type="button"
+                  aria-current={step === i ? "step" : undefined}
+                  disabled={busy || i > furthestStep}
+                  onClick={() => navigateStage(i)}
+                >
+                  <span>{i < step ? <Check size={13} /> : i + 1}</span>
+                  <b>{s.label}</b>
+                </button>
+              </li>
+            ))}
+          </ol>
         </nav>
-        <header className="job-posting-heading">
-          <h1 ref={headingRef} tabIndex={-1}>
-            {step === "review"
-              ? "Review your job"
-              : id
-                ? "Edit your job"
-                : "What do you need?"}
-          </h1>
-          <p>
-            {step === "review"
-              ? "Check the details. This is what companies will see."
-              : "A crew, an electrician, design help, or anything else your solar business needs."}
-          </p>
-        </header>
         <form
+          ref={formRef}
           className="jobs-form job-posting-form"
           onInvalidCapture={(e) => {
             (e.target as HTMLElement)
@@ -910,78 +1029,258 @@ export function NewJobPage() {
           }}
           onSubmit={(e) => {
             e.preventDefault();
-            if (step === "details") moveTo("review");
-            else void publish("open");
+            if (step === 4) void publish("open");
+            else next();
           }}
         >
-          {step === "details" ? (
-            <>
-              <section className="job-posting-section">
-                <label>
-                  Job title
-                  <input
-                    required
-                    minLength={8}
-                    maxLength={160}
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. Need a 4-person installation crew in Phoenix"
-                    autoFocus
-                  />
-                </label>
-                <label>
-                  Type of work
-                  <select
-                    aria-label="Type of work"
-                    required
-                    value={trade}
-                    onChange={(e) => setTrade(e.target.value)}
-                  >
-                    <option value="" disabled>
-                      Choose a category
-                    </option>
-                    {workTypes.map(([k, v]) => (
-                      <option value={k} key={k}>
-                        {v}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Describe what you need
-                  <textarea
-                    required
-                    minLength={20}
-                    maxLength={10000}
-                    rows={5}
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder={
-                      trade === "crew"
-                        ? "What will the crew do? Include the experience, tools, and working hours you need."
-                        : "Tell companies what you need help with, what a good result looks like, and anything they should include in their quote."
-                    }
-                  />
-                </label>
-              </section>
-              <section className="job-posting-section">
-                <h2>Where and when</h2>
-                <div className="jobs-fields-two">
+          <div
+            className={"job-wizard-layout" + (step === 4 ? " is-review" : "")}
+          >
+            <header className="job-posting-heading">
+              <span className="job-wizard-step-count">
+                STEP {step + 1} OF 5 <span>· {postingSteps[step].label}</span>
+              </span>
+              <h1 ref={headingRef} tabIndex={-1}>
+                {postingSteps[step].title}
+              </h1>
+              <p>{postingSteps[step].hint}</p>
+              {step === 0 && (
+                <div className="job-title-examples">
+                  <h2>A good title is specific.</h2>
+                  <ul>
+                    <li>Four-person crew for a two-week installation</li>
+                    <li>Electrician to troubleshoot an inverter</li>
+                    <li>Permit drawings for a residential system</li>
+                  </ul>
+                </div>
+              )}
+              {step === 1 && (
+                <div className="job-writing-tips">
+                  <h2>A few things to include</h2>
+                  <p>
+                    What needs doing
+                    <br />
+                    The result you expect
+                    <br />
+                    Experience or equipment needed
+                  </p>
+                </div>
+              )}
+              {step === 4 && (
+                <p className="job-review-explainer">
+                  <CheckCircle2 size={18} />
+                  <span>
+                    Companies can send you private quotes. You decide who to
+                    work with.
+                  </span>
+                </p>
+              )}
+            </header>
+            <fieldset
+              className="job-wizard-fields"
+              disabled={busy}
+              aria-label="Job details"
+            >
+              {step === 0 && (
+                <section className="job-wizard-section">
                   <label>
-                    Work location
+                    Job title
+                    <input
+                      required
+                      minLength={8}
+                      maxLength={160}
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="e.g. Need a 4-person installation crew in Phoenix"
+                    />
+                  </label>
+                  <label>
+                    Type of work
                     <select
-                      aria-label="Work location"
-                      value={arrangement}
-                      onChange={(e) => setArrangement(e.target.value)}
+                      aria-label="Type of work"
+                      required
+                      value={trade}
+                      onChange={(e) => setTrade(e.target.value)}
                     >
-                      {Object.entries(arrangementLabels).map(([key, label]) => (
-                        <option key={key} value={key}>
-                          {label}
+                      <option value="" disabled>
+                        Choose a category
+                      </option>
+                      {workTypes.map(([k, v]) => (
+                        <option value={k} key={k}>
+                          {v}
                         </option>
                       ))}
                     </select>
                   </label>
-                  {arrangement !== "remote" ? (
+                  <p className="job-field-hint">
+                    Choose the closest category. You can explain the details in
+                    the next step.
+                  </p>
+                </section>
+              )}
+              {step === 1 && (
+                <section className="job-wizard-section">
+                  <label>
+                    Describe what you need
+                    <textarea
+                      aria-label="Describe what you need"
+                      required
+                      minLength={20}
+                      maxLength={10000}
+                      rows={5}
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder={
+                        trade === "crew"
+                          ? "What will the crew do? Include the experience, tools, and working hours you need."
+                          : "Tell companies what you need help with, what a good result looks like, and anything they should include in their quote."
+                      }
+                    />
+                  </label>
+                  <div className="job-posting-attachments">
+                    <h2>
+                      Attachments <span>Optional</span>
+                    </h2>{" "}
+                    <AttachmentPicker
+                      files={files}
+                      onChange={setFiles}
+                      disabled={busy}
+                      label="Add files or photos"
+                    />
+                    <FileList files={existingFiles} />
+                  </div>
+                  <details className="job-more-details">
+                    <summary>
+                      <span>
+                        Requirements & project details
+                        <small>
+                          Add these only if they’re relevant to the work
+                        </small>
+                      </span>
+                      <ChevronDown size={18} />
+                    </summary>
+                    <div className="job-more-details-body">
+                      <label>
+                        Requirements <small>Optional</small>
+                        <textarea
+                          rows={3}
+                          maxLength={3000}
+                          value={requirements}
+                          onChange={(e) => setRequirements(e.target.value)}
+                          placeholder="Licenses, insurance, equipment, or experience the company needs"
+                        />
+                      </label>
+                      <div className="job-optional-heading">
+                        For work on a specific project
+                      </div>{" "}
+                      <div className="jobs-fields-three">
+                        <label>
+                          Project type
+                          <select
+                            aria-label="Project type"
+                            value={projectType}
+                            onChange={(e) => setProjectType(e.target.value)}
+                          >
+                            <option value="">Not specified</option>
+                            {projectTypes.map(([key, label]) => (
+                              <option key={key} value={key}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          System size (kW)
+                          <input
+                            type="number"
+                            min="0.01"
+                            max="100000000"
+                            step="0.01"
+                            value={systemSize}
+                            onChange={(e) => setSystemSize(e.target.value)}
+                            placeholder="If relevant"
+                          />
+                        </label>
+                        <label>
+                          Number of sites
+                          <input
+                            type="number"
+                            min="1"
+                            max="100000"
+                            step="1"
+                            value={siteCount}
+                            onChange={(e) => setSiteCount(e.target.value)}
+                            placeholder="If relevant"
+                          />
+                        </label>
+                      </div>
+                      <label>
+                        Who supplies materials?
+                        <select
+                          aria-label="Who supplies materials?"
+                          value={materials}
+                          onChange={(e) => setMaterials(e.target.value)}
+                        >
+                          {Object.entries(materialsLabels).map(
+                            ([key, label]) => (
+                              <option key={key} value={key}>
+                                {label}
+                              </option>
+                            ),
+                          )}
+                        </select>
+                      </label>
+                    </div>
+                  </details>
+                </section>
+              )}
+              {step === 2 && (
+                <section className="job-wizard-section">
+                  <fieldset className="job-location-choices">
+                    <legend>Work location</legend>
+                    <div>
+                      {[
+                        [
+                          "onsite",
+                          "On site",
+                          "At a job site or in your service area",
+                          MapPin,
+                        ],
+                        [
+                          "remote",
+                          "Remote",
+                          "The work can be done from anywhere",
+                          Monitor,
+                        ],
+                        [
+                          "hybrid",
+                          "Hybrid",
+                          "A mix of remote and on-site work",
+                          Building2,
+                        ],
+                      ].map(([key, label, hint, Icon]) => {
+                        const ChoiceIcon = Icon as typeof MapPin;
+                        return (
+                          <label className="job-choice" key={key as string}>
+                            <input
+                              type="radio"
+                              name="work-arrangement"
+                              value={key as string}
+                              checked={arrangement === key}
+                              onChange={() => setArrangement(key as string)}
+                            />
+                            <ChoiceIcon size={20} />
+                            <span>
+                              <b>{label as string}</b>
+                              <small>{hint as string}</small>
+                            </span>
+                            <i />
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                  {arrangement !== "remote" && (
                     <label>
                       City or service area
                       <input
@@ -992,86 +1291,126 @@ export function NewJobPage() {
                         placeholder="e.g. Phoenix, AZ"
                       />
                     </label>
-                  ) : (
-                    <div className="job-remote-note">
-                      <Monitor size={18} />
-                      <span>Companies can do this work remotely.</span>
-                    </div>
                   )}
-                </div>
-                <div className="jobs-fields-two">
-                  <label>
-                    Start date or timing <small>Optional</small>
-                    <input
-                      maxLength={120}
-                      value={start}
-                      onChange={(e) => setStart(e.target.value)}
-                      placeholder="e.g. Next week, or flexible"
-                    />
-                  </label>
-                  <label>
-                    How long do you need help? <small>Optional</small>
-                    <input
-                      maxLength={120}
-                      value={expectedDuration}
-                      onChange={(e) => setExpectedDuration(e.target.value)}
-                      placeholder="e.g. 2 weeks, or ongoing"
-                    />
-                  </label>
-                </div>
-                {trade === "crew" && (
-                  <label>
-                    How many people do you need? <small>Optional</small>
-                    <input
-                      type="number"
-                      min="1"
-                      max="1000"
-                      step="1"
-                      value={people}
-                      onChange={(e) => setPeople(e.target.value)}
-                      placeholder="e.g. 4"
-                    />
-                  </label>
-                )}
-              </section>
-              <section className="job-posting-section job-posting-attachments">
-                <h2>
-                  Attachments <span>Optional</span>
-                </h2>
-                <AttachmentPicker
-                  files={files}
-                  onChange={setFiles}
-                  disabled={busy}
-                  label="Add files or photos"
-                />
-                <FileList files={existingFiles} />
-              </section>
-              <details className="job-more-details">
-                <summary>
-                  <span>
-                    Add more details{" "}
-                    <small>
-                      Budget, requirements, or project specifications
-                    </small>
-                  </span>
-                  <ChevronDown size={18} />
-                </summary>
-                <div className="job-more-details-body">
                   <div className="jobs-fields-two">
                     <label>
-                      Total budget <small>Optional · USD</small>
-                      <span className="money-input">
-                        $
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={budget}
-                          onChange={(e) => setBudget(e.target.value)}
-                          placeholder="Leave blank to receive quotes"
-                        />
-                      </span>
+                      Start date or timing <small>Optional</small>
+                      <input
+                        maxLength={120}
+                        value={start}
+                        onChange={(e) => setStart(e.target.value)}
+                        placeholder="e.g. Next week, or flexible"
+                      />
                     </label>
+                    <label>
+                      How long do you need help? <small>Optional</small>
+                      <input
+                        maxLength={120}
+                        value={expectedDuration}
+                        onChange={(e) => setExpectedDuration(e.target.value)}
+                        placeholder="e.g. 2 weeks, or ongoing"
+                      />
+                    </label>
+                  </div>
+                  {trade === "crew" && (
+                    <label>
+                      How many people do you need? <small>Optional</small>
+                      <input
+                        type="number"
+                        min="1"
+                        max="1000"
+                        step="1"
+                        value={people}
+                        onChange={(e) => setPeople(e.target.value)}
+                        placeholder="e.g. 4"
+                      />
+                    </label>
+                  )}
+                  {arrangement !== "remote" && (
+                    <details className="job-more-details">
+                      <summary>
+                        <span>
+                          Private site address{" "}
+                          <small>
+                            Optional · Only shared with the company you choose
+                          </small>
+                        </span>
+                        <ChevronDown size={18} />
+                      </summary>
+                      <div className="job-more-details-body">
+                        {arrangement !== "remote" && (
+                          <label>
+                            Exact address{" "}
+                            <small>Private until you choose a company</small>
+                            <input
+                              maxLength={300}
+                              value={exact}
+                              onChange={(e) => setExact(e.target.value)}
+                              placeholder="Street address, if known"
+                            />
+                          </label>
+                        )}
+                      </div>
+                    </details>
+                  )}
+                </section>
+              )}
+              {step === 3 && (
+                <section className="job-wizard-section">
+                  <fieldset className="job-budget-choices">
+                    <legend>Budget preference</legend>
+                    <label className="job-choice">
+                      <input
+                        type="radio"
+                        name="budget-mode"
+                        checked={budgetMode === "quotes"}
+                        onChange={() => setBudgetMode("quotes")}
+                      />
+                      <span>
+                        <b>Let companies propose a price</b>
+                        <small>Compare quotes before setting a budget.</small>
+                      </span>
+                      <i />
+                    </label>
+                    <label className="job-choice">
+                      <input
+                        type="radio"
+                        name="budget-mode"
+                        checked={budgetMode === "fixed"}
+                        onChange={() => setBudgetMode("fixed")}
+                      />
+                      <span>
+                        <b>I have a budget in mind</b>
+                        <small>Give companies a total to work toward.</small>
+                      </span>
+                      <i />
+                    </label>
+                  </fieldset>
+                  {budgetMode === "fixed" && (
+                    <div className="job-budget-amount">
+                      <label>
+                        Total budget <small>USD</small>
+                        <span className="money-input">
+                          $
+                          <input
+                            type="number"
+                            required
+                            min="1"
+                            max="1000000000"
+                            step="0.01"
+                            value={budget}
+                            onChange={(e) => setBudget(e.target.value)}
+                            placeholder="e.g. 18000"
+                          />
+                        </span>
+                      </label>
+                      <p className="job-field-hint">
+                        The total for all the work, not an hourly rate.
+                        Companies can suggest a different amount in their quote.
+                      </p>
+                    </div>
+                  )}
+                  <div className="job-budget-deadline">
                     <label>
                       Quote deadline <small>Optional</small>
                       <input
@@ -1080,242 +1419,196 @@ export function NewJobPage() {
                         onChange={(e) => setDeadline(e.target.value)}
                       />
                     </label>
+                    <p className="job-field-hint">
+                      Leave this blank if you’re flexible about when quotes
+                      arrive.
+                    </p>
                   </div>
-                  <label>
-                    Requirements <small>Optional</small>
-                    <textarea
-                      rows={3}
-                      maxLength={3000}
-                      value={requirements}
-                      onChange={(e) => setRequirements(e.target.value)}
-                      placeholder="Licenses, insurance, equipment, or experience the company needs"
-                    />
-                  </label>
-                  <div className="job-optional-heading">
-                    For work on a specific project
-                  </div>
-                  <div className="jobs-fields-three">
-                    <label>
-                      Project type
-                      <select
-                        aria-label="Project type"
-                        value={projectType}
-                        onChange={(e) => setProjectType(e.target.value)}
-                      >
-                        <option value="">Not specified</option>
-                        {projectTypes.map(([key, label]) => (
-                          <option key={key} value={key}>
-                            {label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      System size (kW)
-                      <input
-                        type="number"
-                        min="0.01"
-                        max="100000000"
-                        step="0.01"
-                        value={systemSize}
-                        onChange={(e) => setSystemSize(e.target.value)}
-                        placeholder="If relevant"
-                      />
-                    </label>
-                    <label>
-                      Number of sites
-                      <input
-                        type="number"
-                        min="1"
-                        max="100000"
-                        step="1"
-                        value={siteCount}
-                        onChange={(e) => setSiteCount(e.target.value)}
-                        placeholder="If relevant"
-                      />
-                    </label>
-                  </div>
-                  <label>
-                    Who supplies materials?
-                    <select
-                      aria-label="Who supplies materials?"
-                      value={materials}
-                      onChange={(e) => setMaterials(e.target.value)}
-                    >
-                      {Object.entries(materialsLabels).map(([key, label]) => (
-                        <option key={key} value={key}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  {arrangement !== "remote" && (
-                    <label>
-                      Exact address{" "}
-                      <small>Private until you choose a company</small>
-                      <input
-                        maxLength={300}
-                        value={exact}
-                        onChange={(e) => setExact(e.target.value)}
-                        placeholder="Street address, if known"
-                      />
-                    </label>
-                  )}
-                </div>
-              </details>
-            </>
-          ) : (
-            <section className="job-review-preview">
-              <div className="job-review-company">
-                <JobLogo company={company} />
-                <span>
-                  <b>{company.name}</b>
-                  <small>{workLabel(trade)}</small>
-                </span>
-                <button
-                  type="button"
-                  className="job-text-button"
-                  disabled={busy}
-                  onClick={() => moveTo("details")}
-                >
-                  Edit details
-                </button>
-              </div>
-              <h2>{title}</h2>
-              <dl className="job-review-facts">
-                <div>
-                  <dt>Location</dt>
-                  <dd>
-                    {arrangement === "remote" ? "Remote" : location}
-                    {arrangement === "hybrid" ? " · Hybrid" : ""}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Start</dt>
-                  <dd>{start || "Flexible"}</dd>
-                </div>
-                {expectedDuration && (
-                  <div>
-                    <dt>Duration</dt>
-                    <dd>{expectedDuration}</dd>
-                  </div>
-                )}
-                {trade === "crew" && people && (
-                  <div>
-                    <dt>People needed</dt>
-                    <dd>{people}</dd>
-                  </div>
-                )}
-                <div>
-                  <dt>Total budget</dt>
-                  <dd>
-                    {budget
-                      ? money(Math.round(Number(budget) * 100))
-                      : "Open to quotes"}
-                  </dd>
-                </div>
-                {deadline && (
-                  <div>
-                    <dt>Quote deadline</dt>
-                    <dd>{date(deadline + "T12:00:00")}</dd>
-                  </div>
-                )}
-              </dl>
-              <div className="job-review-scope">
-                <h3>What you need</h3>
-                <p className="job-description">{description}</p>
-              </div>
-              {requirements && (
-                <div className="job-review-scope">
-                  <h3>Requirements</h3>
-                  <p className="job-description">{requirements}</p>
-                </div>
+                </section>
               )}
-              {(projectType ||
-                systemSize ||
-                siteCount ||
-                materials !== "to_agree") && (
-                <div className="job-review-scope">
-                  <h3>Project details</h3>
-                  <div className="job-review-specs">
-                    {projectType && <span>{projectLabel(projectType)}</span>}
-                    {systemSize && <span>{systemSize} kW</span>}
-                    {siteCount && (
+              {step === 4 && (
+                <>
+                  <section className="job-review-preview">
+                    <div className="job-review-company">
+                      <JobLogo company={company} />
                       <span>
-                        {siteCount} {siteCount === "1" ? "site" : "sites"}
+                        <b>{company.name}</b>
+                        <small>{workLabel(trade)}</small>
                       </span>
+                      <button
+                        type="button"
+                        className="job-text-button"
+                        disabled={busy}
+                        onClick={() => moveTo(0)}
+                      >
+                        Edit title
+                      </button>
+                    </div>
+                    <h2>{title}</h2>
+                    <div className="job-review-section-heading">
+                      <h3>Where, when & budget</h3>
+                      <button
+                        type="button"
+                        className="job-text-button"
+                        disabled={busy}
+                        onClick={() => moveTo(2)}
+                      >
+                        Edit timing
+                      </button>
+                      <button
+                        type="button"
+                        className="job-text-button"
+                        disabled={busy}
+                        onClick={() => moveTo(3)}
+                      >
+                        Edit budget
+                      </button>
+                    </div>
+                    <dl className="job-review-facts">
+                      <div>
+                        <dt>Location</dt>
+                        <dd>
+                          {arrangement === "remote" ? "Remote" : location}
+                          {arrangement === "hybrid" ? " · Hybrid" : ""}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Start</dt>
+                        <dd>{start || "Flexible"}</dd>
+                      </div>
+                      {expectedDuration && (
+                        <div>
+                          <dt>Duration</dt>
+                          <dd>{expectedDuration}</dd>
+                        </div>
+                      )}
+                      {trade === "crew" && people && (
+                        <div>
+                          <dt>People needed</dt>
+                          <dd>{people}</dd>
+                        </div>
+                      )}
+                      <div>
+                        <dt>Total budget</dt>
+                        <dd>
+                          {budgetMode === "fixed" && budget
+                            ? money(Math.round(Number(budget) * 100))
+                            : "Open to quotes"}
+                        </dd>
+                      </div>
+                      {deadline && (
+                        <div>
+                          <dt>Quote deadline</dt>
+                          <dd>{date(deadline + "T12:00:00")}</dd>
+                        </div>
+                      )}
+                    </dl>
+                    <div className="job-review-scope">
+                      <div className="job-review-section-heading">
+                        <h3>What you need</h3>
+                        <button
+                          type="button"
+                          className="job-text-button"
+                          disabled={busy}
+                          onClick={() => moveTo(1)}
+                        >
+                          Edit details
+                        </button>
+                      </div>
+                      <p className="job-description">{description}</p>
+                    </div>
+                    {requirements && (
+                      <div className="job-review-scope">
+                        <h3>Requirements</h3>
+                        <p className="job-description">{requirements}</p>
+                      </div>
                     )}
-                    {materials !== "to_agree" && (
-                      <span>{materialsLabels[materials]}</span>
+                    {(projectType ||
+                      systemSize ||
+                      siteCount ||
+                      materials !== "to_agree") && (
+                      <div className="job-review-scope">
+                        <h3>Project details</h3>
+                        <div className="job-review-specs">
+                          {projectType && (
+                            <span>{projectLabel(projectType)}</span>
+                          )}
+                          {systemSize && <span>{systemSize} kW</span>}
+                          {siteCount && (
+                            <span>
+                              {siteCount} {siteCount === "1" ? "site" : "sites"}
+                            </span>
+                          )}
+                          {materials !== "to_agree" && (
+                            <span>{materialsLabels[materials]}</span>
+                          )}
+                        </div>
+                      </div>
                     )}
-                  </div>
-                </div>
+                    {!!(files.length + existingFiles.length) && (
+                      <div className="job-review-scope">
+                        <h3>
+                          Attachments · {files.length + existingFiles.length}
+                        </h3>
+                        <AttachmentPicker
+                          files={files}
+                          onChange={setFiles}
+                          readOnly
+                        />
+                        <FileList files={existingFiles} />
+                      </div>
+                    )}
+                    {exact && arrangement !== "remote" && (
+                      <p className="job-private-note">
+                        <LockKeyhole size={15} />
+                        <span>
+                          <b>Private address:</b> {exact}. Shared only with the
+                          company you choose.
+                        </span>
+                      </p>
+                    )}
+                  </section>
+                </>
               )}
-              {!!(files.length + existingFiles.length) && (
-                <div className="job-review-scope">
-                  <h3>Attachments · {files.length + existingFiles.length}</h3>
-                  <AttachmentPicker
-                    files={files}
-                    onChange={setFiles}
-                    readOnly
-                  />
-                  <FileList files={existingFiles} />
-                </div>
-              )}
-              {exact && arrangement !== "remote" && (
-                <p className="job-private-note">
-                  <LockKeyhole size={15} />
-                  <span>
-                    <b>Private address:</b> {exact}. Shared only with the
-                    company you choose.
-                  </span>
-                </p>
-              )}
-            </section>
-          )}
-          <JobError text={error} />
+              <JobError text={error} />
+            </fieldset>
+          </div>
           <footer className="job-posting-footer">
-            <button
-              className="job-text-button"
-              disabled={busy}
-              type="button"
-              onClick={() => void publish("draft")}
-            >
-              {busy && savingDraft ? "Saving…" : "Save draft"}
-            </button>
             <div>
-              {step === "review" && (
+              {step > 0 && (
                 <button
                   className="jobs-button jobs-secondary"
-                  disabled={busy}
                   type="button"
-                  onClick={() => moveTo("details")}
+                  disabled={busy}
+                  onClick={() => moveTo(step - 1)}
                 >
+                  <ArrowLeft size={16} />
                   Back
                 </button>
               )}
-              <button
-                className="jobs-button jobs-primary"
-                disabled={busy}
-                type="submit"
-              >
-                {step === "details"
-                  ? "Review job"
-                  : busy && !savingDraft
-                    ? "Publishing…"
-                    : id
-                      ? "Update job"
-                      : "Publish job"}
-                <ArrowRight size={16} />
-              </button>
+              <span className="job-wizard-footer-note">
+                {step === 4
+                  ? "Ready when you are."
+                  : "Your job stays private until you publish."}
+              </span>
             </div>
+            <button
+              className="jobs-button jobs-primary"
+              type="submit"
+              disabled={busy}
+            >
+              {step === 4
+                ? busy && !savingDraft
+                  ? "Publishing…"
+                  : id
+                    ? "Update job"
+                    : "Publish job"
+                : step === 3 || furthestStep === 4
+                  ? "Review job"
+                  : "Continue"}
+              <ArrowRight size={16} />
+            </button>
           </footer>
-          {step === "review" && (
-            <p className="job-posting-help">
-              Companies can send quotes once you publish. You choose who to work
-              with.
-            </p>
-          )}
         </form>
       </div>
     </div>

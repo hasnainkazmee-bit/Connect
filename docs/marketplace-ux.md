@@ -4,18 +4,18 @@ The active web product is at `connect.sunhubapp.com`. This guide supersedes the 
 
 ## Decisions and information
 
-| Screen | User decision | Information that belongs here | Main action |
-| --- | --- | --- | --- |
-| Public home | Get help or find work | Crews, specialist services, supplies and solar business support; simple hiring process | Post what you need / Find work |
-| Find work | Can we help with this request? | Clear title, short brief, work category, location, headcount/duration when known, budget, hiring company | View job |
-| Post a job | What help do we need? | Title, work category, brief, work location, optional timing and attachments; additional details on demand | Review job, then Publish job |
-| Job details, before quoting | Can we deliver this scope? | Full brief, requirements, materials responsibility, documents, timing, budget, company profile | Send a quote |
-| Quote form | What are we proposing? | Total price, availability, duration, approach, optional inclusions/exclusions/terms and price breakdown, multiple files | Send quote |
-| Hiring company, open job | Which proposal should we choose? | Received quotes with price/schedule, full proposal and documents, company evidence, questions | Choose company, with confirmation |
-| Active job | What happens next? | Current stage, progress, original brief/files, job-specific messages, agreed quote | Confirm / Share progress / Review work, according to role and stage |
-| Payment plan | What has each company reported? | Agreed total, named stages, invoice reference, reported payment and receipt status | Role-specific confirmation |
-| Company profile | Is this company suitable? | Services, real project examples, coverage/capacity, credentials with sources, job reviews | Invite to a job; unclaimed listings link to their website and claim flow |
-| My jobs | Which work needs attention? | Posted jobs, quotes, invitations, selected active jobs, completed work | A stage-specific next action |
+| Screen                      | User decision                    | Information that belongs here                                                                                           | Main action                                                              |
+| --------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Public home                 | Get help or find work            | Crews, specialist services, supplies and solar business support; simple hiring process                                  | Post what you need / Find work                                           |
+| Find work                   | Can we help with this request?   | Clear title, short brief, work category, location, headcount/duration when known, budget, hiring company                | View job                                                                 |
+| Post a job                  | What help do we need?            | Guided steps for title/category, brief/files, location/timing, budget, and review                                       | Continue, then Review job and Publish job                                |
+| Job details, before quoting | Can we deliver this scope?       | Full brief, requirements, materials responsibility, documents, timing, budget, company profile                          | Send a quote                                                             |
+| Quote form                  | What are we proposing?           | Total price, availability, duration, approach, optional inclusions/exclusions/terms and price breakdown, multiple files | Send quote                                                               |
+| Hiring company, open job    | Which proposal should we choose? | Received quotes with price/schedule, full proposal and documents, company evidence, questions                           | Choose company, with confirmation                                        |
+| Active job                  | What happens next?               | Current stage, progress, original brief/files, job-specific messages, agreed quote                                      | Confirm / Share progress / Review work, according to role and stage      |
+| Payment plan                | What has each company reported?  | Agreed total, named stages, invoice reference, reported payment and receipt status                                      | Role-specific confirmation                                               |
+| Company profile             | Is this company suitable?        | Services, real project examples, coverage/capacity, credentials with sources, job reviews                               | Invite to a job; unclaimed listings link to their website and claim flow |
+| My jobs                     | Which work needs attention?      | Posted jobs, quotes, invitations, selected active jobs, completed work                                                  | A stage-specific next action                                             |
 
 Do not invent a budget, project size, availability, rating, or credential to fill space. Optional facts render only when present. Keep the brief accessible after quotes arrive and throughout execution. A non-selected bidder must not see the winning quote, private address, progress attachments, or payment plan.
 
@@ -25,7 +25,7 @@ Do not invent a budget, project size, availability, rating, or credential to fil
 - A single primary color uses Connect orange with dark text. Neutral secondary controls, navy text, faded blue surfaces, rounded panels and pill buttons are shared across routes.
 - Reserve vivid orange for the main action. Navigation, selected filters, and supporting actions use neutral colors; disabled primary actions use gray rather than faded orange.
 - Find work uses one continuous list, with quiet work-type filters to the left. Job titles lead; metadata and company identity recede. Promotional side panels are omitted.
-- Posting has two steps: a concise brief and a review. Optional budget, requirements, address, and project specifications remain under Add more details. The review preserves all input and files when returning to edit. It creates no published record until the user chooses Publish job.
+- Posting follows five focused steps: The job, Work details, Where & when, Budget, and Review. The current question and a short explanation sit beside the fields on desktop and above them on mobile. The budget is explicitly either open to quotes or a total amount; hourly billing is not implied. Completed steps can be revisited, and review offers direct edit links. Editing a reviewed section returns directly to review. All values and pending files survive navigation. Save draft accepts an incomplete brief, while publishing validates every step. Native radio cards work with a pointer or the keyboard. The bottom action remains reachable, and no public job is created until Publish job is chosen.
 - At phone widths, the quote action stays in a compact bottom bar while reading an open job. The equivalent desktop action sits alongside the brief.
 - Primary controls are at least 44px high. Forms have persistent labels; search inputs do not render a second nested border. Keyboard focus remains visible.
 - Titles, paragraphs, and spacing use one hierarchy. Lists emphasize job decisions, not decorative statistics. Repeated company cards have consistent grid sizing.
@@ -59,3 +59,11 @@ Files are limited to 12 MiB each and PDF/JPEG/PNG/WebP. The Rust service validat
 ## Design references
 
 The hierarchy follows [Linear's interface refresh](https://linear.app/now/behind-the-latest-design-refresh): supporting navigation should recede behind the work. Action emphasis follows [IBM Carbon's button guidance](https://carbondesignsystem.com/components/button/usage/). The review step applies the [GOV.UK check answers pattern](https://design-system.service.gov.uk/patterns/check-answers/), with editable details before the final submission. These guide interaction decisions; Connect retains its own palette, rounded controls, and company workflows.
+
+## Editorial homepage
+
+The public homepage uses the same 80% frame, brand ink, orange action, faded blue canvas, and icon set as the product. Its sequence is deliberate: a clear hiring/finding-work introduction, a wide original work image, service discovery, an interactive three-step product walkthrough, an invitation to claim a company profile, and practical FAQs. The example quotes are labelled Example; they are not live market activity or endorsements. No fabricated reviews, customer logos, success metrics, or availability claims are used.
+
+The art direction takes visual hierarchy and a people-led introduction from [Airzon's marketplace reference](https://dribbble.com/shots/27653963--Talent-Marketplace-Landing-Page-Minimal-Hero-Section). Original solar-work imagery and Connect's product workflows replace the reference's assets and layout details. The posting flow applies [Upwork's documented title, scope, budget, and review approach](https://support.upwork.com/hc/en-us/articles/211063408-How-to-post-a-job), adapted for company services, crews, remote work, and total-price quotes.
+
+Image provenance, final asset paths, and generation prompts are in [marketplace-imagery.md](marketplace-imagery.md). Mobile receives a 93 KiB hero derivative; the desktop hero is about 347 KiB. The planning image loads lazily. Images reserve their dimensions, and the walkthrough never auto-advances. Keyboard focus and reduced-motion settings are respected.

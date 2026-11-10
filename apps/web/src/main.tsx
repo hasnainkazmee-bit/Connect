@@ -814,21 +814,24 @@ function App() {
           </button>
         </div>
       )}
-      {!desktopHost && (location.pathname !== "/" || !!session.user) && (
-        <footer className="site-footer">
-          <span>
-            <img
-              className="footer-logo"
-              src="/assets/connect-logo.png"
-              alt="Connect"
-            />
-          </span>
-          <span>Connect. Talk. Build.</span>
-          <button onClick={() => setModal(<PhotoCredits />)}>
-            Photo credits
-          </button>
-        </footer>
-      )}
+      {!desktopHost &&
+        location.pathname !== "/jobs/new" &&
+        !/^\/jobs\/[^/]+\/edit$/.test(location.pathname) &&
+        (location.pathname !== "/" || !!session.user) && (
+          <footer className="site-footer">
+            <span>
+              <img
+                className="footer-logo"
+                src="/assets/connect-logo.png"
+                alt="Connect"
+              />
+            </span>
+            <span>Connect. Talk. Build.</span>
+            <button onClick={() => setModal(<PhotoCredits />)}>
+              Photo credits
+            </button>
+          </footer>
+        )}
       <WebUpdateNotice />
       {notice && (
         <div className="toast" role="status">
