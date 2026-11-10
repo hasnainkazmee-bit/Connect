@@ -404,8 +404,7 @@ export function ProviderProfilePage() {
                           Sign in to invite
                         </button>
                       ) : (
-                        admin &&
-                        !!mine.is_demo === !!c.is_demo && (
+                        admin && (
                           <button
                             className="jobs-button jobs-primary"
                             onClick={() => setShowInvite((v) => !v)}

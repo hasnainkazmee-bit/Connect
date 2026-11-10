@@ -52,13 +52,13 @@ async function call(path, account, method = "GET", body) {
 }
 try {
   const hirer = await account("Hirer"),
-    provider = await account("Provider"),
+    provider = await account("Provider", true),
     other = await account("Other"),
     demo = await account("Demo", true);
   assert.equal(
-    (await call(`/jobs/providers?q=${provider.slug}`)).providers.some(
-      (p) => p.id === provider.company,
-    ),
+    (
+      await call(`/jobs/providers?q=${provider.slug}&sample=true`)
+    ).providers.some((p) => p.id === provider.company),
     true,
   );
   assert.equal(
@@ -193,32 +193,62 @@ try {
     ),
     true,
   );
-  const demoMessage = await fetch(`${base}/jobs/${id}/messages`, {
-    method: "POST",
-    headers: { cookie: demo.cookie, "content-type": "application/json" },
-    body: JSON.stringify({ body: "Demo must not message real job." }),
-  });
-  assert.equal(demoMessage.status, 403);
-  const demoQuote = await fetch(`${base}/jobs/${id}/quote`, {
-    method: "POST",
-    headers: { cookie: demo.cookie, "content-type": "application/json" },
-    body: JSON.stringify({
-      amountCents: 5000000,
-      note: "A demo account must not quote a real job.",
-    }),
-  });
-  assert.equal(demoQuote.status, 403);
   await call(`/jobs/${id}/invite`, hirer, "POST", {
-    companyIds: [demo.company],
+    companyIds: [provider.company],
   });
   assert.equal(
-    (
-      await db.query(
-        "SELECT count(*)::int AS n FROM job_invitations WHERE job_id=$1 AND provider_company_id=$2",
-        [id, demo.company],
-      )
-    ).rows[0].n,
-    0,
+    (await call(`/jobs/${id}`, provider)).permissions.invited,
+    true,
+    "A regular company can invite a demo company",
+  );
+  // A demo company can also hire a regular company, with the usual invite-only privacy.
+  const demoJob = await call("/jobs", demo, "POST", {
+    title: "Demo company hiring a solar specialist",
+    description:
+      "Prepare a design package and coordinate the installation schedule.",
+    trade: "design",
+    location: "Remote",
+    workArrangement: "remote",
+    visibility: "invite_only",
+  });
+  const notInvited = await fetch(`${base}/jobs/${demoJob.id}/quote`, {
+    method: "POST",
+    headers: { cookie: hirer.cookie, "content-type": "application/json" },
+    body: JSON.stringify({
+      amountCents: 100000,
+      note: "Invite-only jobs still need an invitation.",
+    }),
+  });
+  assert.equal(notInvited.status, 403);
+  await call(`/jobs/${demoJob.id}/invite`, demo, "POST", {
+    companyIds: [hirer.company],
+  });
+  assert.equal(
+    (await call(`/jobs/${demoJob.id}`, hirer)).permissions.invited,
+    true,
+  );
+  await call(`/jobs/${demoJob.id}/messages`, hirer, "POST", {
+    body: "We can help with this demo project.",
+  });
+  await call(`/jobs/${demoJob.id}/messages`, demo, "POST", {
+    providerId: hirer.company,
+    body: "Please send your quote.",
+  });
+  assert.equal(
+    (await call(`/jobs/${demoJob.id}/messages`, hirer)).messages.length,
+    2,
+  );
+  const mixedQuote = await call(`/jobs/${demoJob.id}/quote`, hirer, "POST", {
+    amountCents: 100000,
+    note: "Design package, installation schedule and project support.",
+  });
+  await call(`/jobs/${demoJob.id}/choose`, demo, "POST", {
+    quoteId: mixedQuote.id,
+  });
+  await call(`/jobs/${demoJob.id}/confirm`, hirer, "POST", {});
+  assert.equal(
+    (await call(`/jobs/${demoJob.id}`, demo)).job.status,
+    "in_progress",
   );
   const pdf = new Uint8Array(
     Buffer.from("%PDF-1.4\nConnect test attachment\n"),
@@ -377,7 +407,7 @@ try {
   );
   assert.ok(workProfile.rating >= 5 && workProfile.completedJobs >= 1);
   console.log(
-    "Rust jobs smoke test passed: draft/edit/publish, attachment, quote privacy, award, confirm, payments, messages, progress, finish, review, work profile.",
+    "Rust jobs smoke test passed: demo and regular company interactions in both directions, draft/edit/publish, attachment, invite-only and quote privacy, award, confirm, payments, messages, progress, finish, review, work profile.",
   );
 } finally {
   await db.end();

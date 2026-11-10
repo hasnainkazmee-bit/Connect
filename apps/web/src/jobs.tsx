@@ -1710,6 +1710,7 @@ export function JobDetailPage() {
       }[]
     >([]),
     [inviteQ, setInviteQ] = useState(""),
+    [inviteSample, setInviteSample] = useState(!!company?.is_demo),
     [inviteResults, setInviteResults] = useState<Company[]>([]),
     [selectedInvite, setSelectedInvite] = useState<string[]>([]),
     [showInvite, setShowInvite] = useState(false),
@@ -1718,6 +1719,11 @@ export function JobDetailPage() {
       "Final payment",
     ]),
     [stageAmounts, setStageAmounts] = useState<string[]>(["", ""]);
+  useEffect(() => {
+    setInviteSample(!!company?.is_demo);
+    setSelectedInvite([]);
+    setShowInvite(false);
+  }, [company?.id, company?.is_demo]);
   useEffect(() => {
     if (!id) return;
     const controller = new AbortController();
@@ -1772,10 +1778,8 @@ export function JobDetailPage() {
       items.sort((a, b) => b.amount_cents - a.amount_cents);
     return items;
   }, [detail?.quotes, quoteSort]);
-  const sameEnvironment =
-    !!company && !!company.is_demo === !!detail?.hiringCompany.is_demo;
   const canMessage =
-    sameEnvironment &&
+    !!company &&
     !!detail &&
     (hirer
       ? (detail.conversations || []).length > 0
@@ -1824,7 +1828,7 @@ export function JobDetailPage() {
     setInviteResults([]);
     const timer = window.setTimeout(() => {
       api<{ providers: Company[] }>(
-        `/jobs/providers?q=${encodeURIComponent(inviteQ)}&sample=${!!company?.is_demo}`,
+        `/jobs/providers?q=${encodeURIComponent(inviteQ)}&sample=${inviteSample}`,
         { signal: controller.signal },
       )
         .then((v) =>
@@ -1844,7 +1848,7 @@ export function JobDetailPage() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [showInvite, inviteQ, company?.id]);
+  }, [showInvite, inviteQ, inviteSample, company?.id]);
   const mutate = async (path: string, body?: object, done?: string) => {
     if (!id) return;
     setWorking(true);
@@ -1996,7 +2000,6 @@ export function JobDetailPage() {
   const canQuote =
     !!company &&
     admin &&
-    sameEnvironment &&
     !hirer &&
     job.status === "open" &&
     (!job.quote_deadline ||
@@ -2188,6 +2191,17 @@ export function JobDetailPage() {
         <div className="jobs-panel job-invite">
           <h2>Invite companies to quote</h2>
           <p>Invite companies with a managed profile to send a quote.</p>
+          <label className="sample-toggle">
+            <input
+              type="checkbox"
+              checked={inviteSample}
+              onChange={(e) => {
+                setInviteSample(e.target.checked);
+                setSelectedInvite([]);
+              }}
+            />
+            Show demo companies
+          </label>
           <input
             value={inviteQ}
             onChange={(e) => setInviteQ(e.target.value)}
@@ -2208,7 +2222,11 @@ export function JobDetailPage() {
               <JobLogo company={c} />
               <span>
                 <b>{c.name}</b>
-                <small>{c.location}</small>
+                <small>
+                  {[c.location, c.is_demo ? "Demo company" : ""]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </small>
               </span>
               {selectedInvite.includes(c.id) && <Check size={18} />}
             </button>
@@ -3162,13 +3180,6 @@ export function JobDetailPage() {
                       ? "Job details"
                       : "Hiring company"}
                 </h2>
-                {!hirer && company && !sameEnvironment && (
-                  <p className="job-muted">
-                    {job.company?.is_demo || detail.hiringCompany.is_demo
-                      ? "Demo jobs are for demo company accounts."
-                      : "Use a regular company account to quote on this job."}
-                  </p>
-                )}
                 {hirer && job.status === "open" && quote ? (
                   <>
                     <div className="job-company-side">

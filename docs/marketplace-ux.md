@@ -77,3 +77,11 @@ Company profiles lead with the company identity, useful tagline, and its own cov
 Job pages put the title and company first, with the budget and the role-appropriate next action alongside. Location, timing, duration, and team size appear in a single strip above the full brief. Quote comparison, progress, messages, and payment reporting retain the existing authorization and lifecycle. The sidebar is sized to its contents. All information remains readable without image-dependent heights.
 
 The signed-out posting entry keeps its explanation and sign-in button together in a centered panel. Signing in returns to `/jobs/new` and opens the posting flow. Responsive browser verification includes action alignment, continuation after sign-in, project previews, and the full job-to-quote workflow.
+
+## Demo company access
+
+Demo companies can use the complete marketplace workflow and interact with regular managed companies: invite, quote, exchange job messages, choose and confirm a company, share files and progress, track reported payments, complete work, and leave job reviews. Demo status describes fictional company data; it does not reduce account capabilities. Company membership, owner/admin permissions, verified email, job visibility, lifecycle rules, and private document access still apply.
+
+Public discovery excludes demo data by default. Signed-in demo companies start with demo jobs and companies, and can switch to regular listings. The invitation picker also offers the demo-company filter. Explicit filter choices survive search and clearing other filters. Demo labels and search-engine exclusion remain in place.
+
+`tests/jobs-service-smoke.mjs` exercises the full lifecycle with a regular hirer and a demo provider, plus invitations, quotes, and messages in the reverse direction. `tests/marketplace-demo-ui.mjs` checks discovery and mixed-account actions through the browser against an isolated local test database.

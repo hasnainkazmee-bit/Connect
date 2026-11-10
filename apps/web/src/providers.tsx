@@ -10,6 +10,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { api } from "./api";
+import { useApp } from "./context";
 import type { Company } from "./types";
 
 type Provider = Company & {
@@ -46,6 +47,7 @@ const kinds = [
 const url = (c: Provider) => "/" + encodeURIComponent(c.username || c.slug);
 
 export function ProviderDirectory() {
+  const { company } = useApp();
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") || "");
   const [location, setLocation] = useState(params.get("location") || "");
@@ -53,7 +55,9 @@ export function ProviderDirectory() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [retry, setRetry] = useState(0);
-  const sample = params.get("sample") === "true";
+  const sample = params.has("sample")
+    ? params.get("sample") === "true"
+    : !!company?.is_demo;
   useEffect(() => {
     setQuery(params.get("q") || "");
     setLocation(params.get("location") || "");
@@ -62,7 +66,9 @@ export function ProviderDirectory() {
     const controller = new AbortController();
     setError("");
     setLoading(true);
-    api<Result>("/jobs/providers?" + params.toString(), {
+    const query = new URLSearchParams(params);
+    query.set("sample", String(sample));
+    api<Result>("/jobs/providers?" + query.toString(), {
       signal: controller.signal,
     })
       .then(setResult)
@@ -73,7 +79,7 @@ export function ProviderDirectory() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [params, retry]);
+  }, [params, sample, retry]);
   const filter = (key: string, value: string) => {
     const next = new URLSearchParams(params);
     value ? next.set(key, value) : next.delete(key);
@@ -151,7 +157,7 @@ export function ProviderDirectory() {
           {["q", "location", "trade", "kind"].some((k) => params.has(k)) && (
             <button
               className="job-text-button"
-              onClick={() => setParams(sample ? { sample: "true" } : {})}
+              onClick={() => setParams({ sample: String(sample) })}
             >
               Clear filters
             </button>
@@ -161,7 +167,7 @@ export function ProviderDirectory() {
           <input
             type="checkbox"
             checked={sample}
-            onChange={(e) => filter("sample", e.target.checked ? "true" : "")}
+            onChange={(e) => filter("sample", String(e.target.checked))}
           />
           Show demo companies
         </label>

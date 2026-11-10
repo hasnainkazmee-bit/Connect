@@ -657,6 +657,9 @@
 .job-invite > input {
   max-width: 500px;
 }
+.job-invite > .sample-toggle {
+  margin: 12px 0;
+}
 .job-invite p {
   color: #587082;
 }

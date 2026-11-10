@@ -721,8 +721,8 @@ async fn invite_companies(
         if provider == actor.company.as_deref().unwrap() {
             continue;
         }
-        let result = sqlx::query("INSERT INTO job_invitations(job_id,provider_company_id,invited_by) SELECT $1::uuid,p.id,$3::uuid FROM companies p JOIN companies h ON h.id=$4::uuid WHERE p.id=$2::uuid AND p.is_demo=h.is_demo ON CONFLICT DO NOTHING")
-            .bind(&id).bind(provider).bind(&actor.user).bind(actor.company.as_deref()).execute(&app.db).await?;
+        let result = sqlx::query("INSERT INTO job_invitations(job_id,provider_company_id,invited_by) SELECT $1::uuid,p.id,$3::uuid FROM companies p WHERE p.id=$2::uuid AND p.listing_status='managed' ON CONFLICT DO NOTHING")
+            .bind(&id).bind(provider).bind(&actor.user).execute(&app.db).await?;
         if result.rows_affected() == 0 {
             continue;
         }
@@ -779,11 +779,6 @@ async fn send_message(
     let actor = company_actor(&app, &headers, false).await?;
     let a = job_access(&app, &id, actor.company.as_deref()).await?;
     if a.status() != "open" && !a.hirer && !a.chosen {
-        return Err(forbidden());
-    }
-    let same_environment: bool = sqlx::query_scalar("SELECT p.is_demo=h.is_demo FROM companies p JOIN companies h ON h.id=$2::uuid WHERE p.id=$1::uuid")
-        .bind(actor.company.as_deref()).bind(a.hirer_id()).fetch_one(&app.db).await?;
-    if !same_environment {
         return Err(forbidden());
     }
     let text = required_text(&body, "body", 1, 5000)?;
@@ -952,8 +947,11 @@ fn parse_brief(body: &Value) -> Result<Brief<'_>> {
         return Err(bad("Choose who supplies materials."));
     }
     let people = match body.get("peopleNeeded").filter(|v| !v.is_null()) {
-        Some(v) => Some(v.as_i64().filter(|v| (1..=1000).contains(v))
-            .ok_or_else(|| bad("Enter a team size between 1 and 1,000."))?),
+        Some(v) => Some(
+            v.as_i64()
+                .filter(|v| (1..=1000).contains(v))
+                .ok_or_else(|| bad("Enter a team size between 1 and 1,000."))?,
+        ),
         None => None,
     };
     let arrangement = body["workArrangement"].as_str().unwrap_or("onsite");
@@ -1182,18 +1180,10 @@ async fn send_quote(
     let payment = optional_text(&body, "paymentTerms", 2000)?;
     let breakdown = parse_breakdown(&body, amount)?;
     let mut tx = app.db.begin().await?;
-    let job = sqlx::query("SELECT j.hiring_company_id::text AS hirer,j.title,j.status,j.visibility,COALESCE(j.quote_deadline<now(),false) AS expired,h.is_demo AS sample FROM jobs j JOIN companies h ON h.id=j.hiring_company_id WHERE j.id=$1::uuid FOR UPDATE OF j")
+    let job = sqlx::query("SELECT j.hiring_company_id::text AS hirer,j.title,j.status,j.visibility,COALESCE(j.quote_deadline<now(),false) AS expired FROM jobs j WHERE j.id=$1::uuid FOR UPDATE OF j")
         .bind(&id).fetch_optional(&mut *tx).await?.ok_or_else(not_found)?;
     let hirer: String = job.get("hirer");
     if hirer == company {
-        return Err(forbidden());
-    }
-    let provider_sample: bool =
-        sqlx::query_scalar("SELECT is_demo FROM companies WHERE id=$1::uuid")
-            .bind(company)
-            .fetch_one(&mut *tx)
-            .await?;
-    if provider_sample != job.get::<bool, _>("sample") {
         return Err(forbidden());
     }
     let expired: bool = job.get("expired");
