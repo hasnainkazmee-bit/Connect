@@ -338,6 +338,66 @@ try {
   );
   assert.equal(rejectedView.job.exact_address, "");
   await call(`/jobs/${id}/confirm`, provider, "POST", {});
+  await assert.rejects(
+    () =>
+      call(`/jobs/${id}/activity`, provider, "POST", {
+        kind: "update_requested",
+      }),
+    /403/,
+  );
+  await assert.rejects(
+    () =>
+      call(`/jobs/${id}/activity`, other, "POST", {
+        kind: "problem",
+        body: "A company outside the job cannot report on it.",
+      }),
+    /403/,
+  );
+  await call(`/jobs/${id}/activity`, hirer, "POST", {
+    kind: "update_requested",
+  });
+  await assert.rejects(
+    () =>
+      call(`/jobs/${id}/activity`, hirer, "POST", { kind: "update_requested" }),
+    /409/,
+  );
+  await call(`/jobs/${id}/activity`, provider, "POST", {
+    kind: "problem",
+    body: "Please confirm site access with the building manager.",
+  });
+  const activity = (await call(`/jobs/${id}`, hirer)).updates;
+  assert.ok(activity.some((u) => u.kind === "update_requested"));
+  assert.ok(activity.some((u) => u.kind === "problem"));
+  assert.equal(
+    (await call(`/jobs/${id}`, other)).updates.length,
+    0,
+    "Job problems remain private to the two selected companies",
+  );
+  await assert.rejects(() => call("/jobs/inbox", null), /401/);
+  const inbox = (await call("/jobs/inbox", provider)).threads;
+  assert.ok(inbox.some((t) => t.job_id === id));
+  assert.ok(
+    inbox.every(
+      (t) =>
+        t.provider_id === provider.company || t.company.id !== provider.company,
+    ),
+    "Threads belong to this account",
+  );
+  assert.equal(
+    inbox.find((t) => t.job_id === id).provider_id,
+    provider.company,
+  );
+  assert.equal(inbox.find((t) => t.job_id === id).company.id, hirer.company);
+  assert.ok(!JSON.stringify(inbox).includes("exact_address"));
+  const otherInbox = (await call("/jobs/inbox", other)).threads;
+  assert.ok(
+    otherInbox.every((t) => t.provider_id !== provider.company),
+    "No competing bidder conversations leak into inbox",
+  );
+  assert.equal(
+    (await call("/jobs/inbox?q=no-such-job-zzzz", hirer)).threads.length,
+    0,
+  );
   await call(`/jobs/${id}/payment-stages`, hirer, "POST", {
     stages: [
       { title: "Deposit", amountCents: 2000000 },
@@ -406,8 +466,23 @@ try {
     `/jobs/companies/${(await db.query("SELECT slug FROM companies WHERE id=$1", [provider.company])).rows[0].slug}`,
   );
   assert.ok(workProfile.rating >= 5 && workProfile.completedJobs >= 1);
+  await call(`/jobs/${draft.id}/quote`, provider, "POST", {
+    amountCents: 900000,
+    note: "Complete the work to the agreed scope.",
+    startWindow: "Next week",
+    duration: "Two weeks",
+  });
+  const ratedQuote = (await call(`/jobs/${draft.id}`, hirer)).quotes.find(
+    (q) => q.provider_company_id === provider.company,
+  );
+  assert.equal(ratedQuote.job_rating, 5);
+  assert.equal(
+    ratedQuote.job_review_count,
+    1,
+    "Quote rating uses actual completed-job reviews",
+  );
   console.log(
-    "Rust jobs smoke test passed: demo and regular company interactions in both directions, draft/edit/publish, attachment, invite-only and quote privacy, award, confirm, payments, messages, progress, finish, review, work profile.",
+    "Rust jobs smoke test passed: demo and regular company interactions in both directions, draft/edit/publish, attachment, invite-only and quote privacy, award, confirm, payments, messages, progress, request update, private problem reports, scoped inbox, finish, review, real quote rating, work profile.",
   );
 } finally {
   await db.end();

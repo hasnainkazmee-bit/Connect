@@ -5,6 +5,7 @@ export type Context = {
   company?: Company;
   network: Network;
   revision: number;
+  setJobSection: (section: "jobs" | "mine" | null) => void;
   refresh: () => void;
   setSession: (s: Session) => void;
   open: (c: ReactNode) => void;

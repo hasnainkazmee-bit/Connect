@@ -137,7 +137,7 @@ try {
     (await api(regular, "/jobs/" + demoJob)).permissions.invited,
     true,
   );
-  await visit(r, "/jobs/" + normalJob, ".editorial-job-hero");
+  await visit(r, "/jobs/" + normalJob, ".workspace-job-header");
   await r
     .getByRole("button", { name: "Invite companies", exact: true })
     .click();
@@ -155,7 +155,7 @@ try {
     (await api(demo, "/jobs/" + normalJob)).permissions.invited,
     true,
   );
-  await visit(d, "/jobs/" + normalJob, ".editorial-job-hero");
+  await visit(d, "/jobs/" + normalJob, ".workspace-job-header");
   await d.getByRole("button", { name: "Send a quote", exact: true }).click();
   await d.getByLabel("Your price (USD)", { exact: true }).fill("1000");
   await d.getByLabel("Earliest start", { exact: true }).fill("Next week");
@@ -167,7 +167,7 @@ try {
     );
   await d.getByRole("button", { name: "Send quote", exact: true }).click();
   await d.getByRole("heading", { name: "Your quote", exact: true }).waitFor();
-  await visit(r, "/jobs/" + normalJob, ".editorial-job-hero");
+  await visit(r, "/jobs/" + normalJob, ".workspace-job-header");
   await r
     .getByRole("heading", { name: "1 quote received", exact: true })
     .waitFor();
@@ -181,7 +181,7 @@ try {
       exact: true,
     })
     .waitFor();
-  await visit(r, "/jobs/" + demoJob, ".editorial-job-hero");
+  await visit(r, "/jobs/" + demoJob, ".workspace-job-header");
   await r.getByRole("button", { name: "Send a quote", exact: true }).click();
   await r.getByLabel("Your price (USD)", { exact: true }).fill("950");
   await r.getByLabel("Earliest start", { exact: true }).fill("Next week");
@@ -199,7 +199,7 @@ try {
       .getByRole("button", { name: "Invite to a job", exact: true })
       .isVisible(),
   );
-  await visit(r, "/jobs/" + normalJob, ".editorial-job-hero");
+  await visit(r, "/jobs/" + normalJob, ".workspace-job-header");
   await r
     .getByRole("button", { name: "Invite companies", exact: true })
     .click();

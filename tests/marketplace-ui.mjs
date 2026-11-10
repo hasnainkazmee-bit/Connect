@@ -203,7 +203,6 @@ try {
   }
   await h.setViewportSize({ width: 1440, height: 1000 });
   await h.screenshot({ path: path.join(out, "job-title.png"), fullPage: true });
-  await h.getByRole("button", { name: "Continue", exact: true }).click();
   await h
     .getByLabel("Describe what you need", { exact: true })
     .fill(
@@ -233,18 +232,28 @@ try {
   await h
     .getByLabel("Add files or photos", { exact: true })
     .setInputFiles(files);
-  assert.equal(await h.locator(".job-attachment-card").count(), 2);
+  assert.equal(
+    await h.locator(".posting-form .job-attachment-card").count(),
+    2,
+  );
   await h.getByLabel("Add files or photos", { exact: true }).setInputFiles({
     name: "extra-photo.jpg",
     mimeType: "image/jpeg",
     buffer: image,
   });
-  assert.equal(await h.locator(".job-attachment-card").count(), 3);
+  assert.equal(
+    await h.locator(".posting-form .job-attachment-card").count(),
+    3,
+  );
   await h
     .getByRole("button", { name: "Remove extra-photo.jpg", exact: true })
     .click();
-  assert.equal(await h.locator(".job-attachment-card").count(), 2);
+  assert.equal(
+    await h.locator(".posting-form .job-attachment-card").count(),
+    2,
+  );
   await h
+    .locator(".posting-form")
     .getByRole("button", { name: "Preview roof-photo.jpg", exact: true })
     .click();
   await h.locator(".job-file-viewer img").waitFor();
@@ -257,8 +266,6 @@ try {
   }
   await h.setViewportSize({ width: 1440, height: 1000 });
   await h.screenshot({ path: path.join(out, "post-job.png"), fullPage: true });
-  await h.getByRole("button", { name: "Continue", exact: true }).click();
-  await h.getByRole("button", { name: "Continue", exact: true }).click();
   assert.equal(
     await h.getByLabel("City or service area", { exact: true }).isVisible(),
     true,
@@ -271,12 +278,12 @@ try {
   await h.getByLabel("How long do you need help?").fill("4 weeks");
   await h.getByLabel("Start date or timing").fill("Within 4 weeks");
 
-  await h.getByRole("radio", { name: /^Remote / }).check();
+  await h.getByRole("radio", { name: /^Remote$/ }).check();
   assert.equal(
     await h.getByLabel("City or service area", { exact: true }).count(),
     0,
   );
-  await h.getByRole("radio", { name: /^On site / }).check();
+  await h.getByRole("radio", { name: /^On site$/ }).check();
   assert.equal(
     await h.getByLabel("City or service area", { exact: true }).inputValue(),
     "Austin, TX",
@@ -290,62 +297,45 @@ try {
     path: path.join(out, "job-location.png"),
     fullPage: true,
   });
-  await h.getByRole("button", { name: "Continue", exact: true }).click();
-  await h.getByRole("radio", { name: /^I have a budget in mind/ }).check();
   await h.getByLabel("Total budget").fill("25000");
-  await h
-    .getByRole("radio", { name: /^Let companies propose a price/ })
-    .check();
-  assert.equal(await h.getByLabel("Total budget").count(), 0);
-  await h.getByRole("radio", { name: /^I have a budget in mind/ }).check();
-  assert.equal(await h.getByLabel("Total budget").inputValue(), "25000");
-  for (const width of [320, 390, 768, 1024, 1440, 1920]) {
-    await h.setViewportSize({ width, height: 1000 });
-    await noOverflow(h, `job budget ${width}`);
-  }
-  await h.setViewportSize({ width: 1440, height: 1000 });
-  await h.screenshot({
-    path: path.join(out, "job-budget.png"),
-    fullPage: true,
-  });
-  await h.getByRole("button", { name: "Review job", exact: true }).click();
-  await h
-    .getByRole("heading", { name: "Review your job", exact: true })
-    .waitFor();
-  assert.equal(await h.locator(".job-attachment-card").count(), 2);
-  for (const width of [320, 390, 768, 1024, 1440, 1920]) {
-    await h.setViewportSize({ width, height: 1000 });
-    await noOverflow(h, `review job ${width}`);
-  }
-  await h.getByRole("button", { name: "Edit details", exact: true }).click();
-  await h
-    .getByRole("heading", {
-      name: "Give companies the full picture.",
-      exact: true,
-    })
-    .waitFor();
   assert.match(
-    await h.getByLabel("Describe what you need", { exact: true }).inputValue(),
+    await h.locator(".posting-preview-card").innerText(),
+    /\$25,000/,
+  );
+  await h.getByLabel("Total budget").fill("");
+  assert.equal(
+    await h.locator(".preview-budget").count(),
+    0,
+    "Blank budget means open quotes",
+  );
+  await h.getByLabel("Total budget").fill("25000");
+  assert.match(
+    await h.locator(".posting-preview-card h3").innerText(),
+    /4-person/,
+  );
+  assert.match(
+    await h.locator(".preview-description").innerText(),
     /commission the rooftop array/,
   );
-  assert.equal(await h.locator(".job-attachment-card").count(), 2);
-  await h.getByRole("button", { name: "Review job", exact: true }).click();
-  await h.setViewportSize({ width: 1440, height: 1000 });
-  await h.screenshot({
-    path: path.join(out, "review-job.png"),
-    fullPage: true,
-  });
-  await h.getByRole("button", { name: "Edit timing", exact: true }).click();
   assert.equal(
-    await h.getByLabel("How many people do you need?").inputValue(),
-    "4",
+    await h.locator(".posting-preview-card .job-attachment-card").count(),
+    2,
   );
-  await h.getByRole("button", { name: "Review job", exact: true }).click();
+  for (const width of [320, 390, 768, 1024, 1440, 1920]) {
+    await h.setViewportSize({ width, height: 1000 });
+    await noOverflow(h, `single-page posting with live preview ${width}`);
+    if (width === 390) {
+      await h.evaluate(() => scrollTo(0, 0));
+      await h.screenshot({ path: path.join(out, "posting-mobile.png") });
+    }
+  }
+  await h.setViewportSize({ width: 1440, height: 1000 });
+  await h.screenshot({ path: path.join(out, "post-with-preview.png") });
   await h.getByRole("button", { name: "Publish job", exact: true }).click();
   await h.waitForURL(/\/jobs\/[0-9a-f-]{36}$/);
   const route = new URL(h.url()).pathname;
   await h
-    .getByRole("heading", { name: "What’s needed.", exact: true })
+    .getByRole("heading", { name: "About this job", exact: true })
     .waitFor();
   assert.equal(await h.locator(".job-attachment-card").count(), 2);
   const detail = await (await hirer.request.get(base + "/api" + route)).json();
@@ -421,11 +411,26 @@ try {
   await h
     .getByRole("heading", { name: "1 quote received", exact: true })
     .waitFor();
+  assert.equal(
+    await h.locator(".quote-expanded-details").count(),
+    0,
+    "Quotes start compact",
+  );
+  await h.getByRole("button", { name: "View quote", exact: false }).click();
   assert.match(
     await h.locator(".quote-breakdown-display").innerText(),
     /Installation labor/,
   );
   assert.equal(await h.locator(".job-attachment-card").count(), 5);
+  for (const width of [320, 390, 768, 1024, 1440, 1920]) {
+    await h.setViewportSize({ width, height: 1000 });
+    await noOverflow(h, `quote comparison ${width}`);
+    if (width === 390) {
+      await h.evaluate(() => scrollTo(0, 0));
+      await h.screenshot({ path: path.join(out, "quotes-mobile.png") });
+    }
+  }
+  await h.setViewportSize({ width: 1440, height: 1000 });
   await h.getByRole("button", { name: "Message", exact: true }).click();
   await h
     .getByLabel("Job message", { exact: true })
@@ -455,6 +460,142 @@ try {
     await h.setViewportSize({ width, height: 1000 });
     await noOverflow(h, `my jobs ${width}`);
   }
+  await h.setViewportSize({ width: 1440, height: 1000 });
+  await p.setViewportSize({ width: 1440, height: 1000 });
+  await visit(h, route);
+  const updateResponse = h.waitForResponse(
+    (r) =>
+      r.url().endsWith(route + "/activity") && r.request().method() === "POST",
+  );
+  await h.getByRole("button", { name: "Request update", exact: true }).click();
+  const updateResult = await updateResponse;
+  assert.equal(updateResult.status(), 201, await updateResult.text());
+  await h
+    .getByRole("heading", { name: "Update requested", exact: true })
+    .waitFor();
+  await h
+    .getByRole("button", { name: "Report a problem", exact: true })
+    .click();
+  await h
+    .getByLabel("What’s the problem?", { exact: true })
+    .fill(
+      "The site gate is locked. Please confirm tomorrow’s access arrangements.",
+    );
+  await h.getByRole("button", { name: "Share problem", exact: true }).click();
+  await h
+    .getByRole("heading", { name: "Problem reported", exact: true })
+    .waitFor();
+  await h
+    .getByLabel("Quick job message")
+    .fill("Please call the site coordinator before arrival.");
+  await h
+    .locator(".workspace-quick-message")
+    .getByRole("button", { name: "Send", exact: true })
+    .click();
+  await h.waitForFunction(
+    () =>
+      document.querySelector('[aria-label="Quick job message"]')?.value === "",
+  );
+  await visit(h, "/jobs/inbox");
+  await h.getByLabel("Search conversations").fill("browser validation");
+  const conversation = h
+    .locator(`.workspace-inbox-thread[href^="${route}?"]`)
+    .filter({
+      hasText: "Need a 4-person installation crew — browser validation",
+    })
+    .filter({ hasText: "Please call the site coordinator" });
+  await conversation.first().waitFor();
+  await conversation.first().click();
+  await h.getByRole("heading", { name: "Job messages", exact: true }).waitFor();
+  await h
+    .getByText("Please call the site coordinator before arrival.", {
+      exact: true,
+    })
+    .waitFor();
+  await visit(p, route);
+  await p
+    .getByRole("heading", { name: "Problem reported", exact: true })
+    .waitFor();
+  await p
+    .getByPlaceholder("What has your team completed?", { exact: true })
+    .fill(
+      "The first three roofs are installed. Photos and the inspection report are attached.",
+    );
+  await p
+    .getByLabel("Add progress photos or files", { exact: true })
+    .setInputFiles(files);
+  await p.getByRole("button", { name: "Post update", exact: true }).click();
+  await p
+    .locator(".job-update-content p")
+    .filter({ hasText: "The first three roofs are installed." })
+    .waitFor();
+  await p.evaluate(() => scrollTo(0, 0));
+  await p.screenshot({ path: path.join(out, "work-in-progress.png") });
+  await p
+    .getByPlaceholder("What has your team completed?", { exact: true })
+    .fill(
+      "All agreed work is complete. Final photos and inspection documents are attached for review.",
+    );
+  await p
+    .getByLabel("Add progress photos or files", { exact: true })
+    .setInputFiles(files);
+  await p
+    .getByRole("button", { name: "Send work for review", exact: true })
+    .click();
+  await p.getByText("Ready for review", { exact: true }).waitFor();
+  await visit(h, route);
+  await h
+    .getByRole("heading", { name: "Review the work", exact: true })
+    .waitFor();
+  assert.equal(
+    await h.locator(".job-submitted .job-attachment-card").count(),
+    2,
+  );
+  for (const width of [320, 390, 768, 1024, 1440, 1920]) {
+    await h.setViewportSize({ width, height: 1000 });
+    await noOverflow(h, `work review ${width}`);
+    if (width === 390)
+      await h.screenshot({ path: path.join(out, "review-work-mobile.png") });
+  }
+  await h.setViewportSize({ width: 1440, height: 1000 });
+  await h.screenshot({ path: path.join(out, "review-work.png") });
+  await h.getByRole("button", { name: "Request changes", exact: true }).click();
+  await h
+    .getByLabel("What needs to change?", { exact: true })
+    .fill("Please include the commissioning sign-off.");
+  await h
+    .getByRole("button", { name: "Send request for changes", exact: true })
+    .click();
+  await h
+    .getByRole("heading", { name: "Changes requested", exact: true })
+    .waitFor();
+  await visit(p, route);
+  await p
+    .getByPlaceholder("What has your team completed?", { exact: true })
+    .fill(
+      "Commissioning sign-off included. All requested changes are now complete.",
+    );
+  await p
+    .getByLabel("Add progress photos or files", { exact: true })
+    .setInputFiles(files);
+  await p
+    .getByRole("button", { name: "Send work for review", exact: true })
+    .click();
+  await p.getByText("Ready for review", { exact: true }).waitFor();
+  await visit(h, route);
+  await h
+    .getByRole("button", { name: "Accept and finish job", exact: true })
+    .click();
+  await h
+    .locator(".job-confirm-dialog")
+    .getByRole("button", { name: "Accept and finish", exact: true })
+    .click();
+  await h.getByRole("heading", { name: "Job finished", exact: true }).waitFor();
+  await h
+    .getByPlaceholder("How did the work together go?", { exact: true })
+    .fill("Thorough communication and complete work. Local test review.");
+  await h.getByRole("button", { name: "Leave review", exact: true }).click();
+  await h.getByText("Your review was submitted.", { exact: true }).waitFor();
   await visit(p, "/demo-mesa-peak-solar");
   await p
     .getByRole("heading", { name: "Mesa Peak Solar", exact: true })
@@ -482,21 +623,18 @@ try {
     .getByLabel("Job title", { exact: true })
     .fill("Remote solar design support — browser validation");
   await h.getByLabel("Type of work", { exact: true }).selectOption("design");
-  await h.getByRole("button", { name: "Continue", exact: true }).click();
   await h
     .getByLabel("Describe what you need", { exact: true })
     .fill(
       "We need a remote specialist to prepare a complete solar design drawing package.",
     );
-  await h.getByRole("button", { name: "Continue", exact: true }).click();
-  await h.getByRole("radio", { name: /^Remote / }).check();
+  await h.locator(".posting-more > summary").click();
+  await h.getByRole("radio", { name: /^Remote$/ }).check();
   assert.equal(
     await h.getByLabel("City or service area", { exact: true }).count(),
     0,
   );
   assert.equal(await h.getByLabel("How many people do you need?").count(), 0);
-  await h.getByRole("button", { name: "Continue", exact: true }).click();
-  await h.getByRole("button", { name: "Review job", exact: true }).click();
   await h.getByRole("button", { name: "Publish job", exact: true }).click();
   await h.waitForURL(/\/jobs\/[0-9a-f-]{36}$/);
   const remote = await (
@@ -511,11 +649,10 @@ try {
     "Open pricing remains genuinely open",
   );
   await visit(h, "/jobs/new");
-  await h.getByRole("button", { name: "Continue", exact: true }).click();
   assert.equal(
     await h.getByLabel("Job title", { exact: true }).isVisible(),
     true,
-    "A title is required before advancing",
+    "Posting fields stay visible",
   );
   await h
     .getByLabel("Job title", { exact: true })
@@ -533,13 +670,7 @@ try {
     await h.getByLabel("Job title", { exact: true }).inputValue(),
     "Draft for next week — browser validation",
   );
-  await h.getByRole("button", { name: "Review job", exact: true }).click();
-  await h
-    .getByRole("heading", {
-      name: "Give companies the full picture.",
-      exact: true,
-    })
-    .waitFor();
+  await h.getByRole("button", { name: "Update job", exact: true }).click();
   assert.match(await h.locator(".job-error").innerText(), /little more detail/);
 
   await visit(p, "/jobs?trade=crew&sample=true");
@@ -553,7 +684,7 @@ try {
       status: "passed",
       responsiveChecks: reports.length,
       workflow:
-        "crew and remote requests, review and edit, multiple attachments, previews, quote breakdown, comparison, messages, selection, confirmation",
+        "single-page posting, live preview, crew and remote requests, multiple attachments, quote comparison, inbox, messages, request update, report problem, changes and completion, job reviews",
       screenshots: out,
     }),
   );

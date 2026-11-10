@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   Link,
   useNavigate,
@@ -7,6 +7,12 @@ import {
 } from "react-router-dom";
 import {
   ArrowLeft,
+  ArrowLeftRight,
+  Info,
+  Layers3,
+  Pencil,
+  Tag,
+  CircleAlert,
   ArrowRight,
   ArrowUpRight,
   BriefcaseBusiness,
@@ -25,7 +31,6 @@ import {
   Search,
   Send,
   Star,
-  UploadCloud,
   Users,
   Wrench,
   X,
@@ -78,6 +83,8 @@ type Job = {
   chosen_quote_id?: string | null;
 };
 type Quote = {
+  job_rating?: number | null;
+  job_review_count?: number;
   id: string;
   provider_company_id: string;
   amount_cents: number;
@@ -684,34 +691,6 @@ export function JobsPage({ mine = false }: { mine?: boolean }) {
   );
 }
 
-const postingSteps = [
-  {
-    label: "The job",
-    title: "What do you need help with?",
-    hint: "Start with a clear title. A few specific words help the right companies recognize the work they can do.",
-  },
-  {
-    label: "Work details",
-    title: "Give companies the full picture.",
-    hint: "Describe the work and the result you need. Plans, photos, and a little context help companies put together a useful quote.",
-  },
-  {
-    label: "Where & when",
-    title: "Where and when do you need help?",
-    hint: "Let companies check whether their team can be there. It’s fine to leave the timing flexible.",
-  },
-  {
-    label: "Budget",
-    title: "How would you like to get quotes?",
-    hint: "Have a budget in mind? Share it. Need help pricing the work? Let companies propose a total.",
-  },
-  {
-    label: "Review",
-    title: "Review your job",
-    hint: "This is what companies will see. Check the details, make any changes, and publish when you’re ready.",
-  },
-];
-
 export function NewJobPage() {
   const { id } = useParams(),
     { company, admin, session, createCompany, signIn, toast } = useApp(),
@@ -724,21 +703,10 @@ export function NewJobPage() {
   const [materials, setMaterials] = useState("to_agree");
   const [requirements, setRequirements] = useState("");
   const [savingDraft, setSavingDraft] = useState(false);
-  const [step, setStep] = useState(0);
-  const [furthestStep, setFurthestStep] = useState(0);
   const [budgetMode, setBudgetMode] = useState("quotes");
   const [people, setPeople] = useState("");
   const [expectedDuration, setExpectedDuration] = useState("");
   const [arrangement, setArrangement] = useState("onsite");
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
-  const moveTo = (next: number) => {
-    setStep(next);
-    setFurthestStep((previous) => Math.max(previous, next));
-    setError("");
-    window.scrollTo({ top: 0, behavior: "instant" });
-    requestAnimationFrame(() => headingRef.current?.focus());
-  };
   const [existingFiles, setExistingFiles] = useState<JobFile[]>([]);
   const [title, setTitle] = useState(""),
     [trade, setTrade] = useState(""),
@@ -790,7 +758,6 @@ export function NewJobPage() {
         );
         setExact(job.exact_address || "");
         setEditReady(true);
-        setFurthestStep(4);
       })
       .catch((e) => setError(e.message));
   }, [id]);
@@ -842,36 +809,16 @@ export function NewJobPage() {
     for (let stage = 0; stage < 4; stage++) {
       const issue = stageError(stage);
       if (issue) {
-        moveTo(stage);
         setError(issue);
+        requestAnimationFrame(() =>
+          document
+            .getElementById("posting-error")
+            ?.scrollIntoView({ block: "center", behavior: "smooth" }),
+        );
         return false;
       }
     }
-    if (step !== 4) moveTo(4);
     return true;
-  };
-  const next = () => {
-    const issue = stageError(step);
-    if (issue) {
-      setError(issue);
-      return;
-    }
-    if (step === 3 || furthestStep === 4) review();
-    else moveTo(step + 1);
-  };
-  const navigateStage = (target: number) => {
-    if (target <= step) {
-      moveTo(target);
-      return;
-    }
-    if (!formRef.current?.reportValidity()) return;
-    const issue = stageError(step);
-    if (issue) {
-      setError(issue);
-      return;
-    }
-    if (target === 4) review();
-    else moveTo(target);
   };
   const publish = async (status: "open" | "draft") => {
     if (status === "open" && !review()) return;
@@ -1003,636 +950,354 @@ export function NewJobPage() {
       </div>
     );
   return (
-    <div className="jobs-page job-posting-page job-wizard">
-      <div className="job-posting-top">
-        <Link to={id ? `/jobs/${id}` : "/jobs/mine"} className="job-back">
-          <ArrowLeft size={16} />
-          {id ? "Back to job" : "My jobs"}
-        </Link>
-        <span className="job-posting-identity">
-          <JobLogo company={company} />
-          <span>
-            Posting as <b>{company.name}</b>
-          </span>
-        </span>
-        <button
-          className="job-text-button"
-          type="button"
-          disabled={busy}
-          onClick={() => void publish("draft")}
-        >
-          {busy && savingDraft ? "Saving…" : "Save draft"}
-        </button>
-      </div>
-      <div className="job-posting-shell">
-        <nav className="job-wizard-progress" aria-label="Posting progress">
-          <ol>
-            {postingSteps.map((s, i) => (
-              <li key={s.label}>
-                <button
-                  type="button"
-                  aria-current={step === i ? "step" : undefined}
-                  disabled={busy || i > furthestStep}
-                  onClick={() => navigateStage(i)}
-                >
-                  <span>{i < step ? <Check size={13} /> : i + 1}</span>
-                  <b>{s.label}</b>
-                </button>
-              </li>
-            ))}
-          </ol>
-        </nav>
+    <div className="jobs-page job-posting-page workspace-posting">
+      <Link to={id ? `/jobs/${id}` : "/jobs/mine"} className="job-back">
+        <ArrowLeft size={17} /> {id ? "Back to job" : "My jobs"}
+      </Link>
+      <header className="workspace-page-heading">
+        <h1>{id ? "Edit job" : "Post a job"}</h1>
+        <p>
+          Tell companies what you need. You can edit this until quotes arrive.
+        </p>
+      </header>
+      <div className="posting-layout">
         <form
-          ref={formRef}
-          className="jobs-form job-posting-form"
-          onInvalidCapture={(e) => {
-            (e.target as HTMLElement)
-              .closest("details")
-              ?.setAttribute("open", "");
-          }}
+          className="jobs-panel posting-form"
+          noValidate
           onSubmit={(e) => {
             e.preventDefault();
-            if (step === 4) void publish("open");
-            else next();
+            void publish("open");
           }}
         >
-          <div
-            className={"job-wizard-layout" + (step === 4 ? " is-review" : "")}
-          >
-            <header className="job-posting-heading">
-              <span className="job-wizard-step-count">
-                STEP {step + 1} OF 5 <span>· {postingSteps[step].label}</span>
-              </span>
-              <h1 ref={headingRef} tabIndex={-1}>
-                {postingSteps[step].title}
-              </h1>
-              <p>{postingSteps[step].hint}</p>
-              {step === 0 && (
-                <div className="job-title-examples">
-                  <h2>A good title is specific.</h2>
-                  <ul>
-                    <li>Four-person crew for a two-week installation</li>
-                    <li>Electrician to troubleshoot an inverter</li>
-                    <li>Permit drawings for a residential system</li>
-                  </ul>
-                </div>
-              )}
-              {step === 1 && (
-                <div className="job-writing-tips">
-                  <h2>A few things to include</h2>
-                  <p>
-                    What needs doing
-                    <br />
-                    The result you expect
-                    <br />
-                    Experience or equipment needed
-                  </p>
-                </div>
-              )}
-              {step === 4 && (
-                <p className="job-review-explainer">
-                  <CheckCircle2 size={18} />
-                  <span>
-                    Companies can send you private quotes. You decide who to
-                    work with.
-                  </span>
-                </p>
-              )}
-            </header>
-            <fieldset
-              className="job-wizard-fields"
-              disabled={busy}
-              aria-label="Job details"
-            >
-              {step === 0 && (
-                <section className="job-wizard-section">
-                  <label>
-                    Job title
-                    <input
-                      required
-                      minLength={8}
-                      maxLength={160}
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="e.g. Need a 4-person installation crew in Phoenix"
-                    />
-                  </label>
-                  <label>
-                    Type of work
-                    <select
-                      aria-label="Type of work"
-                      required
-                      value={trade}
-                      onChange={(e) => setTrade(e.target.value)}
-                    >
-                      <option value="" disabled>
-                        Choose a category
-                      </option>
-                      {workTypes.map(([k, v]) => (
-                        <option value={k} key={k}>
-                          {v}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <p className="job-field-hint">
-                    Choose the closest category. You can explain the details in
-                    the next step.
-                  </p>
-                </section>
-              )}
-              {step === 1 && (
-                <section className="job-wizard-section">
-                  <label>
-                    Describe what you need
-                    <textarea
-                      aria-label="Describe what you need"
-                      required
-                      minLength={20}
-                      maxLength={10000}
-                      rows={5}
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder={
-                        trade === "crew"
-                          ? "What will the crew do? Include the experience, tools, and working hours you need."
-                          : "Tell companies what you need help with, what a good result looks like, and anything they should include in their quote."
-                      }
-                    />
-                  </label>
-                  <div className="job-posting-attachments">
-                    <h2>
-                      Attachments <span>Optional</span>
-                    </h2>{" "}
-                    <AttachmentPicker
-                      files={files}
-                      onChange={setFiles}
-                      disabled={busy}
-                      label="Add files or photos"
-                    />
-                    <FileList files={existingFiles} />
-                  </div>
-                  <details className="job-more-details">
-                    <summary>
-                      <span>
-                        Requirements & project details
-                        <small>
-                          Add these only if they’re relevant to the work
-                        </small>
-                      </span>
-                      <ChevronDown size={18} />
-                    </summary>
-                    <div className="job-more-details-body">
-                      <label>
-                        Requirements <small>Optional</small>
-                        <textarea
-                          rows={3}
-                          maxLength={3000}
-                          value={requirements}
-                          onChange={(e) => setRequirements(e.target.value)}
-                          placeholder="Licenses, insurance, equipment, or experience the company needs"
-                        />
-                      </label>
-                      <div className="job-optional-heading">
-                        For work on a specific project
-                      </div>{" "}
-                      <div className="jobs-fields-three">
-                        <label>
-                          Project type
-                          <select
-                            aria-label="Project type"
-                            value={projectType}
-                            onChange={(e) => setProjectType(e.target.value)}
-                          >
-                            <option value="">Not specified</option>
-                            {projectTypes.map(([key, label]) => (
-                              <option key={key} value={key}>
-                                {label}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label>
-                          System size (kW)
-                          <input
-                            type="number"
-                            min="0.01"
-                            max="100000000"
-                            step="0.01"
-                            value={systemSize}
-                            onChange={(e) => setSystemSize(e.target.value)}
-                            placeholder="If relevant"
-                          />
-                        </label>
-                        <label>
-                          Number of sites
-                          <input
-                            type="number"
-                            min="1"
-                            max="100000"
-                            step="1"
-                            value={siteCount}
-                            onChange={(e) => setSiteCount(e.target.value)}
-                            placeholder="If relevant"
-                          />
-                        </label>
-                      </div>
-                      <label>
-                        Who supplies materials?
-                        <select
-                          aria-label="Who supplies materials?"
-                          value={materials}
-                          onChange={(e) => setMaterials(e.target.value)}
-                        >
-                          {Object.entries(materialsLabels).map(
-                            ([key, label]) => (
-                              <option key={key} value={key}>
-                                {label}
-                              </option>
-                            ),
-                          )}
-                        </select>
-                      </label>
-                    </div>
-                  </details>
-                </section>
-              )}
-              {step === 2 && (
-                <section className="job-wizard-section">
-                  <fieldset className="job-location-choices">
-                    <legend>Work location</legend>
-                    <div>
-                      {[
-                        [
-                          "onsite",
-                          "On site",
-                          "At a job site or in your service area",
-                          MapPin,
-                        ],
-                        [
-                          "remote",
-                          "Remote",
-                          "The work can be done from anywhere",
-                          Monitor,
-                        ],
-                        [
-                          "hybrid",
-                          "Hybrid",
-                          "A mix of remote and on-site work",
-                          Building2,
-                        ],
-                      ].map(([key, label, hint, Icon]) => {
-                        const ChoiceIcon = Icon as typeof MapPin;
-                        return (
-                          <label className="job-choice" key={key as string}>
-                            <input
-                              type="radio"
-                              name="work-arrangement"
-                              value={key as string}
-                              checked={arrangement === key}
-                              onChange={() => setArrangement(key as string)}
-                            />
-                            <ChoiceIcon size={20} />
-                            <span>
-                              <b>{label as string}</b>
-                              <small>{hint as string}</small>
-                            </span>
-                            <i />
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </fieldset>
-                  {arrangement !== "remote" && (
-                    <label>
-                      City or service area
-                      <input
-                        required
-                        maxLength={160}
-                        value={location}
-                        onChange={(e) => setLocation(e.target.value)}
-                        placeholder="e.g. Phoenix, AZ"
-                      />
-                    </label>
-                  )}
-                  <div className="jobs-fields-two">
-                    <label>
-                      Start date or timing <small>Optional</small>
-                      <input
-                        maxLength={120}
-                        value={start}
-                        onChange={(e) => setStart(e.target.value)}
-                        placeholder="e.g. Next week, or flexible"
-                      />
-                    </label>
-                    <label>
-                      How long do you need help? <small>Optional</small>
-                      <input
-                        maxLength={120}
-                        value={expectedDuration}
-                        onChange={(e) => setExpectedDuration(e.target.value)}
-                        placeholder="e.g. 2 weeks, or ongoing"
-                      />
-                    </label>
-                  </div>
-                  {trade === "crew" && (
-                    <label>
-                      How many people do you need? <small>Optional</small>
-                      <input
-                        type="number"
-                        min="1"
-                        max="1000"
-                        step="1"
-                        value={people}
-                        onChange={(e) => setPeople(e.target.value)}
-                        placeholder="e.g. 4"
-                      />
-                    </label>
-                  )}
-                  {arrangement !== "remote" && (
-                    <details className="job-more-details">
-                      <summary>
-                        <span>
-                          Private site address{" "}
-                          <small>
-                            Optional · Only shared with the company you choose
-                          </small>
-                        </span>
-                        <ChevronDown size={18} />
-                      </summary>
-                      <div className="job-more-details-body">
-                        {arrangement !== "remote" && (
-                          <label>
-                            Exact address{" "}
-                            <small>Private until you choose a company</small>
-                            <input
-                              maxLength={300}
-                              value={exact}
-                              onChange={(e) => setExact(e.target.value)}
-                              placeholder="Street address, if known"
-                            />
-                          </label>
-                        )}
-                      </div>
-                    </details>
-                  )}
-                </section>
-              )}
-              {step === 3 && (
-                <section className="job-wizard-section">
-                  <fieldset className="job-budget-choices">
-                    <legend>Budget preference</legend>
-                    <label className="job-choice">
-                      <input
-                        type="radio"
-                        name="budget-mode"
-                        checked={budgetMode === "quotes"}
-                        onChange={() => setBudgetMode("quotes")}
-                      />
-                      <span>
-                        <b>Let companies propose a price</b>
-                        <small>Compare quotes before setting a budget.</small>
-                      </span>
-                      <i />
-                    </label>
-                    <label className="job-choice">
-                      <input
-                        type="radio"
-                        name="budget-mode"
-                        checked={budgetMode === "fixed"}
-                        onChange={() => setBudgetMode("fixed")}
-                      />
-                      <span>
-                        <b>I have a budget in mind</b>
-                        <small>Give companies a total to work toward.</small>
-                      </span>
-                      <i />
-                    </label>
-                  </fieldset>
-                  {budgetMode === "fixed" && (
-                    <div className="job-budget-amount">
-                      <label>
-                        Total budget <small>USD</small>
-                        <span className="money-input">
-                          $
-                          <input
-                            type="number"
-                            required
-                            min="1"
-                            max="1000000000"
-                            step="0.01"
-                            value={budget}
-                            onChange={(e) => setBudget(e.target.value)}
-                            placeholder="e.g. 18000"
-                          />
-                        </span>
-                      </label>
-                      <p className="job-field-hint">
-                        The total for all the work, not an hourly rate.
-                        Companies can suggest a different amount in their quote.
-                      </p>
-                    </div>
-                  )}
-                  <div className="job-budget-deadline">
-                    <label>
-                      Quote deadline <small>Optional</small>
-                      <input
-                        type="date"
-                        value={deadline}
-                        onChange={(e) => setDeadline(e.target.value)}
-                      />
-                    </label>
-                    <p className="job-field-hint">
-                      Leave this blank if you’re flexible about when quotes
-                      arrive.
-                    </p>
-                  </div>
-                </section>
-              )}
-              {step === 4 && (
-                <>
-                  <section className="job-review-preview">
-                    <div className="job-review-company">
-                      <JobLogo company={company} />
-                      <span>
-                        <b>{company.name}</b>
-                        <small>{workLabel(trade)}</small>
-                      </span>
-                      <button
-                        type="button"
-                        className="job-text-button"
-                        disabled={busy}
-                        onClick={() => moveTo(0)}
-                      >
-                        Edit title
-                      </button>
-                    </div>
-                    <h2>{title}</h2>
-                    <div className="job-review-section-heading">
-                      <h3>Where, when & budget</h3>
-                      <button
-                        type="button"
-                        className="job-text-button"
-                        disabled={busy}
-                        onClick={() => moveTo(2)}
-                      >
-                        Edit timing
-                      </button>
-                      <button
-                        type="button"
-                        className="job-text-button"
-                        disabled={busy}
-                        onClick={() => moveTo(3)}
-                      >
-                        Edit budget
-                      </button>
-                    </div>
-                    <dl className="job-review-facts">
-                      <div>
-                        <dt>Location</dt>
-                        <dd>
-                          {arrangement === "remote" ? "Remote" : location}
-                          {arrangement === "hybrid" ? " · Hybrid" : ""}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Start</dt>
-                        <dd>{start || "Flexible"}</dd>
-                      </div>
-                      {expectedDuration && (
-                        <div>
-                          <dt>Duration</dt>
-                          <dd>{expectedDuration}</dd>
-                        </div>
-                      )}
-                      {trade === "crew" && people && (
-                        <div>
-                          <dt>People needed</dt>
-                          <dd>{people}</dd>
-                        </div>
-                      )}
-                      <div>
-                        <dt>Total budget</dt>
-                        <dd>
-                          {budgetMode === "fixed" && budget
-                            ? money(Math.round(Number(budget) * 100))
-                            : "Open to quotes"}
-                        </dd>
-                      </div>
-                      {deadline && (
-                        <div>
-                          <dt>Quote deadline</dt>
-                          <dd>{date(deadline + "T12:00:00")}</dd>
-                        </div>
-                      )}
-                    </dl>
-                    <div className="job-review-scope">
-                      <div className="job-review-section-heading">
-                        <h3>What you need</h3>
-                        <button
-                          type="button"
-                          className="job-text-button"
-                          disabled={busy}
-                          onClick={() => moveTo(1)}
-                        >
-                          Edit details
-                        </button>
-                      </div>
-                      <p className="job-description">{description}</p>
-                    </div>
-                    {requirements && (
-                      <div className="job-review-scope">
-                        <h3>Requirements</h3>
-                        <p className="job-description">{requirements}</p>
-                      </div>
-                    )}
-                    {(projectType ||
-                      systemSize ||
-                      siteCount ||
-                      materials !== "to_agree") && (
-                      <div className="job-review-scope">
-                        <h3>Project details</h3>
-                        <div className="job-review-specs">
-                          {projectType && (
-                            <span>{projectLabel(projectType)}</span>
-                          )}
-                          {systemSize && <span>{systemSize} kW</span>}
-                          {siteCount && (
-                            <span>
-                              {siteCount} {siteCount === "1" ? "site" : "sites"}
-                            </span>
-                          )}
-                          {materials !== "to_agree" && (
-                            <span>{materialsLabels[materials]}</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {!!(files.length + existingFiles.length) && (
-                      <div className="job-review-scope">
-                        <h3>
-                          Attachments · {files.length + existingFiles.length}
-                        </h3>
-                        <AttachmentPicker
-                          files={files}
-                          onChange={setFiles}
-                          readOnly
-                        />
-                        <FileList files={existingFiles} />
-                      </div>
-                    )}
-                    {exact && arrangement !== "remote" && (
-                      <p className="job-private-note">
-                        <LockKeyhole size={15} />
-                        <span>
-                          <b>Private address:</b> {exact}. Shared only with the
-                          company you choose.
-                        </span>
-                      </p>
-                    )}
-                  </section>
-                </>
-              )}
-              <JobError text={error} />
-            </fieldset>
+          <div id="posting-error">
+            <JobError text={error} />
           </div>
-          <footer className="job-posting-footer">
-            <div>
-              {step > 0 && (
-                <button
-                  className="jobs-button jobs-secondary"
-                  type="button"
-                  disabled={busy}
-                  onClick={() => moveTo(step - 1)}
-                >
-                  <ArrowLeft size={16} />
-                  Back
-                </button>
-              )}
-              <span className="job-wizard-footer-note">
-                {step === 4
-                  ? "Ready when you are."
-                  : "Your job stays private until you publish."}
-              </span>
+          <label>
+            What needs to be done?
+            <input
+              aria-label="Job title"
+              autoComplete="off"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Need a crew for 18 rooftop installations"
+              maxLength={160}
+              required
+            />
+          </label>
+          <div className="posting-key-fields">
+            <label>
+              Type of work
+              <select
+                aria-label="Type of work"
+                value={trade}
+                onChange={(e) => setTrade(e.target.value)}
+                required
+              >
+                <option value="">Choose work type</option>
+                {workTypes.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {arrangement !== "remote" ? (
+              <label>
+                Location
+                <input
+                  aria-label="City or service area"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="City or service area"
+                  maxLength={160}
+                  required
+                />
+              </label>
+            ) : (
+              <div className="posting-remote">
+                <Monitor size={18} />
+                <span>
+                  Remote work<small>No site visit needed</small>
+                </span>
+              </div>
+            )}
+            <label>
+              Start
+              <input
+                aria-label="Start date or timing"
+                value={start}
+                onChange={(e) => setStart(e.target.value)}
+                placeholder="e.g. In 2 weeks"
+                maxLength={120}
+              />
+            </label>
+          </div>
+          <label>
+            Describe the work
+            <textarea
+              aria-label="Describe what you need"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What needs doing? Include the scope, what you’ll supply, and what a finished job should look like."
+              rows={6}
+              maxLength={10000}
+              required
+            />
+          </label>
+          <AttachmentPicker
+            files={files}
+            onChange={setFiles}
+            label="Add files or photos"
+            disabled={busy}
+          />
+          <FileList files={existingFiles} />
+          <div className="jobs-fields-two">
+            <label>
+              Budget <span className="field-optional">(optional, USD)</span>
+              <input
+                aria-label="Total budget"
+                type="number"
+                min="1"
+                step="0.01"
+                max="1000000000"
+                value={budget}
+                onChange={(e) => {
+                  setBudget(e.target.value);
+                  setBudgetMode(e.target.value ? "fixed" : "quotes");
+                }}
+                placeholder="Leave blank to receive quotes"
+              />
+            </label>
+            <label>
+              Quote deadline <span className="field-optional">(optional)</span>
+              <input
+                aria-label="Quote deadline"
+                type="date"
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+              />
+            </label>
+          </div>
+          {trade === "crew" && (
+            <div className="jobs-fields-two">
+              <label>
+                People needed <span className="field-optional">(optional)</span>
+                <input
+                  aria-label="How many people do you need?"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  value={people}
+                  onChange={(e) => setPeople(e.target.value)}
+                  placeholder="e.g. 4"
+                />
+              </label>
+              <label>
+                Duration <span className="field-optional">(optional)</span>
+                <input
+                  aria-label="How long do you need help?"
+                  value={expectedDuration}
+                  onChange={(e) => setExpectedDuration(e.target.value)}
+                  placeholder="e.g. 2 weeks"
+                  maxLength={120}
+                />
+              </label>
             </div>
+          )}
+          <details className="posting-more">
+            <summary>
+              Requirements & project details <span>Optional</span>
+              <ChevronDown size={17} />
+            </summary>
+            <div className="posting-more-fields">
+              <fieldset className="posting-arrangement">
+                <legend>Where will the work happen?</legend>
+                {Object.entries(arrangementLabels).map(([value, label]) => (
+                  <label key={value}>
+                    <input
+                      type="radio"
+                      name="arrangement"
+                      value={value}
+                      checked={arrangement === value}
+                      onChange={() => setArrangement(value)}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </fieldset>
+              {trade !== "crew" && (
+                <label>
+                  Duration
+                  <input
+                    aria-label="How long do you need help?"
+                    value={expectedDuration}
+                    onChange={(e) => setExpectedDuration(e.target.value)}
+                    placeholder="e.g. 2 weeks"
+                    maxLength={120}
+                  />
+                </label>
+              )}
+              <label>
+                Requirements
+                <textarea
+                  value={requirements}
+                  onChange={(e) => setRequirements(e.target.value)}
+                  placeholder="Licenses, insurance, experience, or equipment your team needs"
+                  rows={3}
+                  maxLength={5000}
+                />
+              </label>
+              <div className="jobs-fields-three">
+                <label>
+                  Project type
+                  <select
+                    aria-label="Project type"
+                    value={projectType}
+                    onChange={(e) => setProjectType(e.target.value)}
+                  >
+                    <option value="">Not specified</option>
+                    {projectTypes.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  System size (kW)
+                  <input
+                    type="number"
+                    value={systemSize}
+                    onChange={(e) => setSystemSize(e.target.value)}
+                    min="0.01"
+                    step="0.01"
+                    placeholder="Optional"
+                  />
+                </label>
+                <label>
+                  Number of sites
+                  <input
+                    type="number"
+                    value={siteCount}
+                    onChange={(e) => setSiteCount(e.target.value)}
+                    min="1"
+                    step="1"
+                    placeholder="Optional"
+                  />
+                </label>
+              </div>
+              <label>
+                Who supplies materials?
+                <select
+                  aria-label="Who supplies materials?"
+                  value={materials}
+                  onChange={(e) => setMaterials(e.target.value)}
+                >
+                  {Object.entries(materialsLabels).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {arrangement !== "remote" && (
+                <label>
+                  Exact address{" "}
+                  <span className="field-optional">(private)</span>
+                  <input
+                    aria-label="Exact address"
+                    value={exact}
+                    onChange={(e) => setExact(e.target.value)}
+                    placeholder="Shared only with the company you choose"
+                    maxLength={300}
+                  />
+                </label>
+              )}
+            </div>
+          </details>
+          <footer className="posting-actions">
             <button
-              className="jobs-button jobs-primary"
               type="submit"
+              className="jobs-button jobs-primary"
               disabled={busy}
             >
-              {step === 4
-                ? busy && !savingDraft
-                  ? "Publishing…"
-                  : id
-                    ? "Update job"
-                    : "Publish job"
-                : step === 3 || furthestStep === 4
-                  ? "Review job"
-                  : "Continue"}
-              <ArrowRight size={16} />
+              {busy && !savingDraft
+                ? "Publishing…"
+                : id
+                  ? "Update job"
+                  : "Publish job"}
+              <ArrowRight size={17} />
+            </button>
+            <button
+              type="button"
+              className="jobs-button jobs-secondary"
+              disabled={busy}
+              onClick={() => void publish("draft")}
+            >
+              {busy && savingDraft ? "Saving…" : "Save draft"}
             </button>
           </footer>
         </form>
+        <aside className="posting-preview">
+          <section className="jobs-panel">
+            <h2>Job preview</h2>
+            <p className="job-muted">Here’s what companies will see.</p>
+            <article className="posting-preview-card">
+              <h3>{title.trim() || "Your job title"}</h3>
+              <div className="preview-facts">
+                <span>
+                  <MapPin size={17} />
+                  {arrangement === "remote"
+                    ? "Remote"
+                    : location.trim() || "Location"}
+                </span>
+                {trade && <span>{workLabel(trade)}</span>}
+                {start.trim() && (
+                  <span>
+                    <CalendarDays size={16} />
+                    {start}
+                  </span>
+                )}
+              </div>
+              <p
+                className={`preview-description ${description.trim() ? "" : "preview-placeholder"}`}
+              >
+                {description.trim() ||
+                  "Describe the work so the right companies can send you a useful quote."}
+              </p>
+              {budget && (
+                <div className="preview-budget">
+                  <span>Budget</span>
+                  <b>{money(Math.round(Number(budget) * 100))}</b>
+                </div>
+              )}
+              {!!files.length && (
+                <AttachmentPicker files={files} onChange={setFiles} readOnly />
+              )}
+              <FileList files={existingFiles} />
+              <div className="preview-company">
+                <JobLogo company={company} />
+                <b>{company.name}</b>
+              </div>
+              <p className="preview-privacy">
+                <LockKeyhole size={17} />
+                Exact address stays private until you choose a company.
+              </p>
+            </article>
+          </section>
+          <section className="jobs-panel posting-invite-hint">
+            <span>
+              <Users size={23} />
+            </span>
+            <div>
+              <h3>Invite companies after publishing</h3>
+              <p>
+                Once your job is live, invite specific companies to send a
+                quote.
+              </p>
+            </div>
+          </section>
+        </aside>
       </div>
     </div>
   );
@@ -1654,6 +1319,7 @@ async function upload(
 }
 
 export function JobDetailPage() {
+  const [searchParams] = useSearchParams();
   const { id } = useParams(),
     {
       company,
@@ -1665,6 +1331,7 @@ export function JobDetailPage() {
       open,
       session,
       createCompany,
+      setJobSection,
     } = useApp();
   const [detail, setDetail] = useState<JobDetail | null>(null),
     [loading, setLoading] = useState(true),
@@ -1672,8 +1339,13 @@ export function JobDetailPage() {
     [working, setWorking] = useState(false),
     [selectedQuote, setSelectedQuote] = useState<string>(""),
     [quoteSort, setQuoteSort] = useState("best"),
-    [tab, setTab] = useState<"overview" | "messages" | "payments">("overview");
-  const [messageCompany, setMessageCompany] = useState("");
+    [expandedQuote, setExpandedQuote] = useState(""),
+    [tab, setTab] = useState<"overview" | "messages" | "payments">(
+      searchParams.get("tab") === "messages" ? "messages" : "overview",
+    );
+  const [messageCompany, setMessageCompany] = useState(
+    searchParams.get("provider") || "",
+  );
   const [messageBusy, setMessageBusy] = useState(false);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [quoteEditing, setQuoteEditing] = useState(false);
@@ -1770,6 +1442,24 @@ export function JobDetailPage() {
       null,
     participant = !!(hirer || chosen),
     selectedProvider = detail?.selected?.provider_company_id;
+  useEffect(() => {
+    setJobSection(
+      detail &&
+        (detail.permissions.hirer ||
+          detail.permissions.chosen ||
+          detail.permissions.quoted ||
+          detail.permissions.invited)
+        ? "mine"
+        : "jobs",
+    );
+    return () => setJobSection(null);
+  }, [
+    detail?.permissions.hirer,
+    detail?.permissions.chosen,
+    detail?.permissions.quoted,
+    detail?.permissions.invited,
+    setJobSection,
+  ]);
   const sortedQuotes = useMemo(() => {
     const items = [...(detail?.quotes || [])];
     if (quoteSort === "price")
@@ -1788,7 +1478,9 @@ export function JobDetailPage() {
         detail.permissions.quoted ||
         detail.permissions.invited);
   const messageProvider = hirer
-    ? messageCompany ||
+    ? (detail?.conversations.some((c) => c.id === messageCompany)
+        ? messageCompany
+        : "") ||
       selectedProvider ||
       quote?.provider_company_id ||
       detail?.conversations?.[0]?.id
@@ -1939,6 +1631,7 @@ export function JobDetailPage() {
         `/jobs/${id}/messages?providerId=${messageProvider}`,
       );
       setMessages(v.messages);
+      toast("Message sent");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -1970,6 +1663,25 @@ export function JobDetailPage() {
           await post(`/jobs/${id}/${path}`, body);
           refresh();
           toast(done);
+        }}
+      />,
+    );
+  const chooseQuote = (q: Quote) =>
+    decision(
+      `Choose ${q.company?.name}?`,
+      `Their quote is ${money(q.amount_cents)}. They’ll be asked to confirm before the work starts. Your exact site address will be shared with them.`,
+      "Choose company",
+      "choose",
+      { quoteId: q.id },
+      "Company chosen",
+    );
+  const reportProblem = () =>
+    open(
+      <JobProblem
+        onSubmit={async (body) => {
+          await post(`/jobs/${id}/activity`, { kind: "problem", body });
+          refresh();
+          toast("Problem shared with the other company");
         }}
       />,
     );
@@ -2013,163 +1725,190 @@ export function JobDetailPage() {
     completed: "Finished",
     cancelled: "Cancelled",
   };
+  const activeWork =
+    !!participant &&
+    ["awarded", "in_progress", "review", "completed"].includes(job.status);
+  const comparing =
+    !!hirer && job.status === "open" && detail.quotes.length > 0;
+  const completion = detail.updates.find((u) => u.kind === "completion");
+  const completionFiles = completion
+    ? detail.files.filter((f) => f.update_id === completion.id)
+    : [];
   return (
     <div
-      className={`jobs-page job-detail ${canQuote && !quoteEditing ? "has-mobile-action" : ""}`}
+      data-status={job.status}
+      className={`jobs-page job-detail job-workspace ${activeWork ? "is-active-work" : ""} ${comparing ? "is-comparing" : ""} ${canQuote && !quoteEditing ? "has-mobile-action" : ""}`}
     >
-      <Link to={hirer ? "/jobs/mine" : "/jobs"} className="job-back">
+      <Link
+        to={hirer || activeWork ? "/jobs/mine" : "/jobs"}
+        className="job-back"
+      >
         <ArrowLeft size={18} />
-        {hirer ? "My jobs" : "Find work"}
+        {hirer || activeWork ? "My jobs" : "Find work"}
       </Link>
-      <header className="job-detail-heading editorial-job-hero">
-        <div className="job-detail-title">
-          <div className="job-detail-kicker">
-            <span>{workLabel(job.trade)}</span>
-            <span className={`job-status ${cls(job.status)}`}>
-              {statusText[job.status]}
-            </span>
-          </div>
-          <h1>{job.title || "Untitled draft"}</h1>
-          <div className="job-company-line">
-            <JobLogo company={detail.hiringCompany} />
-            <Link
-              to={`/jobs/companies/${detail.hiringCompany.slug}?back=${id}`}
-            >
-              {detail.hiringCompany.name}
-            </Link>
-            <span className="job-posted-date">
-              Posted {date(job.created_at)}
-            </span>
-          </div>
-          {detail.selected?.company && (
-            <div className="job-selected-company">
-              <span>Working with</span>
-              <Link
-                to={`/jobs/companies/${detail.selected.company.slug}?back=${id}`}
-              >
-                {detail.selected.company.name}
-                <ArrowUpRight size={15} />
-              </Link>
+      <header className="workspace-job-header">
+        <div className="workspace-job-heading">
+          <div>
+            <div className="workspace-title-line">
+              <h1>{job.title || "Untitled draft"}</h1>
+              <span className={`job-status ${cls(job.status)}`}>
+                {statusText[job.status]}
+              </span>
             </div>
-          )}
-          {hirer && admin && ["draft", "open"].includes(job.status) && (
-            <div className="job-form-actions">
-              {detail.quotes.length === 0 && (
+            {activeWork ? (
+              <div className="workspace-company-pair">
                 <Link
-                  className="jobs-button jobs-secondary"
-                  to={`/jobs/${id}/edit`}
+                  to={`/jobs/companies/${detail.hiringCompany.slug}?back=${id}`}
                 >
-                  Edit {job.status === "draft" ? "draft" : "job"}
+                  <Building2 size={20} />
+                  {detail.hiringCompany.name}
                 </Link>
-              )}
-              {job.status === "open" && (
-                <button
-                  className="jobs-button jobs-secondary"
-                  onClick={() => setShowInvite(!showInvite)}
-                >
-                  <Users size={17} /> Invite companies
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-        <aside className="job-at-a-glance" aria-label="Job at a glance">
-          <span className="editorial-label">
-            {detail.selected
-              ? "AGREED QUOTE"
-              : job.budget_cents != null
-                ? "TOTAL BUDGET"
-                : "BUDGET"}
-          </span>
-          <strong>
-            {detail.selected
-              ? money(detail.selected.amount_cents)
-              : job.budget_cents != null
-                ? money(job.budget_cents)
-                : "Open to quotes"}
-          </strong>
-          {job.quote_deadline && <p>Quotes by {date(job.quote_deadline)}</p>}
-          {canQuote && !quoteEditing && (
-            <button
-              className="jobs-button jobs-primary job-quote-cta"
-              onClick={editQuote}
-            >
-              {detail.ownQuote ? "Edit your quote" : "Send a quote"}
-              <ArrowUpRight size={18} />
-            </button>
-          )}
-          {!company &&
-            !hirer &&
-            job.status === "open" &&
-            (!job.quote_deadline ||
-              new Date(job.quote_deadline).getTime() >= Date.now()) && (
+                {detail.selected?.company && (
+                  <>
+                    <ArrowLeftRight size={19} />
+                    <Link
+                      to={`/jobs/companies/${detail.selected.company.slug}?back=${id}`}
+                    >
+                      <Building2 size={20} />
+                      {detail.selected.company.name}
+                    </Link>
+                  </>
+                )}
+              </div>
+            ) : (
+              <p className="workspace-job-meta">
+                <span>
+                  <MapPin size={17} />
+                  {job.location || "Location to be added"}
+                </span>
+                <span>{workLabel(job.trade)}</span>
+                <span>
+                  <CalendarDays size={16} />
+                  {job.start_window || "Flexible start"}
+                </span>
+                {job.people_needed && (
+                  <span>
+                    <Users size={16} />
+                    {job.people_needed} people
+                  </span>
+                )}
+              </p>
+            )}
+          </div>
+          <div className="workspace-heading-actions">
+            {hirer && admin && ["draft", "open"].includes(job.status) && (
+              <>
+                {detail.quotes.length === 0 && (
+                  <Link
+                    className="jobs-button jobs-secondary"
+                    to={`/jobs/${id}/edit`}
+                  >
+                    <Pencil size={16} />
+                    Edit {job.status === "draft" ? "draft" : "job"}
+                  </Link>
+                )}
+                {job.status === "open" && (
+                  <button
+                    className="jobs-button jobs-secondary"
+                    onClick={() => setShowInvite(!showInvite)}
+                  >
+                    <Users size={17} />
+                    Invite companies
+                  </button>
+                )}
+              </>
+            )}
+            {hirer && job.status === "in_progress" && (
               <button
-                className="jobs-button jobs-primary"
-                onClick={
-                  session.user && session.user.account_type !== "individual"
-                    ? createCompany
-                    : signIn
+                className="jobs-button jobs-secondary"
+                disabled={working}
+                onClick={() =>
+                  void mutate(
+                    "activity",
+                    { kind: "update_requested" },
+                    "Update requested",
+                  )
                 }
               >
-                {session.user?.account_type === "individual"
-                  ? "Use a company account"
-                  : session.user
-                    ? "Create company profile"
-                    : "Sign in to quote"}
-                <ArrowRight size={16} />
+                <MessageCircle size={17} />
+                Request update
               </button>
             )}
-          {hirer && job.status === "open" && (
-            <a
-              className="jobs-button jobs-secondary"
-              href={detail.quotes.length ? "#received-quotes" : "#job-brief"}
-            >
-              {detail.quotes.length
-                ? `Review ${detail.quotes.length} ${detail.quotes.length === 1 ? "quote" : "quotes"}`
-                : "View job brief"}
-              <ArrowRight size={16} />
-            </a>
-          )}
-        </aside>
+            {activeWork && !(hirer && job.status === "review") && (
+              <button className="job-report-link" onClick={reportProblem}>
+                Report a problem
+              </button>
+            )}
+            {canQuote && !quoteEditing && (
+              <button
+                className="jobs-button jobs-primary job-quote-cta"
+                onClick={editQuote}
+              >
+                {detail.ownQuote ? "Edit your quote" : "Send a quote"}
+                <ArrowRight size={17} />
+              </button>
+            )}
+            {!company &&
+              job.status === "open" &&
+              (!job.quote_deadline ||
+                new Date(job.quote_deadline).getTime() >= Date.now()) && (
+                <button
+                  className="jobs-button jobs-primary"
+                  onClick={
+                    session.user && session.user.account_type !== "individual"
+                      ? createCompany
+                      : signIn
+                  }
+                >
+                  {session.user?.account_type === "individual"
+                    ? "Use a company account"
+                    : session.user
+                      ? "Create company profile"
+                      : "Sign in to quote"}
+                  <ArrowRight size={16} />
+                </button>
+              )}
+          </div>
+        </div>
+        {activeWork && job.status !== "review" && (
+          <ol className="workspace-job-steps" aria-label="Job progress">
+            {["Company chosen", "Work underway", "Review work", "Finished"].map(
+              (label, i) => {
+                const current = (
+                  {
+                    awarded: 0,
+                    in_progress: 1,
+                    review: 2,
+                    completed: 3,
+                  } as Record<string, number>
+                )[job.status];
+                return (
+                  <li
+                    key={label}
+                    className={
+                      i < current || job.status === "completed"
+                        ? "complete"
+                        : i === current
+                          ? "current"
+                          : ""
+                    }
+                    aria-current={i === current ? "step" : undefined}
+                  >
+                    <span>
+                      {i < current || job.status === "completed" ? (
+                        <Check size={16} />
+                      ) : (
+                        <i />
+                      )}
+                    </span>
+                    <b>{label}</b>
+                  </li>
+                );
+              },
+            )}
+          </ol>
+        )}
       </header>
-      <dl className="job-summary-strip">
-        <div>
-          <dt>
-            <MapPin size={16} /> Location
-          </dt>
-          <dd>
-            {job.work_arrangement === "remote"
-              ? "Remote"
-              : job.location || "To be agreed"}
-            {job.work_arrangement === "hybrid" ? " · Hybrid" : ""}
-          </dd>
-        </div>
-        <div>
-          <dt>
-            <CalendarDays size={16} /> Start
-          </dt>
-          <dd>{job.start_window || "Flexible"}</dd>
-        </div>
-        {job.expected_duration && (
-          <div>
-            <dt>
-              <Clock3 size={16} /> Duration
-            </dt>
-            <dd>{job.expected_duration}</dd>
-          </div>
-        )}
-        {job.people_needed && (
-          <div>
-            <dt>
-              <Users size={16} /> Team needed
-            </dt>
-            <dd>
-              {job.people_needed}{" "}
-              {job.people_needed === 1 ? "person" : "people"}
-            </dd>
-          </div>
-        )}
-      </dl>
       {detail.hiringCompany.is_demo && (
         <p className="job-demo-note">
           Demo job · Fictional example for testing
@@ -2254,50 +1993,6 @@ export function JobDetailPage() {
           </div>
         </div>
       )}
-      {participant &&
-        ["awarded", "in_progress", "review", "completed"].includes(
-          job.status,
-        ) && (
-          <div className="job-steps">
-            {["Company chosen", "In progress", "Review work", "Completed"].map(
-              (step, i) => (
-                <span
-                  key={step}
-                  className={
-                    i <=
-                    (
-                      {
-                        awarded: 0,
-                        in_progress: 1,
-                        review: 2,
-                        completed: 3,
-                      } as Record<string, number>
-                    )[job.status]
-                      ? "done"
-                      : ""
-                  }
-                >
-                  <i>
-                    {i <
-                    (
-                      {
-                        awarded: 0,
-                        in_progress: 1,
-                        review: 2,
-                        completed: 3,
-                      } as Record<string, number>
-                    )[job.status] ? (
-                      <Check size={14} />
-                    ) : (
-                      i + 1
-                    )}
-                  </i>
-                  {step}
-                </span>
-              ),
-            )}
-          </div>
-        )}
       <JobError text={error} />
       {canMessage && (
         <div className="job-subnav">
@@ -2574,7 +2269,15 @@ export function JobDetailPage() {
           </aside>
         </div>
       ) : (
-        <div className="jobs-detail-layout">
+        <div
+          className={`jobs-detail-layout workspace-detail-layout ${comparing ? "quote-comparison-layout" : ""}`}
+        >
+          {comparing && (
+            <JobBriefSummary
+              job={job}
+              files={detail.files.filter((f) => !f.quote_id && !f.update_id)}
+            />
+          )}
           <section className="jobs-detail-main">
             {hirer && job.status === "open" && detail.quotes.length > 0 && (
               <div className="jobs-panel job-compare" id="received-quotes">
@@ -2596,63 +2299,163 @@ export function JobDetailPage() {
                     </select>
                   </label>
                 </div>
+                <p className="job-muted">
+                  Compare the scope, price, and timing. Then choose a company.
+                </p>
                 <div className="job-quote-list">
                   {sortedQuotes.map((q) => (
-                    <div
-                      className={`job-quote-row ${selectedQuote === q.id ? "selected" : ""}`}
+                    <article
+                      className={`quote-comparison-card ${selectedQuote === q.id ? "selected" : ""}`}
                       key={q.id}
                     >
-                      <div className="job-quote-company">
-                        <JobLogo company={q.company} />
-                        <span className="job-quote-name">
-                          <b>{q.company?.name}</b>
-                          <small>
-                            <MapPin size={13} />
-                            {q.company?.location}
-                          </small>
-                        </span>
-                      </div>
-                      <div className="job-quote-price">
-                        <b>{money(q.amount_cents)}</b>
-                        <small>
-                          <CalendarDays size={13} />{" "}
-                          {q.start_window || "Flexible start"}
-                        </small>
-                        {q.duration && (
-                          <small>
-                            <Clock3 size={13} /> {q.duration}
+                      <div className="quote-company-summary">
+                        <Link
+                          className="job-quote-company"
+                          to={`/jobs/companies/${q.company?.slug}?back=${id}`}
+                        >
+                          <JobLogo company={q.company} />
+                          <span className="job-quote-name">
+                            <b>{q.company?.name}</b>
+                            <small>
+                              <MapPin size={14} />
+                              {q.company?.location || "Location not added"}
+                            </small>
+                          </span>
+                        </Link>
+                        {!!q.company?.services?.length && (
+                          <div className="quote-services">
+                            {q.company.services.slice(0, 3).map((service) => (
+                              <span key={service}>{service}</span>
+                            ))}
+                          </div>
+                        )}
+                        {!!q.job_review_count && q.job_rating != null ? (
+                          <div className="quote-job-rating">
+                            <small>Connect job rating</small>
+                            <span>
+                              <Star size={17} fill="currentColor" />
+                              <b>{q.job_rating.toFixed(1)}</b>
+                              <small>
+                                ({q.job_review_count}{" "}
+                                {q.job_review_count === 1
+                                  ? "review"
+                                  : "reviews"}
+                                )
+                              </small>
+                            </span>
+                          </div>
+                        ) : (
+                          <p className="quote-unrated">
+                            No completed-job reviews yet
+                          </p>
+                        )}
+                        {q.company?.is_demo && (
+                          <small className="quote-demo-label">
+                            Demo company
                           </small>
                         )}
                       </div>
-                      <span className="job-quote-note">{q.note}</span>
-                      <div className="job-quote-actions">
-                        <button
-                          className="job-view-quote"
-                          onClick={() => {
-                            setSelectedQuote(q.id);
-                            if (window.innerWidth < 800)
-                              document
-                                .getElementById("quote-details")
-                                ?.scrollIntoView({
-                                  behavior: "smooth",
-                                  block: "start",
-                                });
-                          }}
-                        >
-                          View quote <ArrowRight size={15} />
-                        </button>
-                        <Link
-                          to={`/jobs/companies/${q.company?.slug}?back=${id}`}
-                        >
-                          View company
-                        </Link>
+                      <div className="quote-offer-summary">
+                        <div className="quote-offer-facts">
+                          <div>
+                            <small>Quote amount</small>
+                            <strong>{money(q.amount_cents)}</strong>
+                          </div>
+                          <div>
+                            <small>Earliest start</small>
+                            <b>{q.start_window || "To be agreed"}</b>
+                            {q.duration && <span>{q.duration}</span>}
+                          </div>
+                        </div>
+                        <div className="quote-proposal">
+                          <b>Proposal</b>
+                          <p>{q.note}</p>
+                        </div>
+                        <div className="quote-card-actions">
+                          <button
+                            className={`jobs-button ${selectedQuote === q.id ? "jobs-primary" : "jobs-secondary"}`}
+                            disabled={working || !admin}
+                            onClick={() => chooseQuote(q)}
+                          >
+                            Choose company
+                          </button>
+                          <button
+                            className="jobs-button jobs-secondary"
+                            aria-expanded={expandedQuote === q.id}
+                            onClick={() => {
+                              setSelectedQuote(q.id);
+                              setExpandedQuote(
+                                expandedQuote === q.id ? "" : q.id,
+                              );
+                            }}
+                          >
+                            {expandedQuote === q.id
+                              ? "Hide details"
+                              : "View quote"}
+                            <ChevronDown size={15} />
+                          </button>
+                          <button
+                            className="jobs-button jobs-secondary"
+                            onClick={() => {
+                              setMessageCompany(q.provider_company_id);
+                              setTab("messages");
+                            }}
+                          >
+                            <MessageCircle size={16} />
+                            Message
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                      {expandedQuote === q.id && (
+                        <div className="quote-expanded-details">
+                          <div className="quote-scope-details">
+                            {q.included && (
+                              <div>
+                                <h3>Included</h3>
+                                <p>{q.included}</p>
+                              </div>
+                            )}
+                            {q.excluded && (
+                              <div>
+                                <h3>Not included</h3>
+                                <p>{q.excluded}</p>
+                              </div>
+                            )}
+                            {q.payment_terms && (
+                              <div>
+                                <h3>Payment terms</h3>
+                                <p>{q.payment_terms}</p>
+                              </div>
+                            )}
+                          </div>
+                          {!!q.price_breakdown?.length && (
+                            <div className="quote-breakdown-display">
+                              {q.price_breakdown.map((item, i) => (
+                                <span key={i}>
+                                  {item.label}
+                                  <b>{money(item.amountCents)}</b>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <FileList
+                            files={detail.files.filter(
+                              (f) => f.quote_id === q.id,
+                            )}
+                          />
+                          <Link
+                            to={`/jobs/companies/${q.company?.slug}?back=${id}`}
+                          >
+                            View company profile <ArrowRight size={15} />
+                          </Link>
+                        </div>
+                      )}
+                    </article>
                   ))}
                 </div>
               </div>
             )}
-            {job.status === "review" && hirer && admin && (
+            {job.status === "review" && participant && (
               <div className="jobs-panel job-submitted">
                 <h2>Work submitted</h2>
                 {detail.updates
@@ -2663,13 +2466,47 @@ export function JobDetailPage() {
                       {u.body}
                     </div>
                   ))}
-                <ReviewFileList
-                  files={detail.files.filter(
-                    (f) =>
-                      f.update_id ===
-                      detail.updates.find((u) => u.kind === "completion")?.id,
+                <ReviewFileList files={completionFiles} />
+                <ul className="completion-checklist">
+                  <li>
+                    <CheckCircle2 size={20} />
+                    Final update submitted
+                  </li>
+                  {completionFiles.some((f) =>
+                    f.mime_type.startsWith("image/"),
+                  ) && (
+                    <li>
+                      <CheckCircle2 size={20} />
+                      {
+                        completionFiles.filter((f) =>
+                          f.mime_type.startsWith("image/"),
+                        ).length
+                      }{" "}
+                      {completionFiles.filter((f) =>
+                        f.mime_type.startsWith("image/"),
+                      ).length === 1
+                        ? "final photo attached"
+                        : "final photos attached"}
+                    </li>
                   )}
-                />
+                  {completionFiles.some(
+                    (f) => f.mime_type === "application/pdf",
+                  ) && (
+                    <li>
+                      <CheckCircle2 size={20} />
+                      {
+                        completionFiles.filter(
+                          (f) => f.mime_type === "application/pdf",
+                        ).length
+                      }{" "}
+                      {completionFiles.filter(
+                        (f) => f.mime_type === "application/pdf",
+                      ).length === 1
+                        ? "document attached"
+                        : "documents attached"}
+                    </li>
+                  )}
+                </ul>
               </div>
             )}
             {job.status === "awarded" && chosen && admin && (
@@ -2689,45 +2526,62 @@ export function JobDetailPage() {
               </div>
             )}
             {participant &&
-              ["in_progress", "review", "completed"].includes(job.status) && (
-                <div className="jobs-panel">
-                  <h2>Progress</h2>
-                  {job.status === "in_progress" && (
-                    <div className="job-next">
-                      <Clock3 size={18} />
-                      {chosen
-                        ? "Share progress as the work happens. When it is done, send it for review."
-                        : "The selected company will share progress and final work here."}
-                    </div>
-                  )}
+              ["awarded", "in_progress", "review", "completed"].includes(
+                job.status,
+              ) && (
+                <div className="jobs-panel job-progress-panel">
+                  <h2>
+                    {job.status === "review" ? "Earlier updates" : "Progress"}
+                  </h2>
                   {detail.updates.length ? (
-                    detail.updates.map((u) => (
-                      <div className="job-update" key={u.id}>
-                        <span className="job-update-dot" />
-                        <div>
-                          <small>
-                            {u.company_name} · {date(u.created_at)}
-                          </small>
-                          <h3>
-                            {u.kind === "completion"
-                              ? "Work submitted"
-                              : u.kind === "changes_requested"
-                                ? "Changes requested"
-                                : "Progress update"}
-                          </h3>
-                          <p>{u.body}</p>
-                          <FileList
-                            files={detail.files.filter(
-                              (f) => f.update_id === u.id,
-                            )}
-                          />
+                    detail.updates
+                      .filter(
+                        (u) =>
+                          !(job.status === "review" && u.id === completion?.id),
+                      )
+                      .map((u) => (
+                        <div className="job-update" key={u.id}>
+                          <span className="job-update-dot" />
+                          <div className="job-update-time">
+                            <b>{date(u.created_at)}</b>
+                            <small>{u.company_name}</small>
+                          </div>
+                          <div className="job-update-content">
+                            <h3>
+                              {u.kind === "completion"
+                                ? "Work submitted"
+                                : u.kind === "changes_requested"
+                                  ? "Changes requested"
+                                  : u.kind === "update_requested"
+                                    ? "Update requested"
+                                    : u.kind === "problem"
+                                      ? "Problem reported"
+                                      : "Progress update"}
+                            </h3>
+                            <p>{u.body}</p>
+                            <FileList
+                              files={detail.files.filter(
+                                (f) => f.update_id === u.id,
+                              )}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      ))
                   ) : (
                     <p className="job-muted">No updates yet.</p>
                   )}
                   {job.status === "in_progress" && (
+                    <div className="job-next workspace-next">
+                      <CalendarDays size={19} />
+                      <b>What happens next</b>
+                      <span>
+                        {chosen
+                          ? "Send your final update and photos when the work is ready to review."
+                          : "The company sends a final update when the work is ready for your review."}
+                      </span>
+                    </div>
+                  )}
+                  {job.status === "in_progress" && chosen && (
                     <div className="job-update-form">
                       <textarea
                         value={update}
@@ -2767,6 +2621,29 @@ export function JobDetailPage() {
                   )}
                 </div>
               )}
+            {activeWork && job.status !== "completed" && canMessage && (
+              <form
+                className="jobs-panel workspace-quick-message"
+                onSubmit={sendMessage}
+              >
+                <MessageCircle size={19} />
+                <input
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  maxLength={5000}
+                  aria-label="Quick job message"
+                  placeholder="Message about this job…"
+                />
+                <button
+                  className="jobs-button jobs-primary"
+                  disabled={!message.trim() || messageBusy}
+                  type="submit"
+                >
+                  <Send size={16} />
+                  <span>Send</span>
+                </button>
+              </form>
+            )}
             {job.status === "completed" && participant && admin && (
               <div className="jobs-panel">
                 <h2>Job finished</h2>
@@ -2817,10 +2694,9 @@ export function JobDetailPage() {
                 )}
               </div>
             )}
-            {
+            {!comparing && !activeWork && (
               <div className="jobs-panel job-brief" id="job-brief">
-                <span className="editorial-label">THE BRIEF</span>
-                <h2>What’s needed.</h2>
+                <h2>About this job</h2>
                 <p className="job-description">
                   {job.description ||
                     "Add the scope before publishing this draft."}
@@ -2876,8 +2752,8 @@ export function JobDetailPage() {
                   </div>
                 )}
               </div>
-            }
-            {detail.ownQuote && !quoteEditing && (
+            )}
+            {detail.ownQuote && !quoteEditing && !activeWork && (
               <div className="jobs-panel job-own-quote">
                 <div className="jobs-section-title">
                   <h2>Your quote</h2>
@@ -3100,229 +2976,153 @@ export function JobDetailPage() {
               </div>
             )}
           </section>
-          <aside className="jobs-aside">
-            {job.status === "review" && hirer && admin && (
-              <>
-                <div className="jobs-panel job-review-actions">
-                  <h2>Review the work</h2>
-                  <p>Check the final update before closing this job.</p>
-                  <button
-                    className="jobs-button jobs-primary"
-                    disabled={working}
-                    onClick={() =>
-                      decision(
-                        "Accept the finished work?",
-                        "This closes the job and lets both companies leave a review. Confirm that the agreed scope is complete.",
-                        "Accept and finish",
-                        "review-work",
-                        { decision: "accept", note: "" },
-                        "Job finished",
-                      )
-                    }
-                  >
-                    Accept and finish job
-                  </button>
-                  {showReviewNote ? (
-                    <>
-                      <label className="job-review-note">
-                        What needs to change?
-                        <textarea
-                          value={reviewNote}
-                          onChange={(e) => setReviewNote(e.target.value)}
-                          rows={3}
-                          placeholder="Tell the company what remains"
-                          autoFocus
-                        />
-                      </label>
-                      <button
-                        className="jobs-button jobs-secondary"
-                        disabled={working || !reviewNote.trim()}
-                        onClick={() =>
-                          void mutate(
-                            "review-work",
-                            { decision: "changes", note: reviewNote },
-                            "Changes requested",
-                          )
-                        }
-                      >
-                        Send request for changes
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      className="jobs-button jobs-secondary"
-                      onClick={() => setShowReviewNote(true)}
-                    >
-                      Request changes
-                    </button>
-                  )}
-                  <button
-                    className="job-report-link"
-                    onClick={() => setTab("messages")}
-                  >
-                    Discuss an issue
-                  </button>
-                </div>
-                <div className="jobs-panel job-review-info">
-                  <CheckCircle2 size={20} />
-                  <span>
-                    After you accept, both companies can leave a review.
-                  </span>
-                </div>
-              </>
-            )}
-            {!(job.status === "review" && hirer) && (
-              <div className="jobs-panel job-details-side" id="quote-details">
-                <h2>
-                  {hirer && job.status === "open"
-                    ? "Quote details"
-                    : participant
-                      ? "Job details"
-                      : "Hiring company"}
-                </h2>
-                {hirer && job.status === "open" && quote ? (
-                  <>
-                    <div className="job-company-side">
-                      <JobLogo company={quote.company} />
-                      <div>
-                        <strong>{quote.company?.name}</strong>
-                        <small>{quote.company?.location}</small>
-                        <Link
-                          to={`/jobs/companies/${quote.company?.slug}?back=${id}`}
-                        >
-                          Open full profile <ArrowRight size={14} />
-                        </Link>
-                      </div>
-                    </div>
-                    <div className="job-side-fact">
-                      <b>Quoted price</b>
-                      <span>{money(quote.amount_cents)}</span>
-                    </div>
-                    <div className="job-side-fact">
-                      <b>Availability</b>
-                      <span>{quote.start_window || "Flexible"}</span>
-                    </div>
-                    <div className="job-side-fact">
-                      <b>Approach</b>
-                      <span>{quote.note}</span>
-                    </div>
-                    {quote.duration && (
-                      <div className="job-side-fact">
-                        <b>Estimated duration</b>
-                        <span>{quote.duration}</span>
-                      </div>
-                    )}
-                    {quote.payment_terms && (
-                      <div className="job-side-fact">
-                        <b>Payment terms</b>
-                        <span>{quote.payment_terms}</span>
-                      </div>
-                    )}
-                    {!!quote.price_breakdown?.length && (
-                      <div className="job-side-fact">
-                        <b>Price breakdown</b>
-                        <div className="quote-breakdown-display">
-                          {quote.price_breakdown.map((item, i) => (
-                            <span key={i}>
-                              {item.label}
-                              <b>{money(item.amountCents)}</b>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {quote.included && (
-                      <div className="job-side-fact">
-                        <b>Included scope</b>
-                        <span>{quote.included}</span>
-                      </div>
-                    )}
-                    {quote.excluded && (
-                      <div className="job-side-fact">
-                        <b>Not included</b>
-                        <span>{quote.excluded}</span>
-                      </div>
-                    )}
-                    <FileList
-                      files={detail.files.filter(
-                        (f) => f.quote_id === quote.id,
-                      )}
-                    />
+          {!comparing && (
+            <aside className="jobs-aside">
+              {job.status === "review" && hirer && admin && (
+                <>
+                  <div className="jobs-panel job-review-actions">
+                    <h2>Review the work</h2>
+                    <p>Check the final update before closing this job.</p>
                     <button
                       className="jobs-button jobs-primary"
-                      disabled={working || !admin}
+                      disabled={working}
                       onClick={() =>
                         decision(
-                          `Choose ${quote.company?.name}?`,
-                          `Their quote is ${money(quote.amount_cents)}. They’ll be asked to confirm before the work starts. Your exact site address will be shared with them.`,
-                          "Choose company",
-                          "choose",
-                          { quoteId: quote.id },
-                          "Company chosen",
+                          "Accept the finished work?",
+                          "This closes the job and lets both companies leave a review. Confirm that the agreed scope is complete.",
+                          "Accept and finish",
+                          "review-work",
+                          { decision: "accept", note: "" },
+                          "Job finished",
                         )
                       }
                     >
-                      Choose company
+                      Accept and finish job
                     </button>
-                    <button
-                      className="jobs-button jobs-secondary"
-                      onClick={() => {
-                        setMessageCompany(quote.provider_company_id);
-                        setTab("messages");
-                      }}
-                    >
-                      <MessageCircle size={16} /> Message
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="job-company-side">
-                      <JobLogo company={detail.hiringCompany} />
-                      <div>
-                        <strong>{detail.hiringCompany.name}</strong>
-                        <small>{detail.hiringCompany.location}</small>
-                        <Link
-                          to={`/jobs/companies/${detail.hiringCompany.slug}?back=${id}`}
+                    {showReviewNote ? (
+                      <>
+                        <label className="job-review-note">
+                          What needs to change?
+                          <textarea
+                            value={reviewNote}
+                            onChange={(e) => setReviewNote(e.target.value)}
+                            rows={3}
+                            placeholder="Tell the company what remains"
+                            autoFocus
+                          />
+                        </label>
+                        <button
+                          className="jobs-button jobs-secondary"
+                          disabled={working || !reviewNote.trim()}
+                          onClick={() =>
+                            void mutate(
+                              "review-work",
+                              { decision: "changes", note: reviewNote },
+                              "Changes requested",
+                            )
+                          }
                         >
-                          View company profile <ArrowRight size={14} />
-                        </Link>
-                      </div>
-                    </div>
-                    {detail.selected && (
-                      <div className="job-side-fact">
-                        <b>Selected company</b>
-                        <Link
-                          to={`/jobs/companies/${detail.selected.company?.slug}?back=${id}`}
-                        >
-                          {detail.selected.company?.name}
-                        </Link>
-                      </div>
-                    )}
-                    {detail.selected && (
-                      <div className="job-side-fact">
-                        <b>Agreed quote</b>
-                        <span>{money(detail.selected.amount_cents)}</span>
-                      </div>
-                    )}
-                    {job.exact_address && (
-                      <div className="job-side-fact">
-                        <b>Private site address</b>
-                        <span>{job.exact_address}</span>
-                      </div>
-                    )}
-                    {canMessage && (
+                          Send request for changes
+                        </button>
+                      </>
+                    ) : (
                       <button
                         className="jobs-button jobs-secondary"
-                        onClick={() => setTab("messages")}
+                        onClick={() => setShowReviewNote(true)}
                       >
-                        <MessageCircle size={16} /> Job messages
+                        Request changes
                       </button>
                     )}
-                  </>
-                )}
-              </div>
-            )}
-          </aside>
+                    <button className="job-report-link" onClick={reportProblem}>
+                      Report a problem
+                    </button>
+                  </div>
+                  <div className="jobs-panel job-review-info">
+                    <Info size={20} />
+                    <span>
+                      After you accept, both companies can leave a review.
+                    </span>
+                  </div>
+                </>
+              )}
+              {activeWork &&
+                (job.status === "review" ? (
+                  <details className="workspace-review-details">
+                    <summary>
+                      <FileText size={17} />
+                      Agreed job details
+                      <ChevronDown size={16} />
+                    </summary>
+                    <WorkFacts job={job} detail={detail} />
+                  </details>
+                ) : (
+                  <WorkFacts job={job} detail={detail} />
+                ))}
+              {!activeWork && (
+                <section className="jobs-panel job-details-side">
+                  <h2>Job details</h2>
+                  <div className="job-budget-summary">
+                    <span>
+                      {job.budget_cents != null ? "Total budget" : "Budget"}
+                    </span>
+                    <strong>
+                      {job.budget_cents != null
+                        ? money(job.budget_cents)
+                        : "Open to quotes"}
+                    </strong>
+                  </div>
+                  <div className="job-side-fact">
+                    <b>
+                      <CalendarDays size={16} />
+                      Start
+                    </b>
+                    <span>{job.start_window || "Flexible"}</span>
+                  </div>
+                  {job.expected_duration && (
+                    <div className="job-side-fact">
+                      <b>
+                        <Clock3 size={16} />
+                        Duration
+                      </b>
+                      <span>{job.expected_duration}</span>
+                    </div>
+                  )}
+                  {job.quote_deadline && (
+                    <div className="job-side-fact">
+                      <b>
+                        <CalendarDays size={16} />
+                        Quote deadline
+                      </b>
+                      <span>{date(job.quote_deadline)}</span>
+                    </div>
+                  )}
+                  <div className="job-company-side">
+                    <JobLogo company={detail.hiringCompany} />
+                    <div>
+                      <strong>{detail.hiringCompany.name}</strong>
+                      <small>
+                        Hiring company · {detail.hiringCompany.location}
+                      </small>
+                      <Link
+                        to={`/jobs/companies/${detail.hiringCompany.slug}?back=${id}`}
+                      >
+                        View company profile <ArrowRight size={14} />
+                      </Link>
+                    </div>
+                  </div>
+                  {canMessage && (
+                    <button
+                      className="jobs-button jobs-secondary"
+                      onClick={() => setTab("messages")}
+                    >
+                      <MessageCircle size={16} />
+                      Job messages
+                    </button>
+                  )}
+                </section>
+              )}
+            </aside>
+          )}
         </div>
       )}
       {canQuote && !quoteEditing && (
@@ -3341,6 +3141,432 @@ export function JobDetailPage() {
             {detail.ownQuote ? "Edit quote" : "Send a quote"}
           </button>
         </div>
+      )}
+    </div>
+  );
+}
+
+function JobBriefSummary({ job, files }: { job: Job; files: JobFile[] }) {
+  return (
+    <aside className="jobs-panel workspace-brief-summary" id="job-brief">
+      <h2>Job summary</h2>
+      <section>
+        <h3>Scope</h3>
+        <p>{job.description}</p>
+      </section>
+      {!!files.length && (
+        <section>
+          <h3>
+            <Paperclip size={19} />
+            Attachments ({files.length})
+          </h3>
+          <FileList files={files} />
+        </section>
+      )}
+      {job.quote_deadline && (
+        <section>
+          <h3>
+            <CalendarDays size={19} />
+            Quote deadline
+          </h3>
+          <p>{date(job.quote_deadline)}</p>
+        </section>
+      )}
+      {job.budget_cents != null && (
+        <section>
+          <h3>
+            <Tag size={19} />
+            Budget
+          </h3>
+          <p>{money(job.budget_cents)}</p>
+        </section>
+      )}
+      {job.materials_by && job.materials_by !== "to_agree" && (
+        <section>
+          <h3>
+            <Wrench size={19} />
+            Materials
+          </h3>
+          <p>{materialsLabels[job.materials_by]}</p>
+        </section>
+      )}
+      {job.requirements && (
+        <section>
+          <h3>Requirements</h3>
+          <p>{job.requirements}</p>
+        </section>
+      )}
+      {(job.project_type ||
+        job.system_size_kw ||
+        job.site_count ||
+        job.people_needed ||
+        job.expected_duration) && (
+        <section>
+          <h3>
+            <Layers3 size={19} />
+            Work details
+          </h3>
+          <dl className="workspace-brief-facts">
+            {job.project_type && (
+              <div>
+                <dt>Project</dt>
+                <dd>{projectLabel(job.project_type)}</dd>
+              </div>
+            )}
+            {job.system_size_kw && (
+              <div>
+                <dt>System size</dt>
+                <dd>{job.system_size_kw} kW</dd>
+              </div>
+            )}
+            {job.site_count && (
+              <div>
+                <dt>Sites</dt>
+                <dd>{job.site_count}</dd>
+              </div>
+            )}
+            {job.people_needed && (
+              <div>
+                <dt>Team</dt>
+                <dd>{job.people_needed} people</dd>
+              </div>
+            )}
+            {job.expected_duration && (
+              <div>
+                <dt>Duration</dt>
+                <dd>{job.expected_duration}</dd>
+              </div>
+            )}
+          </dl>
+        </section>
+      )}
+      <section className="workspace-privacy-note">
+        <LockKeyhole size={19} />
+        <div>
+          <h3>Private quotes</h3>
+          <p>Each company sees only its own quote and conversation with you.</p>
+        </div>
+      </section>
+    </aside>
+  );
+}
+function WorkFacts({ job, detail }: { job: Job; detail: JobDetail }) {
+  const files = detail.files.filter(
+    (f) => !f.update_id && (!f.quote_id || f.quote_id === detail.selected?.id),
+  );
+  return (
+    <section className="jobs-panel workspace-work-facts">
+      <h2>Job details</h2>
+      <dl>
+        <div>
+          <dt>
+            <Tag size={19} />
+            Selected quote
+          </dt>
+          <dd>
+            <strong>{money(detail.selected?.amount_cents)}</strong>
+            {detail.selected?.payment_terms && (
+              <small>{detail.selected.payment_terms}</small>
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>
+            <CalendarDays size={19} />
+            Agreed start
+          </dt>
+          <dd>
+            {detail.selected?.start_window ||
+              job.start_window ||
+              "To be agreed"}
+          </dd>
+        </div>
+        {detail.selected?.duration && (
+          <div>
+            <dt>
+              <Clock3 size={19} />
+              Duration
+            </dt>
+            <dd>{detail.selected.duration}</dd>
+          </div>
+        )}
+        {job.people_needed && (
+          <div>
+            <dt>
+              <Users size={19} />
+              Team needed
+            </dt>
+            <dd>{job.people_needed} people</dd>
+          </div>
+        )}
+        {job.materials_by && job.materials_by !== "to_agree" && (
+          <div>
+            <dt>
+              <Wrench size={19} />
+              Materials
+            </dt>
+            <dd>{materialsLabels[job.materials_by]}</dd>
+          </div>
+        )}
+        <div>
+          <dt>
+            <Layers3 size={19} />
+            Scope
+          </dt>
+          <dd>
+            <p>{job.description}</p>
+            {job.requirements && (
+              <details>
+                <summary>Requirements</summary>
+                <p>{job.requirements}</p>
+              </details>
+            )}
+            {detail.selected?.included && (
+              <details>
+                <summary>Included in quote</summary>
+                <p>{detail.selected.included}</p>
+              </details>
+            )}
+            {detail.selected?.excluded && (
+              <details>
+                <summary>Not included</summary>
+                <p>{detail.selected.excluded}</p>
+              </details>
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>
+            <MapPin size={19} />
+            {job.exact_address ? "Site address" : "Location"}
+          </dt>
+          <dd>
+            {job.exact_address || job.location}
+            {job.exact_address && (
+              <small>
+                <LockKeyhole size={13} />
+                Only visible to the two companies on this job.
+              </small>
+            )}
+          </dd>
+        </div>
+      </dl>
+      {!!files.length && (
+        <div className="workspace-documents">
+          <h3>
+            <FileText size={19} />
+            Documents & photos
+          </h3>
+          <FileList files={files} />
+        </div>
+      )}
+    </section>
+  );
+}
+function JobProblem({
+  onSubmit,
+}: {
+  onSubmit: (body: string) => Promise<void>;
+}) {
+  const { close } = useApp();
+  const [body, setBody] = useState(""),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  return (
+    <form
+      className="manage-dialog job-problem-dialog"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setBusy(true);
+        setError("");
+        try {
+          await onSubmit(body);
+          close();
+        } catch (e) {
+          setError((e as Error).message);
+          setBusy(false);
+        }
+      }}
+    >
+      <span className="workspace-dialog-icon">
+        <CircleAlert size={24} />
+      </span>
+      <h2>Report a problem</h2>
+      <p>
+        Explain what happened and what you need. This is saved in the job’s
+        private history and shared with the other company.
+      </p>
+      <label>
+        What’s the problem?
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          rows={5}
+          minLength={10}
+          maxLength={5000}
+          required
+          autoFocus
+          placeholder="Describe the issue and the next step you’d like…"
+        />
+      </label>
+      <JobError text={error} />
+      <div className="job-form-actions">
+        <button
+          type="button"
+          className="jobs-button jobs-secondary"
+          onClick={close}
+          disabled={busy}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="jobs-button jobs-primary"
+          disabled={busy || body.trim().length < 10}
+        >
+          {busy ? "Sending…" : "Share problem"}
+        </button>
+      </div>
+    </form>
+  );
+}
+export function JobInboxPage() {
+  const { company, session, signIn, revision } = useApp();
+  const [query, setQuery] = useState(""),
+    [page, setPage] = useState(1),
+    [error, setError] = useState("");
+  const [result, setResult] = useState<{
+    threads: {
+      job_id: string;
+      provider_id: string;
+      title: string;
+      status: JobStatus;
+      company: Company;
+      body: string | null;
+      updated_at: string;
+    }[];
+    hasMore: boolean;
+  } | null>(null);
+  useEffect(() => {
+    if (!company) {
+      setResult(null);
+      return;
+    }
+    const controller = new AbortController();
+    setError("");
+    setResult(null);
+    const timer = setTimeout(() => {
+      void api<NonNullable<typeof result>>(
+        `/jobs/inbox?q=${encodeURIComponent(query)}&page=${page}`,
+        { signal: controller.signal },
+      )
+        .then(setResult)
+        .catch((e) => {
+          if (!controller.signal.aborted) setError(e.message);
+        });
+    }, 180);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [company?.id, query, page, revision]);
+  return (
+    <div className="jobs-page workspace-inbox">
+      <header className="workspace-page-heading">
+        <h1>Inbox</h1>
+        <p>Every company conversation, organized by job.</p>
+      </header>
+      {!company ? (
+        <section className="jobs-panel">
+          <JobEmpty
+            title="Your job conversations live here"
+            detail={
+              session.user
+                ? "Switch to a company account to view its inbox."
+                : "Sign in to talk with companies about your jobs and quotes."
+            }
+          />
+          {!session.user && (
+            <button className="jobs-button jobs-primary" onClick={signIn}>
+              Sign in
+            </button>
+          )}
+        </section>
+      ) : (
+        <section className="jobs-panel inbox-panel">
+          <label className="inbox-search">
+            <Search size={19} />
+            <input
+              aria-label="Search conversations"
+              placeholder="Search companies or jobs"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setPage(1);
+              }}
+            />
+          </label>
+          <JobError text={error} />
+          {!result && !error ? (
+            <div className="job-loading">Loading conversations…</div>
+          ) : result?.threads.length ? (
+            <div className="workspace-inbox-list">
+              {result.threads.map((thread) => (
+                <Link
+                  key={`${thread.job_id}:${thread.provider_id}`}
+                  to={`/jobs/${thread.job_id}?tab=messages&provider=${thread.provider_id}`}
+                  className="workspace-inbox-thread"
+                >
+                  <JobLogo company={thread.company} />
+                  <div>
+                    <div className="inbox-thread-heading">
+                      <strong>{thread.company.name}</strong>
+                      <time>{date(thread.updated_at)}</time>
+                    </div>
+                    <b>{thread.title}</b>
+                    <p>
+                      {thread.body ||
+                        "Start a conversation about the scope, timing, or quote."}
+                    </p>
+                  </div>
+                  <ArrowRight size={18} />
+                </Link>
+              ))}
+            </div>
+          ) : (
+            !error && (
+              <JobEmpty
+                title={
+                  query ? "No matching conversations" : "No conversations yet"
+                }
+                detail={
+                  query
+                    ? "Try another company name or job title."
+                    : "When you invite a company, send a quote, or message about a job, the conversation appears here."
+                }
+              />
+            )
+          )}
+          {(page > 1 || result?.hasMore) && (
+            <div className="job-form-actions">
+              <button
+                className="jobs-button jobs-secondary"
+                disabled={page === 1}
+                onClick={() => setPage((n) => n - 1)}
+              >
+                Previous
+              </button>
+              <span>Page {page}</span>
+              <button
+                className="jobs-button jobs-secondary"
+                disabled={!result?.hasMore}
+                onClick={() => setPage((n) => n + 1)}
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </section>
       )}
     </div>
   );

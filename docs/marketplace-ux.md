@@ -8,7 +8,7 @@ The active web product is at `connect.sunhubapp.com`. This guide supersedes the 
 | --------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | Public home                 | Get help or find work            | Crews, specialist services, supplies and solar business support; simple hiring process                                  | Post what you need / Find work                                           |
 | Find work                   | Can we help with this request?   | Clear title, short brief, work category, location, headcount/duration when known, budget, hiring company                | View job                                                                 |
-| Post a job                  | What help do we need?            | Guided steps for title/category, brief/files, location/timing, budget, and review                                       | Continue, then Review job and Publish job                                |
+| Post a job                  | What help do we need?            | One-page form with title/type, location/timing, description/files, optional budget, and a live preview                  | Publish job / Save draft                                                 |
 | Job details, before quoting | Can we deliver this scope?       | Full brief, requirements, materials responsibility, documents, timing, budget, company profile                          | Send a quote                                                             |
 | Quote form                  | What are we proposing?           | Total price, availability, duration, approach, optional inclusions/exclusions/terms and price breakdown, multiple files | Send quote                                                               |
 | Hiring company, open job    | Which proposal should we choose? | Received quotes with price/schedule, full proposal and documents, company evidence, questions                           | Choose company, with confirmation                                        |
@@ -25,11 +25,11 @@ Do not invent a budget, project size, availability, rating, or credential to fil
 - A single primary color uses Connect orange with dark text. Neutral secondary controls, dark ink, white space, restrained faded-blue supporting surfaces, rounded panels and pill buttons are shared across routes.
 - Reserve vivid orange for the main action. Selected navigation and work filters may also use orange; supporting actions use neutral colors; disabled primary actions use gray rather than faded orange.
 - Find work uses a single column of readable job cards, with work-type filters to the left. Job titles lead; metadata and company identity recede. Promotional side panels are omitted.
-- Posting follows five focused steps: The job, Work details, Where & when, Budget, and Review. The current question and a short explanation sit beside the fields on desktop and above them on mobile. The budget is explicitly either open to quotes or a total amount; hourly billing is not implied. Completed steps can be revisited, and review offers direct edit links. Editing a reviewed section returns directly to review. All values and pending files survive navigation. Save draft accepts an incomplete brief, while publishing validates every step. Native radio cards work with a pointer or the keyboard. The bottom action remains reachable, and no public job is created until Publish job is chosen.
+- Posting is one continuous form alongside a live preview. Title, type, location, start, description, attachments, and optional budget/deadline stay visible. Requirements, project measurements, materials, remote/hybrid arrangement, and private site address live under one optional disclosure. Crew requests expose headcount and duration. Empty budgets mean open quotes. Save draft accepts incomplete briefs; Publish validates the full form and never exposes a half-uploaded job.
 - At phone widths, the quote action stays in a compact bottom bar while reading an open job. The equivalent desktop action sits alongside the brief.
 - Primary controls are at least 44px high. Forms have persistent labels; search inputs do not render a second nested border. Keyboard focus remains visible.
 - Titles, paragraphs, and spacing use one hierarchy. Lists emphasize job decisions, not decorative statistics. Repeated company cards have consistent grid sizing.
-- The top navigation has Find work, Find companies, and My jobs for signed-in users. On phones it moves to its own row with readable labels.
+- The top navigation has Jobs, My jobs, Companies, and Inbox for signed-in users. The current job section stays selected on detail screens. On phones it moves to its own row with readable labels.
 - No social-feed onboarding step. Company setup ends with finding work or posting a job.
 
 ## Structured data
@@ -58,7 +58,7 @@ Files are limited to 12 MiB each and PDF/JPEG/PNG/WebP. The Rust service validat
 
 ## Design references
 
-The hierarchy follows [Linear's interface refresh](https://linear.app/now/behind-the-latest-design-refresh): supporting navigation should recede behind the work. Action emphasis follows [IBM Carbon's button guidance](https://carbondesignsystem.com/components/button/usage/). The review step applies the [GOV.UK check answers pattern](https://design-system.service.gov.uk/patterns/check-answers/), with editable details before the final submission. These guide interaction decisions; Connect retains its own palette, rounded controls, and company workflows.
+The hierarchy follows [Linear's interface refresh](https://linear.app/now/behind-the-latest-design-refresh): supporting navigation should recede behind the work. Action emphasis follows [IBM Carbon's button guidance](https://carbondesignsystem.com/components/button/usage/). The live job preview keeps the public-facing brief visible while the user writes it. These guide interaction decisions; Connect retains its own palette, rounded controls, and company workflows.
 
 ## Editorial homepage
 
@@ -85,3 +85,13 @@ Demo companies can use the complete marketplace workflow and interact with regul
 Public discovery excludes demo data by default. Signed-in demo companies start with demo jobs and companies, and can switch to regular listings. The invitation picker also offers the demo-company filter. Explicit filter choices survive search and clearing other filters. Demo labels and search-engine exclusion remain in place.
 
 `tests/jobs-service-smoke.mjs` exercises the full lifecycle with a regular hirer and a demo provider, plus invitations, quotes, and messages in the reverse direction. `tests/marketplace-demo-ui.mjs` checks discovery and mixed-account actions through the browser against an isolated local test database.
+
+## Approved job workspace layouts
+
+The supplied posting, quote-comparison, progress, and work-review mockups guide `job-workspace.css`. Working screens use a faded blue canvas, white bordered panels, restrained line icons, compact titles, and orange primary actions. The editorial landing and company profiles retain their own content hierarchy.
+
+Posting uses a single-page form and live preview. Files support drag-and-drop as well as repeated selection, with matching previews in the brief. Quote comparison puts the job summary in a narrow column and companies/proposals in the wide column. Each quote shows actual services, price, start, duration, and proposal. Expanded details expose scope, terms, price breakdown, and attachments. There are no fabricated match rankings, distances, or ratings; Connect job ratings aggregate completed-job reviews.
+
+Selected work shows both companies, a status-driven progress indicator, a timeline, agreed quote and scope, private address, and documents. Completion highlights the latest final submission and its actual attachments; the checklist describes submitted files rather than asserting unverified completion milestones. Accepting or requesting changes uses the existing permission checks and lifecycle. Request update and Report a problem create durable private activity, notify the other selected company, and prevent rapid duplicate requests. A reported problem is shared with that company; this does not promise a separate arbitration or support service.
+
+`023_job_activity.sql` extends the existing private update kinds. `GET /jobs/inbox` provides paginated, searchable job conversations scoped to the active company; each opens its own job conversation. No legacy social messages are restored. Browser tests cover the full sequence from posting through quotes, messages, update requests, reported problems, changes, final acceptance, and reviews across six viewport widths.

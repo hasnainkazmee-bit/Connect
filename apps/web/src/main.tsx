@@ -47,6 +47,8 @@ import {
   ExternalLink,
   FileText,
   BriefcaseBusiness,
+  Layers3,
+  Mail,
 } from "lucide-react";
 import { api, post } from "./api";
 import {
@@ -98,7 +100,7 @@ import { ClaimCompanyPage } from "./claim-company";
 import { CompanyMatches } from "./company-matches";
 import { CompanyProfileView } from "./company-profile";
 import { CompanySettings, EmployeeInvite } from "./management";
-import { JobsPage, NewJobPage, JobDetailPage } from "./jobs";
+import { JobsPage, NewJobPage, JobDetailPage, JobInboxPage } from "./jobs";
 import { MarketplaceLanding, ProviderDirectory } from "./providers";
 import { ProviderProfilePage } from "./provider-profile";
 import { Publisher, DraftsDialog, preloadPublisher } from "./composer";
@@ -120,6 +122,7 @@ import "./windows-app.css";
 import "./web-frame.css";
 import "./marketplace.css";
 import "./marketplace-brand.css";
+import "./job-workspace.css";
 
 const date = (s: string) =>
   new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -215,6 +218,7 @@ function useTask() {
 }
 
 function App() {
+  const [jobSection, setJobSection] = useState<"jobs" | "mine" | null>(null);
   const [session, setSession] = useState<Session>({
       user: null,
       companies: [],
@@ -588,6 +592,7 @@ function App() {
         revision,
         refresh,
         setSession,
+        setJobSection,
         open: setModal,
         close: () => setModal(null),
         toast: setNotice,
@@ -614,32 +619,60 @@ function App() {
               <Link
                 to="/jobs"
                 className={
+                  (jobSection === "jobs" &&
+                    /^\/jobs\/[0-9a-f-]{36}$/.test(location.pathname)) ||
                   location.pathname === "/jobs" ||
                   (location.pathname === "/" && !!session.user)
                     ? "active"
                     : ""
                 }
                 aria-current={
+                  (jobSection === "jobs" &&
+                    /^\/jobs\/[0-9a-f-]{36}$/.test(location.pathname)) ||
                   location.pathname === "/jobs" ||
                   (location.pathname === "/" && !!session.user)
                     ? "page"
                     : undefined
                 }
               >
-                <BriefcaseBusiness size={17} /> Find work
+                <BriefcaseBusiness size={17} /> Jobs
               </Link>
+              {session.user && (
+                <Link
+                  to="/jobs/mine"
+                  aria-current={
+                    location.pathname === "/jobs/mine" ||
+                    (jobSection === "mine" &&
+                      /^\/jobs\/[0-9a-f-]{36}$/.test(location.pathname))
+                      ? "page"
+                      : undefined
+                  }
+                  className={
+                    location.pathname === "/jobs/mine" ||
+                    (jobSection === "mine" &&
+                      /^\/jobs\/[0-9a-f-]{36}$/.test(location.pathname))
+                      ? "active"
+                      : ""
+                  }
+                >
+                  <Layers3 size={17} />
+                  My jobs
+                </Link>
+              )}
               <NavLink
                 to="/providers"
                 className={({ isActive }) => (isActive ? "active" : "")}
               >
-                <Building2 size={17} /> Find companies
+                <Building2 size={17} />
+                Companies
               </NavLink>
               {session.user ? (
                 <NavLink
-                  to="/jobs/mine"
+                  to="/jobs/inbox"
                   className={({ isActive }) => (isActive ? "active" : "")}
                 >
-                  <FileText size={17} /> My jobs
+                  <Mail size={17} />
+                  Inbox
                 </NavLink>
               ) : (
                 <Link to="/#how-it-works">How it works</Link>
@@ -725,6 +758,7 @@ function App() {
           <Route path="/providers" element={<ProviderDirectory />} />
           <Route path="/jobs" element={<JobsPage />} />
           <Route path="/jobs/mine" element={<JobsPage mine />} />
+          <Route path="/jobs/inbox" element={<JobInboxPage />} />
           <Route path="/jobs/new" element={<NewJobPage />} />
           <Route
             path="/jobs/companies/:slug"

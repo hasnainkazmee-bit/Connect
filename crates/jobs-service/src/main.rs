@@ -443,7 +443,7 @@ async fn get_job(
     .await?;
     let hiring_company = parse_json(company_raw)?;
     let quotes = if a.hirer {
-        let sql = format!("SELECT (to_jsonb(q)||jsonb_build_object('company',{}))::text FROM job_quotes q JOIN companies c ON c.id=q.provider_company_id WHERE q.job_id=$1::uuid ORDER BY q.created_at DESC", company_json());
+        let sql = format!("SELECT (to_jsonb(q)||jsonb_build_object('company',{},'job_rating',(SELECT round(avg(rating)::numeric,1) FROM job_reviews WHERE reviewed_company_id=c.id),'job_review_count',(SELECT count(*) FROM job_reviews WHERE reviewed_company_id=c.id)))::text FROM job_quotes q JOIN companies c ON c.id=q.provider_company_id WHERE q.job_id=$1::uuid ORDER BY q.created_at DESC", company_json());
         let rows: Vec<String> = sqlx::query_scalar(&sql)
             .bind(&id)
             .fetch_all(&app.db)
@@ -738,6 +738,107 @@ async fn invite_companies(
         .await?;
     }
     Ok(Json(json!({"ok":true})))
+}
+
+async fn job_inbox(
+    State(app): State<Arc<App>>,
+    headers: HeaderMap,
+    Query(query): Query<HashMap<String, String>>,
+) -> Result<Json<Value>> {
+    let actor = company_actor(&app, &headers, false).await?;
+    let page = query
+        .get("page")
+        .and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or(1)
+        .clamp(1, 1000);
+    let search = query
+        .get("q")
+        .map(|v| v.chars().take(160).collect::<String>())
+        .unwrap_or_default();
+    let sql = format!(
+        r#"
+        WITH threads AS (
+          SELECT job_id,provider_company_id FROM job_messages WHERE provider_company_id=$1::uuid OR job_id IN (SELECT id FROM jobs WHERE hiring_company_id=$1::uuid)
+          UNION SELECT job_id,provider_company_id FROM job_quotes WHERE provider_company_id=$1::uuid OR job_id IN (SELECT id FROM jobs WHERE hiring_company_id=$1::uuid)
+          UNION SELECT job_id,provider_company_id FROM job_invitations WHERE provider_company_id=$1::uuid OR job_id IN (SELECT id FROM jobs WHERE hiring_company_id=$1::uuid)
+        )
+        SELECT json_build_object('job_id',j.id,'title',j.title,'status',j.status,
+          'provider_id',t.provider_company_id,'company',{},'body',m.body,
+          'updated_at',COALESCE(m.created_at,j.updated_at))::text
+        FROM threads t JOIN jobs j ON j.id=t.job_id
+        JOIN companies c ON c.id=CASE WHEN j.hiring_company_id=$1::uuid THEN t.provider_company_id ELSE j.hiring_company_id END
+        LEFT JOIN LATERAL (SELECT body,created_at FROM job_messages WHERE job_id=j.id AND provider_company_id=t.provider_company_id ORDER BY created_at DESC,id DESC LIMIT 1) m ON true
+        WHERE (j.hiring_company_id=$1::uuid OR t.provider_company_id=$1::uuid)
+          AND (j.title ILIKE $2 OR c.name ILIKE $2)
+        ORDER BY COALESCE(m.created_at,j.updated_at) DESC,j.id,t.provider_company_id
+        LIMIT 51 OFFSET $3
+    "#,
+        company_json()
+    );
+    let rows: Vec<String> = sqlx::query_scalar(&sql)
+        .bind(actor.company.as_deref())
+        .bind(format!("%{}%", search))
+        .bind((page - 1) * 50)
+        .fetch_all(&app.db)
+        .await?;
+    Ok(Json(
+        json!({"hasMore":rows.len()>50,"page":page,"threads":rows.into_iter().take(50).map(parse_json).collect::<Result<Vec<_>>>()?}),
+    ))
+}
+
+async fn job_activity(
+    State(app): State<Arc<App>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(body): Json<Value>,
+) -> Result<(StatusCode, Json<Value>)> {
+    let actor = company_actor(&app, &headers, false).await?;
+    let a = job_access(&app, &id, actor.company.as_deref()).await?;
+    a.participant()?;
+    let kind = required_text(&body, "kind", 1, 30)?;
+    if !["update_requested", "problem"].contains(&kind) {
+        return Err(bad("Choose a valid job action."));
+    }
+    if kind == "update_requested" && (!a.hirer || a.status() != "in_progress") {
+        return Err(forbidden());
+    }
+    if !["awarded", "in_progress", "review", "completed"].contains(&a.status()) {
+        return Err(conflict("Choose a company before using this action."));
+    }
+    let text = if kind == "update_requested" {
+        "Please share an update on the work and expected completion."
+    } else {
+        required_text(&body, "body", 10, 5000)?
+    };
+    let mut tx = app.db.begin().await?;
+    let current: String =
+        sqlx::query_scalar("SELECT status FROM jobs WHERE id=$1::uuid FOR UPDATE")
+            .bind(&id)
+            .fetch_one(&mut *tx)
+            .await?;
+    if current != a.status() {
+        return Err(conflict("This job has changed. Refresh it and try again."));
+    }
+    let recent: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM job_updates WHERE job_id=$1::uuid AND company_id=$2::uuid AND kind=$3 AND created_at>now()-interval '1 minute')")
+        .bind(&id).bind(actor.company.as_deref()).bind(kind).fetch_one(&mut *tx).await?;
+    if recent {
+        return Err(conflict(
+            "Already sent. Give the other company a moment to respond.",
+        ));
+    }
+    let update_id: String = sqlx::query_scalar("INSERT INTO job_updates(job_id,company_id,author_id,kind,body) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5) RETURNING id::text")
+        .bind(&id).bind(actor.company.as_deref()).bind(&actor.user).bind(kind).bind(text).fetch_one(&mut *tx).await?;
+    let target = if a.hirer {
+        selected_provider(&app, &id).await?
+    } else {
+        a.hirer_id().to_owned()
+    };
+    sqlx::query("SELECT connect_notify($1::uuid,NULL,$2::uuid,$3::uuid,$4,'job','requests',$5,$6,$7,'job',$8::uuid)")
+        .bind(&target).bind(actor.company.as_deref()).bind(&actor.user).bind(format!("job-activity:{update_id}"))
+        .bind(if kind == "problem" { "Problem reported on a job" } else { "Job update requested" })
+        .bind(text).bind(format!("/jobs/{id}")).bind(&id).execute(&mut *tx).await?;
+    tx.commit().await?;
+    Ok((StatusCode::CREATED, Json(json!({"id":update_id}))))
 }
 
 async fn quote_messages(
@@ -1492,6 +1593,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         .route("/jobs/providers/me", axum::routing::patch(update_provider))
         .route("/jobs/providers/{slug}", get(provider_detail))
         .route("/jobs/mine", get(my_jobs))
+        .route("/jobs/inbox", get(job_inbox))
         .route("/jobs/companies/{slug}", get(work_profile))
         .route("/jobs/files/{file_id}", get(download_file))
         .route("/jobs/{id}", get(get_job).patch(edit_job))
@@ -1500,6 +1602,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         .route("/jobs/{id}/choose", post(choose_company))
         .route("/jobs/{id}/confirm", post(confirm_job))
         .route("/jobs/{id}/updates", post(add_update))
+        .route("/jobs/{id}/activity", post(job_activity))
         .route("/jobs/{id}/review-work", post(review_work))
         .route("/jobs/{id}/reviews", post(review_company))
         .route(

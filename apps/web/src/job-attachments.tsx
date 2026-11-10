@@ -206,15 +206,41 @@ export function AttachmentPicker({
 }) {
   const { open } = useApp();
   const [error, setError] = useState("");
+  const [dragging, setDragging] = useState(false);
+  const addFiles = (selected: File[]) => {
+    const issue = attachmentError(selected);
+    setError(issue);
+    if (!issue) onChange([...files, ...selected]);
+  };
   const items = files.map(pendingFile);
   return (
     <div className="job-attachment-picker">
       {!readOnly && (
-        <label className={`attachment-add ${disabled ? "disabled" : ""}`}>
+        <label
+          className={`attachment-add ${disabled ? "disabled" : ""} ${dragging ? "dragging" : ""}`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (!disabled) setDragging(true);
+          }}
+          onDragLeave={(e) => {
+            if (
+              !(e.relatedTarget instanceof Node) ||
+              !e.currentTarget.contains(e.relatedTarget)
+            )
+              setDragging(false);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            if (!disabled) addFiles(Array.from(e.dataTransfer.files));
+          }}
+        >
           <Paperclip size={19} />
           <span>
             <b>{label}</b>
-            <small>Multiple files · PDF, JPG, PNG, WebP · 12 MB each</small>
+            <small>
+              Drop files here or browse · PDF or images · 12 MB each
+            </small>
           </span>
           <input
             aria-label={label}
@@ -224,9 +250,7 @@ export function AttachmentPicker({
             accept=".pdf,image/jpeg,image/png,image/webp"
             onChange={(e) => {
               const selected = Array.from(e.target.files || []);
-              const issue = attachmentError(selected);
-              setError(issue);
-              if (!issue) onChange([...files, ...selected]);
+              addFiles(selected);
               e.target.value = "";
             }}
           />
@@ -240,7 +264,11 @@ export function AttachmentPicker({
       {!!items.length && (
         <div className="job-attachment-grid">
           {items.map((item, i) => (
-            <div className="job-attachment-card" key={`${i}-${item.name}`}>
+            <div
+              className="job-attachment-card"
+              data-kind={item.type.startsWith("image/") ? "image" : "document"}
+              key={`${i}-${item.name}`}
+            >
               <button
                 type="button"
                 className="attachment-preview"
@@ -280,7 +308,11 @@ export function JobAttachments({ files }: { files: JobFile[] }) {
   return (
     <div className="job-attachment-grid">
       {items.map((item, i) => (
-        <div className="job-attachment-card" key={files[i].id}>
+        <div
+          className="job-attachment-card"
+          data-kind={item.type.startsWith("image/") ? "image" : "document"}
+          key={files[i].id}
+        >
           <button
             className="attachment-preview"
             type="button"

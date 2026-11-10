@@ -193,7 +193,7 @@ export function publicPages() {
       .replace("</head>", meta + "</head>")
       .replace(
         '<div id="root"></div>',
-        `<div id="root"><header class="jobs-site-header"><div class="jobs-header-inner"><a class="jobs-brand" href="/"><img src="/assets/connect-icon.png" alt=""/><span><strong>connect</strong><small>by Sunhub</small></span></a><nav class="jobs-top-nav"><a href="/jobs">Find work</a><a href="/providers">Find companies</a><a href="/#how-it-works">How it works</a></nav><div class="jobs-header-actions"><a class="jobs-button jobs-primary" href="/jobs/new">Post a job</a><a class="jobs-button jobs-secondary" href="/account">Sign in</a></div></div></header><main class="app-main">${content}</main></div>`,
+        `<div id="root"><header class="jobs-site-header"><div class="jobs-header-inner"><a class="jobs-brand" href="/"><img src="/assets/connect-icon.png" alt=""/><span><strong>connect</strong><small>by Sunhub</small></span></a><nav class="jobs-top-nav"><a href="/jobs">Jobs</a><a href="/providers">Companies</a><a href="/#how-it-works">How it works</a></nav><div class="jobs-header-actions"><a class="jobs-button jobs-primary" href="/jobs/new">Post a job</a><a class="jobs-button jobs-secondary" href="/account">Sign in</a></div></div></header><main class="app-main">${content}</main></div>`,
       );
     const csp = String(res.getHeader("Content-Security-Policy") || "");
     res.set(
