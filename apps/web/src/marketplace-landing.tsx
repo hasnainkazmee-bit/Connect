@@ -31,8 +31,8 @@ const services = [
     icon: Zap,
   },
   {
-    title: "Installation & roofing",
-    detail: "Experienced teams for work on the ground and above it.",
+    title: "Solar installation",
+    detail: "Experienced teams for rooftops and ground-mounted systems.",
     trade: "Installation",
     icon: House,
   },
@@ -49,8 +49,8 @@ const services = [
     icon: Wrench,
   },
   {
-    title: "Equipment & logistics",
-    detail: "The supplies and support that keep work on schedule.",
+    title: "Equipment & supplies",
+    detail: "Modules, components, and supplies for the work ahead.",
     trade: "Equipment",
     icon: Truck,
   },
