@@ -554,6 +554,12 @@ test("public directory, ownership claims and shared company identity", async (t)
           301,
         );
         assert.equal((await fetch(base + "/no-company-" + suffix)).status, 404);
+        const jobsPage = await fetch(base + "/jobs");
+        assert.equal(jobsPage.status, 200);
+        assert.match(await jobsPage.text(), /Find solar jobs \| Connect/);
+        const privateJobsPage = await fetch(base + "/jobs/mine");
+        assert.equal(privateJobsPage.status, 200);
+        assert.match(await privateJobsPage.text(), /noindex,follow/);
         assert.equal(
           (await fetch(base + "/directory/installers/not-a-place")).status,
           404,

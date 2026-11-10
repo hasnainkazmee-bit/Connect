@@ -59,6 +59,7 @@ export function publicPages() {
     const urls = [
       "/",
       "/directory",
+      "/jobs",
       ...places,
       ...companies.map((c) => publicUrl(c.username)),
       ...posts.map((p) => "/posts/" + p.id),
@@ -128,6 +129,11 @@ export function publicPages() {
           })),
         };
       }
+    } else if (segments[0] === "jobs") {
+      title = segments.length === 1 ? "Find solar jobs | Connect" : "Jobs | Connect";
+      description = "Find solar projects, send quotes, and work with companies on Connect.";
+      indexable = segments.length === 1;
+      content = "<p class='manage-loading'>Opening jobs…</p>";
     } else if (segments[0] === "posts" && segments.length === 2) {
       const p = (
         await pool.query(
