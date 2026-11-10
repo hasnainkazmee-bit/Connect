@@ -177,6 +177,7 @@ try {
     .fill("Thanks for the demo quote. Can you confirm availability?");
   await r.getByRole("button", { name: "Send", exact: true }).click();
   await r
+    .getByRole("log", { name: "Job messages" })
     .getByText("Thanks for the demo quote. Can you confirm availability?", {
       exact: true,
     })

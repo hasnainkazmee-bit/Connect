@@ -100,7 +100,8 @@ import { ClaimCompanyPage } from "./claim-company";
 import { CompanyMatches } from "./company-matches";
 import { CompanyProfileView } from "./company-profile";
 import { CompanySettings, EmployeeInvite } from "./management";
-import { JobsPage, NewJobPage, JobDetailPage, JobInboxPage } from "./jobs";
+import { JobsPage, NewJobPage, JobDetailPage } from "./jobs";
+import { JobInboxPage } from "./job-inbox";
 import { MarketplaceLanding, ProviderDirectory } from "./providers";
 import { ProviderProfilePage } from "./provider-profile";
 import { Publisher, DraftsDialog, preloadPublisher } from "./composer";
@@ -123,6 +124,7 @@ import "./web-frame.css";
 import "./marketplace.css";
 import "./marketplace-brand.css";
 import "./job-workspace.css";
+import "./job-inbox.css";
 
 const date = (s: string) =>
   new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -853,6 +855,7 @@ function App() {
       )}
       {!desktopHost &&
         location.pathname !== "/jobs/new" &&
+        location.pathname !== "/jobs/inbox" &&
         !/^\/jobs\/[^/]+\/edit$/.test(location.pathname) &&
         (location.pathname !== "/" || !!session.user) && (
           <footer className="site-footer">

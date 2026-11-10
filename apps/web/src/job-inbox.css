@@ -1,0 +1,937 @@
+/* A single, viewport-sized workspace for job conversations. */
+body:has(.workspace-inbox) {
+  padding-bottom: 0;
+}
+html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
+  min-height: 0;
+}
+.jobs-page.workspace-inbox {
+  padding: 20px 0;
+}
+.inbox-layout {
+  --inbox-height: calc(100dvh - 126px);
+  position: relative;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  height: var(--inbox-height);
+  min-height: 320px;
+  overflow: hidden;
+  border: 1px solid #d1dfe9;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 3px 18px #23394e04;
+}
+.inbox-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: #f7fafd;
+  border-right: 1px solid #dce5ee;
+}
+.inbox-list-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 22px 20px 18px;
+}
+.workspace-inbox .inbox-list-heading h1 {
+  font-size: 23px;
+  line-height: 1.25;
+  letter-spacing: -0.6px;
+  margin: 0 0 4px;
+}
+.inbox-list-heading > div {
+  min-width: 0;
+}
+.inbox-list-heading span {
+  display: block;
+  font-size: 11px;
+  color: #6a8092;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inbox-list-heading > svg {
+  color: #71889a;
+  flex-shrink: 0;
+}
+.inbox-list-tools {
+  padding: 0 14px 10px;
+  border-bottom: 1px solid #e3eaf1;
+}
+.workspace-inbox .inbox-search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #d8e3ed;
+  background: white;
+  border-radius: 999px;
+  padding: 0 12px;
+  color: #71889a;
+}
+.jobs-page.workspace-inbox .inbox-search input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  min-height: 40px;
+  border: 0;
+  outline: none;
+  border-radius: inherit;
+  padding: 0;
+  font-size: 13px;
+  background: transparent;
+  box-shadow: none;
+}
+.inbox-search > svg {
+  flex-shrink: 0;
+}
+.inbox-search:focus-within {
+  border-color: #9eb6ca;
+  box-shadow: 0 0 0 2px #edf4fa;
+}
+.inbox-search > button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #6a8092;
+  padding: 5px;
+}
+.inbox-filters {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 10px 0 0;
+  margin: 0;
+  border: 0;
+}
+.inbox-filters button {
+  min-height: 36px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #667d91;
+  border-radius: 999px;
+  padding: 6px 13px;
+  font-size: 12px;
+  font-weight: 550;
+}
+.inbox-filters button[aria-pressed="true"] {
+  color: #243d50;
+  background: #e7eff6;
+  border-color: #d8e3ed;
+}
+.inbox-filters > svg {
+  margin-left: auto;
+  color: #8096a8;
+}
+.inbox-thread-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #bdcdd9 transparent;
+}
+.workspace-inbox .workspace-inbox-thread {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 15px 10px;
+  margin-bottom: 3px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--market-ink);
+  text-align: left;
+}
+.workspace-inbox .workspace-inbox-thread:hover {
+  background: #edf3f8;
+}
+.workspace-inbox .workspace-inbox-thread.is-selected {
+  background: #e6f0f8;
+  border-color: #cddfeb;
+}
+.workspace-inbox .workspace-inbox-thread .job-logo {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border-radius: 9px;
+  background: #fff;
+}
+.inbox-thread-copy {
+  display: block;
+  min-width: 0;
+  flex: 1;
+}
+.workspace-inbox .inbox-thread-heading {
+  display: flex;
+  align-items: baseline;
+  flex-direction: row;
+  gap: 7px;
+  margin-bottom: 5px;
+}
+.inbox-thread-heading strong {
+  display: block;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+}
+.inbox-thread-heading time {
+  flex: none;
+  font-size: 9px;
+  color: #758a9c;
+  white-space: nowrap;
+}
+.inbox-thread-job {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #5b7387;
+  font-size: 11px;
+  line-height: 1.5;
+  margin-bottom: 5px;
+}
+.inbox-thread-preview {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #7b8d9c;
+  font-size: 11px;
+  line-height: 1.5;
+  padding-right: 20px;
+}
+.workspace-inbox-thread.is-unread .inbox-thread-heading strong {
+  font-weight: 750;
+}
+.workspace-inbox-thread.is-unread .inbox-thread-preview {
+  color: #344f64;
+  font-weight: 550;
+}
+.inbox-unread-count {
+  position: absolute;
+  right: 11px;
+  bottom: 14px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #ff6800;
+  color: #172c3a;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  font-weight: 700;
+}
+.inbox-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 15px;
+  border-top: 1px solid #dfe7ef;
+  color: #758b9d;
+  font-size: 11px;
+}
+.inbox-pagination button {
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  border: 1px solid #d6e1eb;
+  border-radius: 50%;
+  background: #fff;
+  color: #476278;
+}
+.inbox-pagination button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.inbox-list-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 42px 16px;
+  color: #7a90a2;
+}
+.inbox-list-empty strong {
+  font-size: 14px;
+  color: #385166;
+}
+.workspace-inbox .inbox-list-empty p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.inbox-list-empty a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #3b5d75;
+  font-size: 12px;
+  text-decoration: none;
+}
+.inbox-list-error {
+  padding: 12px 16px;
+  font-size: 12px;
+  color: #a13a31;
+  border-top: 1px solid #e5ecf2;
+}
+.inbox-list-error button,
+.inbox-connection-status button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+  padding: 4px 8px;
+}
+.inbox-welcome,
+.inbox-chat-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 36px;
+  min-width: 0;
+}
+.inbox-welcome > span,
+.inbox-chat-empty > span {
+  display: grid;
+  place-items: center;
+  width: 70px;
+  height: 70px;
+  border-radius: 24px;
+  background: #eef5fb;
+  color: #668197;
+  margin-bottom: 23px;
+}
+.workspace-inbox .inbox-welcome h2 {
+  font-size: 24px;
+  margin: 0 0 10px;
+}
+.workspace-inbox .inbox-welcome p {
+  color: #6d8294;
+  max-width: 360px;
+  font-size: 13px;
+  line-height: 1.8;
+  margin: 0;
+}
+.inbox-welcome > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid #e4ebf1;
+  padding-top: 22px;
+  margin-top: 28px;
+  font-size: 11px;
+  color: #7c91a2;
+}
+.inbox-conversation {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+  background: #fff;
+}
+.inbox-conversation-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 78px;
+  padding: 16px 22px;
+  border-bottom: 1px solid #e3eaf1;
+}
+.inbox-conversation-header .job-logo {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 10px;
+}
+.inbox-conversation-title {
+  flex: 1;
+  min-width: 0;
+}
+.inbox-conversation-title > :first-child {
+  display: block;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--market-ink);
+  text-decoration: none;
+}
+.inbox-conversation-title a:hover {
+  text-decoration: underline;
+}
+.inbox-conversation-title span {
+  display: block;
+  color: #7b90a2;
+  font-size: 11px;
+  margin-top: 4px;
+}
+.inbox-icon-button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #687f92;
+  border-radius: 50%;
+}
+.inbox-icon-button:hover,
+.inbox-icon-button.is-active {
+  background: #edf4fa;
+  border-color: #d8e4ee;
+  color: #2f506a;
+}
+.inbox-mobile-back {
+  display: none;
+}
+.inbox-job-strip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 22px;
+  background: #f6f9fc;
+  border-bottom: 1px solid #e4ebf1;
+  color: #526f86;
+  text-decoration: none;
+  min-width: 0;
+}
+.inbox-job-strip > span {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 550;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inbox-job-strip svg {
+  flex: none;
+}
+.inbox-job-strip small {
+  font-size: 10px;
+  color: #7c91a2;
+  flex: none;
+}
+.inbox-job-strip:hover {
+  background: #eef4f9;
+}
+.inbox-message-area {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.inbox-message-scroll {
+  min-width: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #bdcdd9 transparent;
+  padding: 18px 24px 24px;
+}
+.inbox-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 36px 20px;
+  font-size: 12px;
+  color: #7890a2;
+}
+.inbox-spinner {
+  animation: inbox-spin 1s linear infinite;
+}
+@keyframes inbox-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .inbox-spinner {
+    animation: none;
+  }
+}
+.inbox-chat-empty {
+  min-height: 100%;
+  padding: 30px 20px;
+}
+.workspace-inbox .inbox-chat-empty h2 {
+  font-size: 20px;
+  margin: 0 0 8px;
+}
+.workspace-inbox .inbox-chat-empty p {
+  max-width: 300px;
+  font-size: 13px;
+  color: #7a8fa0;
+  margin: 0;
+}
+.inbox-chat-empty > button {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 20px;
+  border: 1px solid #d7e3ed;
+  background: #f8fbfd;
+  border-radius: 999px;
+  padding: 10px 16px;
+  color: #3f617a;
+  font-size: 12px;
+}
+.inbox-date-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: #91a1ae;
+  font-size: 10px;
+  margin: 12px 0 24px;
+}
+.inbox-date-divider::before,
+.inbox-date-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #edf1f5;
+}
+.inbox-message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 82%;
+  width: fit-content;
+  margin: 0 0 18px;
+}
+.inbox-message.is-own {
+  margin-left: auto;
+  align-items: flex-end;
+}
+.inbox-message-author {
+  font-size: 11px;
+  color: #6e8597;
+  padding: 0 3px 6px;
+}
+.inbox-message-body {
+  font-size: 14px;
+  line-height: 1.65;
+  color: #294356;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #f4f7fa;
+  border: 1px solid #e6edf3;
+  border-radius: 3px 16px 16px 16px;
+  padding: 11px 14px;
+  max-width: 100%;
+}
+.inbox-message.is-own .inbox-message-body {
+  background: #eaf3fb;
+  border-color: #d9e7f2;
+  border-radius: 16px 3px 16px 16px;
+}
+.inbox-message-body a {
+  color: #315e83;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.inbox-message-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 2px 0;
+  color: #90a1af;
+  font-size: 11px;
+}
+.inbox-message-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.inbox-new-messages {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 14px;
+  border: 1px solid #cbdce9;
+  border-radius: 999px;
+  background: white;
+  color: #385c78;
+  box-shadow: 0 3px 12px #243b5020;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.inbox-composer {
+  flex: none;
+  padding: 16px 20px 12px;
+  border-top: 1px solid #e4ebf1;
+  background: #fff;
+}
+.inbox-compose-field {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  padding: 7px 8px 7px 14px;
+  background: #fff;
+  border: 1px solid #ccdce8;
+  border-radius: 18px;
+}
+.inbox-compose-field:focus-within {
+  border-color: #9db8cd;
+  box-shadow: 0 0 0 2px #edf4fa;
+}
+.jobs-page.workspace-inbox .inbox-compose-field textarea {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 0;
+  min-height: 42px;
+  max-height: 140px;
+  border: 0;
+  outline: none;
+  border-radius: 0;
+  background: transparent;
+  font-size: 14px;
+  line-height: 22px;
+  resize: none;
+  box-shadow: none;
+  font-family: inherit;
+}
+.inbox-compose-field > button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  margin-bottom: 2px;
+  border: 0;
+  border-radius: 50%;
+  background: #ff6800;
+  color: #192f3d;
+}
+.inbox-compose-field > button:hover:not(:disabled) {
+  background: #ed6100;
+}
+.inbox-compose-field > button:disabled {
+  background: #edf2f6;
+  color: #a4b4c1;
+  cursor: default;
+}
+.inbox-composer-hint {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 9px 3px 0;
+  font-size: 11px;
+  color: #8c9dab;
+}
+.inbox-composer-hint strong {
+  font-weight: 500;
+  color: #72889a;
+}
+.inbox-connection-status,
+.inbox-closed-note {
+  padding: 11px 20px;
+  font-size: 12px;
+  background: #f5f8fb;
+  color: #688093;
+}
+.workspace-inbox .inbox-send-error {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #ae4036;
+  margin: 0 0 10px;
+}
+.inbox-job-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-left: 1px solid #dce5ee;
+  background: #fafcfe;
+}
+.inbox-job-details > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  min-height: 78px;
+  border-bottom: 1px solid #e3eaf1;
+}
+.workspace-inbox .inbox-job-details > header h2 {
+  font-size: 15px;
+  margin: 0;
+}
+.inbox-context-content {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 22px 20px;
+}
+.workspace-inbox .inbox-context-content > h3 {
+  font-size: 17px;
+  line-height: 1.4;
+  letter-spacing: -0.4px;
+  margin: 16px 0 10px;
+}
+.inbox-context-location {
+  display: flex;
+  gap: 6px;
+  color: #738a9e;
+}
+.workspace-inbox .inbox-context-location {
+  font-size: 12px;
+}
+.inbox-context-content > .jobs-button {
+  width: 100%;
+  justify-content: space-between;
+  margin: 10px 0 8px;
+  font-size: 12px;
+}
+.inbox-context-content dl {
+  margin: 12px 0 20px;
+}
+.inbox-context-content dl > div {
+  border-bottom: 1px solid #e3eaf1;
+  padding: 14px 0;
+}
+.inbox-context-content dt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #8094a4;
+  margin-bottom: 6px;
+}
+.inbox-context-content dd {
+  margin: 0;
+  font-size: 13px;
+  color: #345066;
+}
+.inbox-scope {
+  border-bottom: 1px solid #e1e9f0;
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+}
+.inbox-scope summary {
+  font-size: 12px;
+  font-weight: 600;
+  color: #49677e;
+  cursor: pointer;
+}
+.workspace-inbox .inbox-scope p {
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  color: #657d91;
+  margin: 12px 0 0;
+}
+.inbox-context-files h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.workspace-inbox .inbox-context-files p {
+  font-size: 12px;
+  color: #8194a5;
+}
+.inbox-context-files .job-attachment-grid {
+  grid-template-columns: 1fr;
+}
+.inbox-context-files .attachment-thumbnail {
+  height: 100px;
+  width: 100%;
+}
+.inbox-context-files
+  .job-attachment-card[data-kind="document"]
+  .attachment-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+}
+.inbox-context-files
+  .job-attachment-card[data-kind="document"]
+  .attachment-thumbnail {
+  width: 34px;
+  height: 40px;
+  flex: none;
+}
+.inbox-context-files .attachment-preview > span:last-child {
+  font-size: 11px;
+}
+.inbox-access {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+  padding: 60px 24px !important;
+}
+.inbox-access > svg {
+  color: #718b9f;
+}
+.inbox-access h1 {
+  font-size: 28px;
+  margin: 0;
+}
+.inbox-access p {
+  color: #708799;
+}
+.inbox-layout :is(button, a):focus-visible {
+  outline: 2px solid #7195b2;
+  outline-offset: 2px;
+}
+@media (min-width: 1281px) {
+  .inbox-layout.details-open {
+    grid-template-columns: 285px minmax(0, 1fr) 280px;
+  }
+}
+@media (max-width: 1280px) {
+  .inbox-layout {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+  .inbox-job-details {
+    position: absolute;
+    z-index: 5;
+    inset: 0 0 0 auto;
+    width: min(320px, 100%);
+    box-shadow: -8px 0 30px #23394e14;
+  }
+  .inbox-job-strip small {
+    display: none;
+  }
+  .inbox-composer-hint > span:last-child {
+    display: none;
+  }
+}
+@media (max-width: 900px) {
+  .inbox-layout {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+  .inbox-conversation-header {
+    padding-inline: 16px;
+    gap: 10px;
+  }
+  .inbox-message-scroll {
+    padding-inline: 16px;
+  }
+  .inbox-message {
+    max-width: 90%;
+  }
+}
+@media (max-width: 700px) {
+  .jobs-page.workspace-inbox {
+    padding: 12px 0 16px;
+  }
+  .inbox-layout {
+    grid-template-columns: minmax(0, 1fr);
+    border-radius: 14px;
+  }
+  .workspace-inbox:not(.has-conversation) .inbox-welcome {
+    display: none;
+  }
+  .workspace-inbox.has-conversation .inbox-sidebar {
+    display: none;
+  }
+  .inbox-sidebar {
+    border-right: 0;
+  }
+  .inbox-mobile-back {
+    display: grid;
+    width: 30px;
+    flex-basis: 30px;
+    margin-left: -7px;
+  }
+  .inbox-conversation-header {
+    min-height: 70px;
+    padding: 12px;
+    gap: 8px;
+  }
+  .inbox-conversation-header .job-logo {
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
+  }
+  .inbox-conversation-title > :first-child {
+    font-size: 13px;
+  }
+  .inbox-conversation-title span {
+    font-size: 10px;
+  }
+  .inbox-conversation-header > .inbox-icon-button:last-child {
+    width: 30px;
+    flex-basis: 30px;
+  }
+  .inbox-job-strip {
+    padding: 11px 14px;
+    gap: 7px;
+  }
+  .inbox-job-strip > span {
+    font-size: 11px;
+  }
+  .inbox-message-scroll {
+    padding: 12px 14px 20px;
+  }
+  .inbox-message-body {
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+  .inbox-composer {
+    padding: 12px;
+  }
+  .inbox-compose-field {
+    padding-left: 10px;
+    border-radius: 16px;
+    gap: 6px;
+  }
+  .jobs-page.workspace-inbox .inbox-compose-field textarea {
+    font-size: 16px;
+  }
+  .inbox-composer-hint {
+    font-size: 10px;
+    margin-top: 6px;
+  }
+  .workspace-inbox .inbox-list-heading h1 {
+    font-size: 22px;
+  }
+  .inbox-thread-heading strong {
+    font-size: 13px;
+  }
+  .inbox-thread-heading time {
+    font-size: 10px;
+  }
+  .inbox-thread-job,
+  .inbox-thread-preview {
+    font-size: 12px;
+  }
+  .jobs-page.workspace-inbox .inbox-search input {
+    font-size: 16px;
+  }
+  .inbox-job-details {
+    width: 100%;
+  }
+}

@@ -189,13 +189,16 @@ async fn job_access(app: &App, id: &str, company: Option<&str>) -> Result<JobAcc
     let mut chosen = false;
     let mut invited = false;
     let mut quoted = false;
+    let mut conversed = false;
     if let Some(company) = company {
         let row = sqlx::query(
             "SELECT EXISTS(SELECT 1 FROM job_quotes WHERE job_id=$1::uuid AND provider_company_id=$2::uuid) AS quoted,\
              EXISTS(SELECT 1 FROM job_invitations WHERE job_id=$1::uuid AND provider_company_id=$2::uuid AND status='pending') AS invited,\
-             EXISTS(SELECT 1 FROM job_quotes WHERE id=(SELECT chosen_quote_id FROM jobs WHERE id=$1::uuid) AND provider_company_id=$2::uuid) AS chosen"
+             EXISTS(SELECT 1 FROM job_quotes WHERE id=(SELECT chosen_quote_id FROM jobs WHERE id=$1::uuid) AND provider_company_id=$2::uuid) AS chosen,\
+             EXISTS(SELECT 1 FROM job_messages WHERE job_id=$1::uuid AND provider_company_id=$2::uuid) AS conversed"
         ).bind(id).bind(company).fetch_one(&app.db).await?;
         quoted = row.get("quoted");
+        conversed = row.get("conversed");
         invited = row.get("invited");
         chosen = row.get("chosen");
     }
@@ -203,6 +206,7 @@ async fn job_access(app: &App, id: &str, company: Option<&str>) -> Result<JobAcc
         && !chosen
         && !invited
         && !quoted
+        && !conversed
         && !(job["visibility"] == "open" && job["status"] == "open")
     {
         return Err(not_found());
@@ -764,12 +768,16 @@ async fn job_inbox(
         )
         SELECT json_build_object('job_id',j.id,'title',j.title,'status',j.status,
           'provider_id',t.provider_company_id,'company',{},'body',m.body,
+          'sender_company_id',m.sender_company_id,'unread_count',unread.total,
           'updated_at',COALESCE(m.created_at,j.updated_at))::text
         FROM threads t JOIN jobs j ON j.id=t.job_id
         JOIN companies c ON c.id=CASE WHEN j.hiring_company_id=$1::uuid THEN t.provider_company_id ELSE j.hiring_company_id END
-        LEFT JOIN LATERAL (SELECT body,created_at FROM job_messages WHERE job_id=j.id AND provider_company_id=t.provider_company_id ORDER BY created_at DESC,id DESC LIMIT 1) m ON true
+        LEFT JOIN LATERAL (SELECT body,created_at,sender_company_id FROM job_messages WHERE job_id=j.id AND provider_company_id=t.provider_company_id ORDER BY created_at DESC,id DESC LIMIT 1) m ON true
+        LEFT JOIN job_message_reads r ON r.job_id=j.id AND r.provider_company_id=t.provider_company_id AND r.company_id=$1::uuid AND r.user_id=$4::uuid
+        CROSS JOIN LATERAL (SELECT count(*) AS total FROM job_messages um WHERE um.job_id=j.id AND um.provider_company_id=t.provider_company_id AND um.sender_company_id<>$1::uuid AND (r.user_id IS NULL OR (um.created_at,um.id)>(r.last_read_at,r.last_read_message_id))) unread
         WHERE (j.hiring_company_id=$1::uuid OR t.provider_company_id=$1::uuid)
           AND (j.title ILIKE $2 OR c.name ILIKE $2)
+          AND (NOT $5::boolean OR unread.total>0)
         ORDER BY COALESCE(m.created_at,j.updated_at) DESC,j.id,t.provider_company_id
         LIMIT 51 OFFSET $3
     "#,
@@ -779,6 +787,8 @@ async fn job_inbox(
         .bind(actor.company.as_deref())
         .bind(format!("%{}%", search))
         .bind((page - 1) * 50)
+        .bind(&actor.user)
+        .bind(query.get("unread").is_some_and(|v| v == "true"))
         .fetch_all(&app.db)
         .await?;
     Ok(Json(
@@ -841,6 +851,32 @@ async fn job_activity(
     Ok((StatusCode::CREATED, Json(json!({"id":update_id}))))
 }
 
+async fn message_provider(
+    app: &App,
+    a: &JobAccess,
+    actor: &Actor,
+    requested: Option<&str>,
+) -> Result<String> {
+    let own = actor.company.as_deref().unwrap();
+    let provider = if a.hirer {
+        requested.ok_or_else(|| bad("Choose a company."))?
+    } else {
+        own
+    };
+    checked_id(provider)?;
+    if !a.hirer && requested.is_some_and(|v| v != own) {
+        return Err(forbidden());
+    }
+    if a.hirer {
+        let known: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM job_quotes WHERE job_id=$1::uuid AND provider_company_id=$2::uuid UNION SELECT 1 FROM job_invitations WHERE job_id=$1::uuid AND provider_company_id=$2::uuid UNION SELECT 1 FROM job_messages WHERE job_id=$1::uuid AND provider_company_id=$2::uuid)")
+            .bind(a.job["id"].as_str()).bind(provider).fetch_one(&app.db).await?;
+        if !known {
+            return Err(not_found());
+        }
+    }
+    Ok(provider.to_owned())
+}
+
 async fn quote_messages(
     State(app): State<Arc<App>>,
     headers: HeaderMap,
@@ -849,28 +885,72 @@ async fn quote_messages(
 ) -> Result<Json<Value>> {
     let actor = company_actor(&app, &headers, false).await?;
     let a = job_access(&app, &id, actor.company.as_deref()).await?;
-    let provider = if a.hirer {
-        query
-            .get("providerId")
-            .ok_or_else(|| bad("Choose a company."))?
-            .as_str()
-    } else {
-        actor.company.as_deref().unwrap()
-    };
-    checked_id(provider)?;
-    if a.hirer {
-        let known: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM job_quotes WHERE job_id=$1::uuid AND provider_company_id=$2::uuid UNION SELECT 1 FROM job_invitations WHERE job_id=$1::uuid AND provider_company_id=$2::uuid UNION SELECT 1 FROM job_messages WHERE job_id=$1::uuid AND provider_company_id=$2::uuid)")
-            .bind(&id).bind(provider).fetch_one(&app.db).await?;
-        if !known {
+    let provider = message_provider(
+        &app,
+        &a,
+        &actor,
+        query.get("providerId").map(String::as_str),
+    )
+    .await?;
+    let after = query.get("after");
+    let before = query.get("before");
+    if after.is_some() && before.is_some() {
+        return Err(bad("Choose one message cursor."));
+    }
+    let cursor = after.or(before);
+    if let Some(cursor) = cursor {
+        checked_id(cursor)?;
+        let exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM job_messages WHERE id=$1::uuid AND job_id=$2::uuid AND provider_company_id=$3::uuid)")
+            .bind(cursor).bind(&id).bind(&provider).fetch_one(&app.db).await?;
+        if !exists {
             return Err(not_found());
         }
     }
-    let rows: Vec<String> = sqlx::query_scalar("SELECT (to_jsonb(m)||jsonb_build_object('sender_name',c.name))::text FROM job_messages m JOIN companies c ON c.id=m.sender_company_id WHERE m.job_id=$1::uuid AND m.provider_company_id=$2::uuid ORDER BY m.created_at,m.id LIMIT 500")
-        .bind(&id).bind(provider).fetch_all(&app.db).await?;
+    let comparison = if after.is_some() { ">" } else { "<" };
+    let order = if after.is_some() { "ASC" } else { "DESC" };
+    let sql = format!("SELECT (to_jsonb(m)||jsonb_build_object('sender_name',c.name,'author_name',u.name))::text FROM job_messages m JOIN companies c ON c.id=m.sender_company_id JOIN users u ON u.id=m.author_id WHERE m.job_id=$1::uuid AND m.provider_company_id=$2::uuid AND ($3::uuid IS NULL OR (m.created_at,m.id) {comparison} (SELECT created_at,id FROM job_messages WHERE id=$3::uuid)) ORDER BY m.created_at {order},m.id {order} LIMIT 51");
+    let mut rows: Vec<String> = sqlx::query_scalar(&sql)
+        .bind(&id)
+        .bind(&provider)
+        .bind(cursor)
+        .fetch_all(&app.db)
+        .await?;
+    let more = rows.len() > 50;
+    rows.truncate(50);
+    if after.is_none() {
+        rows.reverse();
+    }
     Ok(Json(
-        json!({"messages": rows.into_iter().map(parse_json).collect::<Result<Vec<_>>>()?}),
+        json!({"messages":rows.into_iter().map(parse_json).collect::<Result<Vec<_>>>()?,"hasOlder":after.is_none() && more,"hasNewer":after.is_some() && more}),
     ))
 }
+
+async fn read_messages(
+    State(app): State<Arc<App>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(body): Json<Value>,
+) -> Result<Json<Value>> {
+    let actor = company_actor(&app, &headers, false).await?;
+    let a = job_access(&app, &id, actor.company.as_deref()).await?;
+    let provider = message_provider(&app, &a, &actor, body["providerId"].as_str()).await?;
+    let message = checked_id(required_text(&body, "messageId", 36, 36)?)?;
+    let mut tx = app.db.begin().await?;
+    let changed = sqlx::query("INSERT INTO job_message_reads(user_id,company_id,job_id,provider_company_id,last_read_at,last_read_message_id) SELECT $1::uuid,$2::uuid,job_id,provider_company_id,created_at,id FROM job_messages WHERE id=$3::uuid AND job_id=$4::uuid AND provider_company_id=$5::uuid ON CONFLICT(user_id,company_id,job_id,provider_company_id) DO UPDATE SET last_read_at=EXCLUDED.last_read_at,last_read_message_id=EXCLUDED.last_read_message_id WHERE (EXCLUDED.last_read_at,EXCLUDED.last_read_message_id)>(job_message_reads.last_read_at,job_message_reads.last_read_message_id)")
+        .bind(&actor.user).bind(actor.company.as_deref()).bind(message).bind(&id).bind(&provider).execute(&mut *tx).await?.rows_affected();
+    if changed == 0 {
+        let exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM job_messages WHERE id=$1::uuid AND job_id=$2::uuid AND provider_company_id=$3::uuid)")
+            .bind(message).bind(&id).bind(&provider).fetch_one(&mut *tx).await?;
+        if !exists {
+            return Err(not_found());
+        }
+    }
+    let notification_ids: Vec<String> = sqlx::query_scalar("UPDATE user_notifications n SET read_at=COALESCE(n.read_at,now()) WHERE n.user_id=$1::uuid AND n.company_id=$2::uuid AND n.read_at IS NULL AND n.event_key IN (SELECT 'job-message:'||m.id::text FROM job_messages m JOIN job_message_reads r ON r.user_id=$1::uuid AND r.company_id=$2::uuid AND r.job_id=m.job_id AND r.provider_company_id=m.provider_company_id WHERE m.job_id=$3::uuid AND m.provider_company_id=$4::uuid AND (m.created_at,m.id)<=(r.last_read_at,r.last_read_message_id)) RETURNING n.id::text")
+        .bind(&actor.user).bind(actor.company.as_deref()).bind(&id).bind(&provider).fetch_all(&mut *tx).await?;
+    tx.commit().await?;
+    Ok(Json(json!({"ok":true,"notificationIds":notification_ids})))
+}
+
 async fn send_message(
     State(app): State<Arc<App>>,
     headers: HeaderMap,
@@ -883,33 +963,37 @@ async fn send_message(
         return Err(forbidden());
     }
     let text = required_text(&body, "body", 1, 5000)?;
-    let provider = if a.hirer {
-        required_text(&body, "providerId", 36, 36)?
-    } else {
-        actor.company.as_deref().unwrap()
+    let provider = message_provider(&app, &a, &actor, body["providerId"].as_str()).await?;
+    let client = body
+        .get("clientId")
+        .map(|v| checked_id(v.as_str().unwrap_or("")))
+        .transpose()?;
+    let mut tx = app.db.begin().await?;
+    let inserted: Option<String> = sqlx::query_scalar("INSERT INTO job_messages(job_id,provider_company_id,sender_company_id,author_id,body,client_id) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6::uuid) ON CONFLICT(author_id,sender_company_id,client_id) WHERE client_id IS NOT NULL DO NOTHING RETURNING id::text")
+        .bind(&id).bind(&provider).bind(actor.company.as_deref()).bind(&actor.user).bind(text).bind(client).fetch_optional(&mut *tx).await?;
+    let duplicate = inserted.is_none();
+    let message_id = match inserted {
+        Some(value) => value,
+        None => sqlx::query_scalar::<_,String>("SELECT id::text FROM job_messages WHERE author_id=$1::uuid AND sender_company_id=$2::uuid AND client_id=$3::uuid AND job_id=$4::uuid AND provider_company_id=$5::uuid AND body=$6")
+            .bind(&actor.user).bind(actor.company.as_deref()).bind(client).bind(&id).bind(&provider).bind(text).fetch_optional(&mut *tx).await?.ok_or_else(|| conflict("This send was already used for a different message."))?,
     };
-    checked_id(provider)?;
-    if a.hirer {
-        let known: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM job_quotes WHERE job_id=$1::uuid AND provider_company_id=$2::uuid UNION SELECT 1 FROM job_invitations WHERE job_id=$1::uuid AND provider_company_id=$2::uuid UNION SELECT 1 FROM job_messages WHERE job_id=$1::uuid AND provider_company_id=$2::uuid)")
-            .bind(&id).bind(provider).fetch_one(&app.db).await?;
-        if !known {
-            return Err(not_found());
-        }
+    if !duplicate {
+        let target = if a.hirer { &provider } else { a.hirer_id() };
+        sqlx::query("SELECT connect_notify($1::uuid,NULL,$2::uuid,$3::uuid,$4,'job','messages',$5,$6,$7,'job',$8::uuid)")
+            .bind(target).bind(actor.company.as_deref()).bind(&actor.user).bind(format!("job-message:{message_id}"))
+            .bind("New job message").bind(text).bind(format!("/jobs/inbox?job={id}&provider={provider}")).bind(&id).execute(&mut *tx).await?;
     }
-    let message_id: String = sqlx::query_scalar("INSERT INTO job_messages(job_id,provider_company_id,sender_company_id,author_id,body) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5) RETURNING id::text")
-        .bind(&id).bind(provider).bind(actor.company.as_deref()).bind(&actor.user).bind(text).fetch_one(&app.db).await?;
-    let target = if a.hirer { provider } else { a.hirer_id() };
-    notify(
-        &app,
-        target,
-        &actor,
-        &format!("job-message:{message_id}"),
-        "New job message",
-        text,
-        &id,
-    )
-    .await?;
-    Ok((StatusCode::CREATED, Json(json!({"id":message_id}))))
+    let raw: String = sqlx::query_scalar("SELECT (to_jsonb(m)||jsonb_build_object('sender_name',c.name,'author_name',u.name))::text FROM job_messages m JOIN companies c ON c.id=m.sender_company_id JOIN users u ON u.id=m.author_id WHERE m.id=$1::uuid")
+        .bind(&message_id).fetch_one(&mut *tx).await?;
+    tx.commit().await?;
+    Ok((
+        if duplicate {
+            StatusCode::OK
+        } else {
+            StatusCode::CREATED
+        },
+        Json(json!({"id":message_id,"message":parse_json(raw)?,"duplicate":duplicate})),
+    ))
 }
 
 async fn set_payment_stages(
@@ -1594,6 +1678,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         .route("/jobs/providers/{slug}", get(provider_detail))
         .route("/jobs/mine", get(my_jobs))
         .route("/jobs/inbox", get(job_inbox))
+        .route("/jobs/{id}/messages/read", post(read_messages))
         .route("/jobs/companies/{slug}", get(work_profile))
         .route("/jobs/files/{file_id}", get(download_file))
         .route("/jobs/{id}", get(get_job).patch(edit_job))

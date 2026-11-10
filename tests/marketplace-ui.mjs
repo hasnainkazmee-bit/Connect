@@ -437,9 +437,10 @@ try {
     .fill("Can you confirm the proposed start?");
   await h.getByRole("button", { name: "Send", exact: true }).click();
   await h
+    .getByRole("log", { name: "Job messages" })
     .getByText("Can you confirm the proposed start?", { exact: true })
     .waitFor();
-  await h.getByRole("button", { name: "Overview", exact: true }).click();
+  await h.locator(".inbox-job-strip").click();
   await h.screenshot({
     path: path.join(out, "compare-quote.png"),
     fullPage: true,
@@ -499,15 +500,16 @@ try {
   await visit(h, "/jobs/inbox");
   await h.getByLabel("Search conversations").fill("browser validation");
   const conversation = h
-    .locator(`.workspace-inbox-thread[href^="${route}?"]`)
+    .locator(".workspace-inbox-thread")
     .filter({
       hasText: "Need a 4-person installation crew — browser validation",
     })
     .filter({ hasText: "Please call the site coordinator" });
   await conversation.first().waitFor();
   await conversation.first().click();
-  await h.getByRole("heading", { name: "Job messages", exact: true }).waitFor();
+  await h.getByRole("log", { name: "Job messages", exact: true }).waitFor();
   await h
+    .getByRole("log", { name: "Job messages" })
     .getByText("Please call the site coordinator before arrival.", {
       exact: true,
     })

@@ -53,7 +53,7 @@ import {
 import { useApp } from "./context";
 import type { Company } from "./types";
 
-type JobStatus =
+export type JobStatus =
   | "draft"
   | "open"
   | "awarded"
@@ -120,7 +120,7 @@ type JobStage = {
   status: string;
   invoice_reference: string;
 };
-type JobDetail = {
+export type JobDetail = {
   job: Job;
   hiringCompany: Company;
   conversations: Company[];
@@ -198,7 +198,7 @@ const date = (value?: string | null) =>
       })
     : "Flexible";
 const cls = (v: string) => v.toLowerCase().replace(/[^a-z]+/g, "-");
-function JobLogo({ company }: { company?: Company }) {
+export function JobLogo({ company }: { company?: Company }) {
   return (
     <span className="job-logo">
       {company?.logo_url ? (
@@ -1327,6 +1327,7 @@ async function upload(
 }
 
 export function JobDetailPage() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { id } = useParams(),
     {
@@ -1348,14 +1349,9 @@ export function JobDetailPage() {
     [selectedQuote, setSelectedQuote] = useState<string>(""),
     [quoteSort, setQuoteSort] = useState("best"),
     [expandedQuote, setExpandedQuote] = useState(""),
-    [tab, setTab] = useState<"overview" | "messages" | "payments">(
-      searchParams.get("tab") === "messages" ? "messages" : "overview",
-    );
-  const [messageCompany, setMessageCompany] = useState(
-    searchParams.get("provider") || "",
-  );
+    [tab, setTab] = useState<"overview" | "payments">("overview");
+  const messageCompany = searchParams.get("provider") || "";
   const [messageBusy, setMessageBusy] = useState(false);
-  const [messagesLoading, setMessagesLoading] = useState(false);
   const [quoteEditing, setQuoteEditing] = useState(false);
   const [breakdown, setBreakdown] = useState<
     { label: string; amount: string }[]
@@ -1380,15 +1376,6 @@ export function JobDetailPage() {
     [rating, setRating] = useState(5),
     [reviewText, setReviewText] = useState(""),
     [message, setMessage] = useState(""),
-    [messages, setMessages] = useState<
-      {
-        id: string;
-        body: string;
-        sender_name: string;
-        sender_company_id: string;
-        created_at: string;
-      }[]
-    >([]),
     [inviteQ, setInviteQ] = useState(""),
     [inviteSample, setInviteSample] = useState(!!company?.is_demo),
     [inviteResults, setInviteResults] = useState<Company[]>([]),
@@ -1493,32 +1480,14 @@ export function JobDetailPage() {
       quote?.provider_company_id ||
       detail?.conversations?.[0]?.id
     : company?.id;
+  const inboxPath = (provider = messageProvider) =>
+    `/jobs/inbox?job=${id}&provider=${provider || ""}`;
   useEffect(() => {
-    if (!id || tab !== "messages" || !canMessage || !messageProvider) return;
-    const controller = new AbortController();
-    setMessages([]);
-    setMessagesLoading(true);
-    const load = () =>
-      api<{ messages: typeof messages }>(
-        `/jobs/${id}/messages?providerId=${messageProvider}`,
-        { signal: controller.signal },
-      )
-        .then((v) => setMessages(v.messages))
-        .catch((e) => {
-          if (!controller.signal.aborted) setError(e.message);
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) setMessagesLoading(false);
-        });
-    void load();
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void load();
-    }, 10000);
-    return () => {
-      controller.abort();
-      clearInterval(timer);
-    };
-  }, [id, tab, canMessage, messageProvider]);
+    if (searchParams.get("tab") === "messages" && canMessage && messageProvider)
+      navigate(`/jobs/inbox?job=${id}&provider=${messageProvider}`, {
+        replace: true,
+      });
+  }, [id, canMessage, messageProvider, searchParams, navigate]);
   useEffect(() => {
     setMessage("");
   }, [messageProvider]);
@@ -1635,10 +1604,6 @@ export function JobDetailPage() {
         body: message,
       });
       setMessage("");
-      const v = await api<{ messages: typeof messages }>(
-        `/jobs/${id}/messages?providerId=${messageProvider}`,
-      );
-      setMessages(v.messages);
       toast("Message sent");
     } catch (e) {
       setError((e as Error).message);
@@ -2010,12 +1975,7 @@ export function JobDetailPage() {
           >
             Overview
           </button>
-          <button
-            className={tab === "messages" ? "active" : ""}
-            onClick={() => setTab("messages")}
-          >
-            Messages
-          </button>
+          <button onClick={() => navigate(inboxPath())}>Messages</button>
           {participant &&
             ["awarded", "in_progress", "review", "completed"].includes(
               job.status,
@@ -2029,77 +1989,7 @@ export function JobDetailPage() {
             )}
         </div>
       )}
-      {tab === "messages" && canMessage ? (
-        <div className="jobs-detail-layout">
-          <section className="jobs-panel">
-            <h2>Job messages</h2>
-            <p className="job-muted">
-              Keep questions and decisions with this job.
-            </p>
-            {hirer && (
-              <label className="job-message-recipient">
-                Conversation with
-                <select
-                  aria-label="Conversation with"
-                  value={messageProvider}
-                  onChange={(e) => setMessageCompany(e.target.value)}
-                >
-                  {(detail.conversations || []).map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <div className="job-messages">
-              {messagesLoading ? (
-                <p className="job-muted">Loading messages…</p>
-              ) : messages.length ? (
-                messages.map((m) => (
-                  <div
-                    className={`job-message ${m.sender_company_id === company?.id ? "own" : ""}`}
-                    key={m.id}
-                  >
-                    <small>
-                      {m.sender_name} · {date(m.created_at)}
-                    </small>
-                    <p>{m.body}</p>
-                  </div>
-                ))
-              ) : (
-                <p className="job-muted">
-                  No messages yet. Ask about scope or timing here.
-                </p>
-              )}
-            </div>
-            <form className="job-message-form" onSubmit={sendMessage}>
-              <input
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Message about this job…"
-                aria-label="Job message"
-                maxLength={5000}
-              />
-              <button
-                className="jobs-button jobs-primary"
-                type="submit"
-                disabled={
-                  !message.trim() ||
-                  messageBusy ||
-                  !(participant || job.status === "open")
-                }
-              >
-                <Send size={17} /> Send
-              </button>
-            </form>
-          </section>
-          <aside className="jobs-panel">
-            <h2>Job details</h2>
-            <p>{job.description}</p>
-          </aside>
-        </div>
-      ) : tab === "payments" && participant ? (
+      {tab === "payments" && participant ? (
         <div className="jobs-detail-layout">
           <section className="jobs-panel">
             <h2>Payment plan</h2>
@@ -2406,8 +2296,7 @@ export function JobDetailPage() {
                           <button
                             className="jobs-button jobs-secondary"
                             onClick={() => {
-                              setMessageCompany(q.provider_company_id);
-                              setTab("messages");
+                              navigate(inboxPath(q.provider_company_id));
                             }}
                           >
                             <MessageCircle size={16} />
@@ -3136,7 +3025,7 @@ export function JobDetailPage() {
                     {canMessage && (
                       <button
                         className="jobs-button jobs-secondary"
-                        onClick={() => setTab("messages")}
+                        onClick={() => navigate(inboxPath())}
                       >
                         <MessageCircle size={16} />
                         Job messages
@@ -3493,147 +3382,6 @@ function JobProblem({
         </button>
       </div>
     </form>
-  );
-}
-export function JobInboxPage() {
-  const { company, session, signIn, revision } = useApp();
-  const [query, setQuery] = useState(""),
-    [page, setPage] = useState(1),
-    [error, setError] = useState("");
-  const [result, setResult] = useState<{
-    threads: {
-      job_id: string;
-      provider_id: string;
-      title: string;
-      status: JobStatus;
-      company: Company;
-      body: string | null;
-      updated_at: string;
-    }[];
-    hasMore: boolean;
-  } | null>(null);
-  useEffect(() => {
-    if (!company) {
-      setResult(null);
-      return;
-    }
-    const controller = new AbortController();
-    setError("");
-    setResult(null);
-    const timer = setTimeout(() => {
-      void api<NonNullable<typeof result>>(
-        `/jobs/inbox?q=${encodeURIComponent(query)}&page=${page}`,
-        { signal: controller.signal },
-      )
-        .then(setResult)
-        .catch((e) => {
-          if (!controller.signal.aborted) setError(e.message);
-        });
-    }, 180);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [company?.id, query, page, revision]);
-  return (
-    <div className="jobs-page workspace-inbox">
-      <header className="workspace-page-heading">
-        <h1>Inbox</h1>
-        <p>Every company conversation, organized by job.</p>
-      </header>
-      {!company ? (
-        <section className="jobs-panel">
-          <JobEmpty
-            title="Your job conversations live here"
-            detail={
-              session.user
-                ? "Switch to a company account to view its inbox."
-                : "Sign in to talk with companies about your jobs and quotes."
-            }
-          />
-          {!session.user && (
-            <button className="jobs-button jobs-primary" onClick={signIn}>
-              Sign in
-            </button>
-          )}
-        </section>
-      ) : (
-        <section className="jobs-panel inbox-panel">
-          <label className="inbox-search">
-            <Search size={19} />
-            <input
-              aria-label="Search conversations"
-              placeholder="Search companies or jobs"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setPage(1);
-              }}
-            />
-          </label>
-          <JobError text={error} />
-          {!result && !error ? (
-            <div className="job-loading">Loading conversations…</div>
-          ) : result?.threads.length ? (
-            <div className="workspace-inbox-list">
-              {result.threads.map((thread) => (
-                <Link
-                  key={`${thread.job_id}:${thread.provider_id}`}
-                  to={`/jobs/${thread.job_id}?tab=messages&provider=${thread.provider_id}`}
-                  className="workspace-inbox-thread"
-                >
-                  <JobLogo company={thread.company} />
-                  <div>
-                    <div className="inbox-thread-heading">
-                      <strong>{thread.company.name}</strong>
-                      <time>{date(thread.updated_at)}</time>
-                    </div>
-                    <b>{thread.title}</b>
-                    <p>
-                      {thread.body ||
-                        "Start a conversation about the scope, timing, or quote."}
-                    </p>
-                  </div>
-                  <ArrowRight size={18} />
-                </Link>
-              ))}
-            </div>
-          ) : (
-            !error && (
-              <JobEmpty
-                title={
-                  query ? "No matching conversations" : "No conversations yet"
-                }
-                detail={
-                  query
-                    ? "Try another company name or job title."
-                    : "When you invite a company, send a quote, or message about a job, the conversation appears here."
-                }
-              />
-            )
-          )}
-          {(page > 1 || result?.hasMore) && (
-            <div className="job-form-actions">
-              <button
-                className="jobs-button jobs-secondary"
-                disabled={page === 1}
-                onClick={() => setPage((n) => n - 1)}
-              >
-                Previous
-              </button>
-              <span>Page {page}</span>
-              <button
-                className="jobs-button jobs-secondary"
-                disabled={!result?.hasMore}
-                onClick={() => setPage((n) => n + 1)}
-              >
-                Next
-              </button>
-            </div>
-          )}
-        </section>
-      )}
-    </div>
   );
 }
 

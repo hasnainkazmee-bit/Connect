@@ -234,7 +234,7 @@ export function notificationDestination(
     const id = "[a-f0-9-]{36}";
     if (
       !new RegExp(
-        `^/(?:messages(?:/(?:people/|company/)?${id})?|posts/${id}|company/${id}|join/[a-z0-9][a-z0-9-]{1,39}|account(?:/updates)?|requests|network(?:/connections)?)$`,
+        `^/(?:jobs/(?:inbox|${id})|messages(?:/(?:people/|company/)?${id})?|posts/${id}|company/${id}|join/[a-z0-9][a-z0-9-]{1,39}|account(?:/updates)?|requests|network(?:/connections)?)$`,
         "i",
       ).test(url.pathname)
     )
@@ -255,6 +255,14 @@ export function notificationDestination(
     )
       url.pathname += "/company/" + url.searchParams.get("company");
     const query = new URLSearchParams();
+    if (url.pathname === "/jobs/inbox") {
+      const job = url.searchParams.get("job"),
+        provider = url.searchParams.get("provider");
+      if (job && provider && UUID.test(job) && UUID.test(provider)) {
+        query.set("job", job);
+        query.set("provider", provider);
+      }
+    }
     const comment = url.searchParams.get("comment");
     if (comment && UUID.test(comment)) query.set("comment", comment);
     const company = companyId || url.searchParams.get("notificationCompany");

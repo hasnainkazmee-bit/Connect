@@ -15,7 +15,7 @@ function safeDestination(value, companyId) {
   const id = "[a-f0-9-]{36}";
   if (
     !new RegExp(
-      `^/(?:messages(?:/(?:people/|company/)?${id})?|posts/${id}|company/${id}|join/[a-z0-9][a-z0-9-]{1,39}|account(?:/updates)?|requests|network(?:/connections)?)$`,
+      `^/(?:jobs/(?:inbox|${id})|messages(?:/(?:people/|company/)?${id})?|posts/${id}|company/${id}|join/[a-z0-9][a-z0-9-]{1,39}|account(?:/updates)?|requests|network(?:/connections)?)$`,
       "i",
     ).test(url.pathname)
   )
@@ -27,6 +27,8 @@ function safeDestination(value, companyId) {
     "company",
     "comment",
     "notification",
+    "job",
+    "provider",
   ]) {
     const part = url.searchParams.get(key);
     if (part && UUID.test(part)) cleaned.searchParams.set(key, part);

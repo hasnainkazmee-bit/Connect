@@ -1091,74 +1091,6 @@ body:has(:is(.workspace-posting, .job-workspace, .workspace-inbox)) {
   margin-bottom: 16px;
   color: #526e87;
 }
-/* Inbox is scoped to job conversations and the signed-in company. */
-.inbox-panel {
-  padding-top: 0 !important;
-}
-.inbox-search {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 18px 0;
-  border-bottom: 1px solid #d9e4ed;
-  color: #6c8398;
-}
-.jobs-page .inbox-search input {
-  border: 0;
-  flex: 1;
-  font-size: 14px;
-  background: transparent;
-}
-.workspace-inbox-thread {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 22px 0;
-  border-bottom: 1px solid #e2e9f0;
-  text-decoration: none;
-  color: var(--market-ink);
-}
-.workspace-inbox-thread:last-child {
-  border-bottom: 0;
-}
-.workspace-inbox-thread:hover {
-  background: #f7faff;
-}
-.workspace-inbox-thread .job-logo {
-  width: 48px;
-  height: 48px;
-}
-.workspace-inbox-thread > div {
-  flex: 1;
-  min-width: 0;
-}
-.inbox-thread-heading {
-  display: flex;
-  gap: 16px;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 6px;
-}
-.inbox-thread-heading strong {
-  font-size: 15px;
-}
-.inbox-thread-heading time {
-  font-size: 11px;
-  color: #667d91;
-}
-.workspace-inbox-thread > div > b {
-  display: block;
-  font-size: 13px;
-  font-weight: 500;
-}
-.workspace-inbox-thread p {
-  margin: 5px 0 0;
-  color: #6b8195;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-}
 @media (max-width: 1200px) {
   .job-workspace .jobs-detail-layout.quote-comparison-layout {
     grid-template-columns: minmax(220px, 0.85fr) minmax(0, 2fr);
@@ -1308,13 +1240,6 @@ body:has(:is(.workspace-posting, .job-workspace, .workspace-inbox)) {
   }
   .workspace-quick-message > svg {
     display: none;
-  }
-  .workspace-inbox-thread {
-    gap: 12px;
-  }
-  .inbox-thread-heading {
-    flex-direction: column;
-    gap: 3px;
   }
 }
 @media (max-width: 390px) {
