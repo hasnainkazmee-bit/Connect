@@ -447,7 +447,7 @@ export function ProviderProfilePage() {
         <a href="#company-reviews">Reviews</a>
       </nav>
       <div className="provider-profile-layout">
-        <main>
+        <div className="provider-profile-content">
           <section className="jobs-panel" id="overview">
             <h2>What we do</h2>
             <p className="provider-about">
@@ -535,7 +535,7 @@ export function ProviderProfilePage() {
               ))}
             </section>
           )}
-        </main>
+        </div>
         <aside className="jobs-aside">
           <section className="jobs-panel">
             <h2>Where we work</h2>

@@ -217,7 +217,7 @@
   gap: 24px;
   align-items: start;
 }
-.provider-profile-layout > main {
+.provider-profile-content {
   display: grid;
   gap: 20px;
 }

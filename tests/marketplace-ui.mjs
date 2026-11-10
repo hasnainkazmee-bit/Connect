@@ -47,6 +47,7 @@ async function visit(p, route) {
     .catch(() => {});
 }
 async function noOverflow(p, name) {
+  assert.equal(await p.locator("main").count(), 1, `${name}: one main landmark`);
   const result = await p.evaluate(() => ({
     width: innerWidth,
     scroll: document.documentElement.scrollWidth,
