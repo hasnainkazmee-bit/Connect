@@ -1023,9 +1023,9 @@ export function ShareProfile({
 }
 const roleDescriptions = {
   admin:
-    "Publish posts, edit the company profile, manage connections, invite employees, and reply to messages.",
+    "Manage jobs and quotes, update the provider profile, invite employees, and reply in project conversations.",
   member:
-    "Read and reply to company messages. Publishing, profile editing, and team settings stay with administrators.",
+    "Read and reply in project conversations. Jobs, quotes, profile editing, and team settings stay with administrators.",
 };
 export function EmployeeInvite({
   initialEmail = "",
@@ -1279,7 +1279,7 @@ export function TeamManager() {
                                 }
                                 label={
                                   m.role === "admin"
-                                    ? "Make inbox member"
+                                    ? "Make team member"
                                     : "Make administrator"
                                 }
                                 action={() =>
@@ -1297,7 +1297,7 @@ export function TeamManager() {
                         >
                           Change to{" "}
                           {m.role === "admin"
-                            ? "inbox member"
+                            ? "team member"
                             : "administrator"}
                         </button>
                       )}
@@ -1307,7 +1307,7 @@ export function TeamManager() {
                           open(
                             <ConfirmAction
                               title={"Remove " + m.name + "?"}
-                              description="They will lose access to this company. Previous messages and posts stay with the company."
+                              description="They will lose access to this company. Existing jobs, quotes, and project conversations stay with the company."
                               label="Remove access"
                               action={() =>
                                 api("/team/" + m.id, { method: "DELETE" })
