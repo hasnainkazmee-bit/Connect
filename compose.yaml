@@ -32,6 +32,18 @@ services:
       interval: 3s
       timeout: 3s
       retries: 20
+  jobs:
+    build:
+      context: .
+      dockerfile: Dockerfile.jobs
+    environment:
+      DATABASE_URL: postgres://sunhub:${POSTGRES_PASSWORD:-sunhub_local}@db:5432/sunhub_community
+      JOBS_BIND: 0.0.0.0:4201
+      JOBS_UPLOAD_DIR: /app/uploads
+    volumes: ["attachments:/app/uploads"]
+    depends_on:
+      db:
+        condition: service_healthy
   app:
     build: .
     environment:
@@ -40,6 +52,7 @@ services:
       PORT: 4100
       NODE_ENV: production
       UPLOAD_DIR: /app/uploads
+      JOBS_SERVICE_URL: http://jobs:4201
       AUTH_TOKEN_SECRET: ${AUTH_TOKEN_SECRET:-}
       REQUIRE_EMAIL_VERIFICATION: ${REQUIRE_EMAIL_VERIFICATION:-true}
       SMTP_HOST: ${SMTP_DOCKER_HOST:-mail}

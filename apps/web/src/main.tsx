@@ -46,6 +46,7 @@ import {
   LoaderCircle,
   ExternalLink,
   FileText,
+  BriefcaseBusiness,
 } from "lucide-react";
 import { api, post } from "./api";
 import {
@@ -97,6 +98,7 @@ import { ClaimCompanyPage } from "./claim-company";
 import { CompanyMatches } from "./company-matches";
 import { CompanyProfileView } from "./company-profile";
 import { CompanySettings, EmployeeInvite } from "./management";
+import { JobsPage, NewJobPage, JobDetailPage, WorkCompanyPage } from "./jobs";
 import { Publisher, DraftsDialog, preloadPublisher } from "./composer";
 import {
   DesktopPanel,
@@ -590,13 +592,39 @@ function App() {
         createCompany: () => setModal(<NewCompany />),
       }}
     >
-      {!desktopHost && (
+      {!desktopHost && location.pathname.startsWith("/jobs") && (
+        <header className="jobs-site-header">
+          <div className="jobs-header-inner">
+            <Link to="/jobs" className="jobs-brand" aria-label="Connect jobs">
+              <img src="/assets/sunhub-symbol.png" alt="" />
+              <span><strong>CONNECT</strong><small>by Sunhub</small></span>
+            </Link>
+            <nav className="jobs-top-nav" aria-label="Main navigation">
+              <NavLink to="/jobs" className={()=>location.pathname.startsWith("/jobs")&&!location.pathname.startsWith("/jobs/mine")?"active":""}><BriefcaseBusiness size={17}/> Jobs</NavLink>
+              <NavLink to="/jobs/mine" className={({isActive})=>isActive?"active":""}><FileText size={17}/> My jobs</NavLink>
+              <Link to="/directory"><Building2 size={17}/> Companies</Link>
+              <Link to="/messages" onClick={e=>{if(!session.user){e.preventDefault();auth(()=>navigate("/messages"),"/messages")}}}><MessageSquare size={17}/> Inbox{unread>0&&<b className="count">{unread}</b>}</Link>
+            </nav>
+            <div className="jobs-header-actions">
+              {company&&admin&&<Link to="/jobs/new" className="jobs-button jobs-primary"><Plus size={18}/> Post a job</Link>}
+              {session.user&&<details className="notifications"><summary aria-label="Notifications" className="jobs-icon-button"><Bell size={19}/>{notificationInbox.unread>0&&<b className="notification-count">{notificationInbox.unread>9?"9+":notificationInbox.unread}</b>}</summary><div className="dropdown notifications-panel"><NotificationContents/></div></details>}
+              {session.user?<details className="account-menu"><summary aria-label="Account and company menu" title={session.user.name}><Avatar name={session.user.name}/></summary><div className="dropdown"><AccountMenuContents/></div></details>:<button className="jobs-button jobs-primary" onClick={()=>auth()}>Sign in</button>}
+            </div>
+          </div>
+        </header>
+      )}
+      {!desktopHost && !location.pathname.startsWith("/jobs") && (
         <header className="site-header">
           <div className="header-inner">
             <Link className="brand" to="/" aria-label="Connect home">
               <img src="/assets/connect-logo.png" alt="Connect" />
             </Link>
             <nav className="primary-nav" aria-label="Main navigation">
+              {session.user?.account_type === "company" && (
+                <NavLink to="/jobs" end className={({ isActive }) => isActive ? "active" : ""}>
+                  <BriefcaseBusiness size={15} /> Jobs
+                </NavLink>
+              )}
               <NavLink
                 className={({ isActive }) =>
                   "home-nav " + (isActive ? "active" : "")
@@ -608,6 +636,11 @@ function App() {
                 <House size={15} />
                 <span>Home</span>
               </NavLink>
+              {session.user?.account_type === "company" && (
+                <Link to="/jobs/mine" className={location.pathname === "/jobs/mine" ? "active" : ""}>
+                  <FileText size={15} /> My jobs
+                </Link>
+              )}
               <Link
                 to="/directory"
                 className={
@@ -688,6 +721,7 @@ function App() {
             <div className="header-actions">
               {session.user && !sessionExpired ? (
                 <>
+                  {company && admin && <Link to="/jobs/new" className="button primary jobs-header-post"><Plus size={16}/> Post a job</Link>}
                   {company && (
                     <Link
                       className="my-company-link"
@@ -753,6 +787,12 @@ function App() {
             element={session.user ? <HomeFeed /> : <Directory home />}
           />
           <Route path="/directory" element={<Directory />} />
+          <Route path="/jobs" element={<JobsPage />} />
+          <Route path="/jobs/mine" element={<JobsPage mine />} />
+          <Route path="/jobs/new" element={<NewJobPage />} />
+          <Route path="/jobs/companies/:slug" element={<WorkCompanyPage />} />
+          <Route path="/jobs/:id/edit" element={<NewJobPage />} />
+          <Route path="/jobs/:id" element={<JobDetailPage />} />
           <Route path="/directory/installers/:place" element={<Directory />} />
           <Route path="/claim/:username?" element={<ClaimCompanyPage />} />
           <Route path="/posts/:id" element={<PostPage />} />

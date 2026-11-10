@@ -46,6 +46,7 @@ import { fileTypeFromBuffer } from "file-type";
 import { randomBytes, randomUUID, createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import http from "node:http";
 import type { PoolClient } from "pg";
 import { pool, tx, root, HttpError, lockPair } from "./db.js";
 import {
@@ -83,6 +84,42 @@ app.use("/api", (req, res, next) => {
   )
     return next(new HttpError(403, "Request origin is not allowed."));
   next();
+});
+// Stream job requests before JSON parsing so attachments stay binary. The Rust
+// service checks the same signed session cookie against the shared database.
+app.use("/api/jobs", (req, res) => {
+  const target = new URL(process.env.JOBS_SERVICE_URL || "http://127.0.0.1:4201");
+  const request = http.request(
+    {
+      hostname: target.hostname,
+      port: target.port,
+      method: req.method,
+      path: req.originalUrl.slice(4),
+      headers: {
+        cookie: req.headers.cookie || "",
+        "content-type": req.headers["content-type"] || "application/json",
+        ...(req.headers["content-length"]
+          ? { "content-length": req.headers["content-length"] }
+          : {}),
+      },
+      timeout: 30000,
+    },
+    (response) => {
+      res.status(response.statusCode || 502);
+      if (response.headers["content-type"])
+        res.setHeader("Content-Type", response.headers["content-type"]);
+      if (response.headers["content-disposition"])
+        res.setHeader("Content-Disposition", response.headers["content-disposition"]);
+      response.pipe(res);
+    },
+  );
+  request.on("timeout", () => request.destroy());
+  request.on("error", () => {
+    if (!res.headersSent)
+      res.status(502).json({ error: "Jobs are temporarily unavailable. Please try again." });
+    else res.end();
+  });
+  req.pipe(request);
 });
 app.use(express.json({ limit: "1mb" }));
 app.use("/api", session);

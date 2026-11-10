@@ -1,0 +1,14 @@
+FROM rust:1.91-bookworm AS build
+WORKDIR /source
+COPY Cargo.toml Cargo.lock ./
+COPY crates ./crates
+COPY tools/uniffi-bindgen ./tools/uniffi-bindgen
+RUN cargo build --release -p connect-jobs
+
+FROM debian:bookworm-slim
+RUN useradd --uid 1000 --create-home connect && mkdir -p /app/uploads && chown connect:connect /app/uploads
+COPY --from=build /source/target/release/connect-jobs /usr/local/bin/connect-jobs
+USER connect
+WORKDIR /app
+EXPOSE 4201
+CMD ["connect-jobs"]

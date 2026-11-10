@@ -8,13 +8,14 @@ backup_dir="$(pwd)/.backups/$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$backup_dir"
 app_id="$("${compose[@]}" ps -q app)"
 storage_id="$("${compose[@]}" ps -q storage)"
-[[ -n "$app_id" && -n "$storage_id" ]] || { echo 'Start the Connect production stack before backing it up.' >&2; exit 1; }
+jobs_id="$("${compose[@]}" ps -q jobs)"
+[[ -n "$app_id" && -n "$storage_id" && -n "$jobs_id" ]] || { echo 'Start the Connect production stack before backing it up.' >&2; exit 1; }
 object_volume="$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/var/lib/garage"}}{{.Name}}{{end}}{{end}}' "$storage_id")"
 attachment_volume="$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/app/uploads"}}{{.Name}}{{end}}{{end}}' "$app_id")"
 [[ "$object_volume" == connect-production_* && "$attachment_volume" == connect-production_* ]] || exit 1
-restore_services() { "${compose[@]}" up -d storage app >/dev/null; }
+restore_services() { "${compose[@]}" up -d storage jobs app >/dev/null; }
 trap restore_services EXIT
-"${compose[@]}" stop app storage
+"${compose[@]}" stop app jobs storage
 "${compose[@]}" exec -T db pg_dump -U connect -d connect -Fc > "$backup_dir/database.dump"
 for component in objects attachments; do
   volume="$object_volume"; [[ "$component" == attachments ]] && volume="$attachment_volume"

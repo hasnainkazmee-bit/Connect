@@ -25,6 +25,20 @@ services:
       GARAGE_DEFAULT_BUCKET: connect-media
     volumes: [./infra/garage.toml:/etc/garage.toml:ro, object_data:/var/lib/garage]
     networks: [private]
+  jobs:
+    image: connect-jobs:${CONNECT_RELEASE:-local}
+    build:
+      context: .
+      dockerfile: Dockerfile.jobs
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://connect:${POSTGRES_PASSWORD}@db:5432/connect
+      JOBS_BIND: 0.0.0.0:4201
+      JOBS_UPLOAD_DIR: /app/uploads
+    volumes: [attachments:/app/uploads]
+    depends_on:
+      db: {condition: service_healthy}
+    networks: [private]
   app:
     image: connect-app:${CONNECT_RELEASE:-local}
     build:
@@ -41,6 +55,7 @@ services:
       TRUST_PROXY_HOPS: 1
       CONNECT_RELEASE: ${CONNECT_RELEASE:-local}
       UPLOAD_DIR: /app/uploads
+      JOBS_SERVICE_URL: http://jobs:4201
       AUTH_TOKEN_SECRET: ${AUTH_TOKEN_SECRET:?Set account token secret}
       REQUIRE_EMAIL_VERIFICATION: "true"
       SUNHUB_SSO_ISSUER: ${SUNHUB_SSO_ISSUER:-}
@@ -78,6 +93,7 @@ services:
     depends_on:
       db: {condition: service_healthy}
       storage: {condition: service_started}
+      jobs: {condition: service_started}
     healthcheck:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:4100/api/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 20s

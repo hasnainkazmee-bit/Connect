@@ -17,6 +17,12 @@ curl --fail http://127.0.0.1:14100/api/ready
 
 The Docker image runs migrations before accepting traffic. Existing local-disk attachments remain readable after switching new uploads to Garage. New files carry SHA-256 metadata; private chat files are always authorized by the API and never exposed as public bucket URLs. Default company storage quota is 5 GiB. Photo/PDF chat uploads allow up to three files of 10 MiB each; feed video uploads allow 100 MiB. S3 supports byte-range playback.
 
+## Hiring jobs
+
+The web app routes `/api/jobs` through the Connect API to a separate Rust service on the private Docker network. The Rust service has no published host port. It uses the same PostgreSQL database for authenticated company membership, jobs, quotes, updates, messages, payment-stage records, and reviews. Migration `019_jobs.sql` runs in the app container before the app accepts traffic. Job photos and PDFs use the existing `attachments` volume, mounted in both app and jobs containers; both run as UID 1000. Backups stop both writers before snapshotting that volume.
+
+Jobs can be drafted, published, quoted, awarded, confirmed, updated, reviewed, and completed. Payment stages record invoice and payment confirmations between companies; Connect does not collect or hold funds. Job addresses, quotes, and attached files remain limited to the relevant companies. Check `docker compose --env-file .env.production -f compose.production.yaml ps app jobs db` and `curl --fail http://127.0.0.1:14100/api/jobs` after a release.
+
 ## Account email
 
 Chats are stored in PostgreSQL and delivered in-app. SMTP is exclusively for verification and password recovery. The local Docker mail container captures test messages; **it does not deliver to people's email accounts**. Production requires a real SMTP sender in `.env.production`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_REQUIRE_TLS=true`, and a verified `MAIL_FROM`. Port 465 also needs `SMTP_SECURE=true`. Restart only `app` to apply settings. Verification is enforced; do not disable it to work around missing delivery. Codes expire after ten minutes and five incorrect attempts. Outbox payloads are encrypted with a key derived from `AUTH_TOKEN_SECRET` and erased after sending or expiry.
