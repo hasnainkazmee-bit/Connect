@@ -267,6 +267,8 @@ async fn list_providers(
           'capacity',COALESCE(p.capacity,''),'project_count',(SELECT count(*) FROM projects pr WHERE pr.company_id=c.id),
           'completed_jobs',(SELECT count(*) FROM job_reviews jr WHERE jr.reviewed_company_id=c.id)))::text
          FROM companies c LEFT JOIN provider_profiles p ON p.company_id=c.id
+         LEFT JOIN provider_directory_pins pin ON pin.company_id=c.id
+         LEFT JOIN provider_capabilities enrichment ON enrichment.company_id=c.id
          WHERE c.is_demo=$1
            AND ($2='' OR c.name ILIKE '%'||$2||'%' OR c.slug ILIKE '%'||$2||'%' OR c.description ILIKE '%'||$2||'%' OR
              EXISTS(SELECT 1 FROM unnest(c.services) s WHERE s ILIKE '%'||$2||'%'))
@@ -275,8 +277,11 @@ async fn list_providers(
            AND ($4='' OR c.location ILIKE '%'||$4||'%' OR
              EXISTS(SELECT 1 FROM unnest(c.service_areas) a WHERE a ILIKE '%'||$4||'%'))
            AND ($6='' OR c.type=$6)
-         ORDER BY (c.listing_status='managed') DESC,(c.logo_url<>'') DESC,
-           (length(c.description)>80) DESC,(cardinality(c.services)>0) DESC,c.name
+         ORDER BY pin.position ASC NULLS LAST,
+           CASE WHEN enrichment.research->>'reviewMethod'='source-check-v1' THEN 0
+                WHEN enrichment.company_id IS NOT NULL THEN 1 ELSE 2 END,
+           (c.listing_status='managed') DESC,(c.logo_url<>'') DESC,
+           (length(c.description)>80) DESC,(cardinality(c.services)>0) DESC,c.name,c.id
          LIMIT 24 OFFSET $5"
     ).bind(sample).bind(&q).bind(&trade)
      .bind(&location).bind((page-1)*24).bind(&kind).fetch_all(&app.db).await?;

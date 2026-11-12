@@ -65,6 +65,81 @@ try {
     await new Promise((r) => setTimeout(r, 100));
   }
   check(server.exitCode === null, "Rust test service is running");
+  const directoryQuery = "directory-order-" + randomUUID();
+  const pinned = [],
+    enriched = [],
+    ordinary = [];
+  for (let i = 0; i < 30; i++) {
+    const id = randomUUID();
+    ids.push(id);
+    const isPinned = i < 2,
+      isEnriched = i >= 2 && i < 27,
+      isDemo = i === 29;
+    await pool.query(
+      `INSERT INTO companies(id,slug,name,type,location,logo_url,description,is_demo)
+       VALUES($1::uuid,$1::text,$2,$3,'Directory test location',$4,$5,$6)`,
+      [
+        id,
+        directoryQuery +
+          (isPinned
+            ? " Z pinned " + i
+            : isEnriched
+              ? " Z enriched"
+              : " A complete"),
+        isEnriched ? "Installer" : "Manufacturer",
+        isEnriched ? "" : "/logo.png",
+        isEnriched ? "" : "A fully populated ordinary profile. ".repeat(8),
+        isDemo,
+      ],
+    );
+    if (isPinned) {
+      pinned.push(id);
+      await pool.query(
+        "INSERT INTO provider_directory_pins(company_id,position) VALUES($1,$2)",
+        [id, 9001 + i],
+      );
+    } else if (isEnriched) {
+      enriched.push(id);
+      await pool.query(
+        `INSERT INTO provider_capabilities(company_id,batch_id,research,checked_at)
+         VALUES($1,'directory-order-test','{"reviewMethod":"source-check-v1"}',now())`,
+        [id],
+      );
+    } else if (!isDemo) ordinary.push(id);
+  }
+  const directory = await call("/jobs/providers?q=" + directoryQuery);
+  const directoryPage2 = await call(
+    "/jobs/providers?q=" + directoryQuery + "&page=2",
+  );
+  check(
+    directory.status === 200 && directory.data.total === 29,
+    "Directory count excludes demo profiles",
+  );
+  const ordered = [
+    ...directory.data.providers,
+    ...directoryPage2.data.providers,
+  ].map((p) => p.id);
+  check(
+    ordered.slice(0, 2).join() === pinned.join(),
+    "Explicit pins are first and second before alphabetical/completeness ranking",
+  );
+  check(
+    ordered.slice(2, 27).join() === enriched.sort().join(),
+    "All enriched profiles precede ordinary profiles across pagination with stable ties",
+  );
+  check(
+    ordered.slice(27).every((id) => ordinary.includes(id)) &&
+      new Set(ordered).size === 29,
+    "Pagination neither duplicates nor drops companies",
+  );
+  const filtered = await call(
+    "/jobs/providers?q=" + directoryQuery + "&kind=Installer",
+  );
+  check(
+    filtered.data.total === 25 &&
+      filtered.data.providers.every((p) => enriched.includes(p.id)),
+    "Pinned companies never bypass selected filters",
+  );
   const hirer = randomUUID();
   ids.push(hirer);
   await pool.query(
@@ -136,7 +211,13 @@ try {
   );
   await importProviderEnrichment(texas, true);
   const publicProfile = await call("/jobs/providers/" + supplier.companyId);
-  check(publicProfile.status === 200 && publicProfile.data.provider.capabilities.sources.every(source => source.url && !("evidence" in source)), "Public profiles retain source links without publishing internal research excerpts");
+  check(
+    publicProfile.status === 200 &&
+      publicProfile.data.provider.capabilities.sources.every(
+        (source) => source.url && !("evidence" in source),
+      ),
+    "Public profiles retain source links without publishing internal research excerpts",
+  );
   check(
     (
       await pool.query("SELECT type FROM companies WHERE id=$1", [
