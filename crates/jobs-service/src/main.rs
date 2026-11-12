@@ -1,3 +1,4 @@
+mod provider_matching;
 use axum::{
     body::Bytes,
     extract::{DefaultBodyLimit, Path, Query, State},
@@ -1675,6 +1676,12 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let routes = Router::new()
         .route("/health", get(health))
         .route("/jobs", get(list_jobs).post(create_job))
+        .route("/jobs/provider-taxonomy", get(provider_matching::taxonomy))
+        .route("/jobs/provider-matches", post(provider_matching::preview))
+        .route(
+            "/jobs/providers/me/availability",
+            axum::routing::put(provider_matching::update_availability),
+        )
         .route("/jobs/providers", get(list_providers))
         .route("/jobs/providers/me", axum::routing::patch(update_provider))
         .route("/jobs/providers/{slug}", get(provider_detail))

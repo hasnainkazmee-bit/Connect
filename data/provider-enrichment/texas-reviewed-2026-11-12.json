@@ -1,0 +1,1761 @@
+{
+  "version": 1,
+  "batchId": "texas-capability-review-2026-11-12",
+  "inventoryOrigin": "https://connect.sunhubapp.com",
+  "cohort": "Four existing Texas providers reviewed to distinguish equipment supply, solar installation, electrical work and backup power.",
+  "records": [
+    {
+      "companyId": "0311c8da-484e-4570-88a5-583e0ca61eca",
+      "companyName": "Caltrik Solar",
+      "website": "https://caltrik.com/",
+      "expectedProfile": {
+        "description": "Caltrik Solar operates in solar installation and services. Its published company location is Austin, TX. Listed services include solar installation and services.",
+        "tagline": "Solar installation and services in Austin, TX",
+        "services": [
+          "Solar installation and services"
+        ],
+        "serviceAreas": [],
+        "trades": [],
+        "projectTypes": [],
+        "type": "Installer"
+      },
+      "profile": {
+        "type": "Distributor",
+        "description": "Caltrik Solar supplies bulk solar equipment and coordinates freight for installers, EPCs and distributors. Its published delivery territory is the contiguous United States.",
+        "tagline": "Wholesale solar equipment and freight coordination.",
+        "services": [
+          "Wholesale solar equipment",
+          "Equipment freight coordination",
+          "Solar modules",
+          "Inverters",
+          "Battery storage",
+          "Mounting and racking",
+          "Electrical components"
+        ],
+        "serviceAreas": [
+          "Contiguous United States"
+        ],
+        "trades": [
+          "Equipment Supply",
+          "Logistics"
+        ],
+        "projectTypes": [
+          "Residential supply",
+          "Commercial supply",
+          "Utility supply"
+        ]
+      },
+      "research": {
+        "checkedAt": "2026-11-12T12:53:14.342487+00:00",
+        "identityNote": "Existing Connect UUID and official domain match the company name and business described on the reviewed pages.",
+        "identitySourceIds": [
+          "home"
+        ],
+        "summarySourceIds": [
+          "home"
+        ],
+        "businessType": {
+          "value": "Distributor",
+          "sourceIds": [
+            "home"
+          ]
+        },
+        "baseLocation": {
+          "city": "Austin",
+          "stateCode": "TX",
+          "countryCode": "US",
+          "latitude": null,
+          "longitude": null,
+          "precision": "city",
+          "sourceIds": [
+            "home"
+          ]
+        },
+        "services": [
+          {
+            "id": "wholesale",
+            "category": "equipment-supply",
+            "title": "Wholesale solar equipment",
+            "detail": "Bulk sourcing for installers, EPCs and distributors.",
+            "sectors": [
+              "residential",
+              "commercial",
+              "utility"
+            ],
+            "delivery": "supply",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "id": "freight",
+            "category": "logistics",
+            "title": "Equipment freight coordination",
+            "detail": "Pallet and container delivery to warehouses and project sites.",
+            "sectors": [],
+            "delivery": "supply",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "home"
+            ]
+          }
+        ],
+        "products": [
+          {
+            "id": "modules",
+            "category": "solar-modules",
+            "title": "Solar modules",
+            "detail": "Mono, polycrystalline, bifacial and flexible modules.",
+            "role": "distributes",
+            "brands": [],
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "id": "inverters",
+            "category": "inverters",
+            "title": "Inverters",
+            "detail": "String, hybrid and microinverters.",
+            "role": "distributes",
+            "brands": [],
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "id": "batteries",
+            "category": "battery-storage",
+            "title": "Battery storage",
+            "detail": "Lithium storage for backup and off-grid applications.",
+            "role": "distributes",
+            "brands": [],
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "id": "mounting",
+            "category": "racking-mounting",
+            "title": "Mounting and racking",
+            "detail": "Roof, ground, carport and tracker hardware.",
+            "role": "distributes",
+            "brands": [],
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "id": "bos",
+            "category": "electrical-bos",
+            "title": "Electrical components",
+            "detail": "PV cable, connectors, combiners and charge controllers.",
+            "role": "distributes",
+            "brands": [],
+            "sourceIds": [
+              "home"
+            ]
+          }
+        ],
+        "coverage": [
+          {
+            "label": "Contiguous United States",
+            "kind": "region",
+            "countryCode": "US",
+            "stateCode": null,
+            "serviceIds": [
+              "wholesale",
+              "freight"
+            ],
+            "productIds": [
+              "modules",
+              "inverters",
+              "batteries",
+              "mounting",
+              "bos"
+            ],
+            "sourceIds": [
+              "home"
+            ],
+            "stateCodes": [
+              "AL",
+              "AZ",
+              "AR",
+              "CA",
+              "CO",
+              "CT",
+              "DE",
+              "FL",
+              "GA",
+              "ID",
+              "IL",
+              "IN",
+              "IA",
+              "KS",
+              "KY",
+              "LA",
+              "ME",
+              "MD",
+              "MA",
+              "MI",
+              "MN",
+              "MS",
+              "MO",
+              "MT",
+              "NE",
+              "NV",
+              "NH",
+              "NJ",
+              "NM",
+              "NY",
+              "NC",
+              "ND",
+              "OH",
+              "OK",
+              "OR",
+              "PA",
+              "RI",
+              "SC",
+              "SD",
+              "TN",
+              "TX",
+              "UT",
+              "VT",
+              "VA",
+              "WA",
+              "WV",
+              "WI",
+              "WY"
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": "home",
+            "url": "https://caltrik.com/",
+            "title": "Caltrik Solar — Powering America's Solar Supply Chain",
+            "evidence": "Wholesale equipment catalog, Austin address, bulk fulfillment and an explicit 48-state contiguous US delivery territory.",
+            "basis": "company-website"
+          }
+        ],
+        "availability": "unknown",
+        "earliestStart": null,
+        "crewCapacity": null,
+        "stockAvailability": "unknown",
+        "laborOnly": "unknown",
+        "subcontracting": "unknown",
+        "confirmationNeeded": [
+          "Current work availability and capacity",
+          "Labor-only or subcontract work arrangements",
+          "Job-specific lead time and requirements"
+        ],
+        "reviewNotes": [
+          "Equipment sales do not establish field installation services.",
+          "Published module specifications do not establish current inventory or manufacturer authorization."
+        ]
+      }
+    },
+    {
+      "companyId": "05e2aa9c-7ebd-4b57-b6a3-491b8bfe0f22",
+      "companyName": "Txen Solar",
+      "website": "https://txensolar.com/",
+      "expectedProfile": {
+        "description": "Txen Solar operates in solar installation. Its published company location is San Antonio, TX. Listed services include solar installation.",
+        "tagline": "Solar installation in San Antonio, TX",
+        "services": [
+          "Solar installation"
+        ],
+        "serviceAreas": [
+          "San Antonio",
+          "Schertz",
+          "Converse",
+          "Boerne",
+          "New Braunfels",
+          "Seguin",
+          "Helotes",
+          "Leon Valley",
+          "Universal City",
+          "Cibolo",
+          "Selma",
+          "Live Oak",
+          "Floresville",
+          "Pleasanton",
+          "Lytle",
+          "Hondo"
+        ],
+        "trades": [],
+        "projectTypes": [],
+        "type": "Installer"
+      },
+      "profile": {
+        "type": "Installer",
+        "description": "TXEN Solar designs and installs residential and commercial solar systems around San Antonio. It also installs home batteries and standby generators, and repairs existing solar systems, including work installed by other companies.",
+        "tagline": "Solar installation, home backup power and repairs around San Antonio.",
+        "services": [
+          "Residential solar installation",
+          "Commercial solar installation",
+          "Solar repair and diagnostics",
+          "Home battery backup",
+          "Home generator installation",
+          "Installed solar systems",
+          "Home batteries",
+          "Standby generators"
+        ],
+        "serviceAreas": [
+          "San Antonio, TX",
+          "Boerne, TX",
+          "New Braunfels, TX",
+          "Schertz, TX",
+          "Converse, TX",
+          "Seguin, TX",
+          "Helotes, TX",
+          "Leon Valley, TX",
+          "Universal City, TX",
+          "Cibolo, TX",
+          "Floresville, TX",
+          "Pleasanton, TX",
+          "Lytle, TX",
+          "Hondo, TX",
+          "Castroville, TX",
+          "Pearsall, TX"
+        ],
+        "trades": [
+          "Installation",
+          "O&M",
+          "Energy Storage",
+          "Electrical"
+        ],
+        "projectTypes": [
+          "Residential solar",
+          "Commercial solar",
+          "Agricultural solar",
+          "Institutional solar"
+        ]
+      },
+      "research": {
+        "checkedAt": "2026-11-12T12:53:37.045669+00:00",
+        "identityNote": "Existing Connect UUID and official domain match the company name and business described on the reviewed pages.",
+        "identitySourceIds": [
+          "home"
+        ],
+        "summarySourceIds": [
+          "home",
+          "about",
+          "commercial"
+        ],
+        "businessType": {
+          "value": "Installer",
+          "sourceIds": [
+            "home"
+          ]
+        },
+        "baseLocation": {
+          "city": "San Antonio",
+          "stateCode": "TX",
+          "countryCode": "US",
+          "latitude": null,
+          "longitude": null,
+          "precision": "city",
+          "sourceIds": [
+            "home"
+          ]
+        },
+        "services": [
+          {
+            "id": "home-solar",
+            "category": "solar-installation",
+            "title": "Residential solar installation",
+            "detail": "Home system design, permits, installation and utility coordination.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "turnkey",
+            "systems": [
+              "Rooftop"
+            ],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "id": "commercial-solar",
+            "category": "solar-installation",
+            "title": "Commercial solar installation",
+            "detail": "Engineered solar systems for business, industrial, agricultural and nonprofit properties.",
+            "sectors": [
+              "commercial",
+              "industrial",
+              "agricultural",
+              "nonprofit"
+            ],
+            "delivery": "turnkey",
+            "systems": [
+              "Rooftop"
+            ],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "commercial"
+            ]
+          },
+          {
+            "id": "repair",
+            "category": "solar-maintenance",
+            "title": "Solar repair and diagnostics",
+            "detail": "Diagnostics, inverter and panel replacement, wiring repairs and battery troubleshooting. Accepts other installers’ systems.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "thirdPartySystems": "accepted",
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "id": "storage",
+            "category": "battery-storage",
+            "title": "Home battery backup",
+            "detail": "Installation and integration of batteries with home solar and backup power.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "id": "generator",
+            "category": "backup-power",
+            "title": "Home generator installation",
+            "detail": "Standby generators and integration with solar and battery systems.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "turnkey",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "home"
+            ]
+          }
+        ],
+        "products": [
+          {
+            "id": "pv-system",
+            "category": "solar-system",
+            "title": "Installed solar systems",
+            "detail": "Solar systems supplied with design and installation.",
+            "role": "supplies-and-installs",
+            "brands": [],
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "id": "home-battery",
+            "category": "battery-storage",
+            "title": "Home batteries",
+            "detail": "Storage supplied as part of a home installation.",
+            "role": "supplies-and-installs",
+            "brands": [],
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "id": "generator",
+            "category": "backup-generators",
+            "title": "Standby generators",
+            "detail": "Home backup generators.",
+            "role": "supplies-and-installs",
+            "brands": [
+              "Briggs & Stratton",
+              "Generac",
+              "Kohler"
+            ],
+            "sourceIds": [
+              "home"
+            ]
+          }
+        ],
+        "coverage": [
+          {
+            "label": "San Antonio, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "home-solar",
+              "repair",
+              "storage",
+              "generator"
+            ],
+            "productIds": [
+              "pv-system",
+              "home-battery",
+              "generator"
+            ],
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "label": "Boerne, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "home-solar",
+              "repair",
+              "storage",
+              "generator"
+            ],
+            "productIds": [
+              "pv-system",
+              "home-battery",
+              "generator"
+            ],
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "label": "New Braunfels, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "home-solar",
+              "repair",
+              "storage",
+              "generator"
+            ],
+            "productIds": [
+              "pv-system",
+              "home-battery",
+              "generator"
+            ],
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "label": "Schertz, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "home-solar",
+              "repair",
+              "storage",
+              "generator"
+            ],
+            "productIds": [
+              "pv-system",
+              "home-battery",
+              "generator"
+            ],
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "label": "San Antonio, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "commercial-solar"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "commercial"
+            ]
+          },
+          {
+            "label": "Schertz, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "commercial-solar"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "commercial"
+            ]
+          },
+          {
+            "label": "Converse, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "commercial-solar"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "commercial"
+            ]
+          },
+          {
+            "label": "Boerne, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "commercial-solar"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "commercial"
+            ]
+          },
+          {
+            "label": "New Braunfels, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "commercial-solar"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "commercial"
+            ]
+          },
+          {
+            "label": "Seguin, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "commercial-solar"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "commercial"
+            ]
+          },
+          {
+            "label": "Helotes, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "commercial-solar"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "commercial"
+            ]
+          },
+          {
+            "label": "Leon Valley, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "commercial-solar"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "commercial"
+            ]
+          },
+          {
+            "label": "Universal City, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "commercial-solar"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "commercial"
+            ]
+          },
+          {
+            "label": "Cibolo, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "commercial-solar"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "commercial"
+            ]
+          },
+          {
+            "label": "Floresville, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "commercial-solar"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "commercial"
+            ]
+          },
+          {
+            "label": "Pleasanton, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "commercial-solar"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "commercial"
+            ]
+          },
+          {
+            "label": "Lytle, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "commercial-solar"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "commercial"
+            ]
+          },
+          {
+            "label": "Hondo, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "commercial-solar"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "commercial"
+            ]
+          },
+          {
+            "label": "Castroville, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "commercial-solar"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "commercial"
+            ]
+          },
+          {
+            "label": "Pearsall, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "commercial-solar"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "commercial"
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": "home",
+            "url": "https://txensolar.com/",
+            "title": "Solar Installation & Whole Home Generators San Antonio | TXENTXEN Solar — Header v2Solar Installation & Whole Home Generators San Antonio | TXENTXEN S",
+            "evidence": "Home solar, batteries, generators and repair services; names San Antonio, Boerne, New Braunfels and Schertz. Explicitly accepts repair work on other installers’ systems.",
+            "basis": "company-website"
+          },
+          {
+            "id": "about",
+            "url": "https://txensolar.com/about-us/",
+            "title": "About TXEN Solar — Veteran-Owned | San Antonio, TXTXEN Solar — Header v2About TXEN Solar — Veteran-Owned | San Antonio, TXTXEN Solar — Footer Preview",
+            "evidence": "Identifies TXEN as Texas Engineered Solar, based in San Antonio, and describes its installation and engineering background.",
+            "basis": "company-website"
+          },
+          {
+            "id": "commercial",
+            "url": "https://txensolar.com/commercial-solar/",
+            "title": "Commercial Solar Installation in San Antonio, TX | TXEN SolarTXEN Solar — Header v2Commercial Solar Installation in San Antonio, TX | TXEN SolarTXEN S",
+            "evidence": "Commercial installation, named customer sectors and a specific city list around San Antonio; manages design, permitting and activation.",
+            "basis": "company-website"
+          }
+        ],
+        "availability": "unknown",
+        "earliestStart": null,
+        "crewCapacity": null,
+        "stockAvailability": "unknown",
+        "laborOnly": "unknown",
+        "subcontracting": "unknown",
+        "confirmationNeeded": [
+          "Current work availability and capacity",
+          "Labor-only or subcontract work arrangements",
+          "Job-specific lead time and requirements"
+        ],
+        "reviewNotes": [
+          "Engineering experience is not a separate advertised engineering-only service.",
+          "Website timelines and company-published ratings were not imported as availability or verified ratings."
+        ]
+      }
+    },
+    {
+      "companyId": "1ce6abe1-fc36-4be9-9da3-317d66e3f2f8",
+      "companyName": "Seven Petal Electric",
+      "website": "https://www.sevenpetal.com/",
+      "expectedProfile": {
+        "description": "Seven Petal Electric operates in electrical, roofing or hvac installation. Its published company location is Garden Ridge, TX. Listed services include electrical installation.",
+        "tagline": "Electrical, roofing or HVAC installation in Garden Ridge, TX",
+        "services": [
+          "Electrical installation"
+        ],
+        "serviceAreas": [],
+        "trades": [],
+        "projectTypes": [],
+        "type": "Installer"
+      },
+      "profile": {
+        "type": "Contractor",
+        "description": "Seven Petal Electric provides electrical upgrades, generator installation, backup batteries and EV charging. Its website lists service areas around San Antonio and additional Texas communities.",
+        "tagline": "Electrical work, backup power and EV charging.",
+        "services": [
+          "Electrical services",
+          "Generator installation and interlocks",
+          "Backup battery installation",
+          "EV charger installation"
+        ],
+        "serviceAreas": [
+          "Alamo Heights, TX",
+          "Balcones Heights, TX",
+          "Bellaire, TX",
+          "Boerne, TX",
+          "Bulverde, TX",
+          "Castle Hills, TX",
+          "Cibolo, TX",
+          "Converse, TX",
+          "Elmendorf, TX",
+          "Fair Oaks Ranch, TX",
+          "Fulshear, TX",
+          "Garden Ridge, TX",
+          "Helotes, TX",
+          "Hollywood Park, TX",
+          "Katy, TX",
+          "Kirby, TX",
+          "Leon Valley, TX",
+          "Live Oak, TX",
+          "Marion, TX",
+          "New Braunfels, TX",
+          "Olmos Park, TX",
+          "Richmond, TX",
+          "San Antonio, TX",
+          "Schertz, TX",
+          "Seguin, TX",
+          "Selma, TX",
+          "Shavano Park, TX",
+          "Spring Branch, TX",
+          "Terrell Hills, TX",
+          "Universal City, TX"
+        ],
+        "trades": [
+          "Electrical",
+          "Energy Storage",
+          "EV Charging"
+        ],
+        "projectTypes": [
+          "Residential electrical"
+        ]
+      },
+      "research": {
+        "checkedAt": "2026-11-12T12:56:59.531427+00:00",
+        "identityNote": "Existing Connect UUID and official domain match the company name and business described on the reviewed pages.",
+        "identitySourceIds": [
+          "home"
+        ],
+        "summarySourceIds": [
+          "home",
+          "about",
+          "areas"
+        ],
+        "businessType": {
+          "value": "Contractor",
+          "sourceIds": [
+            "home"
+          ]
+        },
+        "baseLocation": null,
+        "services": [
+          {
+            "id": "electrical",
+            "category": "electrical",
+            "title": "Electrical services",
+            "detail": "Panel upgrades, surge protection, lighting and related electrical work.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "id": "generator",
+            "category": "backup-power",
+            "title": "Generator installation and interlocks",
+            "detail": "Whole-home generators and interlocks for portable generators.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "id": "battery",
+            "category": "battery-storage",
+            "title": "Backup battery installation",
+            "detail": "Home battery backup installations.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "id": "ev",
+            "category": "ev-charging",
+            "title": "EV charger installation",
+            "detail": "Electrical installation for home EV charging.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "home"
+            ]
+          }
+        ],
+        "products": [],
+        "coverage": [
+          {
+            "label": "Alamo Heights, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Balcones Heights, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Bellaire, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Boerne, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Bulverde, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Castle Hills, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Cibolo, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Converse, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Elmendorf, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Fair Oaks Ranch, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Fulshear, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Garden Ridge, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Helotes, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Hollywood Park, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Katy, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Kirby, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Leon Valley, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Live Oak, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Marion, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "New Braunfels, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Olmos Park, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Richmond, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "San Antonio, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Schertz, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Seguin, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Selma, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Shavano Park, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Spring Branch, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Terrell Hills, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Universal City, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Weston Lakes, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          },
+          {
+            "label": "Windcrest, TX",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "electrical",
+              "generator",
+              "battery",
+              "ev"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "areas"
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": "home",
+            "url": "https://www.sevenpetal.com/",
+            "title": "Electrical Installation  | Seven Petal | San Antonio\n  \r\n  A black and white drawing of a question mark in a speech bubble.",
+            "evidence": "Explicitly offers generators, backup batteries, EV chargers, generator interlocks, panel upgrades, surge protection and lighting.",
+            "basis": "company-website"
+          },
+          {
+            "id": "about",
+            "url": "https://www.sevenpetal.com/about",
+            "title": "Seven Petal Electric | San Antonio",
+            "evidence": "Names Seven Petal Electric and describes its founder’s residential and commercial electrical construction work.",
+            "basis": "company-website"
+          },
+          {
+            "id": "areas",
+            "url": "https://www.sevenpetal.com/service-areas",
+            "title": "Trusted Electrical Services Near San Antonio | Seven Petal",
+            "evidence": "A dedicated service-area page lists the named Texas communities.",
+            "basis": "company-website"
+          }
+        ],
+        "availability": "unknown",
+        "earliestStart": null,
+        "crewCapacity": null,
+        "stockAvailability": "unknown",
+        "laborOnly": "unknown",
+        "subcontracting": "unknown",
+        "confirmationNeeded": [
+          "Current work availability and capacity",
+          "Labor-only or subcontract work arrangements",
+          "Job-specific lead time and requirements"
+        ],
+        "reviewNotes": [
+          "Existing profile location is retained; a current street address was not established from these pages.",
+          "An ambiguous solar sentence below a surge-protection heading is insufficient evidence for a solar installation offering."
+        ]
+      }
+    },
+    {
+      "companyId": "388c659b-212d-433e-a141-7b748f8f9484",
+      "companyName": "Capital Power Systems",
+      "website": "https://www.capitalpowersystems.com/",
+      "expectedProfile": {
+        "description": "Capital Power Systems operates in solar installation and related services. Its published company location is 411 Chestnut Business Park Dr, Suite C, Tomball, TX 77375, US.",
+        "tagline": "Solar installation and related services",
+        "services": [
+          "Solar installation and related services"
+        ],
+        "serviceAreas": [],
+        "trades": [],
+        "projectTypes": [],
+        "type": "Installer"
+      },
+      "profile": {
+        "type": "Contractor",
+        "description": "Capital Power Systems sells, installs and services standby generators, provides electrical project services and offers emergency generator rentals. It operates from Austin and Tomball and advertises service across Texas.",
+        "tagline": "Generator projects, electrical work and backup-power service.",
+        "services": [
+          "Turnkey generator installation",
+          "Generator maintenance and repairs",
+          "Electrical project services",
+          "Emergency generator rental",
+          "Standby generators"
+        ],
+        "serviceAreas": [
+          "Texas"
+        ],
+        "trades": [
+          "Electrical",
+          "Equipment Supply",
+          "O&M"
+        ],
+        "projectTypes": [
+          "Residential backup power",
+          "Commercial backup power",
+          "Industrial backup power"
+        ]
+      },
+      "research": {
+        "checkedAt": "2026-11-12T13:00:43.309663+00:00",
+        "identityNote": "Existing Connect UUID and official domain match the company name and business described on the reviewed pages.",
+        "identitySourceIds": [
+          "home"
+        ],
+        "summarySourceIds": [
+          "home",
+          "products",
+          "services"
+        ],
+        "businessType": {
+          "value": "Contractor",
+          "sourceIds": [
+            "home"
+          ]
+        },
+        "baseLocation": {
+          "city": "Tomball",
+          "stateCode": "TX",
+          "countryCode": "US",
+          "latitude": null,
+          "longitude": null,
+          "precision": "city",
+          "sourceIds": [
+            "home"
+          ]
+        },
+        "services": [
+          {
+            "id": "generator-install",
+            "category": "backup-power",
+            "title": "Turnkey generator installation",
+            "detail": "Generator project delivery from initial consultation through monitoring.",
+            "sectors": [
+              "residential",
+              "commercial",
+              "industrial"
+            ],
+            "delivery": "turnkey",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "id": "generator-care",
+            "category": "backup-power",
+            "title": "Generator maintenance and repairs",
+            "detail": "Warranty and non-warranty service for multiple generator manufacturers.",
+            "sectors": [
+              "residential",
+              "commercial",
+              "industrial"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "id": "electrical",
+            "category": "electrical",
+            "title": "Electrical project services",
+            "detail": "Repairs, new-construction electrical work, temporary distribution and rental power installations.",
+            "sectors": [],
+            "delivery": "specialist-service",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "id": "rental",
+            "category": "backup-power",
+            "title": "Emergency generator rental",
+            "detail": "Temporary backup-power equipment and delivery; confirm availability for each request.",
+            "sectors": [],
+            "delivery": "supply",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "products"
+            ]
+          }
+        ],
+        "products": [
+          {
+            "id": "generators",
+            "category": "backup-generators",
+            "title": "Standby generators",
+            "detail": "Residential, commercial and industrial generators.",
+            "role": "supplies-and-installs",
+            "brands": [
+              "Caterpillar",
+              "Kohler",
+              "Generac"
+            ],
+            "sourceIds": [
+              "home",
+              "products"
+            ]
+          }
+        ],
+        "coverage": [
+          {
+            "label": "Texas",
+            "kind": "state",
+            "countryCode": "US",
+            "stateCode": "TX",
+            "serviceIds": [
+              "generator-install",
+              "generator-care",
+              "electrical",
+              "rental"
+            ],
+            "productIds": [
+              "generators"
+            ],
+            "sourceIds": [
+              "home"
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": "home",
+            "url": "https://www.capitalpowersystems.com/",
+            "title": "Capital Power Systems | Austin, TX",
+            "evidence": "Names the company, Austin and Tomball offices, generator installation and maintenance, and statewide Texas service.",
+            "basis": "company-website"
+          },
+          {
+            "id": "products",
+            "url": "https://www.capitalpowersystems.com/products/",
+            "title": "Products - Capital Power Systems",
+            "evidence": "Lists residential and commercial/industrial generators and emergency rental equipment.",
+            "basis": "company-website"
+          },
+          {
+            "id": "services",
+            "url": "https://www.capitalpowersystems.com/services-parts/",
+            "title": "Services & Parts - Capital Power Systems",
+            "evidence": "Explicitly describes turnkey generator installation, electrical services and generator maintenance.",
+            "basis": "company-website"
+          }
+        ],
+        "availability": "unknown",
+        "earliestStart": null,
+        "crewCapacity": null,
+        "stockAvailability": "unknown",
+        "laborOnly": "unknown",
+        "subcontracting": "unknown",
+        "confirmationNeeded": [
+          "Current work availability and capacity",
+          "Labor-only or subcontract work arrangements",
+          "Job-specific lead time and requirements"
+        ],
+        "reviewNotes": [
+          "The solar product entry says more information is coming soon; it is not evidence of a current solar installation capability.",
+          "Emergency-service marketing is not proof of current rental stock or dispatch availability."
+        ]
+      }
+    }
+  ]
+}

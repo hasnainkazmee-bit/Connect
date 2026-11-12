@@ -1,0 +1,30 @@
+{
+  "inventory": 3359,
+  "realCompanies": 3339,
+  "processed": 3359,
+  "remaining": 0,
+  "statuses": {
+    "robots_or_access_blocked": 53,
+    "ready_for_review": 2431,
+    "identity_review": 143,
+    "no_offerings_found": 692,
+    "excluded_demo": 20,
+    "unreachable": 19,
+    "no_website": 1
+  },
+  "pagesRead": 8861,
+  "offeringCandidates": 9818,
+  "generatedAt": "2026-11-12T13:28:47.391215+00:00",
+  "note": "Discovery candidates require review. These counts do not imply approved or match-ready profiles.",
+  "reviewedProfilesAtInventory": 8,
+  "reviewedProfilesAfterThisRelease": 12,
+  "reviewedServicesAfterThisRelease": 54,
+  "reviewedProductsAfterThisRelease": 24,
+  "sourceFiles": {
+    "inventorySha256": "c7028e213db0f1ec46f1a82b75db63d3b72e02cf4a7cdc2e915665a94baccea0",
+    "resultsSha256": "f6834daa80e127022f86fc19545f0193398cbe2e0ab0612b1912ac2186faed33"
+  },
+  "researchRunId": "company-capabilities-2026-11-12",
+  "method": "Up to three freshly fetched official website pages per company; human review required before publishing discovered offerings.",
+  "remainingWork": "Review discovered scope and resolve identity, missing details and access gaps. Company owners must confirm current availability, capacity and work arrangements."
+}

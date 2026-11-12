@@ -91,6 +91,7 @@ try {
     "tests/credentials.test.mjs",
     "tests/credential-batches.test.mjs",
     "tests/provider-enrichment.test.mjs",
+    "tests/provider-matching.test.mjs",
     "tests/notifications.test.mjs",
   ]) {
     env.REQUIRE_EMAIL_VERIFICATION =

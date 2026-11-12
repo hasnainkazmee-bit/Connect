@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { tx } from "./db.js";
+import { projectProviderResearch } from "./provider-matching.js";
 
 const key = z.string().regex(/^[a-z][a-z0-9-]{1,79}$/);
 const text = (max: number) => z.string().trim().min(1).max(max);
@@ -10,8 +11,12 @@ const url = z
   .string()
   .url()
   .refine((v) => {
-    const u = new URL(v);
-    return u.protocol === "https:" && !u.username && !u.password;
+    try {
+      const u = new URL(v);
+      return u.protocol === "https:" && !u.username && !u.password;
+    } catch {
+      return false;
+    }
   }, "Evidence must use a public HTTPS URL without credentials.");
 const sector = z.enum([
   "residential",
@@ -45,6 +50,14 @@ const category = z.enum([
   "logistics",
   "racking-design",
   "racking-installation",
+  "roofing",
+  "permitting",
+  "inspection",
+  "commissioning",
+  "solar-cleaning",
+  "crew-supply",
+  "trenching",
+  "interconnection",
 ]);
 const service = z
   .object({
@@ -59,6 +72,7 @@ const service = z
       "advisory",
       "managed-project",
       "contract-staff",
+      "labor-only",
       "supply",
     ]),
     systems: strings(8),
@@ -78,6 +92,7 @@ const product = z
       "foundations",
       "electrical-bos",
       "backup-generators",
+      "ev-chargers",
     ]),
     title: text(80),
     detail: text(240),
@@ -90,18 +105,35 @@ const coverage = z
   .object({
     label: text(100),
     kind: z.enum(["city", "metro", "region", "state", "country"]),
-    countryCode: z.enum(["US", "CA"]).nullable(),
+    countryCode: z
+      .string()
+      .regex(/^[A-Z]{2}$/)
+      .nullable(),
     stateCode: z
       .string()
       .regex(/^[A-Z]{2}$/)
       .nullable(),
+    stateCodes: z
+      .array(z.string().regex(/^[A-Z]{2}$/))
+      .max(60)
+      .optional(),
     serviceIds: z.array(key).max(20),
     productIds: z.array(key).max(20),
     sourceIds: refs,
   })
   .strict();
+const businessType = z.enum([
+  "Installer",
+  "EPC",
+  "Contractor",
+  "Service provider",
+  "Manufacturer",
+  "Distributor",
+  "Developer",
+]);
 const profile = z
   .object({
+    type: businessType.optional(),
     description: z.string().max(5000),
     tagline: z.string().max(200),
     services: strings(20),
@@ -114,23 +146,31 @@ const profile = z
 export const providerResearch = z
   .object({
     checkedAt: z.iso.datetime({ offset: true }),
+    businessType: z
+      .object({ value: businessType, sourceIds: refs })
+      .strict()
+      .optional(),
     identityNote: text(500),
     identitySourceIds: refs,
     summarySourceIds: refs,
     baseLocation: z
       .object({
         city: text(100),
-        stateCode: z.string().regex(/^[A-Z]{2}$/),
-        countryCode: z.literal("US"),
+        stateCode: z
+          .string()
+          .regex(/^[A-Z]{2}$/)
+          .nullable(),
+        countryCode: z.string().regex(/^[A-Z]{2}$/),
         latitude: z.null(),
         longitude: z.null(),
         precision: z.literal("city"),
         sourceIds: refs,
       })
-      .strict(),
+      .strict()
+      .nullable(),
     services: z.array(service).min(1).max(20),
     products: z.array(product).max(20),
-    coverage: z.array(coverage).max(30),
+    coverage: z.array(coverage).max(60),
     sources: z
       .array(
         z
@@ -172,7 +212,8 @@ export const providerResearch = z
     const referenced = [
       r.identitySourceIds,
       r.summarySourceIds,
-      r.baseLocation.sourceIds,
+      ...(r.businessType ? [r.businessType.sourceIds] : []),
+      ...(r.baseLocation ? [r.baseLocation.sourceIds] : []),
       ...[...r.services, ...r.products, ...r.coverage].map((s) => s.sourceIds),
     ];
     if (referenced.flat().some((id) => !sources.has(id)))
@@ -180,6 +221,13 @@ export const providerResearch = z
     const services = new Set(r.services.map((s) => s.id));
     const products = new Set(r.products.map((s) => s.id));
     for (const area of r.coverage) {
+      if (
+        area.stateCodes?.length &&
+        (area.kind !== "region" || !area.countryCode || area.stateCode)
+      )
+        fail(
+          "A multi-state region must name its country and explicit state codes.",
+        );
       if (!area.serviceIds.length && !area.productIds.length)
         fail("Coverage must identify the offerings it applies to.");
       if (
@@ -198,6 +246,8 @@ export const providerResearch = z
         fail("Country coverage needs a country, not a state.");
     }
   });
+
+export type ProviderResearch = z.infer<typeof providerResearch>;
 
 function host(raw: string) {
   try {
@@ -237,6 +287,13 @@ export const enrichmentBatch = z
     )
       fail("Duplicate company in the batch.");
     for (const r of batch.records) {
+      if (
+        Boolean(r.profile.type) !== Boolean(r.expectedProfile.type) ||
+        (r.profile.type && r.profile.type !== r.research.businessType?.value)
+      )
+        fail(
+          "A business-type correction requires the previous value and sourced classification.",
+        );
       if (r.research.sources.some((s) => host(s.url) !== host(r.website)))
         fail(`${r.companyName}: source is not the matched official domain.`);
       const labels = [
@@ -270,7 +327,9 @@ const canonical = (value: unknown): string => {
 const profileOf = (
   c: Record<string, any>,
   p: Record<string, any> | undefined,
+  includeType = false,
 ) => ({
+  ...(includeType ? { type: c.type } : {}),
   description: c.description,
   tagline: c.tagline,
   services: c.services,
@@ -331,7 +390,10 @@ export async function importProviderEnrichment(input: unknown, apply = false) {
         status = "blocked: company identity mismatch";
       else if (c.listing_status !== "unclaimed" || members)
         status = "blocked: company-managed profile";
-      else if (canonical(profileOf(c, p)) !== canonical(r.expectedProfile))
+      else if (
+        canonical(profileOf(c, p, Boolean(r.expectedProfile.type))) !==
+        canonical(r.expectedProfile)
+      )
         status = "blocked: profile changed since inventory";
       else if (
         existing &&
@@ -365,13 +427,14 @@ export async function importProviderEnrichment(input: unknown, apply = false) {
         ],
       );
       await db.query(
-        `UPDATE companies SET description=$2,tagline=$3,services=$4,service_areas=$5 WHERE id=$1`,
+        `UPDATE companies SET description=$2,tagline=$3,services=$4,service_areas=$5,type=COALESCE($6,type) WHERE id=$1`,
         [
           r.companyId,
           r.profile.description,
           r.profile.tagline,
           r.profile.services,
           r.profile.serviceAreas,
+          r.profile.type || null,
         ],
       );
       await db.query(
@@ -389,6 +452,7 @@ export async function importProviderEnrichment(input: unknown, apply = false) {
           r.research.checkedAt,
         ],
       );
+      await projectProviderResearch(db, r.companyId, batch.batchId, r.research);
       plan.status = "applied";
     }
     return plans.map(({ r, status }) => ({

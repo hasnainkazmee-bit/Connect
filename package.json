@@ -28,7 +28,14 @@
     "test:android": "node tests/run.mjs --android",
     "build:macos": "./apps/macos/build.sh",
     "package:macos": "./apps/macos/package.sh",
-    "test:macos": "./apps/macos/test-policy.sh && ./apps/macos/test-webkit.sh"
+    "test:macos": "./apps/macos/test-policy.sh && ./apps/macos/test-webkit.sh",
+    "providers:research": "python3 tools/research-provider-capabilities.py",
+    "providers:research-import": "node apps/api/dist/import-provider-discovery.js",
+    "providers:project-matching": "node apps/api/dist/project-provider-matching.js",
+    "providers:inventory": "node apps/api/dist/export-provider-inventory.js",
+    "providers:matching-report": "node apps/api/dist/report-provider-matching.js",
+    "test:provider-research": "python3 tests/provider-capability-research.test.py",
+    "test:provider-matching-api": "node tests/provider-matching-api.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0",

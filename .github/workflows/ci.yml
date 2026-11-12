@@ -54,3 +54,32 @@ jobs:
           --mount "type=bind,source=$PWD/tests/container-runtime.mjs,target=/tmp/container-runtime.mjs,readonly" \
           --mount "type=bind,source=$PWD/apps/android/app/src/main/assets/reaction-emojis.json,target=/tmp/reaction-emojis.json,readonly" \
           connect-check /tmp/container-runtime.mjs
+
+  provider-matching:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: sunhub
+          POSTGRES_PASSWORD: sunhub_local
+          POSTGRES_DB: connect_provider_matching_test
+        ports: [5438:5432]
+        options: >-
+          --health-cmd "pg_isready -U sunhub -d connect_provider_matching_test"
+          --health-interval 5s --health-timeout 3s --health-retries 15
+    env:
+      DATABASE_URL: postgres://sunhub:sunhub_local@127.0.0.1:5438/connect_provider_matching_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, cache: npm}
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - run: npm run build -w apps/api
+      - run: node apps/api/dist/migrate.js
+      - run: python3 tests/provider-capability-research.test.py
+      - run: node --test tests/provider-enrichment.test.mjs tests/provider-matching.test.mjs
+      - run: cargo test --locked -p connect-jobs
+      - run: cargo build --locked -p connect-jobs
+      - run: node tests/provider-matching-api.mjs
