@@ -729,11 +729,23 @@ async fn invite_companies(
     if !a.hirer || a.status() != "open" {
         return Err(conflict("This job is not accepting invitations."));
     }
+    let expired: bool = sqlx::query_scalar(
+        "SELECT COALESCE(quote_deadline<now(),false) FROM jobs WHERE id=$1::uuid",
+    )
+    .bind(&id)
+    .fetch_one(&app.db)
+    .await?;
+    if expired {
+        return Err(conflict("The quote deadline has passed."));
+    }
     let ids = body["companyIds"]
         .as_array()
         .ok_or_else(|| bad("Choose companies to invite."))?;
     if ids.is_empty() || ids.len() > 20 {
         return Err(bad("Choose up to 20 companies."));
+    }
+    for value in ids {
+        checked_id(value.as_str().ok_or_else(|| bad("Invalid company."))?)?;
     }
     for value in ids {
         let provider = value.as_str().ok_or_else(|| bad("Invalid company."))?;
@@ -757,7 +769,13 @@ async fn invite_companies(
         )
         .await?;
     }
-    Ok(Json(json!({"ok":true})))
+    let invited: Vec<String> = sqlx::query_scalar(
+        "SELECT provider_company_id::text FROM job_invitations WHERE job_id=$1::uuid",
+    )
+    .bind(&id)
+    .fetch_all(&app.db)
+    .await?;
+    Ok(Json(json!({"ok":true,"invitedCompanyIds":invited})))
 }
 
 async fn job_inbox(
@@ -1366,15 +1384,16 @@ async fn create_job(
     let deadline = optional_text(&body, "quoteDeadline", 50)?;
     let brief = parse_brief(&body)?;
     let posting = parse_posting_details(&body)?;
+    let matching = provider_matching::parse_job_preferences(&app, &body).await?;
     validate_job_dates(&app.db, deadline, posting.as_ref(), status).await?;
     let (start, duration) = posting_labels(posting.as_ref(), start, brief.duration);
     let new_id: String = sqlx::query_scalar(
         "INSERT INTO jobs(hiring_company_id,author_id,title,description,trade,location,postal_code,exact_address,\
-         start_window,budget_cents,visibility,quote_deadline,status,project_type,system_size_kw,site_count,materials_by,requirements,people_needed,expected_duration,work_arrangement,posting_details) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10,$11,NULLIF($12,'')::timestamptz,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22::jsonb) RETURNING id::text")
+         start_window,budget_cents,visibility,quote_deadline,status,project_type,system_size_kw,site_count,materials_by,requirements,people_needed,expected_duration,work_arrangement,posting_details,matching_preferences) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10,$11,NULLIF($12,'')::timestamptz,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22::jsonb,$23::jsonb) RETURNING id::text")
         .bind(a.company.as_deref()).bind(&a.user).bind(title).bind(description).bind(trade).bind(location)
         .bind(postal).bind(exact).bind(start).bind(budget).bind(visibility).bind(deadline).bind(status)
         .bind(brief.project).bind(brief.size).bind(brief.sites).bind(brief.materials).bind(brief.requirements)
-        .bind(brief.people).bind(duration).bind(brief.arrangement).bind(posting.map(|v|v.to_string()))
+        .bind(brief.people).bind(duration).bind(brief.arrangement).bind(posting.map(|v|v.to_string())).bind(matching.map(|v|v.to_string()))
         .fetch_one(&app.db).await?;
     Ok((StatusCode::CREATED, Json(json!({"id":new_id}))))
 }
@@ -1435,6 +1454,7 @@ async fn edit_job(
     let deadline = optional_text(&body, "quoteDeadline", 50)?;
     let brief = parse_brief(&body)?;
     let posting = parse_posting_details(&body)?;
+    let matching = provider_matching::parse_job_preferences(&app, &body).await?;
     validate_job_dates(&app.db, deadline, posting.as_ref(), status).await?;
     let (start, duration) = posting_labels(posting.as_ref(), start, brief.duration);
     let mut tx = app.db.begin().await?;
@@ -1461,11 +1481,11 @@ async fn edit_job(
             "Quotes have arrived. This job can no longer be edited.",
         ));
     }
-    sqlx::query("UPDATE jobs SET title=$1,description=$2,trade=$3,location=$4,postal_code=$5,exact_address=$6,start_window=$7,budget_cents=$8,visibility=$9,quote_deadline=NULLIF($10,'')::timestamptz,status=$11,project_type=$13,system_size_kw=$14,site_count=$15,materials_by=$16,requirements=$17,people_needed=$18,expected_duration=$19,work_arrangement=$20,posting_details=COALESCE($21::jsonb,posting_details),updated_at=now() WHERE id=$12::uuid")
+    sqlx::query("UPDATE jobs SET title=$1,description=$2,trade=$3,location=$4,postal_code=$5,exact_address=$6,start_window=$7,budget_cents=$8,visibility=$9,quote_deadline=NULLIF($10,'')::timestamptz,status=$11,project_type=$13,system_size_kw=$14,site_count=$15,materials_by=$16,requirements=$17,people_needed=$18,expected_duration=$19,work_arrangement=$20,posting_details=COALESCE($21::jsonb,posting_details),matching_preferences=CASE WHEN $23 THEN $22::jsonb ELSE matching_preferences END,updated_at=now() WHERE id=$12::uuid")
         .bind(title).bind(description).bind(trade).bind(location).bind(postal).bind(exact).bind(start).bind(budget)
         .bind(visibility).bind(deadline).bind(status).bind(&id)
         .bind(brief.project).bind(brief.size).bind(brief.sites).bind(brief.materials).bind(brief.requirements)
-        .bind(brief.people).bind(duration).bind(brief.arrangement).bind(posting.map(|v|v.to_string())).execute(&mut *tx).await?;
+        .bind(brief.people).bind(duration).bind(brief.arrangement).bind(posting.map(|v|v.to_string())).bind(matching.map(|v|v.to_string())).bind(body.get("matchingPreferences").is_some()).execute(&mut *tx).await?;
     tx.commit().await?;
     Ok(Json(json!({"id":id})))
 }
@@ -1816,6 +1836,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         .route("/jobs/companies/{slug}", get(work_profile))
         .route("/jobs/files/{file_id}", get(download_file))
         .route("/jobs/{id}", get(get_job).patch(edit_job))
+        .route("/jobs/{id}/matches", get(provider_matching::for_job))
         .route("/jobs/{id}/invite", post(invite_companies))
         .route("/jobs/{id}/quote", post(send_quote))
         .route("/jobs/{id}/choose", post(choose_company))

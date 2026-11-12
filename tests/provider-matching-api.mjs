@@ -537,6 +537,208 @@ try {
   );
   response = await call("/jobs/provider-matches", provider, request);
   check(!find(response, installer), "company cannot be matched to itself");
+  // The full job flow includes sourced candidates without promoting unknown scope.
+  const jobBody = {
+    title: "Test commercial solar installation",
+    description:
+      "Install a commercial solar system in Cleveland, Ohio. Test job only.",
+    trade: "installation",
+    location: "Cleveland, OH",
+    visibility: "invite_only",
+    matchingPreferences: { ...request, preferAvailable: true },
+  };
+  check(
+    (
+      await call("/jobs", owner, {
+        ...jobBody,
+        matchingPreferences: { ...request, stateCode: "ZZ" },
+      })
+    ).status === 400,
+    "invalid matching location rejected before saving a job",
+  );
+  const created = await call("/jobs", owner, jobBody);
+  check(created.status === 201, JSON.stringify(created));
+  const jobId = created.data.id;
+  try {
+    response = await call(`/jobs/${jobId}/matches`, owner);
+    check(
+      response.status === 200 &&
+        response.data.configured &&
+        find(response, installer),
+      "publishing stores preferences and job owner can retrieve matches",
+    );
+    check(
+      response.data.invitationsSent === 0 &&
+        response.data.invitedCompanyIds.length === 0,
+      "matching does not invite companies automatically",
+    );
+    const unclaimedInvite = await call(`/jobs/${jobId}/invite`, owner, {
+      companyIds: [manufacturer],
+    });
+    check(
+      unclaimedInvite.status === 200 &&
+        !unclaimedInvite.data.invitedCompanyIds.includes(manufacturer),
+      "unclaimed profiles are not falsely reported as invited",
+    );
+    await pool.query(
+      "UPDATE companies SET listing_status='managed' WHERE id=$1",
+      [installer],
+    );
+    const invited = await call(`/jobs/${jobId}/invite`, owner, {
+      companyIds: [installer],
+    });
+    check(
+      invited.status === 200 &&
+        invited.data.invitedCompanyIds.includes(installer),
+      "claimed company can be explicitly invited from matches",
+    );
+    await call(`/jobs/${jobId}/invite`, owner, { companyIds: [installer] });
+    check(
+      (
+        await pool.query(
+          "SELECT count(*)::int n FROM job_invitations WHERE job_id=$1 AND provider_company_id=$2",
+          [jobId, installer],
+        )
+      ).rows[0].n === 1,
+      "repeated invitations are idempotent",
+    );
+    await pool.query(
+      "UPDATE jobs SET quote_deadline=now()-interval '1 day' WHERE id=$1",
+      [jobId],
+    );
+    check(
+      (await call(`/jobs/${jobId}/invite`, owner, { companyIds: [installer] }))
+        .status === 409,
+      "expired jobs cannot send invitations",
+    );
+    await pool.query("UPDATE jobs SET quote_deadline=NULL WHERE id=$1", [
+      jobId,
+    ]);
+    check(
+      [403, 404].includes(
+        (await call(`/jobs/${jobId}/matches`, provider)).status,
+      ),
+      "another company cannot inspect hirer matching results",
+    );
+    check(
+      (await call(`/jobs/${jobId}/matches?page=0`, owner)).status === 400,
+      "matching pagination validated",
+    );
+    await pool.query(
+      "UPDATE provider_matching_profiles SET state='source_checked' WHERE company_id=$1",
+      [installer],
+    );
+    response = await call(`/jobs/${jobId}/matches`, owner);
+    check(
+      find(response, installer)?.evidenceLevel === "source_checked",
+      "a current sourced profile can match documented service and coverage",
+    );
+    check(
+      !find(await call("/jobs/provider-matches", owner, request), installer),
+      "reviewed-only preview preserves its existing evidence boundary",
+    );
+    await pool.query(
+      "UPDATE provider_coverage_areas SET state_code='TX' WHERE company_id=$1 AND kind='state'",
+      [installer],
+    );
+    response = await call(`/jobs/${jobId}/matches`, owner);
+    check(
+      !find(response, installer) &&
+        !find(response, installer, "needsConfirmation"),
+      "explicit other-state coverage does not crowd job results",
+    );
+    await pool.query(
+      "DELETE FROM provider_coverage_areas WHERE company_id=$1",
+      [installer],
+    );
+    response = await call(`/jobs/${jobId}/matches`, owner);
+    check(
+      !find(response, installer) &&
+        find(response, installer, "needsConfirmation")?.followUp.includes(
+          "Service area",
+        ),
+      "unknown coverage is clearly separated from confirmed matches",
+    );
+    await pool.query(
+      "UPDATE provider_profiles SET work_settings=$2,work_settings_confirmed_at=now() WHERE company_id=$1",
+      [
+        installer,
+        JSON.stringify({ availability: "accepting", availableFrom: null }),
+      ],
+    );
+    response = await call(`/jobs/${jobId}/matches`, owner);
+    check(
+      find(response, installer, "needsConfirmation")?.offerings[0]
+        .availability === "accepting",
+      "recent owner-confirmed profile availability feeds matching",
+    );
+    await pool.query(
+      "UPDATE provider_profiles SET work_settings_confirmed_at=now()-interval '31 days' WHERE company_id=$1",
+      [installer],
+    );
+    response = await call(`/jobs/${jobId}/matches`, owner);
+    check(
+      find(response, installer, "needsConfirmation")?.offerings[0]
+        .availability === "unknown",
+      "old profile availability expires",
+    );
+    const preferred = {
+      ...request,
+      preferredCredentials: [
+        { title: "Personnel qualification", scope: "personnel" },
+      ],
+    };
+    await pool.query(
+      "UPDATE company_credentials SET valid_until=NULL,checked_at=now(),evidence_basis='company' WHERE company_id=$1 AND catalog_key=$2",
+      [installer, credential],
+    );
+    check(
+      (
+        await call(
+          `/jobs/${jobId}`,
+          owner,
+          { ...jobBody, matchingPreferences: preferred },
+          "PATCH",
+        )
+      ).status === 200,
+      "job matching preferences can be edited before quotes arrive",
+    );
+    response = await call(`/jobs/${jobId}/matches`, owner);
+    check(
+      find(response, installer, "needsConfirmation").reasons.includes(
+        "Personnel qualification (listed)",
+      ),
+      "company-stated preferred credentials are labeled, not issuer-verified",
+    );
+    await pool.query(
+      "UPDATE company_credentials SET valid_until=current_date-1 WHERE company_id=$1 AND catalog_key=$2",
+      [installer, credential],
+    );
+    response = await call(`/jobs/${jobId}/matches`, owner);
+    check(
+      !find(response, installer, "needsConfirmation").reasons.some((r) =>
+        r.startsWith("Personnel qualification"),
+      ),
+      "expired preferred credentials do not boost results",
+    );
+    check(
+      (
+        await call(
+          `/jobs/${jobId}`,
+          owner,
+          { ...jobBody, matchingPreferences: null },
+          "PATCH",
+        )
+      ).status === 200,
+      "matching can be cleared explicitly",
+    );
+    check(
+      (await call(`/jobs/${jobId}/matches`, owner)).data.configured === false,
+      "unconfigured jobs show setup instead of invented matches",
+    );
+  } finally {
+    await pool.query("DELETE FROM jobs WHERE id=$1", [jobId]);
+  }
   await pool.query(
     "UPDATE companies SET services=ARRAY['Company edited services'] WHERE id=$1",
     [installer],

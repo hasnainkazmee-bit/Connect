@@ -99,6 +99,7 @@ import { JoinCompanyPage } from "./join-company";
 import { Directory } from "./directory";
 import { ClaimCompanyPage } from "./claim-company";
 import { CompanyMatches } from "./company-matches";
+import { JobMatchesPage } from "./job-matches";
 import { CompanyProfileView } from "./company-profile";
 import { CompanySettings, EmployeeInvite } from "./management";
 import { JobsPage, NewJobPage, JobDetailPage } from "./jobs";
@@ -620,7 +621,9 @@ function App() {
                 to="/jobs"
                 className={
                   (jobSection === "jobs" &&
-                    /^\/jobs\/[0-9a-f-]{36}$/.test(location.pathname)) ||
+                    /^\/jobs\/[0-9a-f-]{36}(?:\/matches)?$/.test(
+                      location.pathname,
+                    )) ||
                   location.pathname === "/jobs" ||
                   (location.pathname === "/" && !!session.user)
                     ? "active"
@@ -628,7 +631,9 @@ function App() {
                 }
                 aria-current={
                   (jobSection === "jobs" &&
-                    /^\/jobs\/[0-9a-f-]{36}$/.test(location.pathname)) ||
+                    /^\/jobs\/[0-9a-f-]{36}(?:\/matches)?$/.test(
+                      location.pathname,
+                    )) ||
                   location.pathname === "/jobs" ||
                   (location.pathname === "/" && !!session.user)
                     ? "page"
@@ -643,14 +648,18 @@ function App() {
                   aria-current={
                     location.pathname === "/jobs/mine" ||
                     (jobSection === "mine" &&
-                      /^\/jobs\/[0-9a-f-]{36}$/.test(location.pathname))
+                      /^\/jobs\/[0-9a-f-]{36}(?:\/matches)?$/.test(
+                        location.pathname,
+                      ))
                       ? "page"
                       : undefined
                   }
                   className={
                     location.pathname === "/jobs/mine" ||
                     (jobSection === "mine" &&
-                      /^\/jobs\/[0-9a-f-]{36}$/.test(location.pathname))
+                      /^\/jobs\/[0-9a-f-]{36}(?:\/matches)?$/.test(
+                        location.pathname,
+                      ))
                       ? "active"
                       : ""
                   }
@@ -775,6 +784,7 @@ function App() {
               element={<ProviderProfilePage />}
             />
             <Route path="/jobs/:id/edit" element={<NewJobPage />} />
+            <Route path="/jobs/:id/matches" element={<JobMatchesPage />} />
             <Route path="/jobs/:id" element={<JobDetailPage />} />
             <Route
               path="/directory/installers/:place"

@@ -220,9 +220,29 @@ export function ProviderProfilePage() {
   };
   return (
     <div className="jobs-page provider-profile editorial-profile provider-dossier">
-      <Link className="job-back" to={back ? "/jobs/" + back : "/providers"}>
+      <Link
+        className="job-back"
+        to={
+          back
+            ? "/jobs/" +
+              back +
+              (params.get("from") === "matches"
+                ? "/matches?page=" +
+                  encodeURIComponent(params.get("matchPage") || "1") +
+                  "&view=" +
+                  (params.get("matchView") === "needsConfirmation"
+                    ? "confirmation"
+                    : "matches")
+                : "")
+            : "/providers"
+        }
+      >
         <ArrowLeft size={16} />
-        {back ? "Back to job" : "Find companies"}
+        {back
+          ? params.get("from") === "matches"
+            ? "Back to matches"
+            : "Back to job"
+          : "Find companies"}
       </Link>
       <header
         className={`provider-profile-hero ${cover && !coverFailed ? "has-cover" : ""}`}

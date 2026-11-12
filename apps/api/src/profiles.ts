@@ -202,6 +202,7 @@ export function profileRoutes() {
     const b = z
       .object({
         expectedCompanyId: uuid.optional(),
+        confirmAvailability: z.boolean().optional(),
         workDetails: z
           .object({
             trades: z.array(z.string().trim().min(1).max(80)).max(12),
@@ -312,9 +313,9 @@ export function profileRoutes() {
         const w = b.workDetails;
         const labels = w.settings ? workLabels(w.settings) : w;
         await db.query(
-          `INSERT INTO provider_profiles(company_id,trades,project_types,availability,crew_size,capacity,license_details,insurance_details,work_settings)
-          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)
-          ON CONFLICT(company_id) DO UPDATE SET trades=$2,project_types=$3,availability=$4,crew_size=$5,capacity=$6,license_details=$7,insurance_details=$8,work_settings=COALESCE($9,provider_profiles.work_settings),updated_at=CASE WHEN $10 OR provider_profiles.trades IS DISTINCT FROM $2 OR provider_profiles.project_types IS DISTINCT FROM $3 THEN now() ELSE provider_profiles.updated_at END`,
+          `INSERT INTO provider_profiles(company_id,trades,project_types,availability,crew_size,capacity,license_details,insurance_details,work_settings,work_settings_confirmed_at)
+          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,CASE WHEN $9::jsonb IS NOT NULL THEN now() END)
+          ON CONFLICT(company_id) DO UPDATE SET trades=$2,project_types=$3,availability=$4,crew_size=$5,capacity=$6,license_details=$7,insurance_details=$8,work_settings_confirmed_at=CASE WHEN $9::jsonb IS NOT NULL AND ($11 OR provider_profiles.work_settings IS DISTINCT FROM $9::jsonb) THEN now() ELSE provider_profiles.work_settings_confirmed_at END,work_settings=COALESCE($9,provider_profiles.work_settings),updated_at=CASE WHEN $10 OR provider_profiles.trades IS DISTINCT FROM $2 OR provider_profiles.project_types IS DISTINCT FROM $3 THEN now() ELSE provider_profiles.updated_at END`,
           [
             req.auth!.companyId,
             w.trades,
@@ -326,6 +327,7 @@ export function profileRoutes() {
             w.insuranceDetails,
             w.settings ? JSON.stringify(w.settings) : null,
             matchingChanged,
+            b.confirmAvailability === true,
           ],
         );
       }

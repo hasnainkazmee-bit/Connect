@@ -405,7 +405,11 @@ function ProfileSectionForm({
     try {
       await api("/companies/current/profile", {
         method: "PATCH",
-        body: JSON.stringify({ ...form, username: form.username || undefined }),
+        body: JSON.stringify({
+          ...form,
+          username: form.username || undefined,
+          confirmAvailability: section === "coverage",
+        }),
       });
       setSaved(JSON.stringify(form));
       setSuccess(true);
@@ -717,6 +721,9 @@ function WorkSettingsFields({
             </small>
           </div>
         )}
+      <p className="workspace-note">
+        Save this section to confirm your availability for the next 30 days.
+      </p>
       <div className="workspace-field-pair">
         <label>
           Availability

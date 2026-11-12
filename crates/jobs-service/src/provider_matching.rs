@@ -30,13 +30,13 @@ const DELIVERIES: &[&str] = &[
     "labor-only",
 ];
 
-#[derive(Deserialize)]
+#[derive(Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct CredentialRequirement {
     catalog_key: String,
     scope: String,
 }
-#[derive(Deserialize)]
+#[derive(Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct MatchRequest {
     kind: String,
@@ -53,8 +53,24 @@ pub(super) struct MatchRequest {
     start_by: Option<String>,
     #[serde(default)]
     required_credentials: Vec<CredentialRequirement>,
+    #[serde(default)]
+    preferred_credentials: Vec<PreferredCredential>,
+    #[serde(default)]
+    prefer_available: bool,
+    preferred_start: Option<String>,
+    #[serde(default = "prefer_local_default")]
+    prefer_local: bool,
     page: Option<usize>,
     page_size: Option<usize>,
+}
+#[derive(Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct PreferredCredential {
+    title: String,
+    scope: String,
+}
+fn prefer_local_default() -> bool {
+    true
 }
 pub(super) fn date_valid(s: &str) -> bool {
     if s.len() != 10
@@ -129,6 +145,13 @@ fn validate(b: &MatchRequest) -> Result<()> {
                 || b.start_by.is_some()))
         || (b.kind == "service" && b.product_role.is_some())
         || b.start_by.as_ref().is_some_and(|s| !date_valid(s))
+        || b.preferred_start.as_ref().is_some_and(|s| !date_valid(s))
+        || b.preferred_credentials.len() > 8
+        || b.preferred_credentials.iter().any(|r| {
+            r.title.trim().is_empty()
+                || r.title.len() > 180
+                || !["company", "personnel", "product"].contains(&r.scope.as_str())
+        })
         || b.required_credentials.len() > 8
         || b.required_credentials.iter().any(|r| {
             r.catalog_key.is_empty()
@@ -146,8 +169,9 @@ fn validate(b: &MatchRequest) -> Result<()> {
 pub(super) async fn taxonomy(State(app): State<Arc<App>>) -> Result<Json<Value>> {
     let rows: Vec<String>=sqlx::query_scalar("SELECT json_build_object('kind',kind,'id',id,'label',label)::text FROM provider_taxonomy ORDER BY kind,label")
         .fetch_all(&app.db).await?;
+    let credentials:Vec<String> = sqlx::query_scalar("SELECT jsonb_build_object('title',min(cc.title),'scope',cc.scope)::text FROM company_credentials cc JOIN companies c ON c.id=cc.company_id WHERE NOT c.is_demo AND cc.category IN ('certification','qualification') AND (cc.valid_until IS NULL OR cc.valid_until>=current_date) GROUP BY lower(trim(cc.title)),cc.scope ORDER BY min(cc.title),cc.scope").fetch_all(&app.db).await?;
     Ok(Json(
-        json!({"version":1,"categories":rows.into_iter().map(parse_json).collect::<Result<Vec<_>>>()?,"sectors":SECTORS,"systemTypes":SYSTEMS,"deliveryMethods":DELIVERIES}),
+        json!({"credentials":credentials.into_iter().map(parse_json).collect::<Result<Vec<_>>>()?,"version":1,"categories":rows.into_iter().map(parse_json).collect::<Result<Vec<_>>>()?,"sectors":SECTORS,"systemTypes":SYSTEMS,"deliveryMethods":DELIVERIES}),
     ))
 }
 
@@ -158,7 +182,16 @@ pub(super) async fn preview(
 ) -> Result<Json<Value>> {
     let a = company_actor(&app, &headers, false).await?;
     let Json(b) = body.map_err(|_| bad("Check the matching request fields."))?;
-    validate(&b)?;
+    search(&app, a.company.as_deref().unwrap(), &b, false).await
+}
+
+async fn search(
+    app: &App,
+    company: &str,
+    b: &MatchRequest,
+    include_sourced: bool,
+) -> Result<Json<Value>> {
+    validate(b)?;
     let exists: bool = sqlx::query_scalar(
         "SELECT EXISTS(SELECT 1 FROM provider_taxonomy WHERE kind=$1 AND id=$2)",
     )
@@ -175,9 +208,86 @@ pub(super) async fn preview(
             .map(|c| json!({"key":c.catalog_key,"scope":c.scope}))
             .collect(),
     );
+    let state_name = match b.state_code.as_deref().unwrap_or("") {
+        "OH" => "Ohio",
+        "TX" => "Texas",
+        "CA" if b.country_code == "US" => "California",
+        "NY" => "New York",
+        "FL" => "Florida",
+        "PA" => "Pennsylvania",
+        "MI" => "Michigan",
+        "IN" => "Indiana",
+        "IL" => "Illinois",
+        "MA" => "Massachusetts",
+        "NJ" => "New Jersey",
+        "VA" => "Virginia",
+        "NC" => "North Carolina",
+        "SC" => "South Carolina",
+        "GA" => "Georgia",
+        "AZ" => "Arizona",
+        "CO" => "Colorado",
+        "WA" => "Washington",
+        "OR" => "Oregon",
+        "MD" => "Maryland",
+        "WI" => "Wisconsin",
+        "MN" => "Minnesota",
+        "TN" => "Tennessee",
+        "MO" => "Missouri",
+        "AL" => "Alabama",
+        "AK" => "Alaska",
+        "AR" => "Arkansas",
+        "CT" => "Connecticut",
+        "DE" => "Delaware",
+        "DC" => "District of Columbia",
+        "HI" => "Hawaii",
+        "ID" => "Idaho",
+        "IA" => "Iowa",
+        "KS" => "Kansas",
+        "KY" => "Kentucky",
+        "LA" => "Louisiana",
+        "ME" => "Maine",
+        "MS" => "Mississippi",
+        "MT" => "Montana",
+        "NE" => "Nebraska",
+        "NV" => "Nevada",
+        "NH" => "New Hampshire",
+        "NM" => "New Mexico",
+        "ND" => "North Dakota",
+        "OK" => "Oklahoma",
+        "RI" => "Rhode Island",
+        "SD" => "South Dakota",
+        "UT" => "Utah",
+        "VT" => "Vermont",
+        "WV" => "West Virginia",
+        "WY" => "Wyoming",
+        "ON" => "Ontario",
+        "BC" => "British Columbia",
+        "AB" => "Alberta",
+        "MB" => "Manitoba",
+        "NB" => "New Brunswick",
+        "NL" => "Newfoundland and Labrador",
+        "NS" => "Nova Scotia",
+        "NT" => "Northwest Territories",
+        "NU" => "Nunavut",
+        "PE" => "Prince Edward Island",
+        "QC" => "Quebec",
+        "SK" => "Saskatchewan",
+        "YT" => "Yukon",
+        "AS" => "American Samoa",
+        "GU" => "Guam",
+        "MP" => "Northern Mariana Islands",
+        "PR" => "Puerto Rico",
+        "VI" => "US Virgin Islands",
+        _ => "unknown",
+    };
+    let location_pattern=format!("(^|,[[:space:]]*)({}|{})([[:space:]][0-9]{{5}}(-[0-9]{{4}})?)?([[:space:]]*,.*|[[:space:]]*$)", b.state_code.as_deref().unwrap_or("unknown"),state_name);
+    let preferred = serde_json::to_value(&b.preferred_credentials)
+        .map_err(|_| bad("Check certification preferences."))?;
     let rows: Vec<String>=sqlx::query_scalar(
       "SELECT jsonb_build_object('company',jsonb_build_object('id',c.id,'name',c.name,'slug',c.slug,'username',c.username,
          'logo_url',c.logo_url,'logo_style',c.logo_style,'location',c.location,'claimed',c.listing_status='managed'),
+       'evidenceLevel',o.match_state,'basedInArea',c.location ~* $14,
+       'preferredCredentials',(SELECT COALESCE(jsonb_agg(jsonb_build_object('title',cc.title,'scope',cc.scope,'basis',cc.evidence_basis,'sourceUrl',cc.source_url)),'[]') FROM company_credentials cc WHERE cc.company_id=c.id AND cc.category IN ('certification','qualification') AND cc.checked_at BETWEEN now()-interval '180 days' AND now() AND (cc.valid_until IS NULL OR cc.valid_until>=current_date) AND EXISTS(SELECT 1 FROM jsonb_array_elements($12::jsonb) pref WHERE lower(trim(cc.title))=lower(trim(pref->>'title')) AND cc.scope=pref->>'scope')),
        'offering',jsonb_build_object('id',o.id,'kind',o.kind,'categoryId',o.category_id,'title',o.title,'detail',o.detail,
          'delivery',o.delivery,'productRole',o.product_role,'sectors',o.sectors,'systemTypes',o.system_types,'checkedAt',o.checked_at),
        'sources',(SELECT COALESCE(jsonb_agg(jsonb_build_object('url',e.url,'title',e.title,'basis',e.basis,'checkedAt',e.checked_at)),'[]')
@@ -195,29 +305,50 @@ pub(super) async fn preview(
           (ca.kind='country' OR (ca.kind='region' AND $7=ANY(ca.included_state_codes)) OR (ca.kind='state' AND ca.state_code=$7) OR (ca.kind='city' AND ca.state_code=$7 AND ca.city_key=$8))),
        'sectorConfirmed',($3='' OR $3=ANY(o.sectors)),
        'systemConfirmed',($11='' OR $11=ANY(o.system_types)),
-       'availability',CASE WHEN av.valid_until>now() THEN av.status ELSE 'unknown' END,
-       'earliestStart',CASE WHEN av.valid_until>now() THEN av.earliest_start ELSE NULL END,
-       'availabilityValidUntil',CASE WHEN av.valid_until>now() THEN av.valid_until ELSE NULL END,
+       'availability',CASE WHEN o.kind='product' THEN 'unknown' WHEN av.valid_until>now() THEN av.status WHEN p.work_settings_confirmed_at>now()-interval '30 days' THEN CASE WHEN p.work_settings->>'availability'='from_date' THEN 'accepting' ELSE COALESCE(NULLIF(p.work_settings->>'availability',''),'unknown') END ELSE 'unknown' END,
+       'earliestStart',CASE WHEN av.valid_until>now() THEN av.earliest_start::text WHEN p.work_settings_confirmed_at>now()-interval '30 days' THEN p.work_settings->>'availableFrom' ELSE NULL END,
+       'availabilityValidUntil',CASE WHEN av.valid_until>now() THEN av.valid_until WHEN p.work_settings_confirmed_at>now()-interval '30 days' THEN p.work_settings_confirmed_at+interval '30 days' ELSE NULL END,
        'credentialsConfirmed',NOT EXISTS(SELECT 1 FROM jsonb_array_elements($10::jsonb) req WHERE NOT EXISTS(
          SELECT 1 FROM company_credentials cc WHERE cc.company_id=c.id AND cc.catalog_key=req->>'key' AND cc.scope=req->>'scope'
           AND cc.category IN ('certification','qualification') AND cc.evidence_basis='issuer'
           AND cc.checked_at BETWEEN now()-interval '180 days' AND now()
           AND (cc.valid_until IS NULL OR cc.valid_until>=current_date))))::text
-       FROM provider_current_offerings o JOIN companies c ON c.id=o.company_id
+       FROM provider_current_candidates o JOIN companies c ON c.id=o.company_id
+       LEFT JOIN provider_profiles p ON p.company_id=c.id
        LEFT JOIN provider_service_availability av ON av.company_id=o.company_id AND av.category_id=o.category_id AND o.kind='service'
-       WHERE o.kind=$1 AND o.category_id=$2 AND ($3='' OR cardinality(o.sectors)=0 OR $3=ANY(o.sectors))
+       WHERE ($13 OR o.match_state='reviewed') AND o.kind=$1 AND o.category_id=$2 AND ($3='' OR cardinality(o.sectors)=0 OR $3=ANY(o.sectors))
          AND ($11='' OR cardinality(o.system_types)=0 OR $11=ANY(o.system_types))
-         AND ($4='' OR o.delivery=$4) AND ($5='' OR o.product_role=$5) AND c.id<>$9::uuid
+         AND ($4='' OR o.delivery=$4 OR ($13 AND o.delivery='unknown')) AND ($5='' OR o.product_role=$5) AND c.id<>$9::uuid
        ORDER BY c.name,c.id,o.id"
     ).bind(&b.kind).bind(&b.category_id).bind(b.sector.as_deref().unwrap_or(""))
      .bind(b.delivery.as_deref().unwrap_or("")).bind(b.product_role.as_deref().unwrap_or(""))
      .bind(&b.country_code).bind(b.state_code.as_deref().unwrap_or(""))
-     .bind(b.city.as_deref().unwrap_or("").trim().to_lowercase()).bind(a.company.as_deref().unwrap())
-     .bind(required.to_string()).bind(b.system_type.as_deref().unwrap_or("")).fetch_all(&app.db).await?;
+     .bind(b.city.as_deref().unwrap_or("").trim().to_lowercase()).bind(company)
+     .bind(required.to_string()).bind(b.system_type.as_deref().unwrap_or(""))
+     .bind(preferred.to_string()).bind(include_sourced).bind(location_pattern).fetch_all(&app.db).await?;
     let mut grouped: HashMap<String, Value> = HashMap::new();
     for raw in rows {
         let row = parse_json(raw)?;
         let mut missing = Vec::new();
+        if b.delivery.is_some() && row["offering"]["delivery"] == "unknown" {
+            missing.push("delivery_method");
+        }
+        // A business outside the requested region is not a useful suggestion.
+        // Empty/ambiguous coverage remains explicitly pending, never confirmed.
+        if include_sourced && row["coverageConfirmed"] != true {
+            let areas = row["coverage"].as_array().unwrap();
+            let possible = areas.iter().any(|area| {
+                area["countryCode"] == b.country_code
+                    && (area["kind"] == "country"
+                        || area["stateCode"].as_str() == b.state_code.as_deref()
+                        || area["stateCodes"].as_array().is_some_and(|codes| {
+                            codes.iter().any(|c| c.as_str() == b.state_code.as_deref())
+                        }))
+            });
+            if !areas.is_empty() && !possible {
+                continue;
+            }
+        }
         if row["coverageConfirmed"] != true {
             missing.push("service_area");
         }
@@ -249,21 +380,46 @@ pub(super) async fn preview(
             .as_str()
             .ok_or_else(not_found)?
             .to_string();
-        let candidate = json!({"offering":row["offering"],"sources":row["sources"],"coverage":row["coverage"],"needsConfirmation":missing,
+        let (score, reasons, follow_up) = rank_offering(&row, b, &missing);
+        let candidate = json!({"score":score,"reasons":reasons,"followUp":follow_up,"preferredCredentials":row["preferredCredentials"],"offering":row["offering"],"sources":row["sources"],"coverage":row["coverage"],"needsConfirmation":missing,
             "availability":row["availability"],"earliestStart":row["earliestStart"],"availabilityValidUntil":row["availabilityValidUntil"]});
         let entry = grouped
             .entry(id)
-            .or_insert_with(|| json!({"company":row["company"],"eligible":false,"offerings":[]}));
+            .or_insert_with(|| json!({"company":row["company"],"evidenceLevel":row["evidenceLevel"],"eligible":false,"offerings":[]}));
         if missing.is_empty() {
             entry["eligible"] = json!(true);
         }
         entry["offerings"].as_array_mut().unwrap().push(candidate);
     }
     let mut companies: Vec<Value> = grouped.into_values().collect();
+    for company in &mut companies {
+        let offers = company["offerings"].as_array_mut().unwrap();
+        offers.sort_by(|a, b| {
+            let a_ready = a["needsConfirmation"].as_array().unwrap().is_empty();
+            let b_ready = b["needsConfirmation"].as_array().unwrap().is_empty();
+            b_ready
+                .cmp(&a_ready)
+                .then_with(|| b["score"].as_i64().cmp(&a["score"].as_i64()))
+                .then_with(|| {
+                    a["offering"]["id"]
+                        .as_str()
+                        .cmp(&b["offering"]["id"].as_str())
+                })
+        });
+        let best = offers[0].clone();
+        company["score"] = best["score"].clone();
+        company["reasons"] = best["reasons"].clone();
+        company["followUp"] = best["followUp"].clone();
+    }
     companies.sort_by(|a, b| {
-        a["company"]["name"]
-            .as_str()
-            .cmp(&b["company"]["name"].as_str())
+        b["score"]
+            .as_i64()
+            .cmp(&a["score"].as_i64())
+            .then_with(|| {
+                a["company"]["name"]
+                    .as_str()
+                    .cmp(&b["company"]["name"].as_str())
+            })
             .then_with(|| {
                 a["company"]["id"]
                     .as_str()
@@ -286,8 +442,217 @@ pub(super) async fn preview(
     Ok(Json(
         json!({"version":1,"matches":eligible.iter().skip(offset).take(size).collect::<Vec<_>>(),"needsConfirmation":pending.iter().skip(offset).take(size).collect::<Vec<_>>(),
         "page":page,"pageSize":size,"totalMatches":eligible.len(),"totalNeedsConfirmation":pending.len(),"evaluatedCompanies":companies.len(),
-      "basis":"reviewed_company_capabilities","distanceCalculated":false,"invitationsSent":0}),
+      "basis":if include_sourced {"sourced_company_capabilities"} else {"reviewed_company_capabilities"},"distanceCalculated":false,"invitationsSent":0}),
     ))
+}
+
+// Ranking is a comparison of supported facts, not a probability or a guarantee.
+fn rank_offering(
+    row: &Value,
+    b: &MatchRequest,
+    missing: &[&str],
+) -> (i64, Vec<String>, Vec<String>) {
+    let mut score = 40;
+    let mut reasons = vec![row["offering"]["title"]
+        .as_str()
+        .unwrap_or("Provides the requested service")
+        .to_owned()];
+    let mut follow_up = Vec::new();
+    for (key, label) in [
+        ("service_area", "Service area"),
+        ("project_sector", "Project experience"),
+        ("system_type", "System type"),
+        ("delivery_method", "How the work is delivered"),
+        ("required_credentials", "Required certifications"),
+        ("availability", "Availability"),
+        ("start_date", "Start date"),
+        ("not_accepting_work", "Not currently accepting work"),
+    ] {
+        if missing.contains(&key) {
+            follow_up.push(label.to_string());
+        }
+    }
+    if row["coverageConfirmed"] == true {
+        score += 30;
+        reasons.push("Serves the job location".into());
+    }
+    if b.prefer_local && b.kind == "service" && row["basedInArea"] == true {
+        score += 8;
+        reasons.push("Based in the job’s state or province".into());
+    }
+    if b.sector.is_some() && row["sectorConfirmed"] == true {
+        score += 10;
+        reasons.push(format!("{} experience", b.sector.as_deref().unwrap()));
+    }
+    if b.system_type.is_some() && row["systemConfirmed"] == true {
+        score += 5;
+        reasons.push(format!("{} systems", b.system_type.as_deref().unwrap()));
+    }
+    if b.delivery.is_some() && row["offering"]["delivery"] == json!(b.delivery) {
+        score += 5;
+        reasons.push(format!("{} work", b.delivery.as_deref().unwrap()));
+    }
+    let mut seen = std::collections::HashSet::new();
+    for c in row["preferredCredentials"].as_array().into_iter().flatten() {
+        let key = format!(
+            "{}:{}",
+            c["title"].as_str().unwrap_or("").to_lowercase(),
+            c["scope"]
+        );
+        if !seen.insert(key) {
+            continue;
+        }
+        score += if c["basis"] == "issuer" { 5 } else { 2 };
+        reasons.push(format!(
+            "{}{}",
+            c["title"].as_str().unwrap_or("Preferred certification"),
+            if c["basis"] == "issuer" {
+                ""
+            } else {
+                " (listed)"
+            }
+        ));
+    }
+    let accepting = ["accepting", "limited"].contains(&row["availability"].as_str().unwrap_or(""));
+    let start_matches = b.preferred_start.as_ref().is_none_or(|start| {
+        row["earliestStart"]
+            .as_str()
+            .is_some_and(|d| d <= start.as_str())
+    });
+    if b.kind == "product" {
+        return (score, reasons, follow_up);
+    }
+    if accepting && start_matches {
+        if b.prefer_available {
+            score += 10;
+        }
+        reasons.push(
+            if row["availability"] == "limited" {
+                "Limited availability confirmed"
+            } else {
+                "Accepting work"
+            }
+            .into(),
+        );
+    } else if !follow_up
+        .iter()
+        .any(|s| s == "Availability" || s == "Start date" || s == "Not currently accepting work")
+    {
+        follow_up.push(
+            if b.preferred_start.is_some() {
+                "Start date"
+            } else {
+                "Availability"
+            }
+            .into(),
+        );
+    }
+    (score, reasons, follow_up)
+}
+
+pub(super) async fn parse_job_preferences(app: &App, body: &Value) -> Result<Option<Value>> {
+    let Some(value) = body.get("matchingPreferences").filter(|v| !v.is_null()) else {
+        return Ok(None);
+    };
+    let mut b: MatchRequest = serde_json::from_value(value.clone())
+        .map_err(|_| bad("Check company matching preferences."))?;
+    validate(&b)?;
+    if b.state_code.is_none() {
+        return Err(bad("Choose the state or province for company matching."));
+    }
+    if b.page.is_some()
+        || b.page_size.is_some()
+        || b.require_availability
+        || b.start_by.is_some()
+        || !b.required_credentials.is_empty()
+    {
+        return Err(bad(
+            "Use preferences for matching; confirm requirements with the company.",
+        ));
+    }
+    b.page = None;
+    b.page_size = None;
+    let exists: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM provider_taxonomy WHERE kind=$1 AND id=$2)",
+    )
+    .bind(&b.kind)
+    .bind(&b.category_id)
+    .fetch_one(&app.db)
+    .await?;
+    if !exists {
+        return Err(bad("Choose a known service or product."));
+    }
+    Ok(Some(
+        serde_json::to_value(b).map_err(|_| bad("Check company matching preferences."))?,
+    ))
+}
+
+pub(super) async fn for_job(
+    State(app): State<Arc<App>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Query(q): Query<HashMap<String, String>>,
+) -> Result<Json<Value>> {
+    let actor = company_actor(&app, &headers, false).await?;
+    let access = job_access(&app, &id, actor.company.as_deref()).await?;
+    if !access.hirer {
+        return Err(forbidden());
+    }
+    let can_edit = matches!(actor.role.as_deref(), Some("owner" | "admin"))
+        && ["draft", "open"].contains(&access.status())
+        && sqlx::query_scalar::<_, bool>(
+            "SELECT NOT EXISTS(SELECT 1 FROM job_quotes WHERE job_id=$1::uuid)",
+        )
+        .bind(&id)
+        .fetch_one(&app.db)
+        .await?;
+    let preferences = access.job["matching_preferences"].clone();
+    if preferences.is_null() {
+        return Ok(Json(
+            json!({"configured":false,"job":access.job,"canEdit":can_edit,"invitationsSent":0}),
+        ));
+    }
+    let mut b: MatchRequest = serde_json::from_value(preferences.clone())
+        .map_err(|_| bad("Update this job's matching preferences."))?;
+    b.page = Some(
+        q.get("page")
+            .map(|v| v.parse::<usize>().map_err(|_| bad("Choose a valid page.")))
+            .transpose()?
+            .unwrap_or(1),
+    );
+    b.page_size = Some(12);
+    let Json(mut result) = search(&app, actor.company.as_deref().unwrap(), &b, true).await?;
+    let invited: Vec<String> = sqlx::query_scalar(
+        "SELECT provider_company_id::text FROM job_invitations WHERE job_id=$1::uuid",
+    )
+    .bind(&id)
+    .fetch_all(&app.db)
+    .await?;
+    let pool: i64 =
+        sqlx::query_scalar("SELECT count(DISTINCT company_id) FROM provider_current_candidates")
+            .fetch_one(&app.db)
+            .await?;
+    for group in ["matches", "needsConfirmation"] {
+        for candidate in result[group].as_array_mut().unwrap() {
+            let notes = candidate["followUp"].as_array_mut().unwrap();
+            if access.job["system_size_kw"]
+                .as_f64()
+                .is_some_and(|n| n > 0.)
+            {
+                notes.push(json!("Project size and capacity"));
+            }
+            if access.job["people_needed"].as_i64().is_some_and(|n| n > 0) {
+                notes.push(json!("Crew size"));
+            }
+        }
+    }
+    result["configured"] = json!(true);
+    result["canEdit"] = json!(can_edit);
+    result["job"] = access.job;
+    result["preferences"] = preferences;
+    result["invitedCompanyIds"] = json!(invited);
+    result["searchableCompanies"] = json!(pool);
+    Ok(Json(result))
 }
 
 #[derive(Deserialize)]
@@ -335,6 +700,27 @@ pub(super) async fn update_availability(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn ranking_uses_confirmed_facts_and_never_turns_unknown_schedule_into_availability() {
+        let b:MatchRequest=serde_json::from_value(json!({"kind":"service","categoryId":"solar-installation","countryCode":"US","stateCode":"OH","sector":"commercial","preferAvailable":true,"preferredStart":"2027-01-15"})).unwrap();
+        let mut row = json!({"offering":{"title":"Solar installation"},"coverageConfirmed":true,"sectorConfirmed":true,"preferredCredentials":[],"availability":"unknown","earliestStart":null});
+        let (unknown, _, notes) = rank_offering(&row, &b, &[]);
+        assert!(notes.contains(&"Start date".to_string()));
+        row["availability"] = json!("accepting");
+        row["earliestStart"] = json!("2027-02-01");
+        let (late, _, _) = rank_offering(&row, &b, &[]);
+        assert_eq!(unknown, late);
+        row["earliestStart"] = json!("2027-01-10");
+        let (ready, reasons, notes) = rank_offering(&row, &b, &[]);
+        assert!(ready > unknown);
+        assert!(reasons.contains(&"Accepting work".to_string()));
+        assert!(notes.is_empty());
+        row["coverageConfirmed"] = json!(false);
+        row["basedInArea"] = json!(true);
+        let (_, reasons, notes) = rank_offering(&row, &b, &["service_area"]);
+        assert!(notes.contains(&"Service area".to_string()));
+        assert!(!reasons.contains(&"Serves the job location".to_string()));
+    }
     #[test]
     fn calendar_dates_are_validated_before_database_casts() {
         for date in ["2028-02-29", "2026-11-12", "2027-12-31"] {

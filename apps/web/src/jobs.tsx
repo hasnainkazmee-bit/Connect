@@ -51,6 +51,12 @@ import {
   type JobFile,
 } from "./job-attachments";
 import { useApp } from "./context";
+import {
+  MatchingFields,
+  emptyMatching,
+  tradeService,
+  type MatchingPreferences,
+} from "./job-matches";
 import { usePageGuard } from "./page-navigation";
 import type { Company } from "./types";
 
@@ -69,6 +75,7 @@ type PostingDetails = {
   durationUnit: string;
 };
 type Job = {
+  matching_preferences?: MatchingPreferences | null;
   posting_details?: PostingDetails | null;
   id: string;
   title: string;
@@ -765,6 +772,7 @@ export function NewJobPage() {
     [durationUnit, setDurationUnit] = useState("weeks");
   const [postalCode, setPostalCode] = useState("");
   const today = new Date().toLocaleDateString("en-CA");
+  const [matching, setMatching] = useState<MatchingPreferences>(emptyMatching);
   const [projectType, setProjectType] = useState("");
   const [systemSize, setSystemSize] = useState("");
   const [siteCount, setSiteCount] = useState("");
@@ -799,6 +807,12 @@ export function NewJobPage() {
           setError("This job can no longer be edited.");
           return;
         }
+        setMatching(
+          job.matching_preferences || {
+            ...emptyMatching,
+            categoryId: tradeService[job.trade] || "",
+          },
+        );
         setProjectType(job.project_type || "");
         setPeople(job.people_needed ? String(job.people_needed) : "");
         setExpectedDuration(job.expected_duration || "");
@@ -930,6 +944,25 @@ export function NewJobPage() {
     setError("");
     try {
       const body = {
+        matchingPreferences:
+          matching.categoryId && matching.stateCode
+            ? {
+                ...matching,
+                city:
+                  arrangement !== "remote" && location.trim()
+                    ? location.split(",")[0].trim().slice(0, 100)
+                    : undefined,
+                sector:
+                  matching.kind === "service" &&
+                  ["residential", "commercial", "utility"].includes(projectType)
+                    ? projectType
+                    : undefined,
+                preferredStart:
+                  matching.kind === "service" && startMode === "date"
+                    ? startDate || undefined
+                    : undefined,
+              }
+            : null,
         projectType,
         postalCode: arrangement === "remote" ? "" : postalCode,
         postingDetails: {
@@ -993,7 +1026,9 @@ export function NewJobPage() {
             ? "Job updated"
             : "Job published",
       );
-      navigate(`/jobs/${jobId}`);
+      navigate(
+        `/jobs/${jobId}${status === "open" && body.matchingPreferences ? "/matches" : ""}`,
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -1104,7 +1139,15 @@ export function NewJobPage() {
               <select
                 aria-label="Type of work"
                 value={trade}
-                onChange={(e) => setTrade(e.target.value)}
+                onChange={(e) => {
+                  setTrade(e.target.value);
+                  setMatching((v) => ({
+                    ...v,
+                    kind: "service",
+                    categoryId: tradeService[e.target.value] || "",
+                    delivery: undefined,
+                  }));
+                }}
                 required
               >
                 <option value="">Choose work type</option>
@@ -1276,6 +1319,7 @@ export function NewJobPage() {
               />
             </div>
           )}
+          <MatchingFields value={matching} onChange={setMatching} />
           <details className="posting-more">
             <summary>
               Requirements & project details <span>Optional</span>
@@ -1967,6 +2011,15 @@ export function JobDetailPage() {
                   >
                     <Pencil size={16} />
                     Edit {job.status === "draft" ? "draft" : "job"}
+                  </Link>
+                )}
+                {job.status === "open" && (
+                  <Link
+                    className="jobs-button jobs-secondary"
+                    to={`/jobs/${id}/matches`}
+                  >
+                    <Users size={17} />
+                    Company matches
                   </Link>
                 )}
                 {job.status === "open" && (
