@@ -143,6 +143,7 @@ export async function directorySearch(input: Record<string, unknown>) {
         COALESCE(cert.certifications,'[]'::json) AS certifications,
         COALESCE(listed.directory_profile_count,0) AS directory_profile_count,
         COALESCE(listed.directory_profiles,'[]'::json) AS directory_profiles,
+        (c.listing_status='managed' AND EXISTS(SELECT 1 FROM memberships m WHERE m.company_id=c.id)) AS on_connect,
         (c.logo_url <> '') AS has_logo,
         (
           (c.cover_url <> '' AND c.cover_url <> '/assets/solar.jpg')::int * 3 +
@@ -176,11 +177,11 @@ export async function directorySearch(input: Record<string, unknown>) {
       ))
     ), paged AS (
       SELECT * FROM filtered
-      ORDER BY (certification_count>0) DESC,has_logo DESC,profile_score DESC,(listing_status='managed') DESC,name,id
+      ORDER BY on_connect DESC,(certification_count>0) DESC,has_logo DESC,profile_score DESC,name,id
       LIMIT 24 OFFSET $7
     )
-    SELECT COALESCE((SELECT json_agg(to_jsonb(paged)-'has_logo'-'profile_score'
-      ORDER BY (certification_count>0) DESC,has_logo DESC,profile_score DESC,(listing_status='managed') DESC,name,id) FROM paged),'[]') AS companies,
+    SELECT COALESCE((SELECT json_agg(to_jsonb(paged)-'has_logo'-'profile_score'-'on_connect'
+      ORDER BY on_connect DESC,(certification_count>0) DESC,has_logo DESC,profile_score DESC,name,id) FROM paged),'[]') AS companies,
     (SELECT count(*)::int FROM filtered) AS total,
     ARRAY(SELECT DISTINCT unnest(services) AS value FROM companies WHERE NOT is_demo ORDER BY value) AS services,
     ARRAY(SELECT DISTINCT unnest(service_areas) AS value FROM companies WHERE NOT is_demo ORDER BY value) AS areas,

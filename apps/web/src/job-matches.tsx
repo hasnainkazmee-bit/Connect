@@ -665,6 +665,7 @@ export function JobMatchesPage() {
                 {section === "matches"
                   ? "Their listed services, service area and selected project details match your job. Check timing and capacity below."
                   : "These companies offer the work, but some job details are missing. Each card shows exactly what to ask."}
+                {" "}Companies on Connect appear first.
               </p>
             </div>
           )}

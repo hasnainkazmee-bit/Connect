@@ -278,6 +278,7 @@ async fn list_providers(
              EXISTS(SELECT 1 FROM unnest(c.service_areas) a WHERE a ILIKE '%'||$4||'%'))
            AND ($6='' OR c.type=$6)
          ORDER BY pin.position ASC NULLS LAST,
+           (c.listing_status='managed' AND EXISTS(SELECT 1 FROM memberships m WHERE m.company_id=c.id)) DESC,
            completeness.score DESC,c.name,c.id
          LIMIT 24 OFFSET $5"
     ).bind(sample).bind(&q).bind(&trade)

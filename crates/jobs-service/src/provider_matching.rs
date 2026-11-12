@@ -285,7 +285,7 @@ async fn search(
         .map_err(|_| bad("Check certification preferences."))?;
     let rows: Vec<String>=sqlx::query_scalar(
       "SELECT jsonb_build_object('company',jsonb_build_object('id',c.id,'name',c.name,'slug',c.slug,'username',c.username,
-         'logo_url',c.logo_url,'logo_style',c.logo_style,'location',c.location,'claimed',c.listing_status='managed'),
+         'logo_url',c.logo_url,'logo_style',c.logo_style,'location',c.location,'claimed',c.listing_status='managed' AND EXISTS(SELECT 1 FROM memberships m WHERE m.company_id=c.id)),
        'evidenceLevel',o.match_state,'basedInArea',c.location ~* $14,
        'preferredCredentials',(SELECT COALESCE(jsonb_agg(jsonb_build_object('title',cc.title,'scope',cc.scope,'basis',cc.evidence_basis,'sourceUrl',cc.source_url)),'[]') FROM company_credentials cc WHERE cc.company_id=c.id AND cc.category IN ('certification','qualification') AND cc.checked_at BETWEEN now()-interval '180 days' AND now() AND (cc.valid_until IS NULL OR cc.valid_until>=current_date) AND EXISTS(SELECT 1 FROM jsonb_array_elements($12::jsonb) pref WHERE lower(trim(cc.title))=lower(trim(pref->>'title')) AND cc.scope=pref->>'scope')),
        'offering',jsonb_build_object('id',o.id,'kind',o.kind,'categoryId',o.category_id,'title',o.title,'detail',o.detail,
@@ -411,21 +411,7 @@ async fn search(
         company["reasons"] = best["reasons"].clone();
         company["followUp"] = best["followUp"].clone();
     }
-    companies.sort_by(|a, b| {
-        b["score"]
-            .as_i64()
-            .cmp(&a["score"].as_i64())
-            .then_with(|| {
-                a["company"]["name"]
-                    .as_str()
-                    .cmp(&b["company"]["name"].as_str())
-            })
-            .then_with(|| {
-                a["company"]["id"]
-                    .as_str()
-                    .cmp(&b["company"]["id"].as_str())
-            })
-    });
+    companies.sort_by(compare_companies);
     let eligible = companies
         .iter()
         .filter(|c| c["eligible"] == true)
@@ -444,6 +430,25 @@ async fn search(
         "page":page,"pageSize":size,"totalMatches":eligible.len(),"totalNeedsConfirmation":pending.len(),"evaluatedCompanies":companies.len(),
       "basis":if include_sourced {"sourced_company_capabilities"} else {"reviewed_company_capabilities"},"distanceCalculated":false,"invitationsSent":0}),
     ))
+}
+
+fn compare_companies(a: &Value, b: &Value) -> std::cmp::Ordering {
+    // Account participation changes ordering, never evidence or eligibility.
+    // Apply this before pagination so joined companies are not hidden on later pages.
+    (b["eligible"] == true)
+        .cmp(&(a["eligible"] == true))
+        .then_with(|| (b["company"]["claimed"] == true).cmp(&(a["company"]["claimed"] == true)))
+        .then_with(|| b["score"].as_i64().cmp(&a["score"].as_i64()))
+        .then_with(|| {
+            a["company"]["name"]
+                .as_str()
+                .cmp(&b["company"]["name"].as_str())
+        })
+        .then_with(|| {
+            a["company"]["id"]
+                .as_str()
+                .cmp(&b["company"]["id"].as_str())
+        })
 }
 
 // Ranking is a comparison of supported facts, not a probability or a guarantee.
@@ -707,6 +712,57 @@ pub(super) async fn update_availability(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn joined_companies_are_first_within_each_match_group_before_pagination() {
+        let candidate = |id: &str, name: &str, joined: bool, eligible: bool, score: i64| json!({"company":{"id":id,"name":name,"claimed":joined},"eligible":eligible,"score":score});
+        let mut companies = vec![
+            candidate("unclaimed-match", "A complete listing", false, true, 100),
+            candidate("joined-low", "Z joined company", true, true, 70),
+            candidate("joined-high-2", "A joined company", true, true, 90),
+            candidate("joined-pending", "Joined, area unknown", true, false, 120),
+            candidate(
+                "unclaimed-pending",
+                "Unclaimed, area unknown",
+                false,
+                false,
+                140,
+            ),
+            candidate("joined-high-1", "A joined company", true, true, 90),
+        ];
+        companies.sort_by(compare_companies);
+        let ids: Vec<_> = companies
+            .iter()
+            .map(|c| c["company"]["id"].as_str().unwrap())
+            .collect();
+        assert_eq!(
+            ids,
+            [
+                "joined-high-1",
+                "joined-high-2",
+                "joined-low",
+                "unclaimed-match",
+                "joined-pending",
+                "unclaimed-pending"
+            ]
+        );
+        assert_eq!(
+            companies[4]["eligible"], false,
+            "Joining cannot turn missing facts into a match"
+        );
+        assert_eq!(
+            companies[4]["score"], 120,
+            "Participation must not inflate the evidence score"
+        );
+    }
+    #[test]
+    fn missing_account_status_does_not_receive_joined_priority() {
+        let mut unknown =
+            json!({"company":{"id":"unknown","name":"A company"},"eligible":true,"score":100});
+        let joined = json!({"company":{"id":"joined","name":"Z company","claimed":true},"eligible":true,"score":70});
+        assert!(compare_companies(&joined, &unknown).is_lt());
+        unknown["company"]["claimed"] = json!(false);
+        assert!(compare_companies(&joined, &unknown).is_lt());
+    }
     #[test]
     fn ranking_uses_confirmed_facts_and_never_turns_unknown_schedule_into_availability() {
         let b:MatchRequest=serde_json::from_value(json!({"kind":"service","categoryId":"solar-installation","countryCode":"US","stateCode":"OH","sector":"commercial","preferAvailable":true,"preferredStart":"2027-01-15"})).unwrap();

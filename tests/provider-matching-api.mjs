@@ -69,6 +69,7 @@ try {
   const pinned = [],
     enriched = [],
     ordinary = [];
+  let demo;
   for (let i = 0; i < 30; i++) {
     const id = randomUUID();
     ids.push(id);
@@ -123,6 +124,8 @@ try {
           [id],
         );
       }
+    } else {
+      demo = id;
     }
   }
   const directory = await call("/jobs/providers?q=" + directoryQuery);
@@ -174,6 +177,55 @@ try {
   check(
     updatedDirectory.data.providers[2].id === improved,
     "Completing a profile changes its rank immediately without a new import flag",
+  );
+  const joined = enriched.slice(1, 3).sort();
+  for (const id of joined) await member(id);
+  await member(joined[0], "member");
+  const unclaimedWithMember = enriched[3];
+  await pool.query(
+    "UPDATE companies SET listing_status='unclaimed' WHERE id=$1",
+    [unclaimedWithMember],
+  );
+  await member(unclaimedWithMember);
+  await member(demo);
+  const preferredDirectory = await call("/jobs/providers?q=" + directoryQuery);
+  const preferredPage2 = await call(
+    "/jobs/providers?q=" + directoryQuery + "&page=2",
+  );
+  const preferredIds = [
+    ...preferredDirectory.data.providers,
+    ...preferredPage2.data.providers,
+  ].map((provider) => provider.id);
+  check(
+    preferredIds.slice(0, 5).join() === [...pinned, ...joined, improved].join(),
+    "Joined companies lead unclaimed and memberless listings after explicit pins, then completeness still ranks each group",
+  );
+  check(
+    preferredDirectory.data.total === 29 &&
+      preferredIds.length === 29 &&
+      new Set(preferredIds).size === 29 &&
+      !preferredIds.includes(demo),
+    "Multiple employees do not duplicate companies or disturb pagination, and joined demos stay excluded",
+  );
+  const preferredFiltered = await call(
+    "/jobs/providers?q=" + directoryQuery + "&kind=Installer",
+  );
+  check(
+    preferredFiltered.data.total === 25 &&
+      preferredFiltered.data.providers
+        .slice(0, 2)
+        .map((p) => p.id)
+        .join() === joined.join() &&
+      preferredFiltered.data.providers.every((p) => p.type === "Installer"),
+    "On-Connect preference respects selected company filters",
+  );
+  const demoDirectory = await call(
+    "/jobs/providers?q=" + directoryQuery + "&sample=true",
+  );
+  check(
+    demoDirectory.data.total === 1 &&
+      demoDirectory.data.providers[0].id === demo,
+    "Demo companies remain available only in the explicit sample view",
   );
   const hirer = randomUUID();
   ids.push(hirer);

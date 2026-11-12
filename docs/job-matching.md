@@ -14,6 +14,8 @@ Use `npm run providers:matching-report` after migration 032 to see the current c
 
 Results are sorted by the best single offering per company. Facts from unrelated offerings are never combined to fabricate a fit. The ranking considers the requested service, confirmed territory, project sector, system type, delivery mode, and the hirer's preferences. A same-state office is a separate preference, not evidence of service coverage. Distance is not calculated.
 
+Within each result group, companies that have joined Connect appear first, followed by the existing evidence score, name and stable company ID. A joined company has a managed profile and at least one company member. This preference is applied before pagination; it does not add evidence points, change eligibility, or hide unclaimed listings. Company browsing keeps explicit directory pins first, then joined companies, then profile completeness.
+
 Preferred certifications use exact title and scope, freshness and expiry. Issuer-supported credentials rank above company-listed ones. Personnel qualifications remain personnel qualifications. These are preferences, not assertions that all job requirements have been verified. Current capacity, project size, crew size and any missing schedule are shown as items to confirm with the company.
 
 Per-service availability is valid only until its owner-confirmed expiry. The profile's structured work availability can also be used after the company saves its service-area/availability section; that confirmation lasts 30 days. An old or absent value is unknown. Saving unrelated profile sections does not refresh availability.
