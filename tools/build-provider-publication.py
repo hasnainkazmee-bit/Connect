@@ -15,7 +15,7 @@ RULE_VERSION = 'source-check-v1'
 # Category, public title, neutral paraphrase. Scope comes from the same statement.
 SERVICES = {
  'solar-installation': ('Solar installation', 'Installation of solar photovoltaic systems.', r'(?:install(?:s|ing|ation)?\s+(?:\w+\s+){0,3}(?:solar|photovoltaic)|solar\s+(?:panel\s+|system\s+)?install(?:er|ation|s|ing)?)'),
- 'solar-design': ('Solar design', 'Design and engineering for solar projects.', r'(?:design(?:s|ing)?\s+(?:\w+\s+){0,3}(?:solar|photovoltaic)|solar\s+(?:system\s+)?(?:design|engineering))'),
+ 'solar-design': ('Solar design', 'Design services for solar projects.', r'(?:design(?:s|ing)?\s+(?:\w+\s+){0,3}(?:solar|photovoltaic)|solar\s+(?:system\s+)?(?:design|engineering))'),
  'battery-storage': ('Battery storage', 'Services for battery energy storage systems.', r'(?:battery\s+(?:storage|backup|installation)|energy\s+storage\s+(?:systems?|installation))'),
  'solar-maintenance': ('Solar repairs & maintenance', 'Service, repair and maintenance of solar systems.', r'(?:solar\s+(?:panel\s+|system\s+)?(?:repair|maintenance|service)|(?:repair|maintain|servic)(?:s|ing|e)?\s+(?:\w+\s+){0,3}solar)'),
  'solar-detach-reset': ('Solar removal & reinstallation', 'Removal and reinstallation of existing solar panels.', r'(?:solar\s+(?:panel\s+)?(?:removal|detach)|(?:detach\s*(?:&|and)\s*reset)|remov(?:e|al)\s+(?:\w+\s+){0,3}solar)'),

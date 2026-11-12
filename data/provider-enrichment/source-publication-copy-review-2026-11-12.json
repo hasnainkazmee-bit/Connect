@@ -1,0 +1,47 @@
+{
+  "purpose": "Narrow solar-design descriptions to avoid unsupported engineering claims. No new companies or offerings.",
+  "reviewedAt": "2026-11-12T14:18:50.920288+00:00",
+  "companies": 176,
+  "batchesManifest": [
+    {
+      "file": "provider-source-publication-copy-review-2026-11-12-001.json",
+      "sha256": "b05468dfd227c0396340a95bfa2c477191f480d5e2f19423c903644b0ad62f17",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-copy-review-2026-11-12-002.json",
+      "sha256": "c8d797b40a45f5f5acb23214fe6d8d5fe10d7d79736c192d6c07efcf899d8bf3",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-copy-review-2026-11-12-003.json",
+      "sha256": "34d4571622c3138f2f214d3ecbfc8735b97f2f3cc9d47565f1734c0b0a51530d",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-copy-review-2026-11-12-004.json",
+      "sha256": "b5c8f6dd16a0e8b986c7b9259b84cd3fe8157a124cf5fbb04f34370b7e9d2a14",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-copy-review-2026-11-12-005.json",
+      "sha256": "bd15dbf86ffba88a472e8a51411dbf9ce177250d3855aeea4e24acec1869eaa5",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-copy-review-2026-11-12-006.json",
+      "sha256": "779b85c57f1a6976bcd85e3a88dd8c26491a195586dc74f60a63cbc6a51165ae",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-copy-review-2026-11-12-007.json",
+      "sha256": "4b017d39d32194ad768e4a03794a3495c15a356c378344855cd604986b0bf692",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-copy-review-2026-11-12-008.json",
+      "sha256": "465d1f5df4ddc70b06c674e1fc6d846b2d97e796b91a4293f561632a9a1fbdd0",
+      "companies": 1
+    }
+  ]
+}
