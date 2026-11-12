@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { usePageGuard } from "./page-navigation";
 import { Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -82,79 +82,8 @@ export function FormError({ error }: { error: string }) {
   ) : null;
 }
 export function useUnsavedChanges(dirty: boolean, busy = false) {
-  const [pending, setPending] = useState<(() => void) | null>(null);
-  useEffect(() => {
-    const close = (e: Event) => {
-      if (busy || dirty) {
-        e.preventDefault();
-        if (!busy) setPending(() => (e as CustomEvent).detail.close);
-      }
-    };
-    const unload = (e: BeforeUnloadEvent) => {
-      if (dirty) e.preventDefault();
-    };
-    window.addEventListener("connect:modal-close", close);
-    window.addEventListener("beforeunload", unload);
-    return () => {
-      window.removeEventListener("connect:modal-close", close);
-      window.removeEventListener("beforeunload", unload);
-    };
-  }, [dirty, busy]);
-  return pending ? (
-    <DiscardChanges keep={() => setPending(null)} discard={pending} />
-  ) : null;
-}
-function DiscardChanges({
-  keep,
-  discard,
-}: {
-  keep: () => void;
-  discard: () => void;
-}) {
-  const ref = useRef<HTMLDialogElement>(null),
-    keepButton = useRef<HTMLButtonElement>(null),
-    id = useId();
-  useEffect(() => {
-    const dialog = ref.current!;
-    dialog.showModal();
-    keepButton.current?.focus();
-    return () => dialog.close();
-  }, []);
-  return createPortal(
-    <dialog
-      ref={ref}
-      className="discard-confirmation"
-      role="alertdialog"
-      aria-labelledby={id + "-title"}
-      aria-describedby={id + "-description"}
-      onCancel={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        keep();
-      }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) keep();
-      }}
-    >
-      <h2 id={id + "-title"}>Keep your changes?</h2>
-      <p id={id + "-description"}>Your changes haven’t been saved yet.</p>
-      <div>
-        <button className="button" type="button" onClick={discard}>
-          Discard changes
-        </button>
-        <button
-          className="button primary"
-          type="button"
-          ref={keepButton}
-          autoFocus
-          onClick={keep}
-        >
-          Keep editing
-        </button>
-      </div>
-    </dialog>,
-    document.body,
-  );
+  usePageGuard(dirty, busy);
+  return null;
 }
 export function UsernameField({
   value,
@@ -371,7 +300,7 @@ export function BrandEditor({
               if (!owns(owner)) return;
               setSession(next);
               refresh();
-              close();
+              close(true);
               toast(
                 slot === "logo"
                   ? "Company logo updated."
@@ -386,24 +315,32 @@ export function BrandEditor({
     </section>
   );
 }
-function TagInput({
+export function TagInput({
   label,
   values,
   onChange,
   placeholder,
   suggestions = [],
+  maxItems = 30,
+  maxLength = 60,
 }: {
   label: string;
   values: string[];
   onChange: (v: string[]) => void;
   placeholder: string;
   suggestions?: string[];
+  maxItems?: number;
+  maxLength?: number;
 }) {
   const [input, setInput] = useState("");
   const add = (v: string) => {
     const clean = v.trim();
-    if (clean && !values.includes(clean) && values.length < 30)
-      onChange([...values, clean.slice(0, 60)]);
+    if (
+      clean &&
+      !values.some((value) => value.toLowerCase() === clean.toLowerCase()) &&
+      values.length < maxItems
+    )
+      onChange([...values, clean.slice(0, maxLength)]);
     setInput("");
   };
   return (
@@ -425,7 +362,11 @@ function TagInput({
         <input
           aria-label={label}
           value={input}
-          placeholder={placeholder}
+          placeholder={
+            values.length >= maxItems ? "Maximum items added" : placeholder
+          }
+          maxLength={maxLength}
+          disabled={values.length >= maxItems}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === ",") {
@@ -435,6 +376,15 @@ function TagInput({
           }}
           onBlur={() => add(input)}
         />
+        <button
+          className="tag-add-button"
+          type="button"
+          onClick={() => add(input)}
+          disabled={!input.trim() || values.length >= maxItems}
+        >
+          <Plus size={16} />
+          Add
+        </button>
       </div>
       {suggestions.filter((v) => !values.includes(v)).length > 0 && (
         <div className="tag-suggestions">
@@ -487,7 +437,7 @@ export function ProfileEditor({ target }: { target: Company }) {
             });
             setSession(await api("/session"));
             refresh();
-            close();
+            close(true);
             toast("Your profile is up to date.");
           });
         }}
@@ -682,6 +632,25 @@ export function PortfolioEditor({ project }: { project?: Project }) {
   const [file, setFile] = useState<File | null>(null),
     [preview, setPreview] = useState(project?.image_url || ""),
     [dirty, setDirty] = useState(false);
+  const savedSize = project?.size?.match(
+    /^([0-9]+(?:\.[0-9]+)?)\s+(kW|MW|systems|sites|panels)$/i,
+  );
+  const [sizeAmount, setSizeAmount] = useState(savedSize?.[1] || "");
+  const [sizeUnit, setSizeUnit] = useState(
+    savedSize?.[2]
+      ? (
+          {
+            kw: "kW",
+            mw: "MW",
+            systems: "systems",
+            sites: "sites",
+            panels: "panels",
+          } as Record<string, string>
+        )[savedSize[2].toLowerCase()]
+      : project?.size
+        ? "existing"
+        : "kW",
+  );
   const input = useRef<HTMLInputElement>(null),
     guard = useUnsavedChanges(dirty, task.busy);
   useEffect(() => {
@@ -714,6 +683,12 @@ export function PortfolioEditor({ project }: { project?: Project }) {
                 method: project ? "PATCH" : "POST",
                 body: JSON.stringify({
                   ...data,
+                  size:
+                    sizeUnit === "existing"
+                      ? project?.size || ""
+                      : sizeAmount
+                        ? sizeAmount + " " + sizeUnit
+                        : "",
                   imageUrl,
                   completedYear: data.completedYear
                     ? Number(data.completedYear)
@@ -722,7 +697,7 @@ export function PortfolioEditor({ project }: { project?: Project }) {
               },
             );
             refresh();
-            close();
+            close(true);
             toast("Project saved to your portfolio.");
           });
         }}
@@ -780,27 +755,60 @@ export function PortfolioEditor({ project }: { project?: Project }) {
             Location
             <input
               name="location"
+              autoComplete="address-level2"
               maxLength={160}
               defaultValue={project?.location}
               placeholder="City, state"
             />
           </label>
-          <label>
-            Project size
-            <input
-              name="size"
-              maxLength={100}
-              defaultValue={project?.size}
-              placeholder="e.g. 2.4 MW"
-            />
-          </label>
+          <fieldset className="portfolio-size">
+            <legend>
+              Project size <small>Optional</small>
+            </legend>
+            <div className="workspace-field-pair">
+              {sizeUnit !== "existing" && (
+                <label>
+                  Quantity
+                  <input
+                    aria-label="Project size quantity"
+                    type="number"
+                    min={["kW", "MW"].includes(sizeUnit) ? "0.01" : "1"}
+                    max="100000000"
+                    step={["kW", "MW"].includes(sizeUnit) ? "0.01" : "1"}
+                    inputMode="decimal"
+                    value={sizeAmount}
+                    onChange={(e) => setSizeAmount(e.target.value)}
+                  />
+                </label>
+              )}
+              <label>
+                Unit
+                <select
+                  aria-label="Project size unit"
+                  value={sizeUnit}
+                  onChange={(e) => setSizeUnit(e.target.value)}
+                >
+                  <option value="kW">kW</option>
+                  <option value="MW">MW</option>
+                  <option value="systems">Systems</option>
+                  <option value="sites">Sites</option>
+                  <option value="panels">Panels</option>
+                  {sizeUnit === "existing" && (
+                    <option value="existing">{project?.size}</option>
+                  )}
+                </select>
+              </label>
+            </div>
+          </fieldset>
           <label>
             Completion year
             <input
               name="completedYear"
               type="number"
               min={1900}
-              max={new Date().getFullYear() + 5}
+              max={new Date().getFullYear()}
+              step="1"
+              inputMode="numeric"
               defaultValue={project?.completed_year || ""}
             />
           </label>
@@ -840,9 +848,7 @@ export function AchievementEditor({
       <header className="manage-heading">
         <span>SOMETHING TO CELEBRATE</span>
         <h2>{a ? "Edit achievement" : "Add an achievement"}</h2>
-        <p>
-          Award, certification, or milestone. Give it a place on your profile.
-        </p>
+        <p>Add an award or a company milestone to your profile.</p>
       </header>
       <form
         className="manage-form"
@@ -862,7 +868,7 @@ export function AchievementEditor({
               },
             );
             refresh();
-            close();
+            close(true);
             toast("Achievement added to your profile.");
           });
         }}
@@ -894,7 +900,9 @@ export function AchievementEditor({
               name="year"
               type="number"
               min={1900}
-              max={new Date().getFullYear() + 1}
+              max={new Date().getFullYear()}
+              step="1"
+              inputMode="numeric"
               defaultValue={a?.year || ""}
             />
           </label>
@@ -960,7 +968,7 @@ export function ConfirmAction({
             void task.run(async () => {
               await action();
               refresh();
-              close();
+              close(true);
             })
           }
         >
@@ -1435,13 +1443,10 @@ export function CompanySettings() {
           </small>
         </div>
         {admin && (
-          <button
-            className="button"
-            onClick={() => open(<ProfileEditor target={company} />)}
-          >
+          <Link className="button" to="/settings/profile/overview">
             <Pencil size={15} />
             Edit profile
-          </button>
+          </Link>
         )}
       </section>
       <TeamManager />

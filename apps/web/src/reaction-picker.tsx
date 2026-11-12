@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useApp } from "./context";
 import { LoaderCircle, RefreshCw, X } from "lucide-react";
 
 type EmojiSelection = { native: string; name: string };
 
-export function ReactionPicker({
+function ReactionPickerPage({
   anchor,
   companyName,
   onSelect,
@@ -15,7 +15,7 @@ export function ReactionPicker({
   onSelect: (emoji: string) => void;
   onClose: () => void;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null);
+  const { close } = useApp();
   const pickerHost = useRef<HTMLDivElement>(null);
   const [picker, setPicker] = useState<{
     Picker: new (options: Record<string, unknown>) => HTMLElement;
@@ -57,6 +57,7 @@ export function ReactionPicker({
       onEmojiSelect: (selection: EmojiSelection) => {
         latest.current.onSelect(selection.native);
         latest.current.onClose();
+        close(true);
       },
       autoFocus: true,
       dynamicWidth: true,
@@ -73,39 +74,15 @@ export function ReactionPicker({
     return () => element.remove();
   }, [picker]);
 
-  useEffect(() => {
-    const element = dialog.current;
-    if (!element) return;
-    const position = () => {
-      const rect = anchor.getBoundingClientRect();
-      const width = Math.min(368, window.innerWidth - 24);
-      const height = Math.min(500, window.innerHeight - 32);
-      element.style.left = `${Math.max(12, Math.min(rect.left, window.innerWidth - width - 12))}px`;
-      element.style.top = `${Math.max(16, Math.min(rect.bottom + 8, window.innerHeight - height - 16))}px`;
-    };
-    position();
-    element.showModal();
-    window.addEventListener("resize", position);
-    return () => {
-      window.removeEventListener("resize", position);
-      element.close();
+  useEffect(
+    () => () => {
+      latest.current.onClose();
       if (anchor.isConnected) anchor.focus({ preventScroll: true });
-    };
-  }, [anchor]);
-
-  return createPortal(
-    <dialog
-      ref={dialog}
-      className="reaction-picker-dialog"
-      aria-label="Choose a reaction"
-      onCancel={(event) => {
-        event.preventDefault();
-        onClose();
-      }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
+    },
+    [anchor],
+  );
+  return (
+    <section className="reaction-picker-page" aria-label="Choose a reaction">
       <div className="reaction-picker-content">
         <header>
           <div>
@@ -115,7 +92,7 @@ export function ReactionPicker({
           <button
             className="icon-button"
             aria-label="Close emoji picker"
-            onClick={onClose}
+            onClick={() => close()}
           >
             <X size={19} />
           </button>
@@ -138,7 +115,16 @@ export function ReactionPicker({
             </div>
           ))}
       </div>
-    </dialog>,
-    document.body,
+    </section>
   );
+}
+
+export function ReactionPicker(
+  props: Parameters<typeof ReactionPickerPage>[0],
+) {
+  const { open } = useApp();
+  useEffect(() => {
+    open(<ReactionPickerPage {...props} />);
+  }, []);
+  return null;
 }

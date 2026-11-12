@@ -313,7 +313,7 @@ async fn provider_detail(
         "SELECT (to_jsonb(c)||jsonb_build_object('trades',COALESCE(p.trades,'{}'::text[]),
          'project_types',COALESCE(p.project_types,'{}'::text[]),'availability',COALESCE(p.availability,''),
          'crew_size',COALESCE(p.crew_size,''),'capacity',COALESCE(p.capacity,''),
-         'license_details',COALESCE(p.license_details,''),'insurance_details',COALESCE(p.insurance_details,''),
+         'license_details',COALESCE(p.license_details,''),'insurance_details',COALESCE(p.insurance_details,''),'work_settings',p.work_settings,
          'capabilities',CASE WHEN p.updated_at<=e.updated_at THEN e.research-'reviewNotes'-'identityNote'-'confirmationNeeded' ELSE NULL END))::text
          FROM companies c LEFT JOIN provider_profiles p ON p.company_id=c.id
          LEFT JOIN provider_capabilities e ON e.company_id=c.id
@@ -1200,6 +1200,118 @@ fn parse_breakdown(body: &Value, amount: i64) -> Result<Value> {
     Ok(json!(result))
 }
 
+// Structured inputs supplement legacy labels so older clients keep working.
+fn parse_posting_details(body: &Value) -> Result<Option<Value>> {
+    let Some(value) = body.get("postingDetails").filter(|v| !v.is_null()) else {
+        return Ok(None);
+    };
+    let mode = value["startMode"]
+        .as_str()
+        .ok_or_else(|| bad("Choose when the job should start."))?;
+    if !["flexible", "asap", "two_weeks", "month", "date", "existing"].contains(&mode) {
+        return Err(bad("Choose when the job should start."));
+    }
+    let start = value.get("startDate").filter(|v| !v.is_null());
+    if mode == "date" {
+        if !start
+            .and_then(Value::as_str)
+            .is_some_and(provider_matching::date_valid)
+        {
+            return Err(bad("Choose a valid start date."));
+        }
+    } else if start.is_some() {
+        return Err(bad("A start date is only needed for a specific date."));
+    }
+    let unit = value["durationUnit"]
+        .as_str()
+        .ok_or_else(|| bad("Choose a duration unit."))?;
+    if !["hours", "days", "weeks", "months", "existing"].contains(&unit) {
+        return Err(bad("Choose a duration unit."));
+    }
+    let amount = match value.get("durationAmount").filter(|v| !v.is_null()) {
+        None => None,
+        Some(v) => Some(
+            v.as_i64()
+                .filter(|n| (1..=10000).contains(n))
+                .ok_or_else(|| bad("Duration must be a whole number between 1 and 10,000."))?,
+        ),
+    };
+    Ok(Some(
+        json!({"startMode":mode,"startDate":start,"durationAmount":amount,"durationUnit":unit}),
+    ))
+}
+fn parse_budget(body: &Value) -> Result<Option<i64>> {
+    match body.get("budgetCents").filter(|v| !v.is_null()) {
+        None => Ok(None),
+        Some(v) => v
+            .as_i64()
+            .filter(|n| (100..=100_000_000_000).contains(n))
+            .map(Some)
+            .ok_or_else(|| bad("Enter a total budget of at least $1, or request quotes.")),
+    }
+}
+async fn validate_job_dates(
+    db: &PgPool,
+    deadline: &str,
+    details: Option<&Value>,
+    status: &str,
+) -> Result<()> {
+    // Validate before the write, returning a field error instead of a database failure.
+    if !deadline.is_empty() {
+        let valid = sqlx::query_scalar::<_, bool>("SELECT $1::timestamptz >= now()")
+            .bind(deadline)
+            .fetch_one(db)
+            .await
+            .map_err(
+                |e| match e.as_database_error().and_then(|e| e.code()).as_deref() {
+                    Some("22007" | "22008") => bad("Choose a valid quote deadline."),
+                    _ => e.into(),
+                },
+            )?;
+        if status == "open" && !valid {
+            return Err(bad("The quote deadline must be in the future."));
+        }
+    }
+    if let Some(start) = details.and_then(|v| v["startDate"].as_str()) {
+        let valid = sqlx::query_scalar::<_, bool>(
+            "SELECT $1::date >= (now() AT TIME ZONE 'UTC')::date - 1",
+        )
+        .bind(start)
+        .fetch_one(db)
+        .await?;
+        if status == "open" && !valid {
+            return Err(bad("Choose a start date of today or later."));
+        }
+    }
+    Ok(())
+}
+
+fn posting_labels(details: Option<&Value>, start: &str, duration: &str) -> (String, String) {
+    let Some(d) = details else {
+        return (start.to_owned(), duration.to_owned());
+    };
+    let start = match d["startMode"].as_str().unwrap_or("existing") {
+        "flexible" => "Flexible",
+        "asap" => "As soon as possible",
+        "two_weeks" => "Within 2 weeks",
+        "month" => "Within a month",
+        "date" => d["startDate"].as_str().unwrap_or(""),
+        _ => start,
+    };
+    let duration = if d["durationUnit"] == "existing" {
+        duration.to_owned()
+    } else if let Some(amount) = d["durationAmount"].as_i64() {
+        format!(
+            "{} {}",
+            amount,
+            d["durationUnit"].as_str().unwrap_or("weeks")
+        )
+    } else {
+        String::new()
+    };
+    (start.to_owned(), duration)
+}
+
 async fn create_job(
     State(app): State<Arc<App>>,
     headers: HeaderMap,
@@ -1250,19 +1362,19 @@ async fn create_job(
     if !["open", "invite_only"].contains(&visibility) {
         return Err(bad("Choose who can see this job."));
     }
-    let budget = body["budgetCents"].as_i64();
-    if budget.is_some_and(|v| v < 0 || v > 100_000_000_000) {
-        return Err(bad("Invalid budget."));
-    }
+    let budget = parse_budget(&body)?;
     let deadline = optional_text(&body, "quoteDeadline", 50)?;
     let brief = parse_brief(&body)?;
+    let posting = parse_posting_details(&body)?;
+    validate_job_dates(&app.db, deadline, posting.as_ref(), status).await?;
+    let (start, duration) = posting_labels(posting.as_ref(), start, brief.duration);
     let new_id: String = sqlx::query_scalar(
         "INSERT INTO jobs(hiring_company_id,author_id,title,description,trade,location,postal_code,exact_address,\
-         start_window,budget_cents,visibility,quote_deadline,status,project_type,system_size_kw,site_count,materials_by,requirements,people_needed,expected_duration,work_arrangement) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10,$11,NULLIF($12,'')::timestamptz,$13,$14,$15,$16,$17,$18,$19,$20,$21) RETURNING id::text")
+         start_window,budget_cents,visibility,quote_deadline,status,project_type,system_size_kw,site_count,materials_by,requirements,people_needed,expected_duration,work_arrangement,posting_details) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10,$11,NULLIF($12,'')::timestamptz,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22::jsonb) RETURNING id::text")
         .bind(a.company.as_deref()).bind(&a.user).bind(title).bind(description).bind(trade).bind(location)
         .bind(postal).bind(exact).bind(start).bind(budget).bind(visibility).bind(deadline).bind(status)
         .bind(brief.project).bind(brief.size).bind(brief.sites).bind(brief.materials).bind(brief.requirements)
-        .bind(brief.people).bind(brief.duration).bind(brief.arrangement)
+        .bind(brief.people).bind(duration).bind(brief.arrangement).bind(posting.map(|v|v.to_string()))
         .fetch_one(&app.db).await?;
     Ok((StatusCode::CREATED, Json(json!({"id":new_id}))))
 }
@@ -1319,12 +1431,12 @@ async fn edit_job(
     if !["open", "invite_only"].contains(&visibility) {
         return Err(bad("Choose who can see this job."));
     }
-    let budget = body["budgetCents"].as_i64();
-    if budget.is_some_and(|v| v < 0 || v > 100_000_000_000) {
-        return Err(bad("Invalid budget."));
-    }
+    let budget = parse_budget(&body)?;
     let deadline = optional_text(&body, "quoteDeadline", 50)?;
     let brief = parse_brief(&body)?;
+    let posting = parse_posting_details(&body)?;
+    validate_job_dates(&app.db, deadline, posting.as_ref(), status).await?;
+    let (start, duration) = posting_labels(posting.as_ref(), start, brief.duration);
     let mut tx = app.db.begin().await?;
     let row = sqlx::query(
         "SELECT hiring_company_id::text AS hirer,status FROM jobs WHERE id=$1::uuid FOR UPDATE",
@@ -1349,11 +1461,11 @@ async fn edit_job(
             "Quotes have arrived. This job can no longer be edited.",
         ));
     }
-    sqlx::query("UPDATE jobs SET title=$1,description=$2,trade=$3,location=$4,postal_code=$5,exact_address=$6,start_window=$7,budget_cents=$8,visibility=$9,quote_deadline=NULLIF($10,'')::timestamptz,status=$11,project_type=$13,system_size_kw=$14,site_count=$15,materials_by=$16,requirements=$17,people_needed=$18,expected_duration=$19,work_arrangement=$20,updated_at=now() WHERE id=$12::uuid")
+    sqlx::query("UPDATE jobs SET title=$1,description=$2,trade=$3,location=$4,postal_code=$5,exact_address=$6,start_window=$7,budget_cents=$8,visibility=$9,quote_deadline=NULLIF($10,'')::timestamptz,status=$11,project_type=$13,system_size_kw=$14,site_count=$15,materials_by=$16,requirements=$17,people_needed=$18,expected_duration=$19,work_arrangement=$20,posting_details=COALESCE($21::jsonb,posting_details),updated_at=now() WHERE id=$12::uuid")
         .bind(title).bind(description).bind(trade).bind(location).bind(postal).bind(exact).bind(start).bind(budget)
         .bind(visibility).bind(deadline).bind(status).bind(&id)
         .bind(brief.project).bind(brief.size).bind(brief.sites).bind(brief.materials).bind(brief.requirements)
-        .bind(brief.people).bind(brief.duration).bind(brief.arrangement).execute(&mut *tx).await?;
+        .bind(brief.people).bind(duration).bind(brief.arrangement).bind(posting.map(|v|v.to_string())).execute(&mut *tx).await?;
     tx.commit().await?;
     Ok(Json(json!({"id":id})))
 }
@@ -1730,4 +1842,45 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     println!("Connect jobs listening on {address}");
     axum::serve(listener, routes).await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod posting_input_tests {
+    use super::*;
+    #[test]
+    fn job_inputs_reject_invalid_units_dates_and_fractional_counts() {
+        let good = json!({"postingDetails":{"startMode":"date","startDate":"2028-02-29","durationAmount":2,"durationUnit":"weeks"}});
+        let parsed = parse_posting_details(&good).unwrap();
+        assert_eq!(
+            posting_labels(parsed.as_ref(), "wrong date", "wrong duration"),
+            ("2028-02-29".to_string(), "2 weeks".to_string())
+        );
+        for patch in [
+            json!({"startDate":"2027-02-29"}),
+            json!({"startMode":"anything"}),
+            json!({"durationAmount":1.5}),
+            json!({"durationUnit":"anything"}),
+        ] {
+            let mut body = good.clone();
+            for (k, v) in patch.as_object().unwrap() {
+                body["postingDetails"][k] = v.clone();
+            }
+            assert!(parse_posting_details(&body).is_err());
+        }
+    }
+    #[test]
+    fn budget_is_optional_but_cannot_be_a_string_or_fractional_cents() {
+        assert_eq!(parse_budget(&json!({})).unwrap(), None);
+        assert_eq!(
+            parse_budget(&json!({"budgetCents":150000})).unwrap(),
+            Some(150000)
+        );
+        for value in [json!("150000"), json!(1.5), json!(-1), json!(0)] {
+            assert!(parse_budget(&json!({"budgetCents":value})).is_err());
+        }
+        assert_eq!(
+            posting_labels(None, "Within two months", "Ongoing"),
+            ("Within two months".to_string(), "Ongoing".to_string())
+        );
+    }
 }

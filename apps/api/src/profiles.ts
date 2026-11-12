@@ -1,3 +1,4 @@
+import { workSettingsInput, workLabels } from "./profile-records.js";
 import { Router } from "express";
 import { z } from "zod";
 import multer from "multer";
@@ -64,6 +65,7 @@ const reserved = new Set([
   "staging",
   "localhost",
   "claim",
+  "actions",
   "sitemap.xml",
   "robots.txt",
 ]);
@@ -140,21 +142,30 @@ export async function ensureUsername(
 }
 const reviewVisible = `NOT EXISTS(SELECT 1 FROM memberships m WHERE m.user_id=r.user_id AND m.company_id=r.company_id)`;
 export async function profileExtras(companyId: string) {
-  const [achievements, reviews, credentials] = await Promise.all([
-    // Keep sourced credentials separate from company-authored achievements.
-    pool.query(
-      "SELECT * FROM company_achievements WHERE company_id=$1 ORDER BY year DESC NULLS LAST,created_at DESC",
-      [companyId],
-    ),
-    pool.query(
-      `SELECT count(*)::int AS count,round(avg(rating),1)::float AS average,json_build_array(count(*) FILTER(WHERE rating=5),count(*) FILTER(WHERE rating=4),count(*) FILTER(WHERE rating=3),count(*) FILTER(WHERE rating=2),count(*) FILTER(WHERE rating=1)) AS bins FROM company_reviews r WHERE company_id=$1 AND ${reviewVisible}`,
-      [companyId],
-    ),
-    pool.query(
-      "SELECT *,valid_until::text AS valid_until FROM company_credentials WHERE company_id=$1 ORDER BY category,title,id",
-      [companyId],
-    ),
-  ]);
+  const [achievements, reviews, credentials, licenses, insurance] =
+    await Promise.all([
+      // Keep sourced credentials separate from company-authored achievements.
+      pool.query(
+        "SELECT * FROM company_achievements WHERE company_id=$1 ORDER BY year DESC NULLS LAST,created_at DESC",
+        [companyId],
+      ),
+      pool.query(
+        `SELECT count(*)::int AS count,round(avg(rating),1)::float AS average,json_build_array(count(*) FILTER(WHERE rating=5),count(*) FILTER(WHERE rating=4),count(*) FILTER(WHERE rating=3),count(*) FILTER(WHERE rating=2),count(*) FILTER(WHERE rating=1)) AS bins FROM company_reviews r WHERE company_id=$1 AND ${reviewVisible}`,
+        [companyId],
+      ),
+      pool.query(
+        "SELECT *,valid_until::text AS valid_until,issued_on::text AS issued_on FROM company_credentials WHERE company_id=$1 ORDER BY category,title,id",
+        [companyId],
+      ),
+      pool.query(
+        "SELECT *,issued_on::text AS issued_on,expires_on::text AS expires_on FROM company_licenses WHERE company_id=$1 ORDER BY created_at,id",
+        [companyId],
+      ),
+      pool.query(
+        "SELECT *,coverage_limit::float AS coverage_limit,expires_on::text AS expires_on FROM company_insurance WHERE company_id=$1 ORDER BY created_at,id",
+        [companyId],
+      ),
+    ]);
   const stats = reviews.rows[0];
   const distribution = [5, 4, 3, 2, 1].map((rating, index) => ({
     rating,
@@ -163,6 +174,8 @@ export async function profileExtras(companyId: string) {
   return {
     achievements: achievements.rows,
     credentials: credentials.rows,
+    licenses: licenses.rows,
+    insurance: insurance.rows,
     rating: { average: stats.average, count: stats.count, distribution },
   };
 }
@@ -188,6 +201,19 @@ export function profileRoutes() {
   router.patch("/companies/current/profile", requireAdmin, async (req, res) => {
     const b = z
       .object({
+        expectedCompanyId: uuid.optional(),
+        workDetails: z
+          .object({
+            trades: z.array(z.string().trim().min(1).max(80)).max(12),
+            projectTypes: z.array(z.string().trim().min(1).max(80)).max(12),
+            availability: z.string().trim().max(160),
+            crewSize: z.string().trim().max(80),
+            capacity: z.string().trim().max(160),
+            licenseDetails: z.string().trim().max(1000),
+            insuranceDetails: z.string().trim().max(1000),
+            settings: workSettingsInput.optional(),
+          })
+          .optional(),
         name: z.string().trim().min(2).max(120),
         username: usernameSchema.optional(),
         tagline: z.string().trim().max(200),
@@ -238,11 +264,29 @@ export function profileRoutes() {
           .nullable(),
       })
       .parse(req.body);
+    if (b.expectedCompanyId && b.expectedCompanyId !== req.auth!.companyId)
+      throw new HttpError(
+        409,
+        "Your active company changed. Open the correct company before saving.",
+      );
     await tx(async (db) => {
       await preventDuplicateCompany(db, b.name, req.auth!.companyId!);
-      await db.query("SELECT id FROM companies WHERE id=$1 FOR UPDATE", [
-        req.auth!.companyId,
-      ]);
+      const before = (
+        await db.query(
+          "SELECT type,services,service_areas,website FROM companies WHERE id=$1 FOR UPDATE",
+          [req.auth!.companyId],
+        )
+      ).rows[0];
+      const matchingChanged = [
+        "type",
+        "services",
+        "service_areas",
+        "website",
+      ].some(
+        (key) =>
+          JSON.stringify(before[key]) !==
+          JSON.stringify(b[key as keyof typeof b]),
+      );
       if (b.username) await claimUsername(db, req.auth!.companyId!, b.username);
       await db.query(
         "UPDATE companies SET name=$1,tagline=$2,description=$3,type=$4,location=$5,services=$6,service_areas=$7,website=$8,employee_count=$9,established=$10 WHERE id=$11",
@@ -264,6 +308,27 @@ export function profileRoutes() {
         "UPDATE companies SET audiences=COALESCE($1::text[],audiences),phone=COALESCE($2,phone) WHERE id=$3",
         [b.audiences ?? null, b.phone ?? null, req.auth!.companyId],
       );
+      if (b.workDetails) {
+        const w = b.workDetails;
+        const labels = w.settings ? workLabels(w.settings) : w;
+        await db.query(
+          `INSERT INTO provider_profiles(company_id,trades,project_types,availability,crew_size,capacity,license_details,insurance_details,work_settings)
+          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)
+          ON CONFLICT(company_id) DO UPDATE SET trades=$2,project_types=$3,availability=$4,crew_size=$5,capacity=$6,license_details=$7,insurance_details=$8,work_settings=COALESCE($9,provider_profiles.work_settings),updated_at=CASE WHEN $10 OR provider_profiles.trades IS DISTINCT FROM $2 OR provider_profiles.project_types IS DISTINCT FROM $3 THEN now() ELSE provider_profiles.updated_at END`,
+          [
+            req.auth!.companyId,
+            w.trades,
+            w.projectTypes,
+            labels.availability,
+            labels.crewSize,
+            labels.capacity,
+            w.licenseDetails,
+            w.insuranceDetails,
+            w.settings ? JSON.stringify(w.settings) : null,
+            matchingChanged,
+          ],
+        );
+      }
     });
     res.json({ ok: true });
   });

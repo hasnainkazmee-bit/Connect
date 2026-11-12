@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useApp } from "./context";
+import { usePageGuard } from "./page-navigation";
 import Cropper, { type Area } from "react-easy-crop";
 import { LoaderCircle, RotateCcw, X, ZoomIn, ZoomOut } from "lucide-react";
 import "react-easy-crop/react-easy-crop.css";
@@ -80,65 +81,58 @@ async function cropFile(image: HTMLImageElement, file: File, area: Area) {
   );
 }
 
-type Adjustment = {
-  id: number;
-  file: File;
-  options: PhotoAdjustOptions;
-  resolve: (file: File | null) => void;
-};
-/** Render photoAdjuster beside the owning editor; its native dialog preserves that editor. */
+/** Photo adjustment is a separate page; the source editor retains its draft. */
 export function usePhotoAdjuster() {
-  const [request, setRequest] = useState<Adjustment | null>(null);
-  const pending = useRef<Adjustment | null>(null);
-  const sequence = useRef(0);
+  const { open } = useApp();
+  const [adjustingPhoto, setAdjusting] = useState(false);
+  const pending = useRef<((file: File | null) => void) | null>(null);
   useEffect(
     () => () => {
-      pending.current?.resolve(null);
+      pending.current?.(null);
       pending.current = null;
     },
     [],
   );
-  const adjustPhoto = useCallback(
-    (file: File, options: PhotoAdjustOptions = {}) =>
-      new Promise<File | null>((resolve) => {
-        pending.current?.resolve(null);
-        const next = { id: ++sequence.current, file, options, resolve };
-        pending.current = next;
-        setRequest(next);
-      }),
-    [],
-  );
-  const finish = (id: number, file: File | null) => {
-    if (pending.current?.id !== id) return;
-    pending.current?.resolve(file);
-    pending.current = null;
-    setRequest(null);
-  };
-  return {
-    adjustPhoto,
-    adjustingPhoto: !!request,
-    photoAdjuster: request ? (
-      <PhotoAdjuster
-        key={request.id}
-        file={request.file}
-        options={request.options}
-        onDone={(file) => finish(request.id, file)}
-      />
-    ) : null,
-  };
+  const adjustPhoto = (file: File, options: PhotoAdjustOptions = {}) =>
+    new Promise<File | null>((resolve) => {
+      pending.current?.(null);
+      pending.current = resolve;
+      setAdjusting(true);
+      const finish = (value: File | null) => {
+        if (pending.current !== resolve) return;
+        pending.current = null;
+        setAdjusting(false);
+        resolve(value);
+      };
+      open(
+        <PhotoAdjuster
+          file={file}
+          options={options}
+          onDone={finish}
+          onLeave={() => finish(null)}
+        />,
+      );
+    });
+  return { adjustPhoto, adjustingPhoto, photoAdjuster: null };
 }
 
 function PhotoAdjuster({
   file,
   options,
   onDone,
+  onLeave,
 }: {
   file: File;
   options: PhotoAdjustOptions;
   onDone: (file: File | null) => void;
+  onLeave: () => void;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null),
-    cancel = useRef<HTMLButtonElement>(null),
+  const { close } = useApp();
+  const finishPhoto = (value: File | null) => {
+    onDone(value);
+    close(true);
+  };
+  const cancel = useRef<HTMLButtonElement>(null),
     id = useId();
   const decoded = useRef<HTMLImageElement | null>(null),
     area = useRef<Area | null>(null);
@@ -157,16 +151,9 @@ function PhotoAdjuster({
     [error, setError] = useState("");
   const mounted = useRef(true),
     busyRef = useRef(false);
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    const element = dialog.current!;
-    element.showModal();
-    cancel.current?.focus();
-    return () => {
-      element.close();
-      if (previous?.isConnected) previous.focus({ preventScroll: true });
-    };
-  }, []);
+  usePageGuard(false, busy);
+  const leave = useRef(onLeave);
+  useEffect(() => () => leave.current(), []);
   useEffect(() => {
     mounted.current = true;
     let alive = true;
@@ -233,7 +220,7 @@ function PhotoAdjuster({
             }
           : area.current!,
       );
-      if (mounted.current) onDone(result);
+      if (mounted.current) finishPhoto(result);
     } catch (e) {
       if (mounted.current) setError((e as Error).message);
     } finally {
@@ -241,21 +228,10 @@ function PhotoAdjuster({
       if (mounted.current) setBusy(false);
     }
   };
-  return createPortal(
-    <dialog
-      ref={dialog}
-      className="photo-adjuster"
+  return (
+    <section
+      className="photo-adjuster photo-adjuster-page"
       aria-labelledby={id + "-title"}
-      onCancel={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        if (!busyRef.current) onDone(null);
-      }}
-      onClick={(event) => {
-        event.stopPropagation();
-        if (event.target === event.currentTarget && !busyRef.current)
-          onDone(null);
-      }}
     >
       <header>
         <div>
@@ -268,7 +244,7 @@ function PhotoAdjuster({
           className="icon-button"
           aria-label="Cancel photo adjustment"
           disabled={busy}
-          onClick={() => onDone(null)}
+          onClick={() => finishPhoto(null)}
         >
           <X size={20} />
         </button>
@@ -390,7 +366,7 @@ function PhotoAdjuster({
           type="button"
           className="button"
           disabled={busy}
-          onClick={() => onDone(null)}
+          onClick={() => finishPhoto(null)}
         >
           Cancel
         </button>
@@ -410,7 +386,6 @@ function PhotoAdjuster({
           )}
         </button>
       </footer>
-    </dialog>,
-    document.body,
+    </section>
   );
 }

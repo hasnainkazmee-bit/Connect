@@ -1,3 +1,4 @@
+import { recordDate } from "./profile-records";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -10,6 +11,7 @@ import {
   Globe2,
   Users,
   FileBadge,
+  ShieldCheck,
   ExternalLink,
   MapPin,
   Pencil,
@@ -18,11 +20,7 @@ import {
 } from "lucide-react";
 import { api, post } from "./api";
 import { useApp } from "./context";
-import {
-  ProfileEditor,
-  PortfolioEditor,
-  useUnsavedChanges,
-} from "./management";
+import { PortfolioEditor } from "./management";
 import type { Company, Profile, Project } from "./types";
 import {
   ProviderServices,
@@ -60,149 +58,6 @@ const list = (value: string) =>
     .split(/[,\n]/)
     .map((s) => s.trim())
     .filter(Boolean);
-
-function WorkDetailsEditor({
-  provider,
-  onSaved,
-}: {
-  provider: Provider;
-  onSaved: () => void;
-}) {
-  const { close } = useApp();
-  const [trades, setTrades] = useState((provider.trades || []).join(", "));
-  const [projects, setProjects] = useState(
-    (provider.project_types || []).join(", "),
-  );
-  const [availability, setAvailability] = useState(provider.availability || "");
-  const [crew, setCrew] = useState(provider.crew_size || "");
-  const [capacity, setCapacity] = useState(provider.capacity || "");
-  const [license, setLicense] = useState(provider.license_details || "");
-  const [insurance, setInsurance] = useState(provider.insurance_details || "");
-  const [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
-  useUnsavedChanges(
-    trades !== (provider.trades || []).join(", ") ||
-      projects !== (provider.project_types || []).join(", ") ||
-      availability !== (provider.availability || "") ||
-      crew !== (provider.crew_size || "") ||
-      capacity !== (provider.capacity || "") ||
-      license !== (provider.license_details || "") ||
-      insurance !== (provider.insurance_details || ""),
-    busy,
-  );
-  const save = async (e: FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setError("");
-    try {
-      await api("/jobs/providers/me", {
-        method: "PATCH",
-        body: JSON.stringify({
-          trades: list(trades),
-          projectTypes: list(projects),
-          availability,
-          crewSize: crew,
-          capacity,
-          licenseDetails: license,
-          insuranceDetails: insurance,
-        }),
-      });
-      onSaved();
-      close();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <section className="manage-dialog provider-edit">
-      <header className="manage-heading">
-        <h2>Work details</h2>
-        <p>
-          Help hiring companies understand the work you take on. Only add
-          details you can support.
-        </p>
-      </header>
-      <form className="manage-form" onSubmit={save}>
-        <label>
-          Trades <small>Separate with commas</small>
-          <input
-            value={trades}
-            onChange={(e) => setTrades(e.target.value)}
-            placeholder="Installation, Electrical, Roofing"
-          />
-        </label>
-        <label>
-          Project types <small>Separate with commas</small>
-          <input
-            value={projects}
-            onChange={(e) => setProjects(e.target.value)}
-            placeholder="Commercial rooftop, Residential storage"
-          />
-        </label>
-        <div className="provider-edit-pair">
-          <label>
-            Availability
-            <input
-              value={availability}
-              onChange={(e) => setAvailability(e.target.value)}
-              placeholder="Available for new projects"
-            />
-          </label>
-          <label>
-            Crew size
-            <input
-              value={crew}
-              onChange={(e) => setCrew(e.target.value)}
-              placeholder="3 installation crews"
-            />
-          </label>
-        </div>
-        <label>
-          Capacity
-          <input
-            value={capacity}
-            onChange={(e) => setCapacity(e.target.value)}
-            placeholder="Up to 5 rooftops each month"
-          />
-        </label>
-        <label>
-          License details
-          <textarea
-            value={license}
-            onChange={(e) => setLicense(e.target.value)}
-            rows={2}
-            placeholder="License name, number and issuing state"
-          />
-        </label>
-        <label>
-          Insurance details
-          <textarea
-            value={insurance}
-            onChange={(e) => setInsurance(e.target.value)}
-            rows={2}
-            placeholder="Coverage and expiry date"
-          />
-        </label>
-        {error && <p className="job-error">{error}</p>}
-        <footer className="manage-footer">
-          <button
-            type="button"
-            className="button secondary"
-            onClick={close}
-            disabled={busy}
-          >
-            Cancel
-          </button>
-          <button className="button primary" disabled={busy}>
-            {busy ? "Saving…" : "Save work details"}
-          </button>
-        </footer>
-      </form>
-    </section>
-  );
-}
 
 export function ProviderProfilePage() {
   const p = useParams(),
@@ -444,20 +299,12 @@ export function ProviderProfilePage() {
           <div className="provider-profile-actions">
             {mine?.id === c.id && admin ? (
               <>
-                <button
+                <Link
                   className="jobs-button jobs-primary"
-                  onClick={() => open(<ProfileEditor target={c} />)}
+                  to="/settings/profile/overview"
                 >
                   <Pencil size={16} /> Edit profile
-                </button>
-                <button
-                  className="jobs-button jobs-secondary"
-                  onClick={() =>
-                    open(<WorkDetailsEditor provider={c} onSaved={refresh} />)
-                  }
-                >
-                  <Wrench size={16} /> Edit work details
-                </button>
+                </Link>
               </>
             ) : (
               <>
@@ -591,6 +438,8 @@ export function ProviderProfilePage() {
             id: "credentials",
             label: "Credentials",
             show: !!(
+              profile.licenses?.length ||
+              profile.insurance?.length ||
               credentials.length ||
               c.license_details ||
               c.insurance_details
@@ -787,7 +636,9 @@ export function ProviderProfilePage() {
               </div>
             </section>
           )}
-          {(credentials.length > 0 ||
+          {(!!profile.licenses?.length ||
+            !!profile.insurance?.length ||
+            credentials.length > 0 ||
             c.license_details ||
             c.insurance_details) && (
             <section
@@ -818,10 +669,100 @@ export function ProviderProfilePage() {
                         <h3>{credential.title}</h3>
                       )}
                       <p>
-                        {[credential.organization, credential.period]
+                        {[
+                          credential.organization,
+                          credential.scope !== "company"
+                            ? credential.scope_detail
+                            : "",
+                          credential.credential_number,
+                          credential.valid_until
+                            ? (credential.valid_until <
+                              new Date().toLocaleDateString("en-CA")
+                                ? "Expired "
+                                : "Expires ") +
+                              recordDate(credential.valid_until)
+                            : credential.period,
+                        ]
                           .filter(Boolean)
                           .join(" · ")}
                       </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="provider-credential-list">
+                {profile.licenses?.map((r) => (
+                  <div key={r.id}>
+                    <FileBadge size={22} />
+                    <div>
+                      <small>License · {r.jurisdiction}</small>
+                      <h3>
+                        {r.license_type}
+                        {r.classification ? " · " + r.classification : ""}
+                      </h3>
+                      <p>
+                        #{r.license_number} · {r.authority}
+                      </p>
+                      <p>{r.holder}</p>
+                      {r.expires_on && (
+                        <p>
+                          {r.expires_on < new Date().toLocaleDateString("en-CA")
+                            ? "Expired"
+                            : "Expires"}{" "}
+                          {recordDate(r.expires_on)}
+                        </p>
+                      )}
+                      {r.verification_url && (
+                        <a
+                          href={r.verification_url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          View license <ArrowUpRight size={15} />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {profile.insurance?.map((r) => (
+                  <div key={r.id}>
+                    <ShieldCheck size={22} />
+                    <div>
+                      <small>Insurance</small>
+                      <h3>{r.coverage_type}</h3>
+                      <p>{r.insurer}</p>
+                      {r.coverage_limit && (
+                        <p>
+                          {new Intl.NumberFormat(undefined, {
+                            style: "currency",
+                            currency: r.currency,
+                            maximumFractionDigits: 0,
+                          }).format(r.coverage_limit)}{" "}
+                          {
+                            {
+                              per_occurrence: "per occurrence",
+                              aggregate: "total policy limit",
+                              statutory: "statutory coverage",
+                              "": "",
+                            }[r.limit_basis]
+                          }
+                        </p>
+                      )}
+                      <p>
+                        {r.expires_on < new Date().toLocaleDateString("en-CA")
+                          ? "Expired"
+                          : "Expires"}{" "}
+                        {recordDate(r.expires_on)}
+                      </p>
+                      {r.verification_url && (
+                        <a
+                          href={r.verification_url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          View coverage <ArrowUpRight size={15} />
+                        </a>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -905,14 +846,12 @@ export function ProviderProfilePage() {
               <h2>{c.availability || "Team capacity"}</h2>
               {c.capacity && <p>{c.capacity}</p>}
               {owner && (
-                <button
+                <Link
                   className="job-text-button"
-                  onClick={() =>
-                    open(<WorkDetailsEditor provider={c} onSaved={refresh} />)
-                  }
+                  to="/settings/profile/coverage"
                 >
                   Update availability <ArrowRight size={15} />
-                </button>
+                </Link>
               )}
             </section>
           )}

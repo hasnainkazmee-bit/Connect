@@ -39,7 +39,10 @@ export function CompanyMatches({
   return (
     <section className="company-matches" aria-label="Existing company profiles">
       <strong>Your company may already be here</strong>
-      <p>Keep your listing, reviews and company address together.</p>
+      <p>
+        Choose your company to continue. Your existing information stays with
+        the profile.
+      </p>
       {companies.map((c) => (
         <Link
           key={c.id}

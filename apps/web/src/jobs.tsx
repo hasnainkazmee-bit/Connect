@@ -51,6 +51,7 @@ import {
   type JobFile,
 } from "./job-attachments";
 import { useApp } from "./context";
+import { usePageGuard } from "./page-navigation";
 import type { Company } from "./types";
 
 export type JobStatus =
@@ -61,7 +62,14 @@ export type JobStatus =
   | "review"
   | "completed"
   | "cancelled";
+type PostingDetails = {
+  startMode: string;
+  startDate: string | null;
+  durationAmount: number | null;
+  durationUnit: string;
+};
 type Job = {
+  posting_details?: PostingDetails | null;
   id: string;
   title: string;
   description: string;
@@ -699,12 +707,64 @@ export function JobsPage({ mine = false }: { mine?: boolean }) {
   );
 }
 
+function DurationFields({
+  amount,
+  unit,
+  existing,
+  onChange,
+}: {
+  amount: string;
+  unit: string;
+  existing: string;
+  onChange: (amount: string, unit: string) => void;
+}) {
+  return (
+    <fieldset className="posting-duration">
+      <legend>
+        Expected duration <span className="field-optional">(optional)</span>
+      </legend>
+      <div>
+        {unit !== "existing" && (
+          <input
+            aria-label="Duration quantity"
+            type="number"
+            inputMode="numeric"
+            min="1"
+            max="10000"
+            step="1"
+            value={amount}
+            onChange={(e) => onChange(e.target.value, unit)}
+            placeholder="e.g. 2"
+          />
+        )}
+        <select
+          aria-label="Duration unit"
+          value={unit}
+          onChange={(e) => onChange(amount, e.target.value)}
+        >
+          <option value="hours">Hours</option>
+          <option value="days">Days</option>
+          <option value="weeks">Weeks</option>
+          <option value="months">Months</option>
+          {unit === "existing" && <option value="existing">{existing}</option>}
+        </select>
+      </div>
+    </fieldset>
+  );
+}
+
 export function NewJobPage() {
   const { id } = useParams(),
     { company, admin, session, createCompany, signIn, toast } = useApp(),
     navigate = useNavigate();
   const [editReady, setEditReady] = useState(!id);
   const [savedId, setSavedId] = useState(id);
+  const [startMode, setStartMode] = useState("flexible"),
+    [startDate, setStartDate] = useState("");
+  const [durationAmount, setDurationAmount] = useState(""),
+    [durationUnit, setDurationUnit] = useState("weeks");
+  const [postalCode, setPostalCode] = useState("");
+  const today = new Date().toLocaleDateString("en-CA");
   const [projectType, setProjectType] = useState("");
   const [systemSize, setSystemSize] = useState("");
   const [siteCount, setSiteCount] = useState("");
@@ -719,7 +779,7 @@ export function NewJobPage() {
   const [title, setTitle] = useState(""),
     [trade, setTrade] = useState(""),
     [location, setLocation] = useState(""),
-    [start, setStart] = useState(""),
+    [start, setStart] = useState("Flexible"),
     [description, setDescription] = useState(""),
     [budget, setBudget] = useState(""),
     [deadline, setDeadline] = useState(""),
@@ -754,6 +814,21 @@ export function NewJobPage() {
         setTrade(job.trade);
         setLocation(job.location);
         setStart(job.start_window || "");
+        setStartMode(
+          job.posting_details?.startMode ||
+            (job.start_window ? "existing" : "flexible"),
+        );
+        setStartDate(job.posting_details?.startDate || "");
+        setDurationAmount(
+          job.posting_details?.durationAmount
+            ? String(job.posting_details.durationAmount)
+            : "",
+        );
+        setDurationUnit(
+          job.posting_details?.durationUnit ||
+            (job.expected_duration ? "existing" : "weeks"),
+        );
+        setPostalCode(job.postal_code || "");
         setDescription(job.description);
         setBudget(
           job.budget_cents != null ? String(job.budget_cents / 100) : "",
@@ -830,12 +905,39 @@ export function NewJobPage() {
   };
   const publish = async (status: "open" | "draft") => {
     if (status === "open" && !review()) return;
+    if (
+      startMode === "date" &&
+      (!startDate || (status === "open" && startDate < today))
+    ) {
+      setError("Choose a start date of today or later.");
+      return;
+    }
+    if (deadline && status === "open" && deadline < today) {
+      setError("Choose a quote deadline of today or later.");
+      return;
+    }
+    if (
+      durationAmount &&
+      (!Number.isInteger(Number(durationAmount)) ||
+        Number(durationAmount) < 1 ||
+        Number(durationAmount) > 10000)
+    ) {
+      setError("Enter a whole number for the duration, between 1 and 10,000.");
+      return;
+    }
     setSavingDraft(status === "draft");
     setBusy(true);
     setError("");
     try {
       const body = {
         projectType,
+        postalCode: arrangement === "remote" ? "" : postalCode,
+        postingDetails: {
+          startMode,
+          startDate: startMode === "date" ? startDate || null : null,
+          durationAmount: durationAmount ? Number(durationAmount) : null,
+          durationUnit,
+        },
         systemSizeKw: systemSize ? Number(systemSize) : null,
         siteCount: siteCount ? Number(siteCount) : null,
         materialsBy: materials,
@@ -971,7 +1073,10 @@ export function NewJobPage() {
       <div className="posting-layout">
         <form
           className="jobs-panel posting-form"
-          noValidate
+          onInvalidCapture={(e) => {
+            const details = (e.target as HTMLElement).closest("details");
+            if (details) details.open = true;
+          }}
           onSubmit={(e) => {
             e.preventDefault();
             void publish("open");
@@ -989,6 +1094,7 @@ export function NewJobPage() {
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Need a crew for 18 rooftop installations"
               maxLength={160}
+              minLength={8}
               required
             />
           </label>
@@ -1016,7 +1122,8 @@ export function NewJobPage() {
                   aria-label="City or service area"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  placeholder="City or service area"
+                  autoComplete="address-level2"
+                  placeholder="City, state or service area"
                   maxLength={160}
                   required
                 />
@@ -1030,14 +1137,49 @@ export function NewJobPage() {
               </div>
             )}
             <label>
-              Start
-              <input
-                aria-label="Start date or timing"
-                value={start}
-                onChange={(e) => setStart(e.target.value)}
-                placeholder="e.g. In 2 weeks"
-                maxLength={120}
-              />
+              When should work start?
+              <select
+                aria-label="When should work start?"
+                value={startMode}
+                onChange={(e) => {
+                  const mode = e.target.value;
+                  setStartMode(mode);
+                  setStart(
+                    mode === "date"
+                      ? startDate
+                      : (
+                          {
+                            flexible: "Flexible",
+                            asap: "As soon as possible",
+                            two_weeks: "Within 2 weeks",
+                            month: "Within a month",
+                          } as Record<string, string>
+                        )[mode] || start,
+                  );
+                }}
+              >
+                <option value="flexible">I’m flexible</option>
+                <option value="asap">As soon as possible</option>
+                <option value="two_weeks">Within 2 weeks</option>
+                <option value="month">Within a month</option>
+                <option value="date">Choose a date</option>
+                {startMode === "existing" && (
+                  <option value="existing">{start}</option>
+                )}
+              </select>
+              {startMode === "date" && (
+                <input
+                  type="date"
+                  aria-label="Preferred start date"
+                  required
+                  min={today}
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setStart(e.target.value);
+                  }}
+                />
+              )}
             </label>
           </div>
           <label>
@@ -1048,6 +1190,7 @@ export function NewJobPage() {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What needs doing? Include the scope, what you’ll supply, and what a finished job should look like."
               rows={6}
+              minLength={20}
               maxLength={10000}
               required
             />
@@ -1061,26 +1204,39 @@ export function NewJobPage() {
           <FileList files={existingFiles} />
           <div className="jobs-fields-two">
             <label>
-              Budget <span className="field-optional">(optional, USD)</span>
-              <input
-                aria-label="Total budget"
-                type="number"
-                min="1"
-                step="0.01"
-                max="1000000000"
-                value={budget}
-                onChange={(e) => {
-                  setBudget(e.target.value);
-                  setBudgetMode(e.target.value ? "fixed" : "quotes");
-                }}
-                placeholder="Leave blank to receive quotes"
-              />
+              Budget <span className="field-optional">(USD)</span>
+              <select
+                aria-label="Budget preference"
+                value={budgetMode}
+                onChange={(e) => setBudgetMode(e.target.value)}
+              >
+                <option value="quotes">I’d like to receive quotes</option>
+                <option value="fixed">I have a total budget</option>
+              </select>
+              {budgetMode === "fixed" && (
+                <div className="posting-money">
+                  <span aria-hidden="true">$</span>
+                  <input
+                    aria-label="Total budget in USD"
+                    type="number"
+                    inputMode="decimal"
+                    required
+                    min="1"
+                    step="0.01"
+                    max="1000000000"
+                    value={budget}
+                    onChange={(e) => setBudget(e.target.value)}
+                    placeholder="e.g. 75000"
+                  />
+                </div>
+              )}
             </label>
             <label>
               Quote deadline <span className="field-optional">(optional)</span>
               <input
                 aria-label="Quote deadline"
                 type="date"
+                min={today}
                 value={deadline}
                 onChange={(e) => setDeadline(e.target.value)}
               />
@@ -1095,21 +1251,29 @@ export function NewJobPage() {
                   type="number"
                   min="1"
                   max="1000"
+                  step="1"
+                  inputMode="numeric"
                   value={people}
                   onChange={(e) => setPeople(e.target.value)}
                   placeholder="e.g. 4"
                 />
               </label>
-              <label>
-                Duration <span className="field-optional">(optional)</span>
-                <input
-                  aria-label="How long do you need help?"
-                  value={expectedDuration}
-                  onChange={(e) => setExpectedDuration(e.target.value)}
-                  placeholder="e.g. 2 weeks"
-                  maxLength={120}
-                />
-              </label>
+              <DurationFields
+                amount={durationAmount}
+                unit={durationUnit}
+                existing={expectedDuration}
+                onChange={(amount, unit) => {
+                  setDurationAmount(amount);
+                  setDurationUnit(unit);
+                  setExpectedDuration(
+                    unit === "existing"
+                      ? expectedDuration
+                      : amount
+                        ? amount + " " + unit
+                        : "",
+                  );
+                }}
+              />
             </div>
           )}
           <details className="posting-more">
@@ -1134,16 +1298,22 @@ export function NewJobPage() {
                 ))}
               </fieldset>
               {trade !== "crew" && (
-                <label>
-                  Duration
-                  <input
-                    aria-label="How long do you need help?"
-                    value={expectedDuration}
-                    onChange={(e) => setExpectedDuration(e.target.value)}
-                    placeholder="e.g. 2 weeks"
-                    maxLength={120}
-                  />
-                </label>
+                <DurationFields
+                  amount={durationAmount}
+                  unit={durationUnit}
+                  existing={expectedDuration}
+                  onChange={(amount, unit) => {
+                    setDurationAmount(amount);
+                    setDurationUnit(unit);
+                    setExpectedDuration(
+                      unit === "existing"
+                        ? expectedDuration
+                        : amount
+                          ? amount + " " + unit
+                          : "",
+                    );
+                  }}
+                />
               )}
               <label>
                 Requirements
@@ -1152,7 +1322,7 @@ export function NewJobPage() {
                   onChange={(e) => setRequirements(e.target.value)}
                   placeholder="Licenses, insurance, experience, or equipment your team needs"
                   rows={3}
-                  maxLength={5000}
+                  maxLength={3000}
                 />
               </label>
               <div className="jobs-fields-three">
@@ -1178,6 +1348,8 @@ export function NewJobPage() {
                     value={systemSize}
                     onChange={(e) => setSystemSize(e.target.value)}
                     min="0.01"
+                    max="100000000"
+                    inputMode="decimal"
                     step="0.01"
                     placeholder="Optional"
                   />
@@ -1189,6 +1361,8 @@ export function NewJobPage() {
                     value={siteCount}
                     onChange={(e) => setSiteCount(e.target.value)}
                     min="1"
+                    max="100000"
+                    inputMode="numeric"
                     step="1"
                     placeholder="Optional"
                   />
@@ -1214,10 +1388,25 @@ export function NewJobPage() {
                   <span className="field-optional">(private)</span>
                   <input
                     aria-label="Exact address"
+                    autoComplete="street-address"
                     value={exact}
                     onChange={(e) => setExact(e.target.value)}
                     placeholder="Shared only with the company you choose"
                     maxLength={300}
+                  />
+                </label>
+              )}
+              {arrangement !== "remote" && (
+                <label>
+                  ZIP or postal code{" "}
+                  <span className="field-optional">(optional)</span>
+                  <input
+                    type="text"
+                    autoComplete="postal-code"
+                    maxLength={20}
+                    value={postalCode}
+                    onChange={(e) => setPostalCode(e.target.value)}
+                    placeholder="e.g. 44114"
                   />
                 </label>
               )}
@@ -3326,6 +3515,7 @@ function JobProblem({
   const [body, setBody] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  usePageGuard(!!body, busy);
   return (
     <form
       className="manage-dialog job-problem-dialog"
@@ -3335,7 +3525,7 @@ function JobProblem({
         setError("");
         try {
           await onSubmit(body);
-          close();
+          close(true);
         } catch (e) {
           setError((e as Error).message);
           setBusy(false);
@@ -3399,6 +3589,7 @@ function JobDecision({
   const { close } = useApp();
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  usePageGuard(false, busy);
   return (
     <section className="manage-dialog job-confirm-dialog">
       <h2>{title}</h2>
@@ -3419,7 +3610,7 @@ function JobDecision({
             setBusy(true);
             try {
               await onConfirm();
-              close();
+              close(true);
             } catch (e) {
               setError((e as Error).message);
               setBusy(false);

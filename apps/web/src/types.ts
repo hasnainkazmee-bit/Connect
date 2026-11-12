@@ -94,6 +94,8 @@ export type Rating = {
 };
 export type Profile = {
   credentials?: Credential[];
+  licenses?: License[];
+  insurance?: Insurance[];
   company: Company;
   projects: Project[];
   team: { id: string; name: string; title: string }[];
@@ -116,6 +118,9 @@ export type Credential = {
   period: string;
   valid_until: string | null;
   checked_at: string | null;
+  credential_number?: string;
+  issued_on?: string | null;
+  does_not_expire?: boolean;
 };
 export type ConnectionRequest = {
   id: string;
@@ -168,4 +173,37 @@ export const emptyNetwork: Network = {
   connections: [],
   blocked: [],
   notifications: [],
+};
+
+export type License = {
+  id: string;
+  license_type: string;
+  license_number: string;
+  authority: string;
+  jurisdiction: string;
+  holder: string;
+  classification: string;
+  issued_on: string | null;
+  expires_on: string | null;
+  does_not_expire: boolean;
+  verification_url: string;
+};
+export type Insurance = {
+  id: string;
+  coverage_type: string;
+  insurer: string;
+  coverage_limit: number | null;
+  currency: "USD" | "CAD";
+  limit_basis: "" | "per_occurrence" | "aggregate" | "statutory";
+  expires_on: string;
+  verification_url: string;
+};
+export type WorkSettings = {
+  availability: "" | "accepting" | "from_date" | "limited" | "unavailable";
+  availableFrom: string | null;
+  crewCount: number | null;
+  peoplePerCrew: number | null;
+  capacityQuantity: number | null;
+  capacityUnit: "projects" | "systems" | "kW" | "MW";
+  capacityPeriod: "week" | "month";
 };

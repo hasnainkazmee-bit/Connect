@@ -5,6 +5,7 @@ import {
   requireManagedCompany,
 } from "./directory.js";
 import { publicPages } from "./public-pages.js";
+import { profileRecordRoutes } from "./profile-records.js";
 import { credentialRoutes } from "./credentials.js";
 import { googlePlacesRoutes } from "./google-places.js";
 import {
@@ -241,6 +242,7 @@ app.use("/api", sunhubSsoRoutes());
 app.use("/api", sunhubIntegrationRoutes());
 app.use("/api", profileRoutes());
 app.use("/api", credentialRoutes());
+app.use("/api", profileRecordRoutes());
 app.use("/api", googlePlacesRoutes());
 app.use("/api", googleBusinessRoutes());
 app.use("/api", directoryRoutes());

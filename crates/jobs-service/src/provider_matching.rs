@@ -56,7 +56,7 @@ pub(super) struct MatchRequest {
     page: Option<usize>,
     page_size: Option<usize>,
 }
-fn date_valid(s: &str) -> bool {
+pub(super) fn date_valid(s: &str) -> bool {
     if s.len() != 10
         || !s.bytes().enumerate().all(|(i, b)| {
             if i == 4 || i == 7 {

@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import {
-  BrowserRouter,
+  createBrowserRouter,
+  RouterProvider,
   Routes,
   Route,
   Link,
@@ -111,6 +112,14 @@ import {
   desktopCommandEvent,
   type DesktopCommand,
 } from "./mac-app";
+import {
+  FullPage,
+  LeavePage,
+  PageGuardProvider,
+  PageScopeProvider,
+  usePageNavigation,
+} from "./page-navigation";
+import { CompanyProfileEditorPage } from "./profile-editor-page";
 import "./styles.css";
 import "./shell.css";
 import "./network.css";
@@ -126,6 +135,7 @@ import "./marketplace-brand.css";
 import "./provider-dossier.css";
 import "./job-workspace.css";
 import "./job-inbox.css";
+import "./profile-workspace.css";
 
 const date = (s: string) =>
   new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -231,7 +241,6 @@ function App() {
     [startupError, setStartupError] = useState(""),
     [network, setNetwork] = useState<Network>(emptyNetwork),
     [revision, setRevision] = useState(0),
-    [modal, setModal] = useState<ReactNode>(null),
     [sessionExpired, setSessionExpired] = useState(false),
     [reauthenticate, setReauthenticate] = useState(false),
     [notice, setNotice] = useState(""),
@@ -240,6 +249,10 @@ function App() {
       useState<DesktopCommand | null>(null);
   const navigate = useNavigate(),
     location = useLocation();
+  const pageNavigation = usePageNavigation();
+  const modal = pageNavigation.active?.content || null;
+  const setModal = (content: ReactNode) =>
+    content ? pageNavigation.open(content) : pageNavigation.close(true);
   const company = session.companies.find(
       (c) => c.id === session.activeCompanyId,
     ),
@@ -410,19 +423,7 @@ function App() {
         navigate("/account#notifications", { replace: true });
       }
     };
-    if (!modal) {
-      void perform();
-      return;
-    }
-    const finish = () => {
-      setModal(null);
-      void perform();
-    };
-    const event = new CustomEvent("connect:modal-close", {
-      cancelable: true,
-      detail: { close: finish },
-    });
-    if (window.dispatchEvent(event)) finish();
+    pageNavigation.requestLeave(() => void perform());
   }
   useWebPushLifecycle(
     sessionExpired ? null : session.user?.id || null,
@@ -540,19 +541,7 @@ function App() {
           else setModal(<NewCompany />);
         }
       };
-      if (!modal) {
-        perform();
-        return;
-      }
-      const finish = () => {
-        setModal(null);
-        perform();
-      };
-      const event = new CustomEvent("connect:modal-close", {
-        cancelable: true,
-        detail: { close: finish },
-      });
-      if (window.dispatchEvent(event)) finish();
+      pageNavigation.requestLeave(perform);
     },
   );
   useEffect(() => {
@@ -597,8 +586,14 @@ function App() {
         setSession,
         setJobSection,
         open: setModal,
-        close: () => setModal(null),
+        close: pageNavigation.close,
         toast: setNotice,
+        leave: (action) =>
+          pageNavigation.requestLeave(() => {
+            Promise.resolve()
+              .then(action)
+              .catch((e) => setNotice(e.message));
+          }),
         admin,
         signIn: () => auth(),
         createCompany: () => setModal(<NewCompany />),
@@ -751,84 +746,181 @@ function App() {
         }
       >
         <ErrorBox message={startupError} />
-        <Routes>
-          <Route
-            path="/"
-            element={session.user ? <JobsPage /> : <MarketplaceLanding />}
-          />
-          <Route
-            path="/directory"
-            element={<Navigate to="/providers" replace />}
-          />
-          <Route path="/providers" element={<ProviderDirectory />} />
-          <Route path="/jobs" element={<JobsPage />} />
-          <Route path="/jobs/mine" element={<JobsPage mine />} />
-          <Route path="/jobs/inbox" element={<JobInboxPage />} />
-          <Route path="/jobs/new" element={<NewJobPage />} />
-          <Route
-            path="/jobs/companies/:slug"
-            element={<ProviderProfilePage />}
-          />
-          <Route path="/jobs/:id/edit" element={<NewJobPage />} />
-          <Route path="/jobs/:id" element={<JobDetailPage />} />
-          <Route
-            path="/directory/installers/:place"
-            element={<Navigate to="/providers" replace />}
-          />
-          <Route path="/claim/:username?" element={<ClaimCompanyPage />} />
-          <Route
-            path="/posts/:id"
-            element={<Navigate to="/providers" replace />}
-          />
-          <Route path="/company/:id" element={<ProviderProfilePage />} />
-          <Route
-            path="/network/*"
-            element={<Navigate to="/jobs/mine" replace />}
-          />
-          <Route
-            path="/requests/*"
-            element={<Navigate to="/jobs/mine" replace />}
-          />
-          <Route
-            path="/messages/*"
-            element={<Navigate to="/jobs/mine" replace />}
-          />
-          <Route
-            path="/settings/blocked"
-            element={<Navigate to="/settings" replace />}
-          />
-          <Route
-            path="/settings"
-            element={
-              <Protected>
-                <CompanySettings />
-              </Protected>
+        <div
+          className="app-route-container"
+          hidden={
+            !!modal ||
+            !!needsOnboarding ||
+            reauthenticate ||
+            pageNavigation.blocker.state === "blocked" ||
+            !!pageNavigation.pendingLeave
+          }
+        >
+          <Routes location={pageNavigation.active?.background || location}>
+            <Route
+              path="/"
+              element={session.user ? <JobsPage /> : <MarketplaceLanding />}
+            />
+            <Route
+              path="/directory"
+              element={<Navigate to="/providers" replace />}
+            />
+            <Route path="/providers" element={<ProviderDirectory />} />
+            <Route path="/jobs" element={<JobsPage />} />
+            <Route path="/jobs/mine" element={<JobsPage mine />} />
+            <Route path="/jobs/inbox" element={<JobInboxPage />} />
+            <Route path="/jobs/new" element={<NewJobPage />} />
+            <Route
+              path="/jobs/companies/:slug"
+              element={<ProviderProfilePage />}
+            />
+            <Route path="/jobs/:id/edit" element={<NewJobPage />} />
+            <Route path="/jobs/:id" element={<JobDetailPage />} />
+            <Route
+              path="/directory/installers/:place"
+              element={<Navigate to="/providers" replace />}
+            />
+            <Route path="/claim/:username?" element={<ClaimCompanyPage />} />
+            <Route
+              path="/posts/:id"
+              element={<Navigate to="/providers" replace />}
+            />
+            <Route path="/company/:id" element={<ProviderProfilePage />} />
+            <Route
+              path="/network/*"
+              element={<Navigate to="/jobs/mine" replace />}
+            />
+            <Route
+              path="/requests/*"
+              element={<Navigate to="/jobs/mine" replace />}
+            />
+            <Route
+              path="/messages/*"
+              element={<Navigate to="/jobs/mine" replace />}
+            />
+            <Route
+              path="/settings/blocked"
+              element={<Navigate to="/settings" replace />}
+            />
+            <Route
+              path="/settings"
+              element={
+                <Protected>
+                  <CompanySettings />
+                </Protected>
+              }
+            />
+            <Route
+              path="/settings/profile/:section?"
+              element={
+                <Protected>
+                  <CompanyProfileEditorPage />
+                </Protected>
+              }
+            />
+            <Route
+              path="/actions/:id"
+              element={
+                <Navigate
+                  to={
+                    (location.state as { returnTo?: string })?.returnTo ||
+                    "/providers"
+                  }
+                  replace
+                />
+              }
+            />
+            <Route path="/account" element={<AccountSecurity />} />
+            <Route
+              path="/account/updates"
+              element={<Navigate to="/account#updates" replace />}
+            />
+            <Route path="/join/:username" element={<JoinCompanyPage />} />
+            <Route path="/invite/:token" element={<InvitePage />} />
+            <Route path="/:username" element={<ProviderProfilePage />} />
+            <Route
+              path="*"
+              element={
+                <Empty
+                  title="That page isn’t here."
+                  action={
+                    <Link className="button primary" to="/providers">
+                      Explore companies
+                    </Link>
+                  }
+                >
+                  Explore service providers and open jobs.
+                </Empty>
+              }
+            />
+          </Routes>
+        </div>
+        {pageNavigation.pages.map((page) => (
+          <div
+            className="app-action-container"
+            key={page.id}
+            hidden={
+              page.id !== pageNavigation.active?.id ||
+              !!needsOnboarding ||
+              reauthenticate ||
+              pageNavigation.blocker.state === "blocked" ||
+              !!pageNavigation.pendingLeave
             }
+          >
+            <PageScopeProvider value={"/actions/" + page.id}>
+              <FullPage back={() => pageNavigation.close()}>
+                {page.content}
+              </FullPage>
+            </PageScopeProvider>
+          </div>
+        ))}
+        {needsOnboarding && (
+          <FullPage
+            back={() => {
+              setDeferredOnboarding(session.user!.id);
+              setModal(null);
+            }}
+            backLabel="Finish later"
+          >
+            <Onboarding
+              onDone={() => {
+                setModal(null);
+                refresh();
+              }}
+            />
+          </FullPage>
+        )}
+        {reauthenticate && (
+          <FullPage
+            back={() => setReauthenticate(false)}
+            backLabel="Back to your work"
+          >
+            <div className="session-recovery-message" role="status">
+              Sign in again to continue. Your unsaved changes are still here.
+            </div>
+            <AuthExperience
+              onSuccess={(value) => {
+                if (
+                  value.user?.id !== session.user?.id ||
+                  value.activeCompanyId !== session.activeCompanyId
+                )
+                  setModal(null);
+                setSession(value);
+                setSessionExpired(false);
+                setReauthenticate(false);
+                refresh();
+              }}
+            />
+          </FullPage>
+        )}
+        {(pageNavigation.blocker.state === "blocked" ||
+          !!pageNavigation.pendingLeave) && (
+          <LeavePage
+            busy={!!pageNavigation.guard?.busy}
+            keep={pageNavigation.keep}
+            discard={pageNavigation.discard}
           />
-          <Route path="/account" element={<AccountSecurity />} />
-          <Route
-            path="/account/updates"
-            element={<Navigate to="/account#updates" replace />}
-          />
-          <Route path="/join/:username" element={<JoinCompanyPage />} />
-          <Route path="/invite/:token" element={<InvitePage />} />
-          <Route path="/:username" element={<ProviderProfilePage />} />
-          <Route
-            path="*"
-            element={
-              <Empty
-                title="That page isn’t here."
-                action={
-                  <Link className="button primary" to="/providers">
-                    Explore companies
-                  </Link>
-                }
-              >
-                Explore service providers and open jobs.
-              </Empty>
-            }
-          />
-        </Routes>
+        )}
       </main>
       {sessionExpired && !reauthenticate && (
         <div className="session-recovery-notice" role="status">
@@ -855,6 +947,10 @@ function App() {
         </div>
       )}
       {!desktopHost &&
+        !modal &&
+        !needsOnboarding &&
+        !reauthenticate &&
+        !location.pathname.startsWith("/settings/profile") &&
         location.pathname !== "/jobs/new" &&
         location.pathname !== "/jobs/inbox" &&
         !/^\/jobs\/[^/]+\/edit$/.test(location.pathname) &&
@@ -886,50 +982,15 @@ function App() {
           </button>
         </div>
       )}
-      {needsOnboarding ? (
-        <ModalFrame
-          close={() => {
-            setDeferredOnboarding(session.user!.id);
-            setModal(null);
-          }}
-        >
-          <Onboarding
-            onDone={() => {
-              setModal(null);
-              refresh();
-            }}
-          />
-        </ModalFrame>
-      ) : (
-        modal && <ModalFrame close={() => setModal(null)}>{modal}</ModalFrame>
-      )}
-      {reauthenticate && (
-        <ModalFrame guarded={false} close={() => setReauthenticate(false)}>
-          <div className="session-recovery-message" role="status">
-            Sign in again to continue. Your unsaved changes are still here.
-          </div>
-          <AuthExperience
-            onSuccess={(value) => {
-              if (
-                value.user?.id !== session.user?.id ||
-                value.activeCompanyId !== session.activeCompanyId
-              )
-                setModal(null);
-              setSession(value);
-              setSessionExpired(false);
-              setReauthenticate(false);
-              refresh();
-            }}
-          />
-        </ModalFrame>
-      )}
     </AppContext.Provider>
   );
   return (
     <NotificationContext.Provider
       value={{ ...notificationInbox, openNotification }}
     >
-      {workspace}
+      <PageGuardProvider value={pageNavigation.register}>
+        {workspace}
+      </PageGuardProvider>
     </NotificationContext.Provider>
   );
 }
@@ -941,7 +1002,8 @@ function AccountMenuContents({
   closeMenu?: () => void;
   desktop?: boolean;
 }) {
-  const { session, company, admin, setSession, refresh, open } = useApp();
+  const { session, company, admin, setSession, refresh, open, leave } =
+    useApp();
   const navigate = useNavigate();
   if (!session.user) return null;
   return (
@@ -950,13 +1012,15 @@ function AccountMenuContents({
       {session.companies.map((c) => (
         <button
           key={c.id}
-          onClick={async () => {
-            setSession(await post("/session/company", { companyId: c.id }));
-            refresh();
-            document.querySelector(".account-menu")?.removeAttribute("open");
-            closeMenu?.();
-            navigate("/jobs/mine");
-          }}
+          onClick={() =>
+            leave(async () => {
+              setSession(await post("/session/company", { companyId: c.id }));
+              refresh();
+              document.querySelector(".account-menu")?.removeAttribute("open");
+              closeMenu?.();
+              navigate("/jobs/mine");
+            })
+          }
         >
           <Logo company={c} size="tiny" />
           <span>{c.name}</span>
@@ -986,17 +1050,19 @@ function AccountMenuContents({
         </Link>
       )}
       <button
-        onClick={async () => {
-          await disconnectWebPush().catch(() => {});
-          await post("/auth/logout");
-          setSession({
-            user: null,
-            companies: [],
-            activeCompanyId: null,
-          });
-          closeMenu?.();
-          navigate("/");
-        }}
+        onClick={() =>
+          leave(async () => {
+            await disconnectWebPush().catch(() => {});
+            await post("/auth/logout");
+            setSession({
+              user: null,
+              companies: [],
+              activeCompanyId: null,
+            });
+            closeMenu?.();
+            navigate("/");
+          })
+        }
       >
         <LogOut />
         Sign out
@@ -1068,56 +1134,6 @@ function Protected({
       </Empty>
     );
   return children;
-}
-function ModalFrame({
-  children,
-  close,
-  guarded = true,
-}: {
-  children: ReactNode;
-  close: () => void;
-  guarded?: boolean;
-}) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const requestClose = () => {
-    if (!guarded) {
-      close();
-      return;
-    }
-    const event = new CustomEvent("connect:modal-close", {
-      cancelable: true,
-      detail: { close },
-    });
-    if (window.dispatchEvent(event)) close();
-  };
-  useEffect(() => {
-    ref.current?.showModal();
-  }, []);
-  return (
-    <dialog
-      ref={ref}
-      className="modal"
-      onCancel={(e) => {
-        e.preventDefault();
-        requestClose();
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) requestClose();
-      }}
-    >
-      <div className="modal-content">
-        <button
-          className="modal-close icon-button"
-          aria-label="Close dialog"
-          type="button"
-          onClick={requestClose}
-        >
-          <X size={20} />
-        </button>
-        {children}
-      </div>
-    </dialog>
-  );
 }
 function AuthModal({
   after,
@@ -1632,9 +1648,9 @@ function PhotoCredits() {
   );
 }
 createRoot(document.getElementById("root")!).render(
-  <BrowserRouter>
-    <App />
-  </BrowserRouter>,
+  <RouterProvider
+    router={createBrowserRouter([{ path: "*", element: <App /> }])}
+  />,
 );
 
 function ConnectModal({ company: c }: { company: Company }) {

@@ -92,27 +92,24 @@ export function ClaimCompanyPage() {
   };
   if (!username)
     return (
-      <div className="claim-page">
-        <Link className="claim-back" to="/directory">
+      <div className="claim-page profile-claim-page">
+        <Link className="claim-back" to="/providers">
           <ArrowLeft size={14} />
-          Back to directory
+          Back to companies
         </Link>
         <div className="claim-layout">
           <section className="claim-context">
             <span className="discovery-eyebrow">YOUR COMPANY ON CONNECT</span>
-            <h1>
-              Your business.
-              <br />
-              Your story.
-            </h1>
+            <h1>Is your company already here?</h1>
             <p>
-              Take ownership of your public profile. Keep your details current,
-              share your work and turn introductions into conversations.
+              Find your company and take control of its profile. Add the work
+              you do, the areas you serve, and your availability so customers
+              can find the right fit.
             </p>
             <ul>
               <li>
                 <Building2 size={18} />
-                One profile for your directory listing and company updates.
+                Keep your existing company information and reviews.
               </li>
               <li>
                 <Users size={18} />
@@ -161,10 +158,10 @@ export function ClaimCompanyPage() {
     );
   if (error)
     return (
-      <div className="claim-page">
+      <div className="claim-page profile-claim-page">
         <FormError error={error} />
-        <Link className="button" to="/directory">
-          Back to directory
+        <Link className="button" to="/providers">
+          Back to companies
         </Link>
       </div>
     );
@@ -173,19 +170,53 @@ export function ClaimCompanyPage() {
     own = session.companies.some((v) => v.id === c.id),
     needsManual = manual || !data.emailMatches;
   return (
-    <div className="claim-page">
+    <div className="claim-page profile-claim-page">
       <Link className="claim-back" to={"/" + (c.username || c.slug)}>
         <ArrowLeft size={14} />
         Back to {c.name}
       </Link>
+      <ol className="claim-steps" aria-label="Claim progress">
+        {["Your account", "Verify access", "Edit your profile"].map(
+          (label, index) => {
+            const step = own ? 2 : session.user && data.verified ? 1 : 0;
+            return (
+              <li
+                key={label}
+                className={
+                  index === step ? "current" : index < step ? "complete" : ""
+                }
+                aria-current={index === step ? "step" : undefined}
+              >
+                <span>{index < step ? <Check size={17} /> : index + 1}</span>
+                <strong>{label}</strong>
+              </li>
+            );
+          },
+        )}
+      </ol>
       <div className="claim-layout">
         <section className="claim-context">
           <Logo company={c} />
           <span className="discovery-eyebrow">CLAIM YOUR COMPANY</span>
-          <h1>Make this profile yours.</h1>
+          <h1>Claim {c.name}</h1>
           <p>
-            Manage {c.name} on Connect. Your existing address, reviews and
-            followers stay together.
+            {c.location}
+            {c.location && " · "}
+            {c.type}
+          </p>
+          {c.website && (
+            <a
+              className="claim-company-website"
+              href={c.website}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Company website <ArrowRight size={16} />
+            </a>
+          )}
+          <p>
+            Manage this company’s information and help the right customers find
+            your services.
           </p>
           <ul>
             <li>
@@ -194,11 +225,11 @@ export function ClaimCompanyPage() {
             </li>
             <li>
               <FileText size={18} />
-              Share project updates and press releases.
+              Add your services, project types, and completed work.
             </li>
             <li>
               <MessageSquare size={18} />
-              Receive messages and meet new partners.
+              Receive job inquiries and send quotes.
             </li>
             <li>
               <Users size={18} />
@@ -223,11 +254,11 @@ export function ClaimCompanyPage() {
                       await post("/session/company", { companyId: c.id }),
                     );
                     refresh();
-                    navigate("/" + (c.username || c.slug));
+                    navigate("/settings/profile/overview");
                   })
                 }
               >
-                Manage company profile <ArrowRight size={15} />
+                Edit company profile <ArrowRight size={15} />
               </button>
               <FormError error={task.error} />
             </>
@@ -252,6 +283,7 @@ export function ClaimCompanyPage() {
               <AuthExperience
                 companyOnly
                 initialMode="register"
+                returnTo={"/claim/" + username}
                 onSuccess={(value: Session) => {
                   setSession(value);
                   refresh();
@@ -283,7 +315,7 @@ export function ClaimCompanyPage() {
               <div className="claim-success-icon">
                 <Clock />
               </div>
-              <h2>Your request is in review.</h2>
+              <h2>We’re checking your request.</h2>
               <p>
                 We’ll check the company information and your role before
                 granting access. You can return to this page to check its
@@ -308,8 +340,8 @@ export function ClaimCompanyPage() {
             <>
               <h2>
                 {needsManual
-                  ? "Confirm your connection."
-                  : "You’re in the right place."}
+                  ? "Confirm your role"
+                  : "Your work email is verified"}
               </h2>
               <p>
                 {needsManual
@@ -354,11 +386,8 @@ export function ClaimCompanyPage() {
                     });
                     if (r.status === "approved") {
                       setSession(await api<Session>("/session"));
-                      toast(
-                        "You now manage " +
-                          c.name +
-                          ". Your public listing is ready to update.",
-                      );
+                      toast("You now manage " + c.name + ".");
+                      navigate("/settings/profile/overview?claimed=1");
                     }
                     refresh();
                   });
@@ -403,7 +432,7 @@ export function ClaimCompanyPage() {
                     ? "Submitting…"
                     : needsManual
                       ? "Request profile access"
-                      : "Claim company profile"}
+                      : "Claim and edit profile"}
                   <ArrowRight size={15} />
                 </button>
               </form>

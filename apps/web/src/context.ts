@@ -9,8 +9,9 @@ export type Context = {
   refresh: () => void;
   setSession: (s: Session) => void;
   open: (c: ReactNode) => void;
-  close: () => void;
+  close: (saved?: unknown) => void;
   toast: (s: string) => void;
+  leave: (action: () => void | Promise<void>) => void;
   admin: boolean;
   signIn: () => void;
   createCompany: () => void;
