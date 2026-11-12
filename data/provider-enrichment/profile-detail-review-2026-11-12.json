@@ -1,0 +1,1077 @@
+{
+  "version": 1,
+  "records": [
+    {
+      "companyId": "645818be-5fba-47c6-aa85-d54c7845ba0e",
+      "description": "183 Solar combines residential and commercial solar projects with equipment procurement for installers and EPCs. Its turnkey work covers planning, engineering, installation and commissioning. The company also helps manufacturers and suppliers reach installation businesses.\n\nIts service work includes grid-connected PV systems, panel removal and replacement, inverter servicing, EV charging and residential roofing. Equipment supply covers modules, PV wire, inverters and mounting components.",
+      "tagline": "Solar EPC, equipment procurement and system services",
+      "trades": [
+        "Installation",
+        "Design",
+        "Equipment",
+        "Service",
+        "Electrical",
+        "Roofing"
+      ],
+      "research": {
+        "sources": [
+          {
+            "id": "about",
+            "url": "https://183solar.com/about-us/",
+            "title": "183 Solar \u2014 About",
+            "evidence": "The company describes itself as a solar EPC, an equipment procurement partner, and a provider of turnkey residential and commercial installations.",
+            "basis": "company-website"
+          },
+          {
+            "id": "services",
+            "url": "https://183solar.com/services/",
+            "title": "183 Solar \u2014 Services",
+            "evidence": "The service catalogue lists grid-tied PV, panel removal/replacement, inverter service, EV chargers, roof work and equipment for installers/EPCs.",
+            "basis": "company-website"
+          }
+        ],
+        "services": [
+          {
+            "id": "solar-installation",
+            "category": "solar-installation",
+            "title": "Residential & commercial solar",
+            "detail": "Grid-connected PV installation, with project planning, engineering and commissioning included in its turnkey offering.",
+            "sectors": [
+              "residential",
+              "commercial"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "services",
+              "about"
+            ]
+          },
+          {
+            "id": "panel-replacement",
+            "category": "solar-detach-reset",
+            "title": "Solar panel removal & replacement",
+            "detail": "Removal and replacement of panels after damage or as part of roof upgrades.",
+            "sectors": [],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "id": "inverter-service",
+            "category": "solar-maintenance",
+            "title": "Inverter servicing & replacement",
+            "detail": "Work on existing Enphase, SolarEdge, SMA, PowerOne, Fronius and Tesla inverter systems.",
+            "sectors": [],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "id": "ev-charging",
+            "category": "ev-charging",
+            "title": "EV charger design & installation",
+            "detail": "Home charging stations planned around the property and its electrical requirements.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "id": "roofing",
+            "category": "roofing",
+            "title": "Roof inspection, repair & replacement",
+            "detail": "Roof assessments and residential roof repairs or replacements, including composition-shingle installations.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "id": "equipment-procurement",
+            "category": "equipment-procurement",
+            "title": "Equipment procurement for installers",
+            "detail": "Sourcing solar modules and balance-of-system equipment for installers and EPC businesses.",
+            "sectors": [],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "about",
+              "services"
+            ]
+          }
+        ],
+        "products": [
+          {
+            "id": "solar-modules",
+            "category": "solar-modules",
+            "title": "Solar modules",
+            "detail": "Module supply for installers and EPCs.",
+            "role": "distributes",
+            "brands": [],
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "id": "electrical-bos",
+            "category": "electrical-bos",
+            "title": "PV wire",
+            "detail": "PV wiring supplied with other project components.",
+            "role": "distributes",
+            "brands": [],
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "id": "inverters",
+            "category": "inverters",
+            "title": "Inverters",
+            "detail": "Inverter supply for solar projects.",
+            "role": "distributes",
+            "brands": [],
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "id": "racking",
+            "category": "racking-mounting",
+            "title": "Solar racking",
+            "detail": "Mounting components supplied for installation projects.",
+            "role": "distributes",
+            "brands": [],
+            "sourceIds": [
+              "services"
+            ]
+          }
+        ],
+        "projectTypes": [
+          {
+            "label": "Residential solar",
+            "sourceIds": [
+              "about",
+              "services"
+            ]
+          },
+          {
+            "label": "Commercial solar",
+            "sourceIds": [
+              "about",
+              "services"
+            ]
+          },
+          {
+            "label": "Solar retrofits",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "label": "Residential roofing",
+            "sourceIds": [
+              "services"
+            ]
+          }
+        ],
+        "identitySourceIds": [
+          "about"
+        ],
+        "summarySourceIds": [
+          "about",
+          "services"
+        ],
+        "coverage": [],
+        "businessType": {
+          "value": "EPC",
+          "sourceIds": [
+            "about"
+          ]
+        }
+      }
+    },
+    {
+      "companyId": "06e86f76-3e28-416f-a28c-32f8f5810e63",
+      "description": "CMCO Electric & Solar is an electrical and solar contractor based in Loomis, California. Its team works on homes, businesses, agricultural properties and multi-tenant buildings in Northern California.\n\nThe company designs and installs solar, integrates battery backup and installs EV chargers and standby generators. It also diagnoses existing solar systems, including installations completed by other companies, and produces electrical and solar plans for new construction and renovations.",
+      "tagline": "Solar, electrical work, battery backup and system repairs",
+      "trades": [
+        "Installation",
+        "Electrical",
+        "Design",
+        "Service"
+      ],
+      "research": {
+        "sources": [
+          {
+            "id": "home",
+            "url": "https://cmcoelectric.com/",
+            "title": "CMCO Electric & Solar",
+            "evidence": "The company identifies its own electrical contracting team and solar, battery, EV charging, generator and repair services.",
+            "basis": "company-website"
+          },
+          {
+            "id": "services",
+            "url": "https://cmcoelectric.com/services",
+            "title": "CMCO \u2014 Solar & electrical services",
+            "evidence": "The catalogue describes residential/commercial solar, battery retrofits, Level 2 and commercial DC charging, generators, repairs and design-build plans.",
+            "basis": "company-website"
+          }
+        ],
+        "services": [
+          {
+            "id": "solar-installation",
+            "category": "solar-installation",
+            "title": "Residential & commercial solar",
+            "detail": "PV systems for houses, warehouses, offices, farms and multi-tenant properties, including permits, inspection and utility coordination.",
+            "sectors": [
+              "residential",
+              "commercial",
+              "agricultural"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "id": "storage",
+            "category": "battery-storage",
+            "title": "Battery storage & retrofits",
+            "detail": "Enphase IQ Battery, Tesla Powerwall and Franklin systems, configured for whole-home or critical loads with existing solar or standalone backup.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "id": "charging",
+            "category": "ev-charging",
+            "title": "EV charger installation",
+            "detail": "Level 2 chargers, dedicated circuits and panel assessments; commercial multi-port DC fast-charging projects are also offered.",
+            "sectors": [
+              "residential",
+              "commercial"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "id": "generators",
+            "category": "backup-power",
+            "title": "Standby generators",
+            "detail": "Whole-home generators, load calculations, transfer switches and portable-generator connection work.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "id": "repairs",
+            "category": "solar-maintenance",
+            "title": "Solar diagnostics, repairs & upgrades",
+            "detail": "Troubleshooting failed panels, inverters, wiring and monitoring; battery retrofits and repairs to systems installed by other companies.",
+            "sectors": [
+              "residential",
+              "commercial"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "id": "design-build",
+            "category": "electrical",
+            "title": "Electrical & solar design-build",
+            "detail": "Permit-ready plans, load calculations, single-line diagrams and engineering drawings for new builds and major renovations.",
+            "sectors": [
+              "residential",
+              "commercial"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "services"
+            ]
+          }
+        ],
+        "products": [],
+        "projectTypes": [
+          {
+            "label": "Residential solar",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "label": "Commercial solar",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "label": "Agricultural solar",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "label": "New construction",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "label": "Renovations & retrofits",
+            "sourceIds": [
+              "services"
+            ]
+          }
+        ],
+        "identitySourceIds": [
+          "home"
+        ],
+        "summarySourceIds": [
+          "home",
+          "services"
+        ],
+        "coverage": [],
+        "businessType": {
+          "value": "Contractor",
+          "sourceIds": [
+            "home"
+          ]
+        }
+      }
+    },
+    {
+      "companyId": "a3dba1ee-5e3e-4125-a204-633d38d12917",
+      "description": "Iddings Electric provides residential and commercial electrical work in Central Pennsylvania. Its home services include rewiring, panel upgrades, lighting, generators and surge protection.\n\nFor commercial properties, the company handles electrical work for new construction, elevated repairs using bucket trucks, and parking-lot and warehouse lighting. Its published service area includes Lancaster, Berks, Chester and York counties.",
+      "tagline": "Residential and commercial electrical services in Central Pennsylvania",
+      "trades": [
+        "Electrical"
+      ],
+      "research": {
+        "sources": [
+          {
+            "id": "about",
+            "url": "https://iddingselectric.com/about/",
+            "title": "Iddings Electric \u2014 About & services",
+            "evidence": "Iddings describes residential/commercial electrical services, rewiring, panels, generators, surge protection, bucket-truck work and commercial lighting.",
+            "basis": "company-website"
+          }
+        ],
+        "services": [
+          {
+            "id": "rewiring",
+            "category": "electrical",
+            "title": "Home rewiring & panel upgrades",
+            "detail": "Replacement of outdated or damaged wiring and upgrades to residential electrical service panels.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "about"
+            ]
+          },
+          {
+            "id": "home-lighting",
+            "category": "lighting",
+            "title": "Interior & exterior lighting",
+            "detail": "Installation, repair and replacement of indoor fixtures, landscape lighting and security lighting.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "about"
+            ]
+          },
+          {
+            "id": "generators",
+            "category": "backup-power",
+            "title": "Home generators",
+            "detail": "Generator solutions for home backup power.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "about"
+            ]
+          },
+          {
+            "id": "surge",
+            "category": "electrical",
+            "title": "Whole-home surge protection",
+            "detail": "Protection for household equipment against electrical surges.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "about"
+            ]
+          },
+          {
+            "id": "commercial-electrical",
+            "category": "electrical",
+            "title": "Commercial electrical construction",
+            "detail": "Electrical system setup for new commercial properties and elevated repairs using bucket trucks.",
+            "sectors": [
+              "commercial"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "about"
+            ]
+          },
+          {
+            "id": "commercial-lighting",
+            "category": "lighting",
+            "title": "Parking-lot & warehouse lighting",
+            "detail": "Lighting installation, repair and replacement for business parking areas and warehouses.",
+            "sectors": [
+              "commercial"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "about"
+            ]
+          }
+        ],
+        "products": [],
+        "projectTypes": [
+          {
+            "label": "Residential electrical",
+            "sourceIds": [
+              "about"
+            ]
+          },
+          {
+            "label": "Commercial electrical",
+            "sourceIds": [
+              "about"
+            ]
+          },
+          {
+            "label": "New commercial construction",
+            "sourceIds": [
+              "about"
+            ]
+          }
+        ],
+        "identitySourceIds": [
+          "about"
+        ],
+        "summarySourceIds": [
+          "about"
+        ],
+        "coverage": [],
+        "businessType": {
+          "value": "Contractor",
+          "sourceIds": [
+            "about"
+          ]
+        }
+      }
+    },
+    {
+      "companyId": "c73fab7f-5118-48fe-bf0d-da49b8f44a25",
+      "description": "Steiner Electric is a full-service electrical contractor in West Bend, serving Southeastern Wisconsin. Its work spans electrical construction, design, service and maintenance for commercial and industrial facilities.\n\nThe company offers power-distribution upgrades, machinery-power relocations, emergency power, medium-voltage work and LED lighting upgrades. Design-build and plan/spec delivery sit alongside its renewable-energy and preventive-maintenance services.",
+      "tagline": "Electrical construction, design and maintenance in Southeastern Wisconsin",
+      "trades": [
+        "Electrical",
+        "Design",
+        "Service",
+        "Installation"
+      ],
+      "research": {
+        "sources": [
+          {
+            "id": "services",
+            "url": "https://steiner-electric.com/services/",
+            "title": "Steiner Electric \u2014 Services",
+            "evidence": "Steiner identifies itself as a West Bend electrical contractor and lists design, engineering, distribution upgrades, emergency power, machinery relocations, LED upgrades and medium voltage.",
+            "basis": "company-website"
+          },
+          {
+            "id": "about",
+            "url": "https://steiner-electric.com/about-us/",
+            "title": "Steiner Electric \u2014 About",
+            "evidence": "The company describes its electrical contracting work and design and engineering capabilities for commercial and industrial customers.",
+            "basis": "company-website"
+          }
+        ],
+        "services": [
+          {
+            "id": "electrical-design",
+            "category": "electrical",
+            "title": "Electrical design & engineering",
+            "detail": "Electrical plans and engineering delivered through design-build or plan/spec arrangements.",
+            "sectors": [
+              "commercial",
+              "industrial"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "services",
+              "about"
+            ]
+          },
+          {
+            "id": "power-distribution",
+            "category": "electrical",
+            "title": "Power distribution & medium voltage",
+            "detail": "Distribution-equipment upgrades, medium-voltage work and electrical connections for relocated machinery.",
+            "sectors": [
+              "commercial",
+              "industrial"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "id": "emergency-power",
+            "category": "backup-power",
+            "title": "Emergency power",
+            "detail": "Backup electrical infrastructure for facilities.",
+            "sectors": [
+              "commercial",
+              "industrial"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "id": "led",
+            "category": "lighting",
+            "title": "LED lighting upgrades",
+            "detail": "Lighting upgrades for existing facilities.",
+            "sectors": [
+              "commercial",
+              "industrial"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "id": "maintenance",
+            "category": "electrical",
+            "title": "Electrical service & maintenance",
+            "detail": "Service work and preventive maintenance for electrical installations.",
+            "sectors": [
+              "commercial",
+              "industrial"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "id": "renewables",
+            "category": "electrical",
+            "title": "Renewable-energy electrical work",
+            "detail": "Electrical work for solar and other renewable-energy projects.",
+            "sectors": [],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "services"
+            ]
+          }
+        ],
+        "products": [],
+        "projectTypes": [
+          {
+            "label": "Commercial facilities",
+            "sourceIds": [
+              "about"
+            ]
+          },
+          {
+            "label": "Industrial facilities",
+            "sourceIds": [
+              "about"
+            ]
+          },
+          {
+            "label": "Electrical upgrades",
+            "sourceIds": [
+              "services"
+            ]
+          },
+          {
+            "label": "Renewable-energy projects",
+            "sourceIds": [
+              "services"
+            ]
+          }
+        ],
+        "identitySourceIds": [
+          "services"
+        ],
+        "summarySourceIds": [
+          "services",
+          "about"
+        ],
+        "coverage": [],
+        "businessType": {
+          "value": "Contractor",
+          "sourceIds": [
+            "services"
+          ]
+        }
+      }
+    },
+    {
+      "companyId": "9ebc4c2a-ef00-4283-9543-9cdf56114f57",
+      "description": "Sun Directed designs and installs solar, battery backup, heat pumps and EV charging for homes, businesses and farms around State College and Bellefonte, Pennsylvania. The company plans these systems together for properties undertaking broader electrification work.\n\nIts solar work includes residential, commercial and agricultural systems. Battery options include Tesla Powerwall 3 and FranklinWH, while heating and cooling services include Daikin inverter heat pumps.",
+      "tagline": "Solar, batteries, heat pumps and EV charging in Centre County",
+      "trades": [
+        "Installation",
+        "Electrical",
+        "Heating & cooling"
+      ],
+      "research": {
+        "sources": [
+          {
+            "id": "home",
+            "url": "https://sundirected.com/",
+            "title": "Sun Directed \u2014 Solar, storage & heat pumps",
+            "evidence": "The company describes installation for homes, businesses and farms, including solar PV, Powerwall, Daikin heat pumps, EV charging and electrical support.",
+            "basis": "company-website"
+          },
+          {
+            "id": "about",
+            "url": "https://sundirected.com/about/",
+            "title": "Sun Directed \u2014 About",
+            "evidence": "The company describes present-day work in solar, storage, heat pumps and EV charging across central Pennsylvania.",
+            "basis": "company-website"
+          },
+          {
+            "id": "storage",
+            "url": "https://sundirected.com/storage/",
+            "title": "Sun Directed \u2014 Battery storage",
+            "evidence": "Tesla Powerwall 3 and FranklinWH storage are offered for whole-home backup, with solar or as standalone installations.",
+            "basis": "company-website"
+          }
+        ],
+        "services": [
+          {
+            "id": "solar",
+            "category": "solar-installation",
+            "title": "Solar design & installation",
+            "detail": "PV systems for homes, commercial buildings and farms, including roofs and barns.",
+            "sectors": [
+              "residential",
+              "commercial",
+              "agricultural"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "id": "batteries",
+            "category": "battery-storage",
+            "title": "Whole-home battery backup",
+            "detail": "Tesla Powerwall 3 and FranklinWH storage paired with solar or installed as standalone backup.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "storage"
+            ]
+          },
+          {
+            "id": "heat-pumps",
+            "category": "hvac",
+            "title": "Heat pumps & efficient heating and cooling",
+            "detail": "Daikin inverter heat pumps, with system sizing and zoning for local heating and cooling needs.",
+            "sectors": [
+              "residential",
+              "commercial",
+              "agricultural"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "id": "ev-charging",
+            "category": "ev-charging",
+            "title": "EV charging & electrical support",
+            "detail": "EV charging and related electrical work, including coordinated home-electrification projects.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "home",
+              "about"
+            ]
+          }
+        ],
+        "products": [],
+        "projectTypes": [
+          {
+            "label": "Residential solar",
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "label": "Commercial solar",
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "label": "Agricultural solar",
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "label": "Home electrification",
+            "sourceIds": [
+              "home",
+              "about"
+            ]
+          }
+        ],
+        "identitySourceIds": [
+          "home"
+        ],
+        "summarySourceIds": [
+          "home",
+          "about",
+          "storage"
+        ],
+        "coverage": []
+      }
+    },
+    {
+      "companyId": "6e62b8d8-7f63-48ba-946a-b202dc6dc9bb",
+      "description": "Risa Solar is a solar-equipment distributor serving installers, EPCs, developers and utilities. Its product catalogue includes PV modules, batteries, inverters, mounting systems, transformers, EV chargers and electrical components.\n\nThe company offers equipment procurement and delivery support, including bulk orders. Its product catalogue distinguishes equipment supply from installation work.",
+      "tagline": "Solar equipment distribution and procurement for project teams",
+      "trades": [
+        "Equipment",
+        "Logistics"
+      ],
+      "research": {
+        "sources": [
+          {
+            "id": "home",
+            "url": "https://risasolar.net/",
+            "title": "Risa Solar \u2014 Distribution & logistics",
+            "evidence": "Risa identifies itself as a solar equipment distributor serving installers, EPCs, developers and utilities, with procurement and bulk delivery support.",
+            "basis": "company-website"
+          },
+          {
+            "id": "products",
+            "url": "https://risasolar.net/products/",
+            "title": "Risa Solar \u2014 Product catalogue",
+            "evidence": "The catalogue lists solar panels, batteries, residential/commercial inverters, microinverters, transformers, racking, EV chargers and electrical gear.",
+            "basis": "company-website"
+          }
+        ],
+        "services": [
+          {
+            "id": "equipment-procurement",
+            "category": "equipment-procurement",
+            "title": "Solar equipment procurement",
+            "detail": "Equipment sourcing for installers, EPCs, developers and utility projects.",
+            "sectors": [],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "id": "delivery",
+            "category": "logistics",
+            "title": "Bulk equipment delivery",
+            "detail": "Delivery coordination for solar components, including pallet and truckload orders.",
+            "sectors": [],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "home"
+            ]
+          }
+        ],
+        "products": [
+          {
+            "id": "modules",
+            "category": "solar-modules",
+            "title": "Solar modules",
+            "detail": "PV module distribution for solar project teams.",
+            "role": "distributes",
+            "brands": [],
+            "sourceIds": [
+              "products"
+            ]
+          },
+          {
+            "id": "batteries",
+            "category": "battery-storage",
+            "title": "Battery systems",
+            "detail": "Solar batteries, including lithium-ion and lead-acid technologies.",
+            "role": "distributes",
+            "brands": [],
+            "sourceIds": [
+              "products"
+            ]
+          },
+          {
+            "id": "inverters",
+            "category": "inverters",
+            "title": "Inverters & microinverters",
+            "detail": "String, hybrid and microinverter equipment, plus power optimizers, for residential and commercial systems.",
+            "role": "distributes",
+            "brands": [],
+            "sourceIds": [
+              "products"
+            ]
+          },
+          {
+            "id": "racking",
+            "category": "racking-mounting",
+            "title": "Racking & mounting",
+            "detail": "Solar mounting components and racking systems.",
+            "role": "distributes",
+            "brands": [],
+            "sourceIds": [
+              "products"
+            ]
+          },
+          {
+            "id": "electrical",
+            "category": "electrical-bos",
+            "title": "Transformers & electrical components",
+            "detail": "Transformers, switches, contactors and control equipment for project electrical systems.",
+            "role": "distributes",
+            "brands": [],
+            "sourceIds": [
+              "products"
+            ]
+          },
+          {
+            "id": "chargers",
+            "category": "ev-chargers",
+            "title": "EV chargers",
+            "detail": "Charging equipment for residential and commercial applications.",
+            "role": "distributes",
+            "brands": [],
+            "sourceIds": [
+              "products"
+            ]
+          }
+        ],
+        "projectTypes": [
+          {
+            "label": "Residential equipment supply",
+            "sourceIds": [
+              "products"
+            ]
+          },
+          {
+            "label": "Commercial equipment supply",
+            "sourceIds": [
+              "products"
+            ]
+          },
+          {
+            "label": "Utility project supply",
+            "sourceIds": [
+              "home"
+            ]
+          }
+        ],
+        "identitySourceIds": [
+          "home"
+        ],
+        "summarySourceIds": [
+          "home",
+          "products"
+        ],
+        "coverage": [],
+        "businessType": {
+          "value": "Distributor",
+          "sourceIds": [
+            "home"
+          ]
+        }
+      }
+    },
+    {
+      "companyId": "7585fd97-f781-4a26-859f-a0dbc82be199",
+      "description": "Amicus O&M Cooperative supports independently owned solar operations and maintenance businesses. It provides technical training, shared tools, work templates and a forum for members to exchange expertise.\n\nWhen a customer needs service, the cooperative introduces them to member companies serving the relevant area. Those companies contract with customers and perform the field work; the cooperative supports the network.",
+      "tagline": "Training, shared resources and referrals for solar O&M companies",
+      "trades": [
+        "Training",
+        "Referrals"
+      ],
+      "research": {
+        "sources": [
+          {
+            "id": "about",
+            "url": "https://www.amicusom.com/about/",
+            "title": "Amicus O&M Cooperative \u2014 About",
+            "evidence": "The cooperative supports member companies with tools, software, training and knowledge sharing; members perform O&M work directly for clients.",
+            "basis": "company-website"
+          },
+          {
+            "id": "home",
+            "url": "https://www.amicusom.com/",
+            "title": "Amicus O&M Cooperative \u2014 Member support",
+            "evidence": "Amicus supplies shared O&M tools/templates and introduces customers to member companies serving their sites.",
+            "basis": "company-website"
+          }
+        ],
+        "services": [
+          {
+            "id": "training",
+            "category": "technical-training",
+            "title": "Solar O&M technical training",
+            "detail": "Training and knowledge-sharing for the technicians and businesses in its member network.",
+            "sectors": [],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "about"
+            ]
+          },
+          {
+            "id": "referrals",
+            "category": "provider-referrals",
+            "title": "Introductions to O&M providers",
+            "detail": "Connects customers with independent member companies serving the region where a solar site is located.",
+            "sectors": [],
+            "delivery": "unknown",
+            "systems": [],
+            "thirdPartySystems": "unknown",
+            "sourceIds": [
+              "home"
+            ]
+          }
+        ],
+        "products": [],
+        "projectTypes": [
+          {
+            "label": "Solar O&M provider support",
+            "sourceIds": [
+              "about"
+            ]
+          },
+          {
+            "label": "Solar maintenance referrals",
+            "sourceIds": [
+              "home"
+            ]
+          }
+        ],
+        "identitySourceIds": [
+          "about"
+        ],
+        "summarySourceIds": [
+          "about",
+          "home"
+        ],
+        "coverage": [],
+        "businessType": {
+          "value": "Service provider",
+          "sourceIds": [
+            "about"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -88,7 +88,13 @@ try {
               : " A complete"),
         isEnriched ? "Installer" : "Manufacturer",
         isEnriched ? "" : "/logo.png",
-        isEnriched ? "" : "A fully populated ordinary profile. ".repeat(8),
+        isEnriched
+          ? ""
+          : i === 28
+            ? "Its published company location is here. Listed services include solar installation. ".repeat(
+                8,
+              )
+            : "We design and install residential and commercial energy systems, including rooftop solar, battery backup and charging infrastructure. Our team also maintains existing systems and coordinates permits for new installations.",
         isDemo,
       ],
     );
@@ -105,7 +111,19 @@ try {
          VALUES($1,'directory-order-test','{"reviewMethod":"source-check-v1"}',now())`,
         [id],
       );
-    } else if (!isDemo) ordinary.push(id);
+    } else if (!isDemo) {
+      ordinary.push(id);
+      if (i === 27) {
+        await pool.query(
+          "UPDATE companies SET services=ARRAY['Solar installation','Battery storage'],service_areas=ARRAY['Ohio'] WHERE id=$1",
+          [id],
+        );
+        await pool.query(
+          "INSERT INTO provider_profiles(company_id,project_types) VALUES($1,ARRAY['Residential solar','Commercial solar'])",
+          [id],
+        );
+      }
+    }
   }
   const directory = await call("/jobs/providers?q=" + directoryQuery);
   const directoryPage2 = await call(
@@ -124,12 +142,12 @@ try {
     "Explicit pins are first and second before alphabetical/completeness ranking",
   );
   check(
-    ordered.slice(2, 27).join() === enriched.sort().join(),
-    "All enriched profiles precede ordinary profiles across pagination with stable ties",
+    ordered.slice(2, 4).join() === ordinary.join() &&
+      ordered.slice(4).join() === enriched.sort().join(),
+    "Actual completeness outranks the source-check flag, with stable pagination ties",
   );
   check(
-    ordered.slice(27).every((id) => ordinary.includes(id)) &&
-      new Set(ordered).size === 29,
+    ordered.length === 29 && new Set(ordered).size === 29,
     "Pagination neither duplicates nor drops companies",
   );
   const filtered = await call(
@@ -139,6 +157,23 @@ try {
     filtered.data.total === 25 &&
       filtered.data.providers.every((p) => enriched.includes(p.id)),
     "Pinned companies never bypass selected filters",
+  );
+  const improved = enriched[0];
+  await pool.query(
+    `UPDATE companies SET
+    description='Electrical installation and maintenance for commercial facilities and new construction. Services include distribution equipment upgrades, panel replacement, new wiring, backup power and lighting retrofits.',
+    services=ARRAY['Electrical installation'],service_areas=ARRAY['Ohio'],website='https://example.test',
+    logo_url='/company-logo.png',cover_url='/company-cover.jpg' WHERE id=$1`,
+    [improved],
+  );
+  await pool.query(
+    "INSERT INTO provider_profiles(company_id,project_types) VALUES($1,ARRAY['Commercial electrical'])",
+    [improved],
+  );
+  const updatedDirectory = await call("/jobs/providers?q=" + directoryQuery);
+  check(
+    updatedDirectory.data.providers[2].id === improved,
+    "Completing a profile changes its rank immediately without a new import flag",
   );
   const hirer = randomUUID();
   ids.push(hirer);
@@ -294,7 +329,7 @@ try {
   );
   const taxonomy = await call("/jobs/provider-taxonomy");
   check(
-    taxonomy.status === 200 && taxonomy.data.categories.length === 39,
+    taxonomy.status === 200 && taxonomy.data.categories.length === 42,
     "stable taxonomy is available",
   );
   let response = await call("/jobs/provider-matches", owner, request);

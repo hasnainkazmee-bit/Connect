@@ -93,6 +93,7 @@ try {
     "tests/provider-enrichment.test.mjs",
     "tests/provider-matching.test.mjs",
     "tests/provider-source-publication.test.mjs",
+    "tests/provider-profile-corrections.test.mjs",
     "tests/notifications.test.mjs",
   ]) {
     env.REQUIRE_EMAIL_VERIFICATION =

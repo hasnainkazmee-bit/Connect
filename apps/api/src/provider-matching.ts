@@ -58,7 +58,9 @@ export async function projectProviderResearch(
       batchId,
       JSON.stringify(current.snapshot),
       r.checkedAt,
-      r.reviewMethod === "source-check-v1" ? "source_checked" : "reviewed",
+      r.reviewMethod?.startsWith("source-check-")
+        ? "source_checked"
+        : "reviewed",
     ],
   );
   // The confirmed availability table is independent and never changed here.

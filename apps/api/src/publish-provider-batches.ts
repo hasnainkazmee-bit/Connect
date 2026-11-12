@@ -31,14 +31,15 @@ try {
     throw new Error("A company appears in more than one batch.");
   if (
     batches.some((b) =>
-      b.records.some(
-        (r) =>
-          !r.preserveProfile || r.research.reviewMethod !== "source-check-v1",
+      b.records.some((r) =>
+        args.includes("--profile-corrections")
+          ? r.research.reviewMethod !== "source-check-v2"
+          : !r.preserveProfile || r.research.reviewMethod !== "source-check-v1",
       ),
     )
   )
     throw new Error(
-      "Directory publication accepts additive source-checked batches only.",
+      "Use additive source-checked batches, or --profile-corrections for sourced v2 profiles.",
     );
   // Preview every batch before any write. Individual transactions recheck edits and ownership.
   const preview = [];

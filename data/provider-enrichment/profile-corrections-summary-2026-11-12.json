@@ -1,0 +1,18 @@
+{
+  "companies": 979,
+  "statuses": {
+    "ready": 979
+  },
+  "services": 2468,
+  "products": 27,
+  "withProjectTypes": 646,
+  "withDetailedOverview": 35,
+  "categoryChanges": 168,
+  "customReviewed": 7,
+  "checkedCompanies": 979,
+  "sourcePagesRead": 4866,
+  "publicationMethod": "source-check-v2; individually reviewed category corrections and seven detailed editorial profiles; scoped source checks for the remaining profiles",
+  "matching": "Source-checked profiles remain ineligible for job matching until scope review. Existing company-confirmed availability is unchanged.",
+  "missingProjectTypes": 333,
+  "sorting": "Sunhub and Yellowlite remain pinned first. Remaining profiles are ranked dynamically by actual completeness, with stable name/id ties."
+}

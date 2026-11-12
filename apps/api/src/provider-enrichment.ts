@@ -58,6 +58,9 @@ const category = z.enum([
   "crew-supply",
   "trenching",
   "interconnection",
+  "hvac",
+  "technical-training",
+  "provider-referrals",
 ]);
 const service = z
   .object({
@@ -148,7 +151,13 @@ const profile = z
 export const providerResearch = z
   .object({
     checkedAt: z.iso.datetime({ offset: true }),
-    reviewMethod: z.enum(["editorial", "source-check-v1"]).optional(),
+    reviewMethod: z
+      .enum(["editorial", "source-check-v1", "source-check-v2"])
+      .optional(),
+    projectTypes: z
+      .array(z.object({ label: text(100), sourceIds: refs }).strict())
+      .max(12)
+      .optional(),
     businessType: z
       .object({ value: businessType, sourceIds: refs })
       .strict()
@@ -218,6 +227,7 @@ export const providerResearch = z
       r.identitySourceIds,
       r.summarySourceIds,
       ...(r.businessType ? [r.businessType.sourceIds] : []),
+      ...(r.projectTypes || []).map((p) => p.sourceIds),
       ...(r.baseLocation ? [r.baseLocation.sourceIds] : []),
       ...[...r.services, ...r.products, ...r.coverage].map((s) => s.sourceIds),
     ];
@@ -275,6 +285,7 @@ export const enrichmentBatch = z
             companyName: text(300),
             website: url,
             preserveProfile: z.literal(true).optional(),
+            preserveServiceAreas: z.literal(true).optional(),
             expectedProfile: profile,
             profile,
             research: providerResearch,
@@ -316,12 +327,30 @@ export const enrichmentBatch = z
           "Source-checked enrichment must preserve existing profile fields.",
         );
       if (
+        r.preserveServiceAreas &&
+        canonical(r.profile.serviceAreas) !==
+          canonical(r.expectedProfile.serviceAreas)
+      )
+        fail(
+          "Preserved service areas must match the existing profile exactly.",
+        );
+      if (
+        r.research.reviewMethod === "source-check-v2" &&
+        (!r.research.projectTypes ||
+          canonical(r.profile.projectTypes) !==
+            canonical(r.research.projectTypes.map((p) => p.label)))
+      )
+        fail(
+          "Source-checked project types must match their individual source references.",
+        );
+      if (
         !r.preserveProfile &&
         r.profile.services.some((s) => !labels.includes(s))
       )
         fail("Searchable services must come from sourced offerings.");
       if (
         !r.preserveProfile &&
+        !r.preserveServiceAreas &&
         r.profile.serviceAreas.some(
           (s) => !r.research.coverage.some((c) => c.label === s),
         )

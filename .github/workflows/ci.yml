@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: {node-version: 22, cache: npm}
+        with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm run build
       - run: npx playwright install --with-deps chrome
@@ -73,14 +73,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: {node-version: 22, cache: npm}
+        with: { node-version: 22, cache: npm }
       - uses: dtolnay/rust-toolchain@stable
       - run: npm ci
       - run: npm run build -w apps/api
       - run: node apps/api/dist/migrate.js
       - run: python3 tests/provider-capability-research.test.py
       - run: python3 tests/provider-publication.test.py
-      - run: node --test tests/provider-enrichment.test.mjs tests/provider-matching.test.mjs tests/provider-source-publication.test.mjs
+      - run: python3 tests/provider-profile-corrections.test.py
+      - run: node --test tests/provider-enrichment.test.mjs tests/provider-matching.test.mjs tests/provider-source-publication.test.mjs tests/provider-profile-corrections.test.mjs
       - run: cargo test --locked -p connect-jobs
       - run: cargo build --locked -p connect-jobs
       - run: node tests/provider-matching-api.mjs
