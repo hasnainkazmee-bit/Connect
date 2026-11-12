@@ -83,6 +83,7 @@ try {
     "tests/social.test.mjs",
     "tests/message-requests.test.mjs",
     "tests/accounts.test.mjs",
+    "tests/team-invitations.test.mjs",
     "tests/session-persistence.test.mjs",
     "tests/sunhub-sso.test.mjs",
     "tests/publishing-profiles.test.mjs",
@@ -97,8 +98,12 @@ try {
     "tests/provider-profile-corrections.test.mjs",
     "tests/notifications.test.mjs",
   ]) {
-    env.REQUIRE_EMAIL_VERIFICATION =
-      suite === "tests/accounts.test.mjs" ? "true" : "false";
+    env.REQUIRE_EMAIL_VERIFICATION = [
+      "tests/accounts.test.mjs",
+      "tests/team-invitations.test.mjs",
+    ].includes(suite)
+      ? "true"
+      : "false";
     env.SUNHUB_SSO_ISSUER =
       suite === "tests/sunhub-sso.test.mjs" ? "http://127.0.0.1:4103" : "";
     await startServer();

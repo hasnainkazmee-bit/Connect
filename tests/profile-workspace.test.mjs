@@ -366,6 +366,54 @@ test("claiming leads to authorized, atomic company and work profile updates", as
       },
     );
     await t.test(
+      "editing availability preserves imported company size and unrelated crew details",
+      async () => {
+        await pool.query(
+          "UPDATE companies SET employee_count='25 employees' WHERE id=$1",
+          [c.id],
+        );
+        const settings = {
+          availability: "accepting",
+          availableFrom: null,
+          crewCount: null,
+          peoplePerCrew: null,
+          capacityQuantity: null,
+          capacityUnit: "projects",
+          capacityPeriod: "month",
+        };
+        const response = await owner.call(
+          "/companies/current/profile",
+          {
+            ...form,
+            employee_count: "25 employees",
+            workDetails: { ...form.workDetails, settings },
+          },
+          "PATCH",
+        );
+        assert.equal(response.status, 200, JSON.stringify(response.data));
+        const row = (
+          await pool.query(
+            "SELECT c.employee_count,p.availability,p.crew_size,p.capacity FROM companies c JOIN provider_profiles p ON p.company_id=c.id WHERE c.id=$1",
+            [c.id],
+          )
+        ).rows[0];
+        assert.equal(row.employee_count, "25 employees");
+        assert.equal(row.availability, "Accepting new work");
+        assert.equal(row.crew_size, form.workDetails.crewSize);
+        assert.equal(row.capacity, form.workDetails.capacity);
+        assert.equal(
+          (
+            await owner.call(
+              "/companies/current/profile",
+              { ...form, employee_count: "unbounded new category" },
+              "PATCH",
+            )
+          ).status,
+          400,
+        );
+      },
+    );
+    await t.test(
       "numeric work settings validate and generate consistent public labels without erasing research timestamps",
       async () => {
         const settings = {
@@ -431,6 +479,31 @@ test("claiming leads to authorized, atomic company and work profile updates", as
         assert.equal(row.crew_size, "2 crews · 4 people per crew");
         assert.equal(row.capacity, "Up to 5 projects per month");
         assert.equal(row.updated_at.toISOString(), before.toISOString());
+        const cleared = await owner.call(
+          "/companies/current/profile",
+          {
+            ...form,
+            workDetails: {
+              ...form.workDetails,
+              settings: {
+                ...settings,
+                crewCount: null,
+                peoplePerCrew: null,
+                capacityQuantity: null,
+              },
+            },
+          },
+          "PATCH",
+        );
+        assert.equal(cleared.status, 200, JSON.stringify(cleared.data));
+        const afterClear = (
+          await pool.query(
+            "SELECT crew_size,capacity FROM provider_profiles WHERE company_id=$1",
+            [c.id],
+          )
+        ).rows[0];
+        assert.equal(afterClear.crew_size, "");
+        assert.equal(afterClear.capacity, "");
       },
     );
     if (process.env.TEST_JOBS_SERVICE === "true")

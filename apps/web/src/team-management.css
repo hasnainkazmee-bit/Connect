@@ -1,0 +1,87 @@
+/* Employee job titles and product permissions are deliberately separate. */
+.employee-invite .manage-form,
+.team-member-editor .manage-form {
+  width: 100%;
+  max-width: 760px;
+}
+.employee-invite .team-optional,
+.team-member-editor .team-optional {
+  color: var(--muted);
+  font-weight: 400;
+}
+.team-job-title,
+.access-person > .team-job-title {
+  display: block;
+  margin-top: 5px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.team-manager .access-person strong {
+  font-size: 15px;
+}
+.team-manager .access-person > span:not(.team-job-title) {
+  font-size: 13px;
+  color: var(--muted);
+}
+.team-manager .access-role {
+  padding: 6px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.full-page-content .employee-invite .invite-roles label {
+  border-radius: 18px;
+  padding: 20px;
+}
+.full-page-content .employee-invite .invite-roles input[type="radio"] {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  margin: 2px 0 0;
+  padding: 0;
+}
+.full-page-content .employee-invite .invite-roles label > span {
+  flex: 1;
+  min-width: 0;
+}
+.full-page-content .employee-invite .invite-roles strong {
+  font-size: 16px;
+}
+.full-page-content .employee-invite .invite-roles small,
+.full-page-content .employee-invite .invite-detail,
+.full-page-content .employee-invite .invite-summary small {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.full-page-content .employee-invite .invite-summary,
+.full-page-content .employee-invite > .invite-detail,
+.full-page-content .employee-invite .share-address {
+  max-width: 760px;
+  margin-inline: 0;
+}
+.full-page-content .employee-invite > .manage-footer {
+  max-width: 760px;
+}
+@media (max-width: 600px) {
+  .team-manager .access-person {
+    min-width: 0;
+    flex-basis: calc(100% - 58px);
+  }
+  .team-manager .access-role {
+    margin-left: 49px;
+  }
+  .team-manager .access-menu {
+    margin-left: auto;
+  }
+  .team-manager .pending-invites .access-person {
+    flex-basis: calc(100% - 52px);
+  }
+  .team-manager .pending-invites .text-button {
+    min-height: 44px;
+    margin-left: 46px;
+    font-size: 13px;
+  }
+}

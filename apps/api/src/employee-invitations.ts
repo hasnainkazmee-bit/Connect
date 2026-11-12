@@ -26,7 +26,7 @@ export function employeeInvitationRoutes() {
       req.auth?.accountType === "company"
         ? (
             await pool.query(
-              `SELECT role,expires_at FROM team_invites WHERE company_id=$1 AND email=$2
+              `SELECT role,job_title,expires_at FROM team_invites WHERE company_id=$1 AND email=$2
           AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at>now() ORDER BY created_at DESC LIMIT 1`,
               [company.id, req.auth.email],
             )
@@ -59,7 +59,7 @@ export function employeeInvitationRoutes() {
       ]);
       const invite = (
         await db.query(
-          `SELECT id,role FROM team_invites WHERE company_id=$1 AND email=$2
+          `SELECT id,role,job_title FROM team_invites WHERE company_id=$1 AND email=$2
         AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at>now() ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,
           [company.id, req.auth!.email],
         )
@@ -70,8 +70,8 @@ export function employeeInvitationRoutes() {
           "There’s no active invitation for this email. Sign in with your invited work email or ask your company for a new invitation.",
         );
       await db.query(
-        "INSERT INTO memberships(user_id,company_id,role) VALUES($1,$2,$3) ON CONFLICT DO NOTHING",
-        [req.auth!.userId, company.id, invite.role],
+        "INSERT INTO memberships(user_id,company_id,role,title) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING",
+        [req.auth!.userId, company.id, invite.role, invite.job_title],
       );
       await db.query("UPDATE team_invites SET accepted_at=now() WHERE id=$1", [
         invite.id,

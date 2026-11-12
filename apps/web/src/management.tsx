@@ -26,6 +26,7 @@ import { Avatar, Logo } from "./identity";
 import type { Achievement, Company } from "./types";
 import { usePhotoAdjuster } from "./photo-adjuster";
 import "./management.css";
+import "./team-management.css";
 
 type Site = {
   appOrigin: string;
@@ -830,21 +831,28 @@ const roleDescriptions = {
 export function EmployeeInvite({
   initialEmail = "",
   initialRole = "member",
+  initialJobTitle = "",
 }: {
   initialEmail?: string;
   initialRole?: "admin" | "member";
+  initialJobTitle?: string;
 }) {
   const { company, refresh, close } = useApp(),
     task = useAction();
   const [email, setEmail] = useState(initialEmail),
-    [role, setRole] = useState<"admin" | "member">(initialRole),
+    [role, setRole] = useState<"admin" | "member">(
+      company?.role === "owner" ? initialRole : "member",
+    ),
+    [jobTitle, setJobTitle] = useState(initialJobTitle),
     [url, setUrl] = useState(""),
     [copied, setCopied] = useState(false);
-  const guard = useUnsavedChanges(!url && !!email, task.busy);
+  const guard = useUnsavedChanges(
+    !url && (!!email || !!jobTitle || role !== "member"),
+    task.busy,
+  );
   return (
     <section className="manage-dialog employee-invite">
       <header className="manage-heading">
-        <span>BETTER, TOGETHER</span>
         <h2>{url ? "Your invitation is ready." : "Invite an employee"}</h2>
         <p>
           {url
@@ -860,6 +868,9 @@ export function EmployeeInvite({
             </span>
             <div>
               <strong>{email}</strong>
+              {jobTitle.trim() && (
+                <span className="team-job-title">{jobTitle.trim()}</span>
+              )}
               <small>
                 {role === "admin" ? "Administrator" : "Inbox member"} · Expires
                 in 3 days
@@ -908,8 +919,13 @@ export function EmployeeInvite({
             e.preventDefault();
             void task.run(async () => {
               setUrl(
-                (await post<{ url: string }>("/team/invites", { email, role }))
-                  .url,
+                (
+                  await post<{ url: string }>("/team/invites", {
+                    email,
+                    role,
+                    jobTitle,
+                  })
+                ).url,
               );
               refresh();
             });
@@ -928,9 +944,30 @@ export function EmployeeInvite({
               placeholder="name@yourcompany.com"
             />
           </label>
+          <label>
+            <span>
+              Job title <span className="team-optional">(optional)</span>
+            </span>
+            <input
+              type="text"
+              name="jobTitle"
+              autoComplete="organization-title"
+              maxLength={120}
+              value={jobTitle}
+              onChange={(e) => setJobTitle(e.target.value)}
+              placeholder="e.g. Project Manager or Lead Electrician"
+              aria-describedby="invite-job-title-help"
+            />
+            <small id="invite-job-title-help">
+              Their role at your company. Choose what they can access below.
+            </small>
+          </label>
           <fieldset className="invite-roles">
-            <legend>What should they be able to do?</legend>
-            {(["member", "admin"] as const).map((value) => (
+            <legend>Access to Connect</legend>
+            {(company?.role === "owner"
+              ? (["member", "admin"] as const)
+              : (["member"] as const)
+            ).map((value) => (
               <label className={role === value ? "selected" : ""} key={value}>
                 <input
                   type="radio"
@@ -947,6 +984,11 @@ export function EmployeeInvite({
                 </span>
               </label>
             ))}
+            {company?.role !== "owner" && (
+              <small>
+                Only the company owner can give administrator access.
+              </small>
+            )}
           </fieldset>
           <div className="invite-detail">
             <ShieldCheck size={18} />
@@ -982,8 +1024,135 @@ type Invite = {
   id: string;
   email: string;
   role: "admin" | "member";
+  job_title: string;
   expires_at: string;
 };
+function TeamMemberTitle({ member }: { member: Member }) {
+  const { refresh, close, toast } = useApp();
+  const [title, setTitle] = useState(member.title),
+    [finished, setFinished] = useState(false);
+  const task = useAction();
+  const guard = useUnsavedChanges(
+    title !== member.title && !finished,
+    task.busy && !finished,
+  );
+  return (
+    <section className="manage-dialog team-member-editor">
+      <header className="manage-heading">
+        <h2>Edit job title</h2>
+        <p>
+          {member.name} · {member.email}
+        </p>
+      </header>
+      <form
+        className="manage-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void task.run(async () => {
+            await api("/team/" + member.id + "/profile", {
+              method: "PATCH",
+              body: JSON.stringify({ title }),
+            });
+            setFinished(true);
+            refresh();
+            close(true);
+            toast("Job title updated.");
+          });
+        }}
+      >
+        <label>
+          <span>
+            Job title <span className="team-optional">(optional)</span>
+          </span>
+          <input
+            name="jobTitle"
+            autoComplete="organization-title"
+            autoFocus
+            maxLength={120}
+            disabled={task.busy || finished}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Project Manager or Lead Electrician"
+          />
+          <small>
+            This describes their work at your company. Their Connect access
+            stays the same.
+          </small>
+        </label>
+        <FormError error={task.error} />
+        {guard}
+        <footer className="manage-footer">
+          <button
+            className="button"
+            type="button"
+            disabled={task.busy || finished}
+            onClick={close}
+          >
+            Cancel
+          </button>
+          <button
+            className="button primary"
+            disabled={task.busy || finished || title === member.title}
+          >
+            {task.busy ? "Saving…" : "Save job title"}
+          </button>
+        </footer>
+      </form>
+    </section>
+  );
+}
+function TeamAccessMenu({
+  name,
+  children,
+}: {
+  name: string;
+  children: ReactNode;
+}) {
+  const menu = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const outside = (event: PointerEvent) => {
+      const node = menu.current;
+      if (
+        node?.open &&
+        event.target instanceof Node &&
+        !node.contains(event.target)
+      )
+        node.open = false;
+    };
+    const escape = (event: KeyboardEvent) => {
+      const node = menu.current;
+      if (event.key === "Escape" && node?.open) {
+        node.open = false;
+        node.querySelector("summary")?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, []);
+  return (
+    <details
+      className="access-menu"
+      ref={menu}
+      onClick={(event) => {
+        if (
+          event.target instanceof Element &&
+          event.target.closest("button") &&
+          menu.current
+        )
+          menu.current.open = false;
+      }}
+    >
+      <summary className="icon-button" aria-label={"Manage " + name}>
+        <ChevronDown size={17} />
+      </summary>
+      <div className="dropdown">{children}</div>
+    </details>
+  );
+}
 export function TeamManager() {
   const { company, admin, session, revision, refresh, open } = useApp();
   const [members, setMembers] = useState<Member[]>([]),
@@ -1045,6 +1214,7 @@ export function TeamManager() {
                   {m.name}
                   {session.user?.id === m.id && <small> (you)</small>}
                 </strong>
+                {m.title && <span className="team-job-title">{m.title}</span>}
                 <span>{m.email}</span>
               </div>
               <span className={"access-role " + m.role}>
@@ -1054,51 +1224,51 @@ export function TeamManager() {
                     ? "Administrator"
                     : "Inbox member"}
               </span>
-              {admin &&
-                m.id !== session.user?.id &&
-                m.role !== "owner" &&
-                (company?.role === "owner" || m.role === "member") && (
-                  <details className="access-menu">
-                    <summary
-                      className="icon-button"
-                      aria-label={"Manage " + m.name}
-                    >
-                      <ChevronDown size={17} />
-                    </summary>
-                    <div className="dropdown">
-                      {company?.role === "owner" && (
-                        <button
-                          onClick={() =>
-                            open(
-                              <ConfirmAction
-                                title={"Change access for " + m.name + "?"}
-                                description={
-                                  m.role === "admin"
-                                    ? roleDescriptions.member
-                                    : roleDescriptions.admin
-                                }
-                                label={
-                                  m.role === "admin"
-                                    ? "Make team member"
-                                    : "Make administrator"
-                                }
-                                action={() =>
-                                  api("/team/" + m.id + "/role", {
-                                    method: "PATCH",
-                                    body: JSON.stringify({
-                                      role:
-                                        m.role === "admin" ? "member" : "admin",
-                                    }),
-                                  })
-                                }
-                              />,
-                            )
-                          }
-                        >
-                          Change to{" "}
-                          {m.role === "admin" ? "team member" : "administrator"}
-                        </button>
-                      )}
+              {(admin || m.id === session.user?.id) && (
+                <TeamAccessMenu name={m.name}>
+                  <button onClick={() => open(<TeamMemberTitle member={m} />)}>
+                    <Pencil size={14} />
+                    Edit job title
+                  </button>
+                  {company?.role === "owner" &&
+                    m.role !== "owner" &&
+                    m.id !== session.user?.id && (
+                      <button
+                        onClick={() =>
+                          open(
+                            <ConfirmAction
+                              title={"Change access for " + m.name + "?"}
+                              description={
+                                m.role === "admin"
+                                  ? roleDescriptions.member
+                                  : roleDescriptions.admin
+                              }
+                              label={
+                                m.role === "admin"
+                                  ? "Make team member"
+                                  : "Make administrator"
+                              }
+                              action={() =>
+                                api("/team/" + m.id + "/role", {
+                                  method: "PATCH",
+                                  body: JSON.stringify({
+                                    role:
+                                      m.role === "admin" ? "member" : "admin",
+                                  }),
+                                })
+                              }
+                            />,
+                          )
+                        }
+                      >
+                        Change to{" "}
+                        {m.role === "admin" ? "team member" : "administrator"}
+                      </button>
+                    )}
+                  {admin &&
+                    m.id !== session.user?.id &&
+                    m.role !== "owner" &&
+                    (company?.role === "owner" || m.role === "member") && (
                       <button
                         className="danger-text"
                         onClick={() =>
@@ -1117,9 +1287,9 @@ export function TeamManager() {
                         <Trash2 size={14} />
                         Remove access
                       </button>
-                    </div>
-                  </details>
-                )}
+                    )}
+                </TeamAccessMenu>
+              )}
             </div>
           ))}
         </div>
@@ -1137,6 +1307,9 @@ export function TeamManager() {
                 </span>
                 <div className="access-person">
                   <strong>{i.email}</strong>
+                  {i.job_title && (
+                    <span className="team-job-title">{i.job_title}</span>
+                  )}
                   <span>
                     {i.role === "admin" ? "Administrator" : "Inbox member"} ·
                     Expires{" "}
@@ -1146,19 +1319,22 @@ export function TeamManager() {
                     })}
                   </span>
                 </div>
-                <button
-                  className="text-button"
-                  onClick={() =>
-                    open(
-                      <EmployeeInvite
-                        initialEmail={i.email}
-                        initialRole={i.role}
-                      />,
-                    )
-                  }
-                >
-                  New link
-                </button>
+                {(company?.role === "owner" || i.role === "member") && (
+                  <button
+                    className="text-button"
+                    onClick={() =>
+                      open(
+                        <EmployeeInvite
+                          initialEmail={i.email}
+                          initialRole={i.role}
+                          initialJobTitle={i.job_title}
+                        />,
+                      )
+                    }
+                  >
+                    New link
+                  </button>
+                )}
                 <button
                   className="icon-button"
                   aria-label={"Revoke invitation for " + i.email}

@@ -11,6 +11,15 @@ import { checkQuota, storeBuffer, sendStored, deferDelete } from "./storage.js";
 import { preventDuplicateCompany } from "./directory.js";
 
 const uuid = z.string().uuid();
+const companySizes = [
+  "",
+  "1–10",
+  "11–50",
+  "51–200",
+  "201–500",
+  "501–1,000",
+  "1,000+",
+];
 const reserved = new Set([
   "www",
   "app",
@@ -248,15 +257,7 @@ export function profileRoutes() {
             (v) =>
               !v || (/^https?:\/\//.test(v) && z.url().safeParse(v).success),
           ),
-        employee_count: z.enum([
-          "",
-          "1–10",
-          "11–50",
-          "51–200",
-          "201–500",
-          "501–1,000",
-          "1,000+",
-        ]),
+        employee_count: z.string().trim().max(100),
         established: z
           .number()
           .int()
@@ -274,10 +275,15 @@ export function profileRoutes() {
       await preventDuplicateCompany(db, b.name, req.auth!.companyId!);
       const before = (
         await db.query(
-          "SELECT type,services,service_areas,website FROM companies WHERE id=$1 FOR UPDATE",
+          "SELECT type,services,service_areas,website,employee_count FROM companies WHERE id=$1 FOR UPDATE",
           [req.auth!.companyId],
         )
       ).rows[0];
+      if (
+        !companySizes.includes(b.employee_count) &&
+        b.employee_count !== (before.employee_count || "")
+      )
+        throw new HttpError(400, "Choose a company size from the list.");
       const matchingChanged = [
         "type",
         "services",
@@ -312,6 +318,30 @@ export function profileRoutes() {
       if (b.workDetails) {
         const w = b.workDetails;
         const labels = w.settings ? workLabels(w.settings) : w;
+        if (w.settings) {
+          const prior = (
+            await db.query(
+              "SELECT work_settings FROM provider_profiles WHERE company_id=$1",
+              [req.auth!.companyId],
+            )
+          ).rows[0]?.work_settings;
+          // Retain imported text until that group has structured values. Clearing
+          // a previously structured group still removes its generated label.
+          if (!w.settings.availability && !prior?.availability)
+            labels.availability = w.availability;
+          if (
+            w.settings.crewCount === null &&
+            w.settings.peoplePerCrew === null &&
+            prior?.crewCount == null &&
+            prior?.peoplePerCrew == null
+          )
+            labels.crewSize = w.crewSize;
+          if (
+            w.settings.capacityQuantity === null &&
+            prior?.capacityQuantity == null
+          )
+            labels.capacity = w.capacity;
+        }
         await db.query(
           `INSERT INTO provider_profiles(company_id,trades,project_types,availability,crew_size,capacity,license_details,insurance_details,work_settings,work_settings_confirmed_at)
           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,CASE WHEN $9::jsonb IS NOT NULL THEN now() END)

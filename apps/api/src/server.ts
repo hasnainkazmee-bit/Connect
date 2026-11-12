@@ -903,7 +903,7 @@ app.get("/api/team/invites", requireAdmin, async (req, res) => {
   res.json(
     (
       await pool.query(
-        "SELECT id,email,role,expires_at,created_at FROM team_invites WHERE company_id=$1 AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at>now() ORDER BY created_at DESC",
+        "SELECT id,email,role,job_title,expires_at,created_at FROM team_invites WHERE company_id=$1 AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at>now() ORDER BY created_at DESC",
         [req.auth!.companyId],
       )
     ).rows,
@@ -924,7 +924,7 @@ app.get("/api/team/invites/preview/:token", async (req, res) => {
     .parse(req.params.token);
   const invite = (
     await pool.query(
-      "SELECT c.name,c.logo_url,c.logo_style,i.role,i.email FROM team_invites i JOIN companies c ON c.id=i.company_id WHERE token_hash=$1 AND expires_at>now() AND accepted_at IS NULL AND revoked_at IS NULL",
+      "SELECT c.name,c.logo_url,c.logo_style,i.role,i.job_title,i.email FROM team_invites i JOIN companies c ON c.id=i.company_id WHERE token_hash=$1 AND expires_at>now() AND accepted_at IS NULL AND revoked_at IS NULL",
       [hashToken(token)],
     )
   ).rows[0];
@@ -954,12 +954,15 @@ app.patch("/api/team/:userId/role", requireAdmin, async (req, res) => {
   res.json({ ok: true });
 });
 app.post("/api/team/invites", requireAdmin, async (req, res) => {
-  const { email, role } = z
+  const { email, role, jobTitle } = z
     .object({
-      email: z.email().toLowerCase(),
+      email: z.string().trim().toLowerCase().pipe(z.email()),
       role: z.enum(["admin", "member"]).default("member"),
+      jobTitle: z.string().trim().max(120).default(""),
     })
     .parse(req.body);
+  if (role === "admin" && req.auth!.role !== "owner")
+    throw new HttpError(403, "Only the owner can invite an administrator.");
   const token = randomBytes(32).toString("hex");
   const company = await tx(async (db) => {
     const company = (
@@ -989,8 +992,8 @@ app.post("/api/team/invites", requireAdmin, async (req, res) => {
       [req.auth!.companyId, email],
     );
     await db.query(
-      "INSERT INTO team_invites(token_hash,company_id,email,role,expires_at) VALUES($1,$2,$3,$4,now()+interval '3 days')",
-      [hashToken(token), req.auth!.companyId, email, role],
+      "INSERT INTO team_invites(token_hash,company_id,email,role,job_title,expires_at) VALUES($1,$2,$3,$4,$5,now()+interval '3 days')",
+      [hashToken(token), req.auth!.companyId, email, role, jobTitle],
     );
     company.username = await ensureUsername(db, company.id, company.name);
     return company;
@@ -1028,8 +1031,8 @@ app.post(
           "Sign in with the email address this invitation was sent to.",
         );
       await db.query(
-        "INSERT INTO memberships(user_id,company_id,role) VALUES($1,$2,$3) ON CONFLICT DO NOTHING",
-        [req.auth!.userId, invite.company_id, invite.role],
+        "INSERT INTO memberships(user_id,company_id,role,title) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING",
+        [req.auth!.userId, invite.company_id, invite.role, invite.job_title],
       );
       await db.query(
         "UPDATE team_invites SET accepted_at=now() WHERE token_hash=$1",

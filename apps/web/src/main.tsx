@@ -719,17 +719,7 @@ function App() {
                 </details>
               )}
               {session.user ? (
-                <details className="account-menu">
-                  <summary
-                    aria-label="Account and company menu"
-                    title={session.user.name}
-                  >
-                    <Avatar name={session.user.name} />
-                  </summary>
-                  <div className="dropdown">
-                    <AccountMenuContents />
-                  </div>
-                </details>
+                <AccountDropdown />
               ) : (
                 <button
                   className="jobs-button jobs-secondary header-sign-in"
@@ -1005,6 +995,61 @@ function App() {
   );
 }
 
+function AccountDropdown() {
+  const { session, company } = useApp();
+  const location = useLocation();
+  const menu = useRef<HTMLDetailsElement>(null);
+  const closeMenu = () => {
+    if (menu.current) menu.current.open = false;
+  };
+
+  useEffect(() => {
+    const element = menu.current;
+    if (!element) return;
+    const closeOutside = (event: Event) => {
+      if (event.target instanceof Node && !element.contains(event.target)) {
+        element.open = false;
+      }
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || !element.open) return;
+      element.open = false;
+      if (event.target instanceof Node && element.contains(event.target)) {
+        event.preventDefault();
+        element.querySelector("summary")?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", closeOutside, true);
+    document.addEventListener("focusin", closeOutside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside, true);
+      document.removeEventListener("focusin", closeOutside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, []);
+
+  useEffect(closeMenu, [
+    location.pathname,
+    location.search,
+    location.hash,
+    session.user?.id,
+    company?.id,
+  ]);
+
+  if (!session.user) return null;
+  return (
+    <details ref={menu} className="account-menu">
+      <summary aria-label="Account and company menu" title={session.user.name}>
+        <Avatar name={session.user.name} />
+      </summary>
+      <div className="dropdown">
+        <AccountMenuContents closeMenu={closeMenu} />
+      </div>
+    </details>
+  );
+}
+
 function AccountMenuContents({
   closeMenu,
   desktop = false,
@@ -1022,33 +1067,31 @@ function AccountMenuContents({
       {session.companies.map((c) => (
         <button
           key={c.id}
-          onClick={() =>
+          onClick={() => {
+            closeMenu?.();
             leave(async () => {
               setSession(await post("/session/company", { companyId: c.id }));
               refresh();
-              document.querySelector(".account-menu")?.removeAttribute("open");
-              closeMenu?.();
               navigate("/jobs/mine");
-            })
-          }
+            });
+          }}
         >
           <Logo company={c} size="tiny" />
           <span>{c.name}</span>
           {c.id === company?.id && <Check size={15} />}
         </button>
       ))}
-      <Link
-        to="/account"
-        onClick={(e) => {
-          e.currentTarget.closest("details")?.removeAttribute("open");
-          closeMenu?.();
-        }}
-      >
+      <Link to="/account" onClick={closeMenu}>
         <ShieldCheck />
         Account & security
       </Link>
       {session.user.account_type !== "individual" && (
-        <button onClick={() => open(<NewCompany />)}>
+        <button
+          onClick={() => {
+            closeMenu?.();
+            open(<NewCompany />);
+          }}
+        >
           <Plus />
           Create a company
         </button>
@@ -1060,7 +1103,8 @@ function AccountMenuContents({
         </Link>
       )}
       <button
-        onClick={() =>
+        onClick={() => {
+          closeMenu?.();
           leave(async () => {
             await disconnectWebPush().catch(() => {});
             await post("/auth/logout");
@@ -1069,16 +1113,20 @@ function AccountMenuContents({
               companies: [],
               activeCompanyId: null,
             });
-            closeMenu?.();
             navigate("/");
-          })
-        }
+          });
+        }}
       >
         <LogOut />
         Sign out
       </button>
       {desktop && company && admin && (
-        <button onClick={() => open(<DraftsDialog />)}>
+        <button
+          onClick={() => {
+            closeMenu?.();
+            open(<DraftsDialog />);
+          }}
+        >
           <FileText />
           Your drafts
         </button>
@@ -1440,6 +1488,7 @@ function InvitePage() {
   const { data, error, loading } = useResource<{
     name: string;
     role: string;
+    job_title?: string;
     emailHint: string;
     emailMatches: boolean | null;
   }>("/team/invites/preview/" + token);
@@ -1459,10 +1508,13 @@ function InvitePage() {
         data && (
           <>
             <h1>You’re invited to {data.name}.</h1>
+            {data.job_title && (
+              <p className="muted">Joining as {data.job_title}</p>
+            )}
             <p className="muted">
               {data.role === "admin"
-                ? "Manage publishing, the profile, connections, employees, and messages."
-                : "Read and reply in the company’s shared inbox."}
+                ? "Administrator access: manage the company profile, jobs, quotes, employees, and inbox."
+                : "Team member access: read and reply in the company’s shared inbox."}
             </p>
             <p className="muted small">
               Invitation for {data.emailHint}. Sign in with your own company

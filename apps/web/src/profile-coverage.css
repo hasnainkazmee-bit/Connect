@@ -1,0 +1,248 @@
+.workspace-form > .profile-edit-fields {
+  display: contents;
+}
+
+.workspace-form.profile-coverage-form {
+  max-width: 920px;
+  gap: 24px;
+}
+.profile-coverage-form .coverage-section {
+  display: grid;
+  gap: 24px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface);
+  min-width: 0;
+}
+.coverage-section-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.coverage-section-heading > svg,
+.coverage-optional > summary > svg:first-child {
+  flex: 0 0 auto;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.coverage-section-heading h3 {
+  margin: 0 0 5px;
+  font-size: 18px;
+  line-height: 1.4;
+}
+.coverage-section-heading p,
+.profile-coverage-form .coverage-areas > p,
+.profile-coverage-form .coverage-capacity > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.profile-coverage-form .coverage-areas,
+.profile-coverage-form .coverage-capacity {
+  display: grid;
+  gap: 12px;
+}
+.profile-coverage-form .coverage-areas legend,
+.profile-coverage-form .coverage-capacity legend {
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+.coverage-area-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+.profile-coverage-form .coverage-area-add .button {
+  min-height: 48px;
+  white-space: nowrap;
+}
+.coverage-area-list {
+  display: flex;
+  flex-wrap: wrap;
+  list-style: none;
+  gap: 10px;
+  padding: 0;
+  margin: 4px 0 0;
+}
+.coverage-area-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 4px 5px 4px 12px;
+  min-height: 40px;
+  border-radius: 999px;
+  background: var(--surface-soft, #f3f8fc);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.coverage-area-list li > svg {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.coverage-area-list li > span {
+  overflow-wrap: anywhere;
+}
+.coverage-area-list li > button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.coverage-area-list li > button:hover {
+  color: var(--ink);
+  background: var(--line);
+}
+.profile-coverage-form .coverage-areas > .coverage-field-error {
+  color: var(--danger, #b42318);
+}
+.profile-coverage-form .coverage-areas > .coverage-area-empty {
+  padding-top: 3px;
+  font-size: 13px;
+}
+.profile-coverage-form .coverage-confirmation,
+.profile-coverage-form .coverage-status-help {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.coverage-confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.coverage-confirmation > svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.profile-coverage-form .coverage-existing {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  background: var(--surface-soft, #f3f8fc);
+  border-radius: 12px;
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.coverage-existing > span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.coverage-optional {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface);
+  min-width: 0;
+}
+.coverage-optional > summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 22px 24px;
+  cursor: pointer;
+  list-style: none;
+}
+.coverage-optional > summary::-webkit-details-marker {
+  display: none;
+}
+.coverage-optional > summary > span {
+  display: grid;
+  gap: 5px;
+  flex: 1;
+}
+.coverage-optional > summary strong {
+  font-size: 17px;
+  line-height: 1.4;
+}
+.coverage-optional > summary > svg:last-child {
+  flex-shrink: 0;
+  color: var(--muted);
+  margin-top: 3px;
+  transition: transform 150ms ease;
+}
+.coverage-optional[open] > summary > svg:last-child {
+  transform: rotate(180deg);
+}
+.coverage-optional-content {
+  display: grid;
+  gap: 24px;
+  padding: 0 24px 24px;
+}
+.profile-coverage-form .coverage-capacity {
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+.coverage-capacity-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  margin-top: 4px;
+}
+.workspace-form.profile-coverage-form input[type="number"] {
+  max-width: none;
+}
+@container (max-width: 600px) {
+  .profile-coverage-form .coverage-section {
+    padding: 20px;
+  }
+  .profile-coverage-form .workspace-field-pair {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .coverage-optional > summary {
+    padding: 20px;
+  }
+  .coverage-optional-content {
+    padding: 0 20px 20px;
+  }
+}
+@media (max-width: 520px) {
+  .profile-coverage-form .coverage-section {
+    padding: 16px;
+    gap: 20px;
+  }
+  .coverage-area-add {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .profile-coverage-form .coverage-area-add .button {
+    justify-self: start;
+    min-height: 44px;
+  }
+  .coverage-optional > summary {
+    padding: 18px 16px;
+  }
+  .coverage-optional-content {
+    padding: 0 16px 18px;
+  }
+  .coverage-capacity-fields {
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 10px;
+  }
+  .coverage-capacity-fields > label:first-child {
+    grid-column: 1 / -1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .coverage-optional > summary > svg:last-child {
+    transition: none;
+  }
+}

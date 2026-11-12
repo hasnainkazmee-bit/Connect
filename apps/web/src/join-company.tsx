@@ -16,7 +16,7 @@ import "./join-company.css";
 
 type Welcome = {
   company: Company;
-  invitation: { role: string; expires_at: string } | null;
+  invitation: { role: string; job_title: string; expires_at: string } | null;
   member: boolean;
 };
 
@@ -87,11 +87,14 @@ export function JoinCompanyPage() {
         <p>
           {member
             ? "Your company profile and shared workspace are ready."
-            : "One company. Your own login. A place to connect, talk, and celebrate together."}
+            : "Join your company’s workspace with your own login."}
         </p>
         <div className="welcome-access">
           <Users size={23} />
           <div>
+            {invitation?.job_title && (
+              <p className="welcome-job-title">{invitation.job_title}</p>
+            )}
             <strong>
               {invitation?.role === "admin"
                 ? "Administrator access"
@@ -101,7 +104,7 @@ export function JoinCompanyPage() {
             </strong>
             <p>
               {invitation?.role === "admin"
-                ? "Publish stories, shape the company profile, and manage your team and conversations."
+                ? "Manage jobs and quotes, update the company profile, invite employees, and reply in project conversations."
                 : invitation
                   ? "Read and reply to company conversations with your teammates."
                   : "Sign in with the work email your company invited. New here? Create a company account with that same email."}

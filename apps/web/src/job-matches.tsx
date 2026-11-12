@@ -6,6 +6,9 @@ import {
   ArrowUpRight,
   BriefcaseBusiness,
   Check,
+  CircleCheck,
+  CircleHelp,
+  CircleMinus,
   ChevronDown,
   MapPin,
   Pencil,
@@ -16,6 +19,8 @@ import {
 import { api } from "./api";
 import { useApp } from "./context";
 import "./job-matches.css";
+import { matchFit, type Match, type Matches } from "./match-fit";
+import { MatchCompanyLogo } from "./match-company-logo";
 
 export type MatchingPreferences = {
   kind: string;
@@ -296,45 +301,6 @@ export function MatchingFields({
     </section>
   );
 }
-type MatchCompany = {
-  id: string;
-  name: string;
-  slug: string;
-  username?: string;
-  logo_url: string;
-  location: string;
-  claimed: boolean;
-};
-type Match = {
-  company: MatchCompany;
-  eligible: boolean;
-  reasons: string[];
-  followUp: string[];
-  offerings: {
-    offering: { title: string; detail: string };
-    sources: { url: string; title: string }[];
-    availability: string;
-  }[];
-};
-type Matches = {
-  configured: boolean;
-  canEdit?: boolean;
-  job: {
-    id: string;
-    title: string;
-    location: string;
-    status: string;
-    quote_deadline?: string;
-  };
-  matches?: Match[];
-  needsConfirmation?: Match[];
-  totalMatches?: number;
-  totalNeedsConfirmation?: number;
-  invitedCompanyIds?: string[];
-  conversationCompanyIds?: string[];
-  pageSize?: number;
-  preferences?: MatchingPreferences;
-};
 function readableReason(reason: string, location: string) {
   if (reason === "Serves the job location") return `Serves ${location}`;
   if (reason === "Based in the job’s state or province")
@@ -353,23 +319,6 @@ function readableReason(reason: string, location: string) {
     labels[reason] ||
     reason.charAt(0).toUpperCase() + reason.slice(1).replaceAll("-", " ")
   );
-}
-function questionsToAsk(items: string[]) {
-  const labels: Record<string, string> = {
-    "Service area": "service area",
-    "Project experience": "project experience",
-    "System type": "system type",
-    "How the work is delivered": "scope of work",
-    "Required certifications": "certifications",
-    Availability: "availability",
-    "Start date": "start date",
-    "Project size and capacity": "project capacity",
-    "Crew size": "crew size",
-  };
-  return items
-    .filter((item) => item !== "Not currently accepting work")
-    .map((item) => labels[item] || item)
-    .join(", ");
 }
 function MatchRow({
   match,
@@ -396,151 +345,129 @@ function MatchRow({
   const returnView = section === "matches" ? "matches" : "confirmation";
   const profile = `/jobs/companies/${c.username || c.slug}?back=${data.job.id}&from=matches&matchPage=${page}&matchView=${returnView}`;
   const conversation = `/jobs/inbox?${new URLSearchParams({ job: data.job.id, provider: c.id, from: "matches", matchPage: String(page), matchView: returnView })}`;
-  const reasons = match.reasons.map((reason) =>
-    readableReason(reason, data.job.location),
-  );
-  const ask = questionsToAsk(match.followUp);
+  const fit = matchFit(match, data);
   const offering = match.offerings[0];
+  const StatusIcon = match.eligible ? CircleCheck : CircleHelp;
   return (
-    <article className="jobs-panel match-result-card" aria-label={c.name}>
-      <div className="match-card-overview">
+    <article
+      className={`jobs-panel match-result-card ${match.eligible ? "is-matched" : "needs-checking"}`}
+      aria-label={c.name}
+    >
+      <header className="match-card-header">
         <div className="match-card-identity">
-          <Link
-            to={profile}
-            tabIndex={-1}
-            aria-hidden="true"
-            className="match-card-logo"
-          >
-            {c.logo_url && (
-              <img
-                src={c.logo_url}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                onError={(e) => {
-                  e.currentTarget.style.visibility = "hidden";
-                }}
-              />
-            )}
-          </Link>
-          <div>
+          <MatchCompanyLogo src={c.logo_url || ""} name={c.name} />
+          <div className="match-company-heading">
             <Link className="match-company-name" to={profile}>
               <h2>{c.name}</h2>
             </Link>
             {c.location && (
               <p>
-                <MapPin size={14} />
-                {c.location}
+                <MapPin size={15} /> Based in {c.location}
               </p>
-            )}
-            {c.claimed && (
-              <span className="match-on-connect">
-                <span />
-                On Connect
-              </span>
             )}
           </div>
         </div>
-        <div className="match-card-fit">
-          <p className="match-service-description">
-            {offering?.offering.detail || offering?.offering.title}
+        <span className="match-fit-badge">
+          <StatusIcon size={17} />
+          {fit.heading}
+        </span>
+      </header>
+      {offering && (
+        <p className="match-service-description">
+          {offering.offering.detail || offering.offering.title}
+        </p>
+      )}
+      <div className="match-verdict">
+        <StatusIcon size={18} />
+        <p>{fit.summary}</p>
+      </div>
+      <dl
+        className="match-requirements"
+        aria-label="How this company fits your job"
+      >
+        {fit.facts.map((fact) => {
+          const FactIcon =
+            fact.state === "matched"
+              ? CircleCheck
+              : fact.state === "unavailable"
+                ? CircleMinus
+                : CircleHelp;
+          return (
+            <div
+              className={`match-requirement is-${fact.state}`}
+              key={fact.key}
+            >
+              <dt>{fact.label}</dt>
+              <dd>
+                <FactIcon size={17} />
+                <span>{fact.value}</span>
+              </dd>
+              {fact.detail && <p>{fact.detail}</p>}
+            </div>
+          );
+        })}
+      </dl>
+      <footer className="match-card-footer">
+        <div className="match-contact-status">
+          <strong>
+            {invited
+              ? "Invited to quote"
+              : c.claimed
+                ? "On Connect"
+                : "Not on Connect yet"}
+          </strong>
+          <p>
+            {!c.claimed
+              ? "Open their profile for contact details."
+              : canMessage
+                ? "Discuss your job and confirm the details."
+                : !admin
+                  ? "A company admin can start the conversation."
+                  : "You can still view their company profile."}
           </p>
-          <ul className="match-fit-facts">
-            {reasons.slice(0, 3).map((reason, i) => (
-              <li key={i}>
-                <Check size={15} />
-                {reason}
-              </li>
-            ))}
-          </ul>
-          {offering?.availability === "unavailable" ? (
-            <p className="match-ask-about">Not currently accepting new work.</p>
-          ) : (
-            ask && (
-              <p className="match-ask-about">
-                <span>Ask about</span> {ask}.
-              </p>
-            )
-          )}
         </div>
         <div className="match-card-actions">
-          {canMessage ? (
-            <>
-              <Link className="jobs-button jobs-primary" to={conversation}>
-                <MessageCircle size={18} />
-                {existing ? "Open conversation" : "Message"}
-              </Link>
-              <Link className="match-profile-link" to={profile}>
-                View profile
-                <ArrowUpRight size={15} />
-              </Link>
-              {invited && (
-                <span className="match-invited-note">
-                  <Check size={14} />
-                  Invited to quote
-                </span>
-              )}
-            </>
-          ) : (
-            <>
-              <Link className="jobs-button jobs-secondary" to={profile}>
-                View company
-                <ArrowRight size={16} />
-              </Link>
-              <span className="match-contact-note">
-                {!c.claimed
-                  ? "Not on Connect yet. Contact details on their profile."
-                  : !admin
-                    ? "A company admin can start a conversation."
-                    : "This job is no longer accepting new conversations."}
-              </span>
-            </>
+          {canMessage && (
+            <Link className="match-profile-link" to={profile}>
+              View profile
+              <ArrowUpRight size={15} />
+            </Link>
           )}
+          <Link
+            className={`jobs-button ${canMessage ? "jobs-primary" : "jobs-secondary"}`}
+            to={canMessage ? conversation : profile}
+          >
+            {canMessage ? <MessageCircle size={18} /> : null}
+            {canMessage
+              ? existing
+                ? "Open conversation"
+                : "Message company"
+              : "View company profile"}
+            {!canMessage && <ArrowRight size={16} />}
+          </Link>
         </div>
-      </div>
-      <details className="match-fit-details">
-        <summary>
-          Why this company
-          <ChevronDown size={15} />
-        </summary>
-        <div className="match-evidence-layout">
-          <div>
-            <h3>How they fit</h3>
-            <ul>
-              {reasons.map((reason, i) => (
-                <li key={i}>
-                  <Check size={15} />
-                  {reason}
-                </li>
-              ))}
-            </ul>
+      </footer>
+      {!!offering?.sources.length && (
+        <details className="match-fit-details">
+          <summary>
+            Where this information comes from
+            <ChevronDown size={15} />
+          </summary>
+          <div className="match-evidence-layout">
+            {offering.sources.map((source) => (
+              <a
+                key={source.url}
+                href={source.url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {source.title || "Company website"}
+                <ArrowUpRight size={14} />
+              </a>
+            ))}
           </div>
-          <div>
-            {ask && (
-              <>
-                <h3>Before you choose</h3>
-                <p>Confirm {ask} with the company.</p>
-              </>
-            )}
-            {!!offering?.sources.length && (
-              <>
-                <h3>From their website</h3>
-                {offering.sources.map((source) => (
-                  <a
-                    key={source.url}
-                    href={source.url}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {source.title || "Company website"}
-                    <ArrowUpRight size={14} />
-                  </a>
-                ))}
-              </>
-            )}
-          </div>
-        </div>
-      </details>
+        </details>
+      )}
     </article>
   );
 }
@@ -637,8 +564,8 @@ export function JobMatchesPage() {
         Back to job
       </Link>
       <header className="match-discovery-heading">
-        <h1>Companies for your job</h1>
-        <p>Explore the fit, then start a conversation.</p>
+        <h1>Find the right company for your job</h1>
+        <p>See what matches. Check what’s missing. Start a conversation.</p>
       </header>
       {data && (
         <section className="match-job-ticket" aria-label="Your job">
@@ -711,35 +638,33 @@ export function JobMatchesPage() {
         >
           {data && (
             <div className="match-results-heading">
-              {data.totalMatches ? (
-                <nav
-                  aria-label="Company suggestions"
-                  className="match-suggestion-tabs"
+              <nav
+                aria-label="Company suggestions"
+                className="match-suggestion-tabs"
+              >
+                <button
+                  aria-pressed={section === "matches"}
+                  disabled={!data.totalMatches}
+                  onClick={() => selectSection("matches")}
                 >
-                  <button
-                    aria-pressed={section === "matches"}
-                    onClick={() => selectSection("matches")}
-                  >
-                    Recommended<span>{data.totalMatches}</span>
-                  </button>
-                  {!!data.totalNeedsConfirmation && (
-                    <button
-                      aria-pressed={section === "needsConfirmation"}
-                      onClick={() => selectSection("needsConfirmation")}
-                    >
-                      More companies<span>{data.totalNeedsConfirmation}</span>
-                    </button>
-                  )}
-                </nav>
-              ) : (
-                <h2>
-                  Companies to consider<span>{total}</span>
-                </h2>
-              )}
-              <p>
+                  <CircleCheck size={18} />
+                  <span>Service &amp; area match</span>
+                  <b>{data.totalMatches || 0}</b>
+                </button>
+                <button
+                  aria-pressed={section === "needsConfirmation"}
+                  disabled={!data.totalNeedsConfirmation}
+                  onClick={() => selectSection("needsConfirmation")}
+                >
+                  <CircleHelp size={18} />
+                  <span>Details to confirm</span>
+                  <b>{data.totalNeedsConfirmation || 0}</b>
+                </button>
+              </nav>
+              <p className="match-group-explanation">
                 {section === "matches"
-                  ? "Offering the service in your job’s area."
-                  : "Offering the service. Check the details highlighted below."}
+                  ? "Their listed services, service area and selected project details match your job. Check timing and capacity below."
+                  : "These companies offer the work, but some job details are missing. Each card shows exactly what to ask."}
               </p>
             </div>
           )}
