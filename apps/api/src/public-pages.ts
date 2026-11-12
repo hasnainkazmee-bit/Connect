@@ -94,9 +94,12 @@ export function publicPages() {
       content = `<div class="market-landing landing-editorial"><section class="landing-hero"><div class="landing-eyebrow">THE SOLAR WORK MARKETPLACE · BY SUNHUB</div><h1>Solar runs on people.</h1><div class="landing-hero-intro"><p>A crew for next week. An electrician for tomorrow. A partner for the long run. Find the right company for the work ahead.</p><div class="landing-actions"><a class="jobs-button jobs-primary" href="/jobs/new">Post a job →</a><a class="landing-text-link" href="/jobs">Find work →</a></div></div><figure class="landing-hero-photo"><picture><source media="(max-width:600px)" srcset="/assets/marketplace/solar-crew-800.webp"/><img src="/assets/marketplace/solar-crew-1600.webp" width="1536" height="1024" alt="A crew working together on a commercial solar array" fetchpriority="high"/></picture><figcaption>From the first plan to the final panel.</figcaption></figure></section></div>`;
     } else if (req.path === "/providers") {
       const data =
-        await pool.query(`SELECT id,username,slug,name,type,tagline,description,location,logo_url,services,service_areas
-        FROM companies WHERE NOT is_demo
-        ORDER BY (listing_status='managed') DESC,(logo_url<>'') DESC,name LIMIT 24`);
+        await pool.query(`SELECT c.id,c.username,c.slug,c.name,c.type,c.tagline,c.description,c.location,c.logo_url,c.services,c.service_areas
+        FROM companies c
+        LEFT JOIN provider_directory_pins pin ON pin.company_id=c.id
+        LEFT JOIN provider_directory_completeness completeness ON completeness.company_id=c.id
+        WHERE NOT c.is_demo
+        ORDER BY pin.position ASC NULLS LAST,completeness.score DESC,c.name,c.id LIMIT 24`);
       title = "Solar service providers | Connect by Sunhub";
       description =
         "Find solar installers, EPCs, specialist contractors and suppliers by service and location.";
