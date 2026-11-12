@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { api, post } from "./api";
 import { useApp } from "./context";
-import { PortfolioEditor } from "./management";
+import { projectsPath } from "./profile-projects";
 import type { Company, Profile, Project } from "./types";
 import {
   ProviderServices,
@@ -554,12 +554,12 @@ export function ProviderProfilePage() {
                   <h2>Recent work</h2>
                 </div>
                 {owner && (
-                  <button
+                  <Link
                     className="jobs-button jobs-secondary"
-                    onClick={() => open(<PortfolioEditor />)}
+                    to={projectsPath + "/new"}
                   >
                     Add project <ArrowRight size={16} />
-                  </button>
+                  </Link>
                 )}
               </div>
               {!profile.projects.length && (
@@ -622,14 +622,12 @@ export function ProviderProfilePage() {
                       </span>
                     </button>
                     {owner && (
-                      <button
+                      <Link
                         className="job-text-button"
-                        onClick={() =>
-                          open(<PortfolioEditor project={project} />)
-                        }
+                        to={projectsPath + "/" + project.id}
                       >
                         Edit project
-                      </button>
+                      </Link>
                     )}
                   </article>
                 ))}

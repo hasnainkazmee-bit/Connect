@@ -799,7 +799,17 @@ test("publishing, company profiles, customer accounts, and employee access", asy
     },
   );
   await t.test("portfolio and achievements use company ownership", async () => {
+    assert.equal(
+      (
+        await a("/companies/current/portfolio", {
+          name: "Wrong active company",
+          expectedCompanyId: B.activeCompanyId,
+        })
+      ).status,
+      409,
+    );
     const r = await a("/companies/current/portfolio", {
+      expectedCompanyId: A.activeCompanyId,
       name: "Community rooftop",
       description: "A detailed project",
       location: "Austin",
@@ -807,6 +817,36 @@ test("publishing, company profiles, customer accounts, and employee access", asy
       completedYear: 2026,
     });
     assert.equal(r.status, 201, JSON.stringify(r.data));
+    assert.equal(
+      (
+        await a(
+          "/companies/current/portfolio/" + r.data.id,
+          {
+            name: "Must not replace saved work",
+            expectedCompanyId: B.activeCompanyId,
+          },
+          "PATCH",
+        )
+      ).status,
+      409,
+    );
+    assert.equal(
+      (
+        await a(
+          "/companies/current/portfolio/" + r.data.id,
+          {
+            expectedCompanyId: A.activeCompanyId,
+            name: "Community rooftop",
+            description: "Updated project scope",
+            location: "Austin",
+            size: "200 kW",
+            completedYear: 2026,
+          },
+          "PATCH",
+        )
+      ).status,
+      200,
+    );
     assert.equal(
       (
         await b(
@@ -829,6 +869,7 @@ test("publishing, company profiles, customer accounts, and employee access", asy
     );
     const profile = (await anon("/companies/" + A.activeCompanyId)).data;
     assert.equal(profile.projects.length, 1);
+    assert.equal(profile.projects[0].description, "Updated project scope");
     assert.equal(profile.achievements.length, 1);
     assert.equal(profile.rating.average, 4);
   });

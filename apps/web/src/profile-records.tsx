@@ -448,7 +448,9 @@ function DateFields({
     <>
       <div className="workspace-field-pair">
         <label>
-          Issue date <small>Optional</small>
+          <span className="workspace-label">
+            Issue date <small>Optional</small>
+          </span>
           <input
             type="date"
             value={issued}
@@ -457,7 +459,9 @@ function DateFields({
           />
         </label>
         <label>
-          Expiry date <small>Optional</small>
+          <span className="workspace-label">
+            Expiry date <small>Optional</small>
+          </span>
           <input
             type="date"
             value={expires}
@@ -547,7 +551,9 @@ export function LicenseEditor({
           />
         </label>
         <label>
-          Class or designation <small>Optional</small>
+          <span className="workspace-label">
+            Class or designation <small>Optional</small>
+          </span>
           <input
             maxLength={120}
             value={f.classification}
@@ -591,7 +597,9 @@ export function LicenseEditor({
         onChange={change}
       />
       <label>
-        Verification link <small>Optional</small>
+        <span className="workspace-label">
+          Verification link <small>Optional</small>
+        </span>
         <input
           type="url"
           maxLength={2000}
@@ -730,7 +738,9 @@ export function CertificationEditor({
         />
       </label>
       <label>
-        Credential number <small>Optional</small>
+        <span className="workspace-label">
+          Credential number <small>Optional</small>
+        </span>
         <input
           type="text"
           maxLength={100}
@@ -746,7 +756,9 @@ export function CertificationEditor({
         onChange={change}
       />
       <label>
-        Verification link <small>Optional</small>
+        <span className="workspace-label">
+          Verification link <small>Optional</small>
+        </span>
         <input
           type="url"
           maxLength={2000}
@@ -813,7 +825,9 @@ export function InsuranceEditor({
       </label>
       <div className="workspace-field-pair">
         <label>
-          Coverage limit <small>Optional</small>
+          <span className="workspace-label">
+            Coverage limit <small>Optional</small>
+          </span>
           <input
             type="number"
             inputMode="decimal"
@@ -864,7 +878,9 @@ export function InsuranceEditor({
         </label>
       </div>
       <label>
-        Public coverage link <small>Optional</small>
+        <span className="workspace-label">
+          Public coverage link <small>Optional</small>
+        </span>
         <input
           type="url"
           maxLength={2000}

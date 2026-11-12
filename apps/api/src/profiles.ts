@@ -436,6 +436,7 @@ export function profileRoutes() {
     },
   );
   const portfolio = z.object({
+    expectedCompanyId: uuid.optional(),
     name: z.string().trim().min(2).max(150),
     description: z.string().trim().max(3000).default(""),
     location: z.string().trim().max(160).default(""),
@@ -478,6 +479,11 @@ export function profileRoutes() {
     requireAdmin,
     async (req, res) => {
       const b = portfolio.parse(req.body);
+      if (b.expectedCompanyId && b.expectedCompanyId !== req.auth!.companyId)
+        throw new HttpError(
+          409,
+          "Your active company changed. Open the correct company before saving.",
+        );
       await ownImage(b.imageUrl, req.auth!.companyId!);
       const { rows } = await pool.query(
         "INSERT INTO projects(company_id,name,description,location,size,completed_year,image_url,url) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *",
@@ -500,6 +506,11 @@ export function profileRoutes() {
     requireAdmin,
     async (req, res) => {
       const b = portfolio.parse(req.body);
+      if (b.expectedCompanyId && b.expectedCompanyId !== req.auth!.companyId)
+        throw new HttpError(
+          409,
+          "Your active company changed. Open the correct company before saving.",
+        );
       await ownImage(b.imageUrl, req.auth!.companyId!);
       const { rows } = await pool.query(
         "UPDATE projects SET name=$1,description=$2,location=$3,size=$4,completed_year=$5,image_url=$6,url=$7 WHERE id=$8 AND company_id=$9 RETURNING *",

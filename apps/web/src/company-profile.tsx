@@ -41,7 +41,6 @@ import {
   ConfirmAction,
   EmployeeInvite,
   FormError,
-  PortfolioEditor,
   ProfileEditor,
   ShareProfile,
   useAction,
@@ -815,7 +814,7 @@ export function CompanyProfileView({
               {editable && (
                 <button
                   className="button primary"
-                  onClick={() => open(<PortfolioEditor />)}
+                  onClick={() => navigate("/settings/profile/portfolio/new")}
                 >
                   <Plus size={16} />
                   Add project
@@ -860,7 +859,7 @@ export function CompanyProfileView({
                             <button
                               aria-label={"Edit " + p.name}
                               onClick={() =>
-                                open(<PortfolioEditor project={p} />)
+                                navigate("/settings/profile/portfolio/" + p.id)
                               }
                             >
                               <Pencil size={14} />
@@ -911,7 +910,7 @@ export function CompanyProfileView({
                 {editable && (
                   <button
                     className="button"
-                    onClick={() => open(<PortfolioEditor />)}
+                    onClick={() => navigate("/settings/profile/portfolio/new")}
                   >
                     Add your first project
                     <Plus size={15} />

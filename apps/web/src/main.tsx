@@ -811,7 +811,7 @@ function App() {
               }
             />
             <Route
-              path="/settings/profile/:section?"
+              path="/settings/profile/:section?/*"
               element={
                 <Protected>
                   <CompanyProfileEditorPage />

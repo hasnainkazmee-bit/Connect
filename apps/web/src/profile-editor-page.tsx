@@ -8,19 +8,16 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import {
-  ArrowLeft,
   ArrowUpRight,
   Building2,
   Check,
   FileBadge,
   ImagePlus,
   MapPin,
-  Pencil,
   Plus,
   Users,
   Wrench,
   BriefcaseBusiness,
-  Trash2,
 } from "lucide-react";
 import { api } from "./api";
 import { useApp } from "./context";
@@ -28,15 +25,14 @@ import { Logo } from "./identity";
 import {
   AchievementEditor,
   BrandEditor,
-  ConfirmAction,
   FormError,
-  PortfolioEditor,
   TagInput,
   TeamManager,
   UsernameField,
   useUnsavedChanges,
 } from "./management";
 import { ProfileRecords } from "./profile-records";
+import { ProfileProjects } from "./profile-projects";
 import type { Company, Profile, Session, WorkSettings } from "./types";
 
 type Work = {
@@ -62,7 +58,7 @@ const sections = [
 const profilePath = (c: Company) => "/" + (c.username || c.slug);
 export function CompanyProfileEditorPage() {
   const { company, admin, revision, open, refresh } = useApp();
-  const { section = "overview" } = useParams();
+  const { section = "overview", "*": subpage = "" } = useParams();
   const navigate = useNavigate();
   const [search] = useSearchParams();
   const [data, setData] = useState<{
@@ -136,15 +132,10 @@ export function CompanyProfileEditorPage() {
   };
   return (
     <div className="profile-workspace">
-      <Link className="page-back" to={profilePath(c)}>
-        <ArrowLeft size={18} />
-        Back to company profile
-      </Link>
       <header className="profile-workspace-heading">
         <div>
-          <span className="workspace-eyebrow">YOUR COMPANY</span>
           <h1>Edit company profile</h1>
-          <p>Help the right customers understand what you do.</p>
+          <p>Manage the details customers see about your company.</p>
         </div>
         <Link className="button" to={profilePath(c)}>
           View public profile <ArrowUpRight size={18} />
@@ -269,86 +260,11 @@ export function CompanyProfileEditorPage() {
             </>
           )}
           {section === "portfolio" && (
-            <>
-              <SectionHeading
-                title="Projects"
-                action={
-                  <button
-                    className="button primary"
-                    onClick={() => open(<PortfolioEditor />)}
-                  >
-                    <Plus size={18} />
-                    Add a project
-                  </button>
-                }
-              >
-                Show customers the work you’ve completed.
-              </SectionHeading>
-              {!data.profile.projects.length && (
-                <div className="workspace-empty">
-                  <BriefcaseBusiness size={32} />
-                  <h3>Add your first project</h3>
-                  <p>
-                    A project photo and a short description help customers see
-                    your experience.
-                  </p>
-                  <button
-                    className="button"
-                    onClick={() => open(<PortfolioEditor />)}
-                  >
-                    Add a project <Plus size={18} />
-                  </button>
-                </div>
-              )}
-              <div className="workspace-projects">
-                {data.profile.projects.map((p) => (
-                  <article key={p.id}>
-                    {p.image_url && <img src={p.image_url} alt={p.name} />}
-                    <div>
-                      <h3>{p.name}</h3>
-                      <p>
-                        {[p.location, p.completed_year]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </p>
-                      <div className="page-actions">
-                        <button
-                          className="button"
-                          onClick={() => open(<PortfolioEditor project={p} />)}
-                        >
-                          <Pencil size={16} />
-                          Edit project
-                        </button>
-                        <button
-                          className="button"
-                          onClick={() =>
-                            open(
-                              <ConfirmAction
-                                title="Remove this project?"
-                                description={
-                                  p.name +
-                                  " will be removed from your public portfolio."
-                                }
-                                label="Remove project"
-                                action={async () => {
-                                  await api(
-                                    "/companies/current/portfolio/" + p.id,
-                                    { method: "DELETE" },
-                                  );
-                                }}
-                              />,
-                            )
-                          }
-                        >
-                          <Trash2 size={16} />
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </>
+            <ProfileProjects
+              projects={data.profile.projects}
+              company={c}
+              path={subpage}
+            />
           )}
           {section === "credentials" && (
             <div className="workspace-records">
@@ -610,7 +526,9 @@ function ProfileSectionForm({
             </label>
           </div>
           <label>
-            Year founded <small>Optional</small>
+            <span className="workspace-label">
+              Year founded <small>Optional</small>
+            </span>
             <input
               type="number"
               min={1800}
@@ -833,7 +751,9 @@ function WorkSettingsFields({
       </div>
       <div className="workspace-field-pair">
         <label>
-          Number of crews <small>Optional</small>
+          <span className="workspace-label">
+            Number of crews <small>Optional</small>
+          </span>
           <input
             type="number"
             inputMode="numeric"
@@ -847,7 +767,9 @@ function WorkSettingsFields({
           />
         </label>
         <label>
-          People per crew <small>Optional</small>
+          <span className="workspace-label">
+            People per crew <small>Optional</small>
+          </span>
           <input
             type="number"
             inputMode="numeric"
