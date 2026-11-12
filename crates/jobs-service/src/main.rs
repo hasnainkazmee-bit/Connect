@@ -885,12 +885,18 @@ async fn job_activity(
     Ok((StatusCode::CREATED, Json(json!({"id":update_id}))))
 }
 
+struct MessageAccess {
+    provider: String,
+    needs_start: bool,
+}
+
 async fn message_provider(
     app: &App,
     a: &JobAccess,
     actor: &Actor,
     requested: Option<&str>,
-) -> Result<String> {
+    allow_start: bool,
+) -> Result<MessageAccess> {
     let own = actor.company.as_deref().unwrap();
     let provider = if a.hirer {
         requested.ok_or_else(|| bad("Choose a company."))?
@@ -898,17 +904,48 @@ async fn message_provider(
         own
     };
     checked_id(provider)?;
+    if provider == a.hirer_id() {
+        return Err(bad("Choose another company."));
+    }
     if !a.hirer && requested.is_some_and(|v| v != own) {
         return Err(forbidden());
     }
+    let mut needs_start = false;
     if a.hirer {
         let known: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM job_quotes WHERE job_id=$1::uuid AND provider_company_id=$2::uuid UNION SELECT 1 FROM job_invitations WHERE job_id=$1::uuid AND provider_company_id=$2::uuid UNION SELECT 1 FROM job_messages WHERE job_id=$1::uuid AND provider_company_id=$2::uuid)")
             .bind(a.job["id"].as_str()).bind(provider).fetch_one(&app.db).await?;
         if !known {
-            return Err(not_found());
+            if !allow_start {
+                return Err(conflict(
+                    "Start a conversation before sending this message.",
+                ));
+            }
+            let managed: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM companies WHERE id=$1::uuid AND listing_status='managed')")
+                .bind(provider).fetch_one(&app.db).await?;
+            if !managed {
+                return Err(conflict(
+                    "Messaging opens when this company claims its profile.",
+                ));
+            }
+            needs_start = true;
         }
     }
-    Ok(provider.to_owned())
+    Ok(MessageAccess {
+        provider: provider.to_owned(),
+        needs_start,
+    })
+}
+
+fn new_conversation_reason(actor: &Actor, status: &str, expired: bool) -> Option<&'static str> {
+    if !matches!(actor.role.as_deref(), Some("owner" | "admin")) {
+        Some("A company owner or admin can start this conversation.")
+    } else if status != "open" {
+        Some("This job is no longer accepting new conversations.")
+    } else if expired {
+        Some("The quote deadline has passed.")
+    } else {
+        None
+    }
 }
 
 async fn quote_messages(
@@ -919,13 +956,15 @@ async fn quote_messages(
 ) -> Result<Json<Value>> {
     let actor = company_actor(&app, &headers, false).await?;
     let a = job_access(&app, &id, actor.company.as_deref()).await?;
-    let provider = message_provider(
+    let contact = message_provider(
         &app,
         &a,
         &actor,
         query.get("providerId").map(String::as_str),
+        true,
     )
     .await?;
+    let provider = contact.provider;
     let after = query.get("after");
     let before = query.get("before");
     if after.is_some() && before.is_some() {
@@ -954,9 +993,33 @@ async fn quote_messages(
     if after.is_none() {
         rows.reverse();
     }
-    Ok(Json(
-        json!({"messages":rows.into_iter().map(parse_json).collect::<Result<Vec<_>>>()?,"hasOlder":after.is_none() && more,"hasNewer":after.is_some() && more}),
+    let recipient = if a.hirer {
+        provider.as_str()
+    } else {
+        a.hirer_id()
+    };
+    let company: String = sqlx::query_scalar(&format!(
+        "SELECT {}::text FROM companies c WHERE c.id=$1::uuid",
+        company_json()
     ))
+    .bind(recipient)
+    .fetch_one(&app.db)
+    .await?;
+    let context = sqlx::query("SELECT COALESCE(j.quote_deadline<now(),false) AS expired,EXISTS(SELECT 1 FROM job_invitations WHERE job_id=j.id AND provider_company_id=$2::uuid AND status='pending') AS invited FROM jobs j WHERE id=$1::uuid")
+        .bind(&id).bind(&provider).fetch_one(&app.db).await?;
+    let reason = if contact.needs_start {
+        new_conversation_reason(&actor, a.status(), context.get("expired"))
+    } else if a.status() != "open" && !a.hirer && !a.chosen {
+        Some("This job is no longer accepting messages from your company.")
+    } else {
+        None
+    };
+    Ok(Json(json!({
+        "messages":rows.into_iter().map(parse_json).collect::<Result<Vec<_>>>()?,
+        "hasOlder":after.is_none() && more,"hasNewer":after.is_some() && more,
+        "conversation":{"company":parse_json(company)?,"needsStart":contact.needs_start,
+            "canSend":reason.is_none(),"reason":reason,"invited":context.get::<bool,_>("invited")}
+    })))
 }
 
 async fn read_messages(
@@ -967,7 +1030,9 @@ async fn read_messages(
 ) -> Result<Json<Value>> {
     let actor = company_actor(&app, &headers, false).await?;
     let a = job_access(&app, &id, actor.company.as_deref()).await?;
-    let provider = message_provider(&app, &a, &actor, body["providerId"].as_str()).await?;
+    let provider = message_provider(&app, &a, &actor, body["providerId"].as_str(), false)
+        .await?
+        .provider;
     let message = checked_id(required_text(&body, "messageId", 36, 36)?)?;
     let mut tx = app.db.begin().await?;
     let changed = sqlx::query("INSERT INTO job_message_reads(user_id,company_id,job_id,provider_company_id,last_read_at,last_read_message_id) SELECT $1::uuid,$2::uuid,job_id,provider_company_id,created_at,id FROM job_messages WHERE id=$3::uuid AND job_id=$4::uuid AND provider_company_id=$5::uuid ON CONFLICT(user_id,company_id,job_id,provider_company_id) DO UPDATE SET last_read_at=EXCLUDED.last_read_at,last_read_message_id=EXCLUDED.last_read_message_id WHERE (EXCLUDED.last_read_at,EXCLUDED.last_read_message_id)>(job_message_reads.last_read_at,job_message_reads.last_read_message_id)")
@@ -997,12 +1062,44 @@ async fn send_message(
         return Err(forbidden());
     }
     let text = required_text(&body, "body", 1, 5000)?;
-    let provider = message_provider(&app, &a, &actor, body["providerId"].as_str()).await?;
+    let start_conversation = body
+        .get("startConversation")
+        .map(|value| {
+            value
+                .as_bool()
+                .ok_or_else(|| bad("Check the conversation request."))
+        })
+        .transpose()?
+        .unwrap_or(false);
+    let contact = message_provider(
+        &app,
+        &a,
+        &actor,
+        body["providerId"].as_str(),
+        start_conversation,
+    )
+    .await?;
+    let provider = contact.provider;
     let client = body
         .get("clientId")
         .map(|v| checked_id(v.as_str().unwrap_or("")))
         .transpose()?;
     let mut tx = app.db.begin().await?;
+    if contact.needs_start {
+        let job = sqlx::query("SELECT status,COALESCE(quote_deadline<now(),false) AS expired FROM jobs WHERE id=$1::uuid FOR UPDATE")
+            .bind(&id).fetch_one(&mut *tx).await?;
+        if let Some(reason) =
+            new_conversation_reason(&actor, &job.get::<String, _>("status"), job.get("expired"))
+        {
+            return Err(
+                if matches!(actor.role.as_deref(), Some("owner" | "admin")) {
+                    conflict(reason)
+                } else {
+                    forbidden()
+                },
+            );
+        }
+    }
     let inserted: Option<String> = sqlx::query_scalar("INSERT INTO job_messages(job_id,provider_company_id,sender_company_id,author_id,body,client_id) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6::uuid) ON CONFLICT(author_id,sender_company_id,client_id) WHERE client_id IS NOT NULL DO NOTHING RETURNING id::text")
         .bind(&id).bind(&provider).bind(actor.company.as_deref()).bind(&actor.user).bind(text).bind(client).fetch_optional(&mut *tx).await?;
     let duplicate = inserted.is_none();

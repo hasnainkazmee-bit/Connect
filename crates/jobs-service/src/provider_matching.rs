@@ -628,6 +628,12 @@ pub(super) async fn for_job(
     .bind(&id)
     .fetch_all(&app.db)
     .await?;
+    let conversations: Vec<String> = sqlx::query_scalar(
+        "SELECT provider_company_id::text FROM job_messages WHERE job_id=$1::uuid UNION SELECT provider_company_id::text FROM job_quotes WHERE job_id=$1::uuid",
+    )
+    .bind(&id)
+    .fetch_all(&app.db)
+    .await?;
     let pool: i64 =
         sqlx::query_scalar("SELECT count(DISTINCT company_id) FROM provider_current_candidates")
             .fetch_one(&app.db)
@@ -651,6 +657,7 @@ pub(super) async fn for_job(
     result["job"] = access.job;
     result["preferences"] = preferences;
     result["invitedCompanyIds"] = json!(invited);
+    result["conversationCompanyIds"] = json!(conversations);
     result["searchableCompanies"] = json!(pool);
     Ok(Json(result))
 }

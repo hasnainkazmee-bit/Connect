@@ -230,7 +230,9 @@ export function ProviderProfilePage() {
                 ? "/matches?page=" +
                   encodeURIComponent(params.get("matchPage") || "1") +
                   "&view=" +
-                  (params.get("matchView") === "needsConfirmation"
+                  (["confirmation", "needsConfirmation"].includes(
+                    params.get("matchView") || "",
+                  )
                     ? "confirmation"
                     : "matches")
                 : "")

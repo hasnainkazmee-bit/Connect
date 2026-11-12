@@ -58,6 +58,13 @@ type MessagePage = {
   messages: ChatMessage[];
   hasOlder: boolean;
   hasNewer: boolean;
+  conversation?: {
+    company: Company;
+    canSend: boolean;
+    needsStart: boolean;
+    invited: boolean;
+    reason?: string | null;
+  };
 };
 type Draft = { body: string; clientId?: string };
 const statusLabels: Record<JobStatus, string> = {
@@ -182,6 +189,18 @@ function InboxWorkspace({ company }: { company: Company }) {
   const jobId = params.get("job") || "",
     providerId = params.get("provider") || "";
   const selected = jobId && providerId ? `${jobId}:${providerId}` : "";
+  const fromMatches = params.get("from") === "matches" && !!selected;
+  const matchesParams = new URLSearchParams();
+  if (
+    ["confirmation", "needsConfirmation"].includes(
+      params.get("matchView") || "",
+    )
+  )
+    matchesParams.set("view", "confirmation");
+  const matchPage = Number(params.get("matchPage"));
+  if (Number.isInteger(matchPage) && matchPage > 1)
+    matchesParams.set("page", String(matchPage));
+  const matchesHref = `/jobs/${jobId}/matches${matchesParams.size ? `?${matchesParams}` : ""}`;
   const layout = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const el = layout.current;
@@ -204,7 +223,7 @@ function InboxWorkspace({ company }: { company: Company }) {
       window.removeEventListener("resize", size);
       window.visualViewport?.removeEventListener("resize", size);
     };
-  }, []);
+  }, [fromMatches]);
   useEffect(() => {
     const controller = new AbortController();
     let busy = false;
@@ -248,8 +267,18 @@ function InboxWorkspace({ company }: { company: Company }) {
   };
   return (
     <div
-      className={`jobs-page workspace-inbox ${selected ? "has-conversation" : ""}`}
+      className={`jobs-page workspace-inbox ${selected ? "has-conversation" : ""} ${fromMatches ? "inbox-from-matches" : ""}`}
     >
+      {fromMatches && (
+        <div className="inbox-match-navigation">
+          <Link to={matchesHref}>
+            <ArrowLeft size={17} /> Back to matches
+          </Link>
+          <Link to="/jobs/inbox">
+            All conversations <ArrowRight size={16} />
+          </Link>
+        </div>
+      )}
       <div
         className={`inbox-layout ${showDetails ? "details-open" : ""}`}
         ref={layout}
@@ -435,6 +464,7 @@ function InboxWorkspace({ company }: { company: Company }) {
             }}
             onRead={read}
             onSent={read}
+            fromMatches={fromMatches}
           />
         ) : (
           <section className="inbox-welcome">
@@ -468,6 +498,7 @@ function Conversation({
   onBack,
   onRead,
   onSent,
+  fromMatches,
 }: {
   jobId: string;
   providerId: string;
@@ -480,9 +511,13 @@ function Conversation({
   onBack: () => void;
   onRead: () => void;
   onSent: () => void;
+  fromMatches: boolean;
 }) {
+  const { admin } = useApp();
   const [detail, setDetail] = useState<JobDetail | null>(null),
     [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [conversation, setConversation] =
+    useState<MessagePage["conversation"]>();
   const [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
     [retry, setRetry] = useState(0),
@@ -495,6 +530,10 @@ function Conversation({
   const [draft, setDraft] = useState<Draft>(() => readDraft(draftKey));
   const [sending, setSending] = useState<ChatMessage | null>(null),
     [sendError, setSendError] = useState("");
+  const [inviting, setInviting] = useState(false),
+    [invitedHere, setInvitedHere] = useState(false),
+    [inviteError, setInviteError] = useState("");
+  const inviteLock = useRef(false);
   const feed = useRef<HTMLDivElement>(null),
     input = useRef<HTMLTextAreaElement>(null),
     latest = useRef<ChatMessage[]>([]),
@@ -538,6 +577,10 @@ function Conversation({
       el = feed.current;
     if (!intent || !el) return;
     scrollIntent.current = null;
+    if (!messages.length && !sending) {
+      el.scrollTop = 0;
+      return;
+    }
     el.scrollTop =
       intent.kind === "bottom"
         ? el.scrollHeight
@@ -565,6 +608,7 @@ function Conversation({
         );
         if (!controller.signal.aborted) {
           merge(r.messages);
+          if (r.conversation) setConversation(r.conversation);
           if (!cursor) setHasOlder(r.hasOlder);
           setConnectionError(false);
           if (r.hasNewer) setTimeout(() => poll.current(), 0);
@@ -587,6 +631,7 @@ function Conversation({
       .then(([d, m]) => {
         if (controller.signal.aborted) return;
         setDetail(d);
+        setConversation(m.conversation);
         latest.current = m.messages;
         scrollIntent.current = { kind: "bottom" };
         setMessages(m.messages);
@@ -693,7 +738,8 @@ function Conversation({
   };
   const send = async (e?: FormEvent) => {
     e?.preventDefault();
-    if (!draft.body.trim() || sendLock.current) return;
+    if (!canSend || loading || error || !draft.body.trim() || sendLock.current)
+      return;
     const body = draft.body.trim(),
       clientId = draft.clientId || crypto.randomUUID();
     const pending: ChatMessage = {
@@ -715,14 +761,23 @@ function Conversation({
     try {
       const result = await post<{ message: ChatMessage }>(
         `/jobs/${jobId}/messages`,
-        { providerId, body, clientId },
+        {
+          providerId,
+          body,
+          clientId,
+          ...(conversation?.needsStart ? { startConversation: true } : {}),
+        },
       );
       if (readDraft(draftKey).clientId === clientId)
         saveDraft(draftKey, { body: "" });
       if (live.current) {
         merge([result.message], true);
+        setConversation((value) =>
+          value ? { ...value, needsStart: false } : value,
+        );
         setSending(null);
         onSent();
+        poll.current();
       }
     } catch (e) {
       if (live.current) {
@@ -760,18 +815,58 @@ function Conversation({
       if (live.current) setOlderBusy(false);
     }
   };
-  const other = detail
-    ? detail.permissions.hirer
-      ? detail.conversations.find((c) => c.id === providerId)
-      : detail.hiringCompany
-    : initialThread?.company;
+  const other =
+    conversation?.company ||
+    (detail
+      ? detail.permissions.hirer
+        ? detail.conversations.find((c) => c.id === providerId)
+        : detail.hiringCompany
+      : initialThread?.company);
   const title =
     detail?.job.title || initialThread?.title || "Loading conversation…";
   const canSend =
-    !!detail &&
-    (detail.permissions.hirer ||
-      detail.permissions.chosen ||
-      detail.job.status === "open");
+    conversation?.canSend ??
+    (!!detail &&
+      (detail.permissions.hirer ||
+        detail.permissions.chosen ||
+        detail.job.status === "open"));
+  const invited = invitedHere || !!conversation?.invited;
+  const starting = !!conversation?.needsStart && !invited && !messages.length;
+  const canInvite =
+    admin &&
+    !!detail?.permissions.hirer &&
+    !!other &&
+    detail.job.status === "open" &&
+    !detail.quotes.some((quote) => quote.provider_company_id === providerId) &&
+    (!detail.job.quote_deadline ||
+      new Date(detail.job.quote_deadline).getTime() >= Date.now());
+  const invite = async () => {
+    if (!canInvite || invited || inviteLock.current) return;
+    inviteLock.current = true;
+    setInviting(true);
+    setInviteError("");
+    try {
+      const result = await post<{ invitedCompanyIds: string[] }>(
+        `/jobs/${jobId}/invite`,
+        { companyIds: [providerId] },
+      );
+      if (!result.invitedCompanyIds.includes(providerId))
+        throw new Error("This company cannot receive an invitation yet.");
+      if (live.current) {
+        setInvitedHere(true);
+        setConversation((value) =>
+          value ? { ...value, invited: true, needsStart: false } : value,
+        );
+        onSent();
+        poll.current();
+      }
+    } catch (e) {
+      if (live.current) setInviteError((e as Error).message);
+    } finally {
+      inviteLock.current = false;
+      if (live.current) setInviting(false);
+    }
+  };
   const visibleMessages =
     sending && !messages.some((m) => m.client_id === sending.client_id)
       ? [...messages, sending]
@@ -783,13 +878,15 @@ function Conversation({
         aria-label={`Conversation with ${other?.name || "company"}`}
       >
         <header className="inbox-conversation-header">
-          <button
-            className="inbox-mobile-back inbox-icon-button"
-            onClick={onBack}
-            aria-label="Back to conversations"
-          >
-            <ArrowLeft size={20} />
-          </button>
+          {!fromMatches && (
+            <button
+              className="inbox-mobile-back inbox-icon-button"
+              onClick={onBack}
+              aria-label="Back to conversations"
+            >
+              <ArrowLeft size={20} />
+            </button>
+          )}
           <JobLogo company={other} />
           <div className="inbox-conversation-title">
             {other ? (
@@ -797,7 +894,9 @@ function Conversation({
             ) : (
               <strong>Company conversation</strong>
             )}
-            <span>Shared with your company team</span>
+            <span>
+              {starting ? "New conversation" : "Shared with your company team"}
+            </span>
           </div>
           <button
             className={`inbox-icon-button ${showDetails ? "is-active" : ""}`}
@@ -810,12 +909,38 @@ function Conversation({
             <Info size={20} />
           </button>
         </header>
-        <Link className="inbox-job-strip" to={`/jobs/${jobId}`}>
-          <BriefcaseBusiness size={17} />
-          <span>{title}</span>
-          {detail && <small>{statusLabels[detail.job.status]}</small>}
-          <ChevronRight size={17} />
-        </Link>
+        <div className="inbox-attached-job">
+          <Link className="inbox-job-strip" to={`/jobs/${jobId}`}>
+            <BriefcaseBusiness size={17} />
+            <span>{title}</span>
+            {detail && <small>{statusLabels[detail.job.status]}</small>}
+            <ChevronRight size={17} />
+          </Link>
+          {invited ? (
+            <span className="inbox-quote-invited" role="status">
+              <Check size={15} /> Invited to quote
+            </span>
+          ) : canInvite ? (
+            <button
+              className="inbox-invite-button"
+              type="button"
+              onClick={() => void invite()}
+              disabled={inviting}
+            >
+              {inviting ? (
+                <LoaderCircle className="inbox-spinner" size={15} />
+              ) : (
+                <FileText size={15} />
+              )}
+              {inviting ? "Inviting…" : "Invite to quote"}
+            </button>
+          ) : null}
+        </div>
+        {inviteError && (
+          <p className="inbox-invite-error" role="alert">
+            {inviteError}
+          </p>
+        )}
         {connectionError && (
           <div className="inbox-connection-status" role="status">
             Reconnecting to messages…{" "}
@@ -867,22 +992,52 @@ function Conversation({
                 )}
                 {!visibleMessages.length && (
                   <div className="inbox-chat-empty">
-                    <span>
-                      <MessageCircle size={27} />
-                    </span>
-                    <h2>Start the conversation</h2>
-                    <p>Ask about the scope, timing, or quote for this job.</p>
+                    {!fromMatches && (
+                      <span>
+                        <MessageCircle size={27} />
+                      </span>
+                    )}
+                    <h2>
+                      {other
+                        ? `Say hello to ${other.name}`
+                        : "Start the conversation"}
+                    </h2>
+                    <p>
+                      Discuss the work, ask a question, or check when they can
+                      start.
+                    </p>
                     {canSend && (
-                      <button
-                        onClick={() => {
-                          changeDraft(
-                            "Hi, can you confirm your availability for this job?",
-                          );
-                          input.current?.focus();
-                        }}
+                      <div
+                        className="inbox-conversation-starters"
+                        aria-label="Message suggestions"
                       >
-                        Ask about availability <ArrowRight size={15} />
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (draft.body.trim()) return;
+                            changeDraft(
+                              "Hi, are you available for this job? Let me know when your team could start.",
+                            );
+                            input.current?.focus();
+                          }}
+                          disabled={!!draft.body.trim()}
+                        >
+                          <CalendarDays size={15} /> Ask about availability
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (draft.body.trim()) return;
+                            changeDraft(
+                              "Hi, could your team help with this job? Please take a look at the details and let me know what you need to prepare a quote.",
+                            );
+                            input.current?.focus();
+                          }}
+                          disabled={!!draft.body.trim()}
+                        >
+                          <MessageCircle size={15} /> Discuss the work
+                        </button>
+                      </div>
                     )}
                   </div>
                 )}
@@ -948,6 +1103,12 @@ function Conversation({
           !error &&
           (canSend ? (
             <form className="inbox-composer" onSubmit={send}>
+              {starting && (
+                <p className="inbox-first-message-note">
+                  Your job details will be shared with{" "}
+                  {other?.name || "this company"} when you send.
+                </p>
+              )}
               {sendError && (
                 <p className="inbox-send-error" role="alert">
                   {sendError} Your message is saved below.
@@ -985,6 +1146,7 @@ function Conversation({
                   ) : (
                     <Send size={18} />
                   )}
+                  <span>{sending ? "Sending" : "Send"}</span>
                 </button>
               </div>
               <div className="inbox-composer-hint">
@@ -996,7 +1158,8 @@ function Conversation({
             </form>
           ) : (
             <div className="inbox-closed-note">
-              This conversation is closed. You can still read your messages.
+              {conversation?.reason ||
+                "This conversation is closed. You can still read your messages."}
             </div>
           ))}
       </section>

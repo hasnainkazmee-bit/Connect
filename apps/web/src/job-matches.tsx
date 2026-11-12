@@ -3,15 +3,17 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowRight,
+  ArrowUpRight,
+  BriefcaseBusiness,
   Check,
   ChevronDown,
   MapPin,
   Pencil,
-  Send,
+  MessageCircle,
   SlidersHorizontal,
   X,
 } from "lucide-react";
-import { api, post } from "./api";
+import { api } from "./api";
 import { useApp } from "./context";
 import "./job-matches.css";
 
@@ -308,13 +310,10 @@ type Match = {
   eligible: boolean;
   reasons: string[];
   followUp: string[];
-  evidenceLevel: string;
   offerings: {
     offering: { title: string; detail: string };
     sources: { url: string; title: string }[];
     availability: string;
-    preferredCredentials: { title: string; scope: string; basis: string }[];
-    needsConfirmation: string[];
   }[];
 };
 type Matches = {
@@ -325,21 +324,229 @@ type Matches = {
     title: string;
     location: string;
     status: string;
-    description: string;
     quote_deadline?: string;
   };
   matches?: Match[];
   needsConfirmation?: Match[];
   totalMatches?: number;
   totalNeedsConfirmation?: number;
-  searchableCompanies?: number;
   invitedCompanyIds?: string[];
+  conversationCompanyIds?: string[];
   pageSize?: number;
   preferences?: MatchingPreferences;
 };
+function readableReason(reason: string, location: string) {
+  if (reason === "Serves the job location") return `Serves ${location}`;
+  if (reason === "Based in the job’s state or province")
+    return "Based in your state or province";
+  const labels: Record<string, string> = {
+    "commercial experience": "Commercial projects",
+    "residential experience": "Residential projects",
+    "industrial experience": "Industrial projects",
+    "utility experience": "Utility-scale projects",
+    "turnkey work": "Complete installation",
+    "labor-only work": "Labor only",
+    "specialist-service work": "Specialist service",
+    "Accepting work": "Accepting new work",
+  };
+  return (
+    labels[reason] ||
+    reason.charAt(0).toUpperCase() + reason.slice(1).replaceAll("-", " ")
+  );
+}
+function questionsToAsk(items: string[]) {
+  const labels: Record<string, string> = {
+    "Service area": "service area",
+    "Project experience": "project experience",
+    "System type": "system type",
+    "How the work is delivered": "scope of work",
+    "Required certifications": "certifications",
+    Availability: "availability",
+    "Start date": "start date",
+    "Project size and capacity": "project capacity",
+    "Crew size": "crew size",
+  };
+  return items
+    .filter((item) => item !== "Not currently accepting work")
+    .map((item) => labels[item] || item)
+    .join(", ");
+}
+function MatchRow({
+  match,
+  data,
+  page,
+  section,
+  admin,
+}: {
+  match: Match;
+  data: Matches;
+  page: number;
+  section: string;
+  admin: boolean;
+}) {
+  const c = match.company;
+  const existing = data.conversationCompanyIds?.includes(c.id);
+  const invited = data.invitedCompanyIds?.includes(c.id);
+  const canStart =
+    admin &&
+    data.job.status === "open" &&
+    (!data.job.quote_deadline ||
+      new Date(data.job.quote_deadline).getTime() > Date.now());
+  const canMessage = c.claimed && (existing || invited || canStart);
+  const returnView = section === "matches" ? "matches" : "confirmation";
+  const profile = `/jobs/companies/${c.username || c.slug}?back=${data.job.id}&from=matches&matchPage=${page}&matchView=${returnView}`;
+  const conversation = `/jobs/inbox?${new URLSearchParams({ job: data.job.id, provider: c.id, from: "matches", matchPage: String(page), matchView: returnView })}`;
+  const reasons = match.reasons.map((reason) =>
+    readableReason(reason, data.job.location),
+  );
+  const ask = questionsToAsk(match.followUp);
+  const offering = match.offerings[0];
+  return (
+    <article className="jobs-panel match-result-card" aria-label={c.name}>
+      <div className="match-card-overview">
+        <div className="match-card-identity">
+          <Link
+            to={profile}
+            tabIndex={-1}
+            aria-hidden="true"
+            className="match-card-logo"
+          >
+            {c.logo_url && (
+              <img
+                src={c.logo_url}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                onError={(e) => {
+                  e.currentTarget.style.visibility = "hidden";
+                }}
+              />
+            )}
+          </Link>
+          <div>
+            <Link className="match-company-name" to={profile}>
+              <h2>{c.name}</h2>
+            </Link>
+            {c.location && (
+              <p>
+                <MapPin size={14} />
+                {c.location}
+              </p>
+            )}
+            {c.claimed && (
+              <span className="match-on-connect">
+                <span />
+                On Connect
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="match-card-fit">
+          <p className="match-service-description">
+            {offering?.offering.detail || offering?.offering.title}
+          </p>
+          <ul className="match-fit-facts">
+            {reasons.slice(0, 3).map((reason, i) => (
+              <li key={i}>
+                <Check size={15} />
+                {reason}
+              </li>
+            ))}
+          </ul>
+          {offering?.availability === "unavailable" ? (
+            <p className="match-ask-about">Not currently accepting new work.</p>
+          ) : (
+            ask && (
+              <p className="match-ask-about">
+                <span>Ask about</span> {ask}.
+              </p>
+            )
+          )}
+        </div>
+        <div className="match-card-actions">
+          {canMessage ? (
+            <>
+              <Link className="jobs-button jobs-primary" to={conversation}>
+                <MessageCircle size={18} />
+                {existing ? "Open conversation" : "Message"}
+              </Link>
+              <Link className="match-profile-link" to={profile}>
+                View profile
+                <ArrowUpRight size={15} />
+              </Link>
+              {invited && (
+                <span className="match-invited-note">
+                  <Check size={14} />
+                  Invited to quote
+                </span>
+              )}
+            </>
+          ) : (
+            <>
+              <Link className="jobs-button jobs-secondary" to={profile}>
+                View company
+                <ArrowRight size={16} />
+              </Link>
+              <span className="match-contact-note">
+                {!c.claimed
+                  ? "Not on Connect yet. Contact details on their profile."
+                  : !admin
+                    ? "A company admin can start a conversation."
+                    : "This job is no longer accepting new conversations."}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+      <details className="match-fit-details">
+        <summary>
+          Why this company
+          <ChevronDown size={15} />
+        </summary>
+        <div className="match-evidence-layout">
+          <div>
+            <h3>How they fit</h3>
+            <ul>
+              {reasons.map((reason, i) => (
+                <li key={i}>
+                  <Check size={15} />
+                  {reason}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            {ask && (
+              <>
+                <h3>Before you choose</h3>
+                <p>Confirm {ask} with the company.</p>
+              </>
+            )}
+            {!!offering?.sources.length && (
+              <>
+                <h3>From their website</h3>
+                {offering.sources.map((source) => (
+                  <a
+                    key={source.url}
+                    href={source.url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {source.title || "Company website"}
+                    <ArrowUpRight size={14} />
+                  </a>
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+      </details>
+    </article>
+  );
+}
 export function JobMatchesPage() {
-  const { id } = useParams(),
-    { company, admin, toast, setJobSection } = useApp();
+  const { id } = useParams();
+  const { company, admin, session, signIn, setJobSection } = useApp();
   const [params, setParams] = useSearchParams();
   const requestedPage = Number(params.get("page") || 1);
   const page =
@@ -348,27 +555,27 @@ export function JobMatchesPage() {
     requestedPage <= 10000
       ? requestedPage
       : 1;
+  const [data, setData] = useState<Matches | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
   const section =
-    params.get("view") === "confirmation" ? "needsConfirmation" : "matches";
-  const setPage = (value: number | ((current: number) => number)) => {
+    params.get("view") === "confirmation" ||
+    (data?.totalMatches === 0 && !!data.totalNeedsConfirmation)
+      ? "needsConfirmation"
+      : "matches";
+  const setPage = (nextPage: number) => {
     const next = new URLSearchParams(params);
-    const n = typeof value === "function" ? value(page) : value;
-    n > 1 ? next.set("page", String(n)) : next.delete("page");
+    next.set("view", section === "matches" ? "matches" : "confirmation");
+    nextPage > 1 ? next.set("page", String(nextPage)) : next.delete("page");
     setParams(next);
   };
   const selectSection = (key: string) => {
     const next = new URLSearchParams(params);
-    key === "needsConfirmation"
-      ? next.set("view", "confirmation")
-      : next.delete("view");
+    next.set("view", key === "matches" ? "matches" : "confirmation");
     next.delete("page");
     setParams(next);
   };
-  const [data, setData] = useState<Matches | null>(null),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(""),
-    [summaryOpen, setSummaryOpen] = useState(false),
-    [retry, setRetry] = useState(0);
   useEffect(() => {
     setJobSection("mine");
     return () => setJobSection(null);
@@ -377,67 +584,102 @@ export function JobMatchesPage() {
     setData(null);
   }, [id, company?.id]);
   useEffect(() => {
-    const c = new AbortController();
+    if (!company) return;
+    const controller = new AbortController();
     setError("");
-    setData(null);
-    api<Matches>(`/jobs/${id}/matches?page=${page}`, { signal: c.signal })
-      .then(setData)
+    setLoading(true);
+    api<Matches>(`/jobs/${id}/matches?page=${page}`, {
+      signal: controller.signal,
+    })
+      .then((value) => {
+        if (!controller.signal.aborted) {
+          setData(value);
+          setLoading(false);
+        }
+      })
       .catch((e) => {
-        if (!c.signal.aborted) setError(e.message);
+        if (!controller.signal.aborted) {
+          setError(e.message);
+          setLoading(false);
+        }
       });
-    return () => c.abort();
+    return () => controller.abort();
   }, [id, company?.id, page, retry]);
-  const invite = async (c: MatchCompany) => {
-    if (busy) return;
-    setBusy(c.id);
-    setError("");
-    try {
-      const sent = await post<{ invitedCompanyIds: string[] }>(
-        `/jobs/${id}/invite`,
-        { companyIds: [c.id] },
-      );
-      if (!sent.invitedCompanyIds.includes(c.id))
-        throw new Error(
-          "This company cannot receive invitations yet. Open its profile for contact details.",
-        );
-      setData((d) =>
-        d
-          ? { ...d, invitedCompanyIds: [...(d.invitedCompanyIds || []), c.id] }
-          : d,
-      );
-      toast(`Invitation sent to ${c.name}`);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy("");
-    }
-  };
-  const items = data?.[section] || [],
-    total =
-      section === "matches"
-        ? data?.totalMatches || 0
-        : data?.totalNeedsConfirmation || 0;
+  if (!company)
+    return (
+      <div className="jobs-page job-workspace match-discovery">
+        <section className="jobs-panel match-empty">
+          <BriefcaseBusiness size={28} />
+          <h1>Find companies for your job</h1>
+          <p>
+            {session.user
+              ? "Switch to the company that posted this job to see its matches."
+              : "Sign in to see companies for your job and start a conversation."}
+          </p>
+          {!session.user && (
+            <button className="jobs-button jobs-primary" onClick={signIn}>
+              Sign in
+            </button>
+          )}
+        </section>
+      </div>
+    );
+  const items = data?.[section] || [];
+  const total =
+    section === "matches"
+      ? data?.totalMatches || 0
+      : data?.totalNeedsConfirmation || 0;
+  const pageSize = data?.pageSize || 12;
   return (
-    <div className="jobs-page job-workspace job-matches-page">
+    <div className="jobs-page job-workspace match-discovery">
       <Link className="job-back" to={`/jobs/${id}`}>
         <ArrowLeft size={17} />
         Back to job
       </Link>
-      <header className="match-page-heading">
-        <div>
-          <h1>Companies for your job</h1>
-          <p>
-            {data?.job.title ||
-              "Matching your requirements with company profiles"}
-          </p>
-        </div>
-        <Link className="jobs-button jobs-secondary" to={`/jobs/${id}`}>
-          View job
-          <ArrowRight size={16} />
-        </Link>
+      <header className="match-discovery-heading">
+        <h1>Companies for your job</h1>
+        <p>Explore the fit, then start a conversation.</p>
       </header>
-      {error && (
-        <div className="jobs-panel" role="alert">
+      {data && (
+        <section className="match-job-ticket" aria-label="Your job">
+          <div className="match-job-ticket-icon">
+            <BriefcaseBusiness size={23} />
+          </div>
+          <div className="match-job-ticket-copy">
+            <span>Your job</span>
+            <Link to={`/jobs/${id}`}>
+              <h2>{data.job.title || "Untitled job"}</h2>
+            </Link>
+            <p>
+              <MapPin size={14} />
+              {data.job.location}
+              {data.preferences?.sector && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  {readableReason(
+                    `${data.preferences.sector} experience`,
+                    data.job.location,
+                  )}
+                </>
+              )}
+            </p>
+          </div>
+          <div className="match-job-ticket-actions">
+            {data.canEdit && (
+              <Link to={`/jobs/${id}/edit`} aria-label="Edit job">
+                <Pencil size={15} />
+                <span>Edit job</span>
+              </Link>
+            )}
+            <Link to={`/jobs/${id}`} aria-label="View job">
+              <ArrowUpRight size={19} />
+            </Link>
+          </div>
+        </section>
+      )}
+      {error ? (
+        <section className="jobs-panel match-empty" role="alert">
+          <h2>We couldn’t load these companies.</h2>
           <p>{error}</p>
           <button
             className="jobs-button jobs-secondary"
@@ -445,272 +687,146 @@ export function JobMatchesPage() {
           >
             Try again
           </button>
-        </div>
-      )}
-      {!data && !error ? (
-        <p className="job-loading">Finding companies…</p>
+        </section>
       ) : data && !data.configured ? (
-        <section className="jobs-panel">
-          <h2>Set up company matching</h2>
+        <section className="jobs-panel match-empty">
+          <h2>What kind of company do you need?</h2>
           <p>
-            Choose the service and state in your job to see relevant companies
-            here.
+            Add a service and state to your job. We’ll find companies that offer
+            the work.
           </p>
-          {data.canEdit ? (
-            <Link className="jobs-button jobs-primary" to={`/jobs/${id}/edit`}>
-              Edit job
-            </Link>
-          ) : (
-            <Link className="jobs-button jobs-secondary" to="/providers">
-              Browse companies
-            </Link>
-          )}
+          <Link
+            className="jobs-button jobs-primary"
+            to={data.canEdit ? `/jobs/${id}/edit` : "/providers"}
+          >
+            {data.canEdit ? "Add job preferences" : "Browse companies"}
+            <ArrowRight size={17} />
+          </Link>
         </section>
       ) : (
-        data && (
-          <div className="match-page-grid">
-            <aside className="jobs-panel match-job-summary">
-              <h2 className="match-summary-desktop-title">Your requirements</h2>
-              <button
-                className="match-summary-toggle"
-                aria-expanded={summaryOpen}
-                aria-controls="match-summary-content"
-                onClick={() => setSummaryOpen((v) => !v)}
-              >
-                Your requirements
-                <ChevronDown size={18} />
-              </button>
-              <p>
-                <MapPin size={17} />
-                {data.job.location}
-              </p>
-              <div
-                id="match-summary-content"
-                className={`match-summary-content ${summaryOpen ? "is-expanded" : ""}`}
-              >
-                <dl>
-                  <dt>Service</dt>
-                  <dd>{data.preferences?.categoryId.replaceAll("-", " ")}</dd>
-                  {data.preferences?.sector && (
-                    <>
-                      <dt>Project type</dt>
-                      <dd>{data.preferences.sector}</dd>
-                    </>
-                  )}
-                  {data.preferences?.systemType && (
-                    <>
-                      <dt>System</dt>
-                      <dd>
-                        {data.preferences.systemType.replaceAll("-", " ")}
-                      </dd>
-                    </>
-                  )}
-                </dl>
-                {data.canEdit && (
-                  <Link
-                    className="jobs-button jobs-secondary"
-                    to={`/jobs/${id}/edit`}
-                  >
-                    <Pencil size={15} />
-                    Edit preferences
-                  </Link>
-                )}
-                <p className="job-muted">
-                  {data.searchableCompanies?.toLocaleString()} company profiles
-                  searched. Results use the services and areas listed in each
-                  profile.
-                </p>
-                <hr />
-                <h3>What happens next?</h3>
-                <ol>
-                  <li>Review companies and invite a team to quote.</li>
-                  <li>Compare prices, ask questions, and choose a company.</li>
-                  <li>
-                    They confirm, share progress, and submit the work for your
-                    review.
-                  </li>
-                </ol>
-                <p className="job-muted">
-                  Nothing is sent until you choose “Invite to quote.”
-                </p>
-              </div>
-            </aside>
-            <section
-              className="match-results"
-              aria-label="Company match results"
-            >
-              <nav className="match-result-tabs" aria-label="Match groups">
-                {[
-                  ["matches", "Matches", data.totalMatches],
-                  [
-                    "needsConfirmation",
-                    "Needs confirmation",
-                    data.totalNeedsConfirmation,
-                  ],
-                ].map(([key, label, n]) => (
-                  <button
-                    key={String(key)}
-                    aria-pressed={section === key}
-                    onClick={() => {
-                      selectSection(String(key));
-                    }}
-                  >
-                    {label}
-                    <span>{n}</span>
-                  </button>
-                ))}
-              </nav>
-              <p className="job-muted">
-                {section === "matches"
-                  ? "Ordered by service fit, confirmed coverage, and your preferences. Confirm the scope and schedule before choosing a company."
-                  : "These companies list the service. Check the missing details below before inviting them."}
-              </p>
-              {!items.length && (
-                <div className="jobs-panel">
-                  <h2>
-                    {section === "matches"
-                      ? "No confirmed matches yet"
-                      : "No companies need confirmation"}
-                  </h2>
-                  <p>
-                    {section === "matches"
-                      ? "Check the Needs confirmation tab, or adjust your service and location."
-                      : "You can review your matches or browse other companies."}
-                  </p>
-                  <Link to="/providers" className="jobs-button jobs-secondary">
-                    Browse companies
-                  </Link>
-                </div>
-              )}
-              {items.map((m) => {
-                const c = m.company,
-                  invited = data.invitedCompanyIds?.includes(c.id),
-                  notAccepting = m.offerings[0]?.availability === "unavailable",
-                  canInvite =
-                    admin &&
-                    c.claimed &&
-                    data.job.status === "open" &&
-                    !notAccepting &&
-                    (!data.job.quote_deadline ||
-                      new Date(data.job.quote_deadline).getTime() > Date.now());
-                return (
-                  <article className="jobs-panel match-company" key={c.id}>
-                    <div className="match-company-top">
-                      <div className="match-company-brand">
-                        {c.logo_url ? (
-                          <img src={c.logo_url} alt="" />
-                        ) : (
-                          <span className="match-blank-logo" />
-                        )}
-                        <div>
-                          <Link
-                            to={`/jobs/companies/${c.username || c.slug}?back=${id}&from=matches&matchPage=${page}&matchView=${section}`}
-                          >
-                            <h2>{c.name}</h2>
-                          </Link>
-                          <p>{c.location}</p>
-                        </div>
-                      </div>
-                      <span className="match-profile-state">
-                        {c.claimed ? "On Connect" : "Public profile"}
-                      </span>
-                    </div>
-                    <p className="match-offering-detail">
-                      {m.offerings[0]?.offering.detail}
-                    </p>
-                    <ul className="match-reasons">
-                      {m.reasons.map((reason, i) => (
-                        <li key={i}>
-                          <Check size={15} />
-                          {reason.replaceAll("-", " ")}
-                        </li>
-                      ))}
-                    </ul>
-                    {!!m.followUp.length && (
-                      <p className="match-follow-up">
-                        <strong>Confirm:</strong> {m.followUp.join(" · ")}
-                      </p>
-                    )}
-                    <div className="match-company-actions">
-                      <Link
-                        className="jobs-button jobs-secondary"
-                        to={`/jobs/companies/${c.username || c.slug}?back=${id}&from=matches&matchPage=${page}&matchView=${section}`}
-                      >
-                        View profile
-                        <ArrowRight size={15} />
-                      </Link>
-                      {invited ? (
-                        <span className="match-invited">
-                          <Check size={16} />
-                          Invited
-                        </span>
-                      ) : canInvite ? (
-                        <button
-                          className="jobs-button jobs-primary"
-                          disabled={!!busy}
-                          onClick={() => void invite(c)}
-                        >
-                          <Send size={15} />
-                          {busy === c.id ? "Sending…" : "Invite to quote"}
-                        </button>
-                      ) : (
-                        <small>
-                          {!c.claimed
-                            ? "Invitations open when this company claims its profile."
-                            : notAccepting
-                              ? "Not currently accepting work."
-                              : !admin
-                                ? "A company admin can send invitations."
-                                : "This job is no longer accepting quotes."}
-                        </small>
-                      )}
-                    </div>
-                    {!!m.offerings[0]?.sources.length && (
-                      <details className="match-sources">
-                        <summary>Company sources</summary>
-                        {m.offerings[0].sources.map((s) => (
-                          <a
-                            key={s.url}
-                            href={s.url}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {s.title || "Company website"}
-                            <ArrowRight size={13} />
-                          </a>
-                        ))}
-                      </details>
-                    )}
-                  </article>
-                );
-              })}
-              {total > (data.pageSize || 12) && (
+        <section
+          className="match-discovery-results"
+          aria-label="Companies for your job"
+          aria-busy={loading}
+        >
+          {data && (
+            <div className="match-results-heading">
+              {data.totalMatches ? (
                 <nav
-                  className="market-pagination"
-                  aria-label="Match result pages"
+                  aria-label="Company suggestions"
+                  className="match-suggestion-tabs"
                 >
                   <button
-                    className="jobs-button jobs-secondary"
-                    disabled={page === 1}
-                    onClick={() => setPage((p) => p - 1)}
+                    aria-pressed={section === "matches"}
+                    onClick={() => selectSection("matches")}
                   >
-                    Previous
+                    Recommended<span>{data.totalMatches}</span>
                   </button>
-                  <span>
-                    Page {page} of {Math.ceil(total / (data.pageSize || 12))}
-                  </span>
-                  <button
-                    className="jobs-button jobs-secondary"
-                    disabled={page * (data.pageSize || 12) >= total}
-                    onClick={() => setPage((p) => p + 1)}
-                  >
-                    Next
-                  </button>
+                  {!!data.totalNeedsConfirmation && (
+                    <button
+                      aria-pressed={section === "needsConfirmation"}
+                      onClick={() => selectSection("needsConfirmation")}
+                    >
+                      More companies<span>{data.totalNeedsConfirmation}</span>
+                    </button>
+                  )}
                 </nav>
+              ) : (
+                <h2>
+                  Companies to consider<span>{total}</span>
+                </h2>
               )}
-            </section>
-          </div>
-        )
+              <p>
+                {section === "matches"
+                  ? "Offering the service in your job’s area."
+                  : "Offering the service. Check the details highlighted below."}
+              </p>
+            </div>
+          )}
+          {loading ? (
+            <div className="match-loading" role="status">
+              <span className="match-visually-hidden">
+                Finding companies for your job…
+              </span>
+              {[1, 2, 3].map((n) => (
+                <div className="match-loading-row" aria-hidden="true" key={n}>
+                  <span />
+                  <div>
+                    <i />
+                    <i />
+                  </div>
+                  <b />
+                </div>
+              ))}
+            </div>
+          ) : items.length ? (
+            <div className="match-result-list">
+              {items.map((match) => (
+                <MatchRow
+                  key={match.company.id}
+                  match={match}
+                  data={data!}
+                  page={page}
+                  section={section}
+                  admin={admin}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="jobs-panel match-empty">
+              <h2>
+                {page > 1
+                  ? "You’ve reached the end of this list."
+                  : "Let’s widen the search."}
+              </h2>
+              <p>
+                {page > 1
+                  ? "Go back to the first page to see these companies."
+                  : "Try another service or adjust the job’s location to find more companies."}
+              </p>
+              {page > 1 ? (
+                <button
+                  className="jobs-button jobs-secondary"
+                  onClick={() => setPage(1)}
+                >
+                  First page
+                </button>
+              ) : (
+                <Link
+                  className="jobs-button jobs-secondary"
+                  to={data?.canEdit ? `/jobs/${id}/edit` : "/providers"}
+                >
+                  {data?.canEdit ? "Edit job preferences" : "Browse companies"}
+                </Link>
+              )}
+            </div>
+          )}
+          {!loading && total > pageSize && (
+            <nav
+              className="market-pagination"
+              aria-label="Company result pages"
+            >
+              <button
+                className="jobs-button jobs-secondary"
+                disabled={page === 1}
+                onClick={() => setPage(page - 1)}
+              >
+                Previous
+              </button>
+              <span>
+                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)}{" "}
+                of {total}
+              </span>
+              <button
+                className="jobs-button jobs-secondary"
+                disabled={page * pageSize >= total}
+                onClick={() => setPage(page + 1)}
+              >
+                Next
+              </button>
+            </nav>
+          )}
+        </section>
       )}
     </div>
   );
