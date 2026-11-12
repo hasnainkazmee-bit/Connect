@@ -1,0 +1,224 @@
+{
+  "ruleVersion": "source-check-v1",
+  "inventory": 3359,
+  "realCompanies": 3339,
+  "statuses": {
+    "ready": 979,
+    "no_explicit_offering": 2099,
+    "identity_review": 143,
+    "robots_or_access_blocked": 53,
+    "already_published": 11,
+    "excluded_demo": 20,
+    "https_review": 32,
+    "unreachable": 19,
+    "company_managed": 3
+  },
+  "services": 1481,
+  "products": 17,
+  "batches": 40,
+  "matchingEligible": false,
+  "inventorySha256": "c64c7a3de501d4cc87b30dd740b2f1a64062762d7d4e901f2ec51d539930c2ec",
+  "status": "prepared; production results recorded separately",
+  "batchesManifest": [
+    {
+      "file": "provider-source-publication-2026-11-12-001.json",
+      "sha256": "5d46f8bafdd61418172ab37c6d241550315c0ff1bf89445f6af926a2e4c4bfdb",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-002.json",
+      "sha256": "061d0f2918a216ff912ba2511dcc65f1436f669a4773280e96b7d7d0620dcacc",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-003.json",
+      "sha256": "82ce6bfef4c60e71fbc07ab24c37de844fe0e032dac89e51e6965c73880a00d6",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-004.json",
+      "sha256": "2f8f00c091e96f5f893ea104d65184ae4dd2ca4e5b979829c9b112b054191a31",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-005.json",
+      "sha256": "87aba97dc8e804d08c9f1cf5aefa1066c285efaaa17b91bf9afcd15fd4cd9947",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-006.json",
+      "sha256": "656fbeb3090d9238049d9168ba04821601f8ebbfbfdb2625b6701daf9386e66a",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-007.json",
+      "sha256": "a5c6532d7c6e04acf3edb5d300eeee85667a04a434dad18de83887de277ab4ba",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-008.json",
+      "sha256": "f5a2fb0c4634ce14d640c8a53c7c0d77c064a8baddf7f62151f1e66652d862b1",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-009.json",
+      "sha256": "ea89c11c3352243a30cbab3ba1882a0dd5e27402fb915138dfa46b57996a7d51",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-010.json",
+      "sha256": "9b630d33794c5234f8a236f595519f432bf9c42421575eff1bc03393f7592c38",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-011.json",
+      "sha256": "da9bb4cb21231dc5e567b416a0535f0457073c130298165cb02055a1fb84d963",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-012.json",
+      "sha256": "337d91a7a2990f953cbb941db38ea5531e328a417fb09cb1a4619171d91f5da0",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-013.json",
+      "sha256": "b73502c680edbbcda0e30299b5fa13b7791ddc73c7fb899931de98b897aac90e",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-014.json",
+      "sha256": "1ec3a3d890692bd180137a227ea7cef02eac966b8a8a7c293a56322e5a57875c",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-015.json",
+      "sha256": "6b6a82b2ed50bbabfafd6ae1f36c978786760934ef1f8cdcd2c917b660b8f6bd",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-016.json",
+      "sha256": "acda757819ef9a06cdb5798c572fa5070b3f3e5876807cfceb04f3c12a5b595b",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-017.json",
+      "sha256": "e7f94aa88cf03c825d7508662ab6876f9e58ea1ac09cb98e51d90adae79cc09b",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-018.json",
+      "sha256": "a4d3e4f98336009776857ac0a9f6c918019b4d99408c1c780c7a170e92dd2d3b",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-019.json",
+      "sha256": "743e718c83b3cc8773d753f95c4d3a61dcf979b8ad944da45f228a665e89e04d",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-020.json",
+      "sha256": "91eb19ea405086c4e25be17b634eadc236dcd234806416d669b10419da797f98",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-021.json",
+      "sha256": "1efba9176c4df707b393ba6b945182150b8b50891e3c8d4be314380ae4cafbf1",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-022.json",
+      "sha256": "208c5546a085cfe9428d57a1f8265a1c89300a39636de0db46773e7c8d150d95",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-023.json",
+      "sha256": "ce9486b6c2544a308554bf006442555aaccd94bbafe6b5c52092ba5002803947",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-024.json",
+      "sha256": "860abacff1c8ce46473e71a4be5f62afb0062b0bb3d712564913999d232e21fb",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-025.json",
+      "sha256": "f2a6d855a4eabe2c4f563574b7c833cca1ec552e1ecc54d6b9e807d0fa09022e",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-026.json",
+      "sha256": "5a407c2bc1d77252756366f2b5a31c8dda0c4c91d3842156b79f960d65463762",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-027.json",
+      "sha256": "f2dcaf6f03e93b0a41814e4dc93425eff2729bd938026175cdf6d45bf4dfd8eb",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-028.json",
+      "sha256": "06a3e2489d6f6acbe0bd05753aa40b3297f92d1b6d6503d6aca653e06be630e2",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-029.json",
+      "sha256": "e50ab2d362cb1500ae503de580183c474c8f76ea7fcdd67b3a0c6c5e5961e69c",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-030.json",
+      "sha256": "b5f02589e7648916e69630679efd2b68e0e605c50dcd7d069305fef63c3644e2",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-031.json",
+      "sha256": "8f58fd2ae36486a892c331090fc462eedbdecdd3ac75e86f44169752e77d07c5",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-032.json",
+      "sha256": "e661f75340aa277e6359862d9d71bb4e418237210050bbf903fbc720984cbd81",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-033.json",
+      "sha256": "53629bc2cfc1e3a195bb6caaf9bb99c3296028653ac736d5eb9de9e653a97207",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-034.json",
+      "sha256": "766a0383343ce559b535adf5b19744b6ccbf61e8ddf93162b4bb7dc39b58da38",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-035.json",
+      "sha256": "6c76ea4be578164bfaf5d108e6559832d6d827f00b5c6e3dc5d3b15a40e9cdff",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-036.json",
+      "sha256": "eec53c24b1216f7f67d81ec2ef99bd536a536c8386fc3b7dd0f653c9436771e4",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-037.json",
+      "sha256": "dab823a3023ec2f2679c07a081da73bcd4dec6cb4c21e4015181fe215a2c98ff",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-038.json",
+      "sha256": "dec593ac21a2e0471e21ca580d9dc4965729c65bf31878990285b2b3ebfa60f5",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-039.json",
+      "sha256": "937f145684e63863708278320e9de1e79aa49067f8f04b0535e9e47ada08bfc5",
+      "companies": 25
+    },
+    {
+      "file": "provider-source-publication-2026-11-12-040.json",
+      "sha256": "28a6f8a5aaa4134d44669b1993405f5b9e0207cc4f780036ae51a6d0386a4fd5",
+      "companies": 4
+    }
+  ]
+}

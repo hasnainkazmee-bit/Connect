@@ -24,7 +24,7 @@ export type ProviderCapabilities = {
     productIds: string[];
     sourceIds: string[];
   }[];
-  sources: { id: string; title: string; url: string; evidence: string }[];
+  sources: { id: string; title: string; url: string }[];
 };
 const roles = {
   manufactures: "Manufactures",
@@ -87,9 +87,12 @@ export function ProviderServices({ data }: { data: ProviderCapabilities }) {
 export function ProviderProducts({ data }: { data: ProviderCapabilities }) {
   if (!data.products.length) return null;
   return (
-    <section className="profile-editorial-section" id="products">
-      <span className="editorial-label">EQUIPMENT</span>
-      <h2>Products & equipment.</h2>
+    <section
+      className="profile-editorial-section"
+      id="products"
+      data-profile-section
+    >
+      <h2>Products & equipment</h2>
       <div className="provider-offerings">
         {data.products.map((product) => (
           <article className="provider-offering" key={product.id}>

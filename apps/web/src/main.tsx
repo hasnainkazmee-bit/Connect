@@ -123,6 +123,7 @@ import "./windows-app.css";
 import "./web-frame.css";
 import "./marketplace.css";
 import "./marketplace-brand.css";
+import "./provider-dossier.css";
 import "./job-workspace.css";
 import "./job-inbox.css";
 

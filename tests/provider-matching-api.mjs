@@ -135,6 +135,8 @@ try {
     ],
   );
   await importProviderEnrichment(texas, true);
+  const publicProfile = await call("/jobs/providers/" + supplier.companyId);
+  check(publicProfile.status === 200 && publicProfile.data.provider.capabilities.sources.every(source => source.url && !("evidence" in source)), "Public profiles retain source links without publishing internal research excerpts");
   check(
     (
       await pool.query("SELECT type FROM companies WHERE id=$1", [

@@ -317,9 +317,20 @@ async fn provider_detail(
          LEFT JOIN provider_capabilities e ON e.company_id=c.id
          WHERE c.slug=$1 OR c.username=$1 OR c.id::text=$1 LIMIT 1"
     ).bind(slug).fetch_optional(&app.db).await?;
-    Ok(Json(
-        json!({"provider":parse_json(raw.ok_or_else(not_found)?)?}),
-    ))
+    let mut provider = parse_json(raw.ok_or_else(not_found)?)?;
+    if let Some(sources) = provider
+        .get_mut("capabilities")
+        .and_then(|c| c.get_mut("sources"))
+        .and_then(Value::as_array_mut)
+    {
+        // Keep research excerpts internal. Public profiles expose source links and dates.
+        for source in sources {
+            if let Some(object) = source.as_object_mut() {
+                object.remove("evidence");
+            }
+        }
+    }
+    Ok(Json(json!({"provider": provider})))
 }
 async fn update_provider(
     State(app): State<Arc<App>>,

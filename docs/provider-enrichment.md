@@ -170,3 +170,22 @@ npm run providers:project-matching -- --apply
 The completed run accounts for all 3,359 inventory entries: 3,339 real companies and 20 excluded demos. It read 8,861 official website pages and found 9,818 offering candidates across 2,431 companies. Another 692 companies need deeper scope research, 143 need identity review, 53 were restricted by robots/access checks, 19 were unreachable, and one had no website.
 
 These are discovery outcomes, not claims that all profiles are fully enriched. The reviewed Ohio and Texas batches together provide 12 detailed profiles, 54 service offerings and 24 product offerings. The remaining candidates need evidence review before publication and matching. Company-confirmed availability and capacity remain separate. See `data/provider-enrichment/company-research-summary-2026-11-12.json` for the run summary and source-file hashes; full per-company results are retained in the internal research tables.
+
+### Additive publication of website offerings
+
+`tools/build-provider-publication.py` checks the entire research inventory for explicit, current first-party service/product statements and company-specific service-page titles. It excludes articles, testimonials, historical work, training/tools mentions, unclear identities and unsourced delivery roles. Raw keyword candidates are never copied directly into profiles. Every included offering retains its page receipt and an internal evidence record; public descriptions are short paraphrases. Unsupported facts remain empty.
+
+Migration 027 distinguishes `source_checked` from `reviewed`. Source-checked offerings are public profile enrichment but **cannot enter job matching**. Missing delivery terms use `unknown`; no service territory, availability, staffing, certification or stock is inferred. The 12 individually reviewed profiles retain their richer scoped facts and matching eligibility.
+
+Source-checked batches use `preserveProfile: true`. Existing descriptions, taglines, classifications, logos, services, coverage and owner fields stay intact. Source-checked publication adds `provider_capabilities` and its indexed projection; it does not reinterpret an existing broad company service-area list as coverage for each new offering. Company-managed profiles and existing reviewed research are skipped. The importer still compares the current public profile snapshot, locks company rows, records before-state, and refuses concurrent edits or ownership changes. Replays are idempotent.
+
+```sh
+python3 tools/build-provider-publication.py
+npm run providers:publish-batches -- --dir .research/provider-publication/batches
+# Apply exactly the validated directory:
+npm run providers:publish-batches -- --dir .research/provider-publication/batches --apply
+```
+
+The directory runner validates every batch before the first write. Apply remains transactional per batch of at most 25 companies; an intervening edit stops the run, and completed batches can safely be replayed. Every inventory entry receives a publication outcome in `.research/provider-publication/outcomes.json`. Detailed evidence and input snapshots stay in ignored research storage. The operator summary distinguishes published source-checked profiles from reviewed matching profiles.
+
+The 12 November publication manifest covers 979 additional profiles, 1,481 service offerings and 17 product offerings across 40 bounded batches. `data/provider-enrichment/source-publication-summary-2026-11-12.json` records the exact input hashes and accounts for every inventory entry. This is a supported-offerings pass, not complete research of every company. The other records still need clearer offering evidence, identity review, accessible official sources, or company-managed confirmation.

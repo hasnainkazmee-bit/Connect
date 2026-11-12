@@ -67,6 +67,7 @@ const service = z
     detail: text(320),
     sectors: z.array(sector).max(7),
     delivery: z.enum([
+      "unknown",
       "turnkey",
       "specialist-service",
       "advisory",
@@ -137,7 +138,8 @@ const profile = z
     description: z.string().max(5000),
     tagline: z.string().max(200),
     services: strings(20),
-    serviceAreas: strings(30),
+    // Existing imported territories may be longer; additive publication preserves them.
+    serviceAreas: z.array(text(300)).max(100),
     trades: strings(12),
     projectTypes: strings(12),
   })
@@ -146,6 +148,7 @@ const profile = z
 export const providerResearch = z
   .object({
     checkedAt: z.iso.datetime({ offset: true }),
+    reviewMethod: z.enum(["editorial", "source-check-v1"]).optional(),
     businessType: z
       .object({ value: businessType, sourceIds: refs })
       .strict()
@@ -168,7 +171,7 @@ export const providerResearch = z
       })
       .strict()
       .nullable(),
-    services: z.array(service).min(1).max(20),
+    services: z.array(service).max(20),
     products: z.array(product).max(20),
     coverage: z.array(coverage).max(60),
     sources: z
@@ -200,6 +203,8 @@ export const providerResearch = z
     const fail = (message: string) => ctx.addIssue({ code: "custom", message });
     if (new Date(r.checkedAt).getTime() > Date.now() + 300000)
       fail("Source check cannot be in the future.");
+    if (!r.services.length && !r.products.length)
+      fail("Research needs at least one sourced offering.");
     for (const [name, items] of [
       ["source", r.sources],
       ["service", r.services],
@@ -269,6 +274,7 @@ export const enrichmentBatch = z
             companyId: z.string().uuid(),
             companyName: text(300),
             website: url,
+            preserveProfile: z.literal(true).optional(),
             expectedProfile: profile,
             profile,
             research: providerResearch,
@@ -300,9 +306,22 @@ export const enrichmentBatch = z
         ...r.research.services.map((s) => s.title),
         ...r.research.products.map((p) => p.title),
       ];
-      if (r.profile.services.some((s) => !labels.includes(s)))
+      if (
+        r.preserveProfile &&
+        canonical(r.profile) !== canonical(r.expectedProfile)
+      )
+        fail("An additive enrichment cannot change existing company fields.");
+      if (r.research.reviewMethod === "source-check-v1" && !r.preserveProfile)
+        fail(
+          "Source-checked enrichment must preserve existing profile fields.",
+        );
+      if (
+        !r.preserveProfile &&
+        r.profile.services.some((s) => !labels.includes(s))
+      )
         fail("Searchable services must come from sourced offerings.");
       if (
+        !r.preserveProfile &&
         r.profile.serviceAreas.some(
           (s) => !r.research.coverage.some((c) => c.label === s),
         )
@@ -426,22 +445,29 @@ export async function importProviderEnrichment(input: unknown, apply = false) {
           existing ? JSON.stringify(existing) : null,
         ],
       );
-      await db.query(
-        `UPDATE companies SET description=$2,tagline=$3,services=$4,service_areas=$5,type=COALESCE($6,type) WHERE id=$1`,
-        [
-          r.companyId,
-          r.profile.description,
-          r.profile.tagline,
-          r.profile.services,
-          r.profile.serviceAreas,
-          r.profile.type || null,
-        ],
-      );
-      await db.query(
-        `INSERT INTO provider_profiles(company_id,trades,project_types) VALUES($1,$2,$3)
+      if (!r.preserveProfile)
+        await db.query(
+          `UPDATE companies SET description=$2,tagline=$3,services=$4,service_areas=$5,type=COALESCE($6,type) WHERE id=$1`,
+          [
+            r.companyId,
+            r.profile.description,
+            r.profile.tagline,
+            r.profile.services,
+            r.profile.serviceAreas,
+            r.profile.type || null,
+          ],
+        );
+      if (r.preserveProfile)
+        await db.query(
+          `INSERT INTO provider_profiles(company_id) VALUES($1) ON CONFLICT(company_id) DO NOTHING`,
+          [r.companyId],
+        );
+      else
+        await db.query(
+          `INSERT INTO provider_profiles(company_id,trades,project_types) VALUES($1,$2,$3)
         ON CONFLICT(company_id) DO UPDATE SET trades=excluded.trades,project_types=excluded.project_types,updated_at=now()`,
-        [r.companyId, r.profile.trades, r.profile.projectTypes],
-      );
+          [r.companyId, r.profile.trades, r.profile.projectTypes],
+        );
       await db.query(
         `INSERT INTO provider_capabilities(company_id,batch_id,research,checked_at) VALUES($1,$2,$3,$4)
         ON CONFLICT(company_id) DO UPDATE SET batch_id=excluded.batch_id,research=excluded.research,checked_at=excluded.checked_at,updated_at=now()`,

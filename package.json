@@ -35,7 +35,10 @@
     "providers:inventory": "node apps/api/dist/export-provider-inventory.js",
     "providers:matching-report": "node apps/api/dist/report-provider-matching.js",
     "test:provider-research": "python3 tests/provider-capability-research.test.py",
-    "test:provider-matching-api": "node tests/provider-matching-api.mjs"
+    "test:provider-matching-api": "node tests/provider-matching-api.mjs",
+    "providers:publish-batches": "node apps/api/dist/publish-provider-batches.js",
+    "providers:prepare-publication": "python3 tools/build-provider-publication.py",
+    "test:provider-publication": "python3 tests/provider-publication.test.py"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0",

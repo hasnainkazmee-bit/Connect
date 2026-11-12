@@ -5,6 +5,8 @@ import {
   ArrowRight,
   ArrowUpRight,
   CalendarDays,
+  Building2,
+  Share2,
   Globe2,
   Users,
   FileBadge,
@@ -212,6 +214,7 @@ export function ProviderProfilePage() {
     [stats, setStats] = useState<Stats | null>(null),
     [updates, setUpdates] = useState<Update[]>([]);
   const [coverFailed, setCoverFailed] = useState(false);
+  const [activeSection, setActiveSection] = useState("overview");
   const [showInvite, setShowInvite] = useState(false),
     [inviting, setInviting] = useState(false);
   const [jobs, setJobs] = useState<{ id: string; title: string }[]>([]),
@@ -277,6 +280,46 @@ export function ProviderProfilePage() {
       )
       .catch(() => {});
   }, [mine?.id, admin]);
+  useEffect(() => {
+    if (!provider) return;
+    setActiveSection("overview");
+    const sections = [
+      ...document.querySelectorAll<HTMLElement>(
+        ".provider-dossier .provider-profile-content [data-profile-section]",
+      ),
+    ];
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const edge =
+        (document
+          .querySelector(".provider-dossier .provider-profile-nav")
+          ?.getBoundingClientRect().bottom || 0) + 28;
+      const current =
+        sections
+          .filter((section) => section.getBoundingClientRect().top <= edge)
+          .at(-1) || sections[0];
+      if (current) setActiveSection(current.id);
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(frame);
+    };
+  }, [provider, profile]);
+  const shareProfile = async () => {
+    try {
+      await navigator.clipboard.writeText(
+        window.location.origin + "/" + (provider?.username || provider?.slug),
+      );
+      toast("Profile link copied");
+    } catch {
+      toast("Copy the profile link from your address bar.");
+    }
+  };
   const invite = async () => {
     if (!chosen || !provider) return;
     setInviting(true);
@@ -321,7 +364,7 @@ export function ProviderProfilePage() {
     membership: "Membership",
   };
   return (
-    <div className="jobs-page provider-profile editorial-profile">
+    <div className="jobs-page provider-profile editorial-profile provider-dossier">
       <Link className="job-back" to={back ? "/jobs/" + back : "/providers"}>
         <ArrowLeft size={16} />
         {back ? "Back to job" : "Find companies"}
@@ -329,37 +372,74 @@ export function ProviderProfilePage() {
       <header
         className={`provider-profile-hero ${cover && !coverFailed ? "has-cover" : ""}`}
       >
-        <div className="provider-hero-copy">
-          <div className="provider-identity-row">
-            <div
-              className={`provider-profile-logo ${c.is_demo ? "is-demo" : ""}`}
-            >
-              {c.logo_url && (
-                <img
-                  src={
-                    c.is_demo && c.logo_url.startsWith("/assets/demo-logos/")
-                      ? c.logo_url.replace(/\.svg$/, "-mark.svg")
-                      : c.logo_url
-                  }
-                  alt=""
-                  onError={(e) => {
-                    e.currentTarget.style.visibility = "hidden";
-                  }}
-                />
-              )}
-            </div>
-            <span className="provider-overline">
-              {c.type}
-              {c.is_demo
-                ? " · Demo company"
-                : c.listing_status === "unclaimed"
-                  ? " · Public listing"
-                  : ""}
-            </span>
+        <div
+          className="provider-cover-banner"
+          aria-hidden={!cover || coverFailed}
+        >
+          {cover && !coverFailed && (
+            <img
+              src={cover}
+              alt={`${c.name} company cover`}
+              onError={() => setCoverFailed(true)}
+            />
+          )}
+          {cover && !coverFailed && c.is_demo && (
+            <span>Illustrative image · Demo company</span>
+          )}
+        </div>
+        <div className="provider-identity-surface">
+          <div
+            className={`provider-profile-logo ${c.is_demo ? "is-demo" : ""}`}
+          >
+            {c.logo_url && (
+              <img
+                src={
+                  c.is_demo && c.logo_url.startsWith("/assets/demo-logos/")
+                    ? c.logo_url.replace(/\.svg$/, "-mark.svg")
+                    : c.logo_url
+                }
+                alt={`${c.name} logo`}
+                onError={(e) => {
+                  e.currentTarget.style.visibility = "hidden";
+                }}
+              />
+            )}
           </div>
           <div className="provider-profile-heading">
-            <h1>{c.name}</h1>
+            <div className="provider-name-row">
+              <h1>{c.name}</h1>
+              {(c.is_demo || c.listing_status === "unclaimed") && (
+                <span className="provider-listing-badge">
+                  {c.is_demo ? "Demo company" : "Public listing"}
+                </span>
+              )}
+            </div>
             {c.tagline && <p>{c.tagline}</p>}
+            <div className="provider-header-meta">
+              {c.location && (
+                <span>
+                  <MapPin size={15} />
+                  {c.location}
+                </span>
+              )}
+              <span>
+                <Building2 size={15} />
+                {c.type}
+              </span>
+              {c.established && (
+                <span>
+                  <CalendarDays size={15} />
+                  Est. {c.established}
+                </span>
+              )}
+              {stats && stats.reviewCount > 0 && (
+                <a href="#company-reviews">
+                  <Star size={15} />
+                  {stats.rating.toFixed(1)}{" "}
+                  <span>({stats.reviewCount} reviews)</span>
+                </a>
+              )}
+            </div>
           </div>
           <div className="provider-profile-actions">
             {mine?.id === c.id && admin ? (
@@ -467,93 +547,79 @@ export function ProviderProfilePage() {
                 )}
               </>
             )}
+            <button
+              className="jobs-button jobs-secondary provider-share"
+              onClick={() => void shareProfile()}
+              aria-label="Copy company profile link"
+            >
+              <Share2 size={16} />
+              <span>Share</span>
+            </button>
           </div>
         </div>
-        {cover && !coverFailed && (
-          <figure className="provider-cover">
-            <img
-              src={cover}
-              alt={`${c.name} company cover`}
-              onError={() => setCoverFailed(true)}
-            />
-            <figcaption>
-              <span>
-                {c.is_demo
-                  ? "Illustrative image · Demo company"
-                  : "Company cover"}
-              </span>
-            </figcaption>
-          </figure>
-        )}
       </header>
-      <dl className="provider-fact-band">
-        {c.location && (
-          <div>
-            <dt>
-              <MapPin size={16} /> Based in
-            </dt>
-            <dd>{c.location}</dd>
-          </div>
-        )}
-        {c.service_areas.length > 0 && (
-          <div>
-            <dt>
-              <Globe2 size={16} />{" "}
-              {c.capabilities ? "Coverage" : "Working across"}
-            </dt>
-            <dd>
-              {c.service_areas.slice(0, 2).join(" · ")}
-              {c.service_areas.length > 2 && (
-                <a href="#coverage"> +{c.service_areas.length - 2} areas</a>
-              )}
-            </dd>
-          </div>
-        )}
-        {c.crew_size && (
-          <div>
-            <dt>
-              <Users size={16} /> Team
-            </dt>
-            <dd>{c.crew_size}</dd>
-          </div>
-        )}
-        {c.established && (
-          <div>
-            <dt>
-              <CalendarDays size={16} /> Established
-            </dt>
-            <dd>{c.established}</dd>
-          </div>
-        )}
-      </dl>
       <nav
         className="provider-profile-nav"
         aria-label="Company profile sections"
       >
-        <a href="#overview">Overview</a>
-        {!!c.capabilities?.products.length && (
-          <a href="#products">Products & equipment</a>
-        )}
-        {(profile.projects.length > 0 || owner) && (
-          <a href="#recent-work">
-            Recent work <span>{profile.projects.length}</span>
-          </a>
-        )}
-        {!!credentials.length && (
-          <a href="#credentials">
-            Credentials <span>{credentials.length}</span>
-          </a>
-        )}
-        <a href="#company-reviews">
-          Reviews
-          {stats && stats.reviewCount > 0 && <span>{stats.reviewCount}</span>}
-        </a>
+        {[
+          { id: "overview", label: "Overview", show: true },
+          {
+            id: "services",
+            label: "Services",
+            show: !!(
+              c.capabilities?.services.length ||
+              (!c.capabilities && services.length)
+            ),
+          },
+          {
+            id: "products",
+            label: "Products & equipment",
+            show: !!c.capabilities?.products.length,
+          },
+          {
+            id: "coverage",
+            label: "Coverage",
+            show: !!(c.capabilities?.coverage.length || c.service_areas.length),
+          },
+          {
+            id: "recent-work",
+            label: "Recent work",
+            show: profile.projects.length > 0 || owner,
+          },
+          {
+            id: "credentials",
+            label: "Credentials",
+            show: !!(
+              credentials.length ||
+              c.license_details ||
+              c.insurance_details
+            ),
+          },
+          { id: "company-reviews", label: "Reviews", show: true },
+        ]
+          .filter((section) => section.show)
+          .map((section) => (
+            <a
+              key={section.id}
+              href={"#" + section.id}
+              aria-current={
+                activeSection === section.id ? "location" : undefined
+              }
+              onClick={() => setActiveSection(section.id)}
+            >
+              {section.label}
+            </a>
+          ))}
       </nav>
       <div className="provider-profile-layout">
         <div className="provider-profile-content">
-          <section className="profile-editorial-section" id="overview">
-            <span className="editorial-label">THE COMPANY</span>
-            <h2>What we do.</h2>
+          <section
+            className="profile-editorial-section"
+            id="overview"
+            data-profile-section
+          >
+            <h2>Overview</h2>
             {c.description || c.tagline ? (
               <p className="provider-about">{c.description || c.tagline}</p>
             ) : (
@@ -563,36 +629,80 @@ export function ProviderProfilePage() {
                   : `${c.name} is listed as a ${c.type.toLowerCase()}${c.location ? " based in " + c.location : ""}.`}
               </p>
             )}
-            {c.capabilities ? (
-              <ProviderServices data={c.capabilities} />
-            ) : (
-              services.length > 0 && (
-                <div className="provider-service-list" aria-label="Services">
-                  {services.map((service, i) => (
-                    <div key={service}>
-                      <span>{String(i + 1).padStart(2, "0")}</span>
-                      <h3>{service}</h3>
-                    </div>
-                  ))}
-                </div>
-              )
-            )}
-            {c.project_types.length > 0 && (
-              <div className="provider-project-types">
-                <span>Project types</span>
-                <p>{c.project_types.join(" · ")}</p>
-              </div>
-            )}
+            {c.capabilities && <ProviderSources data={c.capabilities} />}
           </section>
+          {c.capabilities?.services.length ||
+          (!c.capabilities && services.length) ? (
+            <section
+              className="profile-editorial-section"
+              id="services"
+              data-profile-section
+            >
+              <h2>Services</h2>
+              {c.capabilities ? (
+                <ProviderServices data={c.capabilities} />
+              ) : (
+                services.length > 0 && (
+                  <div className="provider-service-list" aria-label="Services">
+                    {services.map((service, i) => (
+                      <div key={service}>
+                        <span>{String(i + 1).padStart(2, "0")}</span>
+                        <h3>{service}</h3>
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
+              {c.project_types.length > 0 && (
+                <div className="provider-project-types">
+                  <span>Project types</span>
+                  <p>{c.project_types.join(" · ")}</p>
+                </div>
+              )}
+            </section>
+          ) : null}
           {c.capabilities && <ProviderProducts data={c.capabilities} />}
+          {c.capabilities?.coverage.length || c.service_areas.length ? (
+            <section
+              className="profile-editorial-section"
+              id="coverage"
+              data-profile-section
+            >
+              <h2>
+                {c.capabilities ? "Service & supply areas" : "Where we work"}
+              </h2>
+              {c.location && (
+                <p className="provider-based-in">
+                  <MapPin size={16} />
+                  {c.location}
+                </p>
+              )}
+              {c.capabilities?.coverage.length ? (
+                <ProviderCoverage data={c.capabilities} />
+              ) : (
+                c.service_areas.length > 0 && (
+                  <div className="provider-area-list">
+                    {c.service_areas.map((area) => (
+                      <span key={area}>{area}</span>
+                    ))}
+                  </div>
+                )
+              )}
+            </section>
+          ) : null}
+
           {(profile.projects.length > 0 || owner) && (
-            <section className="profile-editorial-section" id="recent-work">
+            <section
+              className="profile-editorial-section"
+              id="recent-work"
+              data-profile-section
+            >
               <div className="profile-section-heading">
                 <div>
                   <span className="editorial-label">
                     EXPERIENCE IN THE FIELD
                   </span>
-                  <h2>Recent work.</h2>
+                  <h2>Recent work</h2>
                 </div>
                 {owner && (
                   <button
@@ -680,11 +790,15 @@ export function ProviderProfilePage() {
           {(credentials.length > 0 ||
             c.license_details ||
             c.insurance_details) && (
-            <section className="profile-editorial-section" id="credentials">
+            <section
+              className="profile-editorial-section"
+              id="credentials"
+              data-profile-section
+            >
               <span className="editorial-label">
                 QUALIFICATIONS & COMPANY DETAILS
               </span>
-              <h2>Credentials.</h2>
+              <h2>Credentials</h2>
               <div className="provider-credential-list">
                 {credentials.map((credential) => (
                   <div key={credential.id}>
@@ -726,9 +840,13 @@ export function ProviderProfilePage() {
               )}
             </section>
           )}
-          <section className="profile-editorial-section" id="company-reviews">
+          <section
+            className="profile-editorial-section"
+            id="company-reviews"
+            data-profile-section
+          >
             <span className="editorial-label">WORKING TOGETHER</span>
-            <h2>Connect job reviews.</h2>
+            <h2>Connect job reviews</h2>
             {stats && stats.reviewCount > 0 ? (
               <>
                 <div className="provider-review-summary">
@@ -798,36 +916,25 @@ export function ProviderProfilePage() {
               )}
             </section>
           )}
-          <section className="provider-aside-section" id="coverage">
-            <h2>
-              {c.capabilities ? "Service & supply areas" : "Where we work"}
-            </h2>
-            {c.location && (
-              <p className="provider-based-in">
-                <MapPin size={16} />
-                {c.location}
-              </p>
-            )}
-            {c.capabilities ? (
-              <ProviderCoverage data={c.capabilities} />
-            ) : (
-              c.service_areas.length > 0 && (
-                <div className="provider-area-list">
-                  {c.service_areas.map((area) => (
-                    <span key={area}>{area}</span>
-                  ))}
-                </div>
-              )
-            )}
-            {c.capabilities && <ProviderSources data={c.capabilities} />}
-          </section>
           <section className="provider-aside-section">
-            <h2>Company details</h2>
+            <h2>At a glance</h2>
             <dl className="provider-detail-list">
               <div>
                 <dt>Business type</dt>
                 <dd>{c.type}</dd>
               </div>
+              {c.location && (
+                <div>
+                  <dt>Based in</dt>
+                  <dd>{c.location}</dd>
+                </div>
+              )}
+              {c.crew_size && (
+                <div>
+                  <dt>Team</dt>
+                  <dd>{c.crew_size}</dd>
+                </div>
+              )}
               {c.employee_count && (
                 <div>
                   <dt>Company size</dt>

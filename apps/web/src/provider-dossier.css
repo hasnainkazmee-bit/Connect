@@ -1,0 +1,333 @@
+/* Provider identity stays in one place; richer data grows below it. */
+html:has(.provider-dossier) {
+  scroll-padding-top: 0;
+}
+.provider-dossier {
+  padding-top: 24px;
+}
+.provider-dossier.editorial-profile .job-back {
+  margin-bottom: 18px;
+}
+.provider-dossier.editorial-profile .provider-profile-hero,
+.provider-dossier.editorial-profile .provider-profile-hero.has-cover {
+  display: block;
+  margin-bottom: 12px;
+}
+.provider-cover-banner {
+  position: relative;
+  height: clamp(130px, 14vw, 230px);
+  overflow: hidden;
+  border-radius: 24px 24px 0 0;
+  background: linear-gradient(120deg, #e7f0f7, #f2f7fb 58%, #e6f0f5);
+}
+.provider-dossier.editorial-profile
+  .provider-profile-hero:not(.has-cover)
+  .provider-cover-banner {
+  height: 120px;
+}
+.provider-cover-banner:after {
+  content: "";
+  position: absolute;
+  inset: 40% 0 0;
+  background: linear-gradient(transparent, #fff);
+  pointer-events: none;
+}
+.provider-cover-banner > img {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  display: block;
+}
+.provider-cover-banner > span {
+  position: absolute;
+  right: 18px;
+  top: 16px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  background: #ffffffeb;
+  color: var(--market-muted);
+}
+.provider-identity-surface {
+  position: relative;
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  margin: -24px 0 0;
+  padding: 28px;
+  background: #fff;
+  border: 1px solid var(--market-line);
+  border-radius: 22px;
+  box-shadow: 0 3px 8px #192e3b04;
+}
+.provider-dossier.editorial-profile .provider-profile-logo,
+.provider-dossier.editorial-profile .provider-profile-logo.is-demo {
+  width: 104px;
+  height: 104px;
+  padding: 12px;
+  border: 1px solid #e9eef2;
+  border-radius: 18px;
+  background: #fff;
+  display: grid;
+  place-items: center;
+}
+.provider-dossier.editorial-profile .provider-profile-logo img {
+  max-width: 100%;
+  max-height: 80px;
+  object-position: center;
+}
+.provider-name-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  margin-bottom: 8px;
+}
+.provider-dossier.editorial-profile .provider-profile-heading h1 {
+  font-size: clamp(28px, 2.6vw, 44px);
+  line-height: 1.12;
+  letter-spacing: -0.04em;
+  max-width: none;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.provider-listing-badge {
+  font-size: 10px;
+  line-height: 1.5;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #f0f5f9;
+  color: #526a7b;
+  white-space: nowrap;
+}
+.provider-dossier.editorial-profile .provider-profile-heading p {
+  font-size: 15px;
+  line-height: 1.55;
+  max-width: 72ch;
+  margin: 0;
+}
+.provider-header-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--market-muted);
+}
+.provider-header-meta > :is(span, a) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.provider-header-meta svg {
+  flex-shrink: 0;
+}
+.provider-dossier.editorial-profile .provider-profile-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: auto;
+  max-width: 330px;
+  margin: 0;
+}
+.provider-dossier.editorial-profile .provider-profile-actions .jobs-button {
+  min-height: 44px;
+  padding: 11px 18px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.provider-dossier .provider-invite {
+  flex-basis: 100%;
+  width: 100%;
+}
+.provider-dossier.editorial-profile .provider-profile-nav {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  gap: 28px;
+  margin: 16px 0 0;
+  padding-inline: 4px;
+  background: #ffffffed;
+  backdrop-filter: blur(12px);
+  scrollbar-width: thin;
+}
+.provider-dossier.editorial-profile .provider-profile-nav a {
+  white-space: nowrap;
+  flex-shrink: 0;
+  color: var(--market-muted);
+  font-weight: 550;
+  min-height: 52px;
+}
+.provider-dossier.editorial-profile .provider-profile-nav a[aria-current] {
+  color: var(--market-ink);
+  box-shadow: inset 0 -3px var(--market-orange);
+}
+.provider-dossier.editorial-profile .provider-profile-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 27%);
+  gap: clamp(28px, 3.5vw, 60px);
+  margin-top: 0;
+}
+.provider-dossier .profile-editorial-section {
+  padding: 32px 0;
+  scroll-margin-top: 76px;
+}
+.provider-dossier .profile-editorial-section h2 {
+  font-size: clamp(23px, 1.9vw, 30px);
+  line-height: 1.25;
+  margin: 0 0 20px;
+  letter-spacing: -0.03em;
+}
+.provider-dossier .profile-editorial-section .editorial-label {
+  margin-bottom: 10px;
+}
+.provider-dossier.editorial-profile .provider-about {
+  font-size: 15px;
+  line-height: 1.75;
+  max-width: 80ch;
+  margin-bottom: 0;
+}
+.provider-dossier .provider-company-aside {
+  padding-top: 32px;
+}
+.provider-dossier .provider-aside-section {
+  border: 1px solid var(--market-line);
+  border-radius: 20px;
+  padding: 22px;
+  margin: 0 0 20px;
+  scroll-margin-top: 76px;
+}
+.provider-dossier .provider-aside-section h2 {
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  margin: 0 0 20px;
+}
+.provider-dossier .provider-company-aside .provider-detail-list > div {
+  gap: 14px;
+}
+.provider-dossier .provider-detail-list a {
+  overflow-wrap: anywhere;
+}
+.provider-dossier .provider-claim-note {
+  padding: 22px;
+  border-radius: 20px;
+  background: #f1f6fa;
+  border: 1px solid #dce6ed;
+}
+.provider-dossier .provider-claim-note h3 {
+  margin-top: 0;
+}
+.provider-dossier .provider-offering {
+  padding-block: 18px;
+}
+.provider-dossier .provider-offering p {
+  line-height: 1.6;
+}
+@media (max-width: 1200px) {
+  .provider-identity-surface {
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 16px 20px;
+    padding: 24px;
+  }
+  .provider-dossier.editorial-profile .provider-profile-logo,
+  .provider-dossier.editorial-profile .provider-profile-logo.is-demo {
+    width: 88px;
+    height: 88px;
+  }
+  .provider-dossier.editorial-profile .provider-profile-actions {
+    grid-column: 2;
+    justify-content: flex-start;
+    max-width: none;
+  }
+}
+@media (max-width: 800px) {
+  .provider-dossier.editorial-profile .provider-profile-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .provider-dossier .provider-company-aside {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    padding-top: 24px;
+  }
+  .provider-dossier .provider-aside-section {
+    margin: 0;
+  }
+  .provider-dossier .provider-claim-note {
+    grid-column: 1 / -1;
+  }
+  .provider-dossier .provider-capacity {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 560px) {
+  .provider-dossier {
+    padding-top: 16px;
+  }
+  .provider-cover-banner {
+    height: 120px;
+    border-radius: 18px 18px 0 0;
+  }
+  .provider-identity-surface {
+    padding: 20px 16px;
+    gap: 14px 12px;
+    grid-template-columns: 56px minmax(0, 1fr);
+    margin-top: -20px;
+    border-radius: 18px;
+    align-items: start;
+  }
+  .provider-dossier.editorial-profile .provider-profile-logo,
+  .provider-dossier.editorial-profile .provider-profile-logo.is-demo {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    padding: 6px;
+  }
+  .provider-dossier.editorial-profile .provider-profile-logo img {
+    max-height: 44px;
+  }
+  .provider-dossier.editorial-profile .provider-profile-heading h1 {
+    font-size: 26px;
+    letter-spacing: -0.035em;
+  }
+  .provider-dossier.editorial-profile .provider-profile-heading p {
+    font-size: 13px;
+  }
+  .provider-header-meta {
+    gap: 7px 12px;
+    font-size: 11px;
+  }
+  .provider-dossier.editorial-profile .provider-profile-actions {
+    grid-column: 1 / -1;
+    gap: 8px;
+  }
+  .provider-dossier.editorial-profile .provider-profile-actions .jobs-button {
+    min-height: 44px;
+    padding: 10px 14px;
+    font-size: 12px;
+  }
+  .provider-dossier .provider-name-row {
+    gap: 8px;
+  }
+  .provider-dossier.editorial-profile .provider-profile-nav {
+    gap: 23px;
+  }
+  .provider-dossier .provider-company-aside {
+    display: block;
+  }
+  .provider-dossier .provider-aside-section {
+    margin-bottom: 16px;
+    padding: 20px;
+  }
+  .provider-dossier .profile-editorial-section {
+    padding-block: 28px;
+  }
+}

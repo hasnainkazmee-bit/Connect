@@ -50,10 +50,16 @@ export async function projectProviderResearch(
   if (!apply) return;
   await db.query(
     `INSERT INTO provider_matching_profiles(company_id,state,source_batch_id,profile_snapshot,checked_at,valid_until,projected_at)
-    VALUES($1,'reviewed',$2,$3,$4,$4::timestamptz+interval '180 days',now())
-    ON CONFLICT(company_id) DO UPDATE SET state='reviewed',source_batch_id=$2,profile_snapshot=$3,
+    VALUES($1,$5,$2,$3,$4,$4::timestamptz+interval '180 days',now())
+    ON CONFLICT(company_id) DO UPDATE SET state=$5,source_batch_id=$2,profile_snapshot=$3,
     checked_at=$4,valid_until=$4::timestamptz+interval '180 days',projected_at=now()`,
-    [companyId, batchId, JSON.stringify(current.snapshot), r.checkedAt],
+    [
+      companyId,
+      batchId,
+      JSON.stringify(current.snapshot),
+      r.checkedAt,
+      r.reviewMethod === "source-check-v1" ? "source_checked" : "reviewed",
+    ],
   );
   // The confirmed availability table is independent and never changed here.
   await db.query("DELETE FROM provider_coverage_areas WHERE company_id=$1", [
