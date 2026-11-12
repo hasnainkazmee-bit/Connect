@@ -17,3 +17,6 @@ apps/windows
 !.env.example
 .backups
 .secrets
+
+.research
+__pycache__

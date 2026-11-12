@@ -13,6 +13,7 @@ export async function projectProviderResearch(
   companyId: string,
   batchId: string,
   r: ProviderResearch,
+  apply = true,
 ) {
   const current = (
     await db.query(
@@ -46,6 +47,7 @@ export async function projectProviderResearch(
     throw new Error(
       "Company facts changed after source review; do not re-project stale research.",
     );
+  if (!apply) return;
   await db.query(
     `INSERT INTO provider_matching_profiles(company_id,state,source_batch_id,profile_snapshot,checked_at,valid_until,projected_at)
     VALUES($1,'reviewed',$2,$3,$4,$4::timestamptz+interval '180 days',now())

@@ -20,8 +20,13 @@ try {
         )
       ).rows[0];
       if (previous?.source_batch_id === r.batch_id) continue;
-      if (apply)
-        await projectProviderResearch(db, r.company_id, r.batch_id, parsed);
+      await projectProviderResearch(
+        db,
+        r.company_id,
+        r.batch_id,
+        parsed,
+        apply,
+      );
     }
     return {
       status: apply ? "applied" : "ready",
