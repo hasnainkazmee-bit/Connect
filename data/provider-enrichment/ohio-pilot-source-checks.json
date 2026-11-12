@@ -1,0 +1,249 @@
+{
+  "checkedOn": "2026-11-12",
+  "sourceCount": 27,
+  "checks": [
+    {
+      "company": "Yellowlite Inc",
+      "sourceId": "home",
+      "url": "https://www.yellowlite.com/",
+      "checkedAt": "2026-11-12T12:24:34.330976+00:00",
+      "status": "readable",
+      "sha256": "8a3156d7e7f1a13c3ec8ef8e3d4869ca69b2906742908bffcc7b8a43544e1a73",
+      "textLength": 10675
+    },
+    {
+      "company": "Yellowlite Inc",
+      "sourceId": "commercial",
+      "url": "https://www.yellowlite.com/commercial-solar-panels/",
+      "checkedAt": "2026-11-12T12:24:39.244230+00:00",
+      "status": "readable",
+      "sha256": "f3ce462a09fe10271037cab5e4c9f95c298993cf180e1ec1685ea4f124bed1fa",
+      "textLength": 11623
+    },
+    {
+      "company": "Yellowlite Inc",
+      "sourceId": "engineering",
+      "url": "https://www.yellowlite.com/solar-system-design-engineering-services/",
+      "checkedAt": "2026-11-12T12:24:44.288304+00:00",
+      "status": "readable",
+      "sha256": "6ceb81240c6ff617f08da70c5dd85d2476e56c515cea745113695caeee7bb6c6",
+      "textLength": 8920
+    },
+    {
+      "company": "Yellowlite Inc",
+      "sourceId": "storage",
+      "url": "https://www.yellowlite.com/energy-storage/",
+      "checkedAt": "2026-11-12T12:24:48.118991+00:00",
+      "status": "readable",
+      "sha256": "2b580c29e10e1705e8692cc2dcdd2000d52faff16293232d923129e468fc7203",
+      "textLength": 6325
+    },
+    {
+      "company": "Yellowlite Inc",
+      "sourceId": "care",
+      "url": "https://www.yellowlite.com/solar-repair-maintenance/",
+      "checkedAt": "2026-11-12T12:24:51.393161+00:00",
+      "status": "readable",
+      "sha256": "aad8c41da10742947a9b5d40fc45376f1b24f33e313d5ae8a49b016cd630a426",
+      "textLength": 11094
+    },
+    {
+      "company": "Icon Solar",
+      "sourceId": "home",
+      "url": "https://iconsolar.com/",
+      "checkedAt": "2026-11-12T12:24:36.335319+00:00",
+      "status": "readable",
+      "sha256": "8490ebb3ca367a522fe511512a377c19842e23f45f23b1f3fb456f6b07a30a1b",
+      "textLength": 7498
+    },
+    {
+      "company": "Icon Solar",
+      "sourceId": "services",
+      "url": "https://iconsolar.com/solar-services/",
+      "checkedAt": "2026-11-12T12:24:38.517943+00:00",
+      "status": "readable",
+      "sha256": "734d1f3638846b13ffb0fa9b29d9c1b114c8d039bc8b0413134b98d8bbeffda9",
+      "textLength": 6660
+    },
+    {
+      "company": "Icon Solar",
+      "sourceId": "commercial",
+      "url": "https://iconsolar.com/commercial-solar/",
+      "checkedAt": "2026-11-12T12:24:40.726540+00:00",
+      "status": "readable",
+      "sha256": "fb6e6a12de3f047ca646c7391ee24dcde44cbf786c6bad577a5ecdf986f9d355",
+      "textLength": 7176
+    },
+    {
+      "company": "Icon Solar",
+      "sourceId": "battery",
+      "url": "https://iconsolar.com/franklin-wh/",
+      "checkedAt": "2026-11-12T12:24:43.077842+00:00",
+      "status": "readable",
+      "sha256": "0820eb9056ec85e1c3c8c541ff011c013f8787ce4c082bee7b4972a3d597d7f3",
+      "textLength": 3671
+    },
+    {
+      "company": "Ohio Power Solutions",
+      "sourceId": "home",
+      "url": "https://www.ohiopowersolutions.com/",
+      "checkedAt": "2026-11-12T12:24:34.243039+00:00",
+      "status": "readable",
+      "sha256": "e4e5059e129e6ae1b57de2165b9c311e7ce6d0777fa886f11ea2c43018d66544",
+      "textLength": 8082
+    },
+    {
+      "company": "Ohio Power Solutions",
+      "sourceId": "solar",
+      "url": "https://www.ohiopowersolutions.com/solar-installation",
+      "checkedAt": "2026-11-12T12:24:35.741116+00:00",
+      "status": "readable",
+      "sha256": "e07b8cb2aa822b3ad49d73f182f937797671ff47f3323097949bbb3e150914c2",
+      "textLength": 6181
+    },
+    {
+      "company": "Ohio Power Solutions",
+      "sourceId": "generators",
+      "url": "https://www.ohiopowersolutions.com/generators",
+      "checkedAt": "2026-11-12T12:24:37.581836+00:00",
+      "status": "readable",
+      "sha256": "11f482de835cfe3d28c05c3621b63cb0142035a1c4415e9192aaccd3eca5fbfa",
+      "textLength": 6483
+    },
+    {
+      "company": "Raiden Electric",
+      "sourceId": "home",
+      "url": "https://raidenelectric.com/",
+      "checkedAt": "2026-11-12T12:24:34.461849+00:00",
+      "status": "readable",
+      "sha256": "31276b7d6419254752554349582ee21d7e61c5e37439b3ccfe8022bab3f48eb5",
+      "textLength": 12481
+    },
+    {
+      "company": "Raiden Electric",
+      "sourceId": "electrical",
+      "url": "https://raidenelectric.com/electrical/",
+      "checkedAt": "2026-11-12T12:24:36.591472+00:00",
+      "status": "readable",
+      "sha256": "324e868f36e73f0bb9f8b4c7c5ee3aaadf72f8c611b2a1e007bc1df4df036680",
+      "textLength": 6652
+    },
+    {
+      "company": "Raiden Electric",
+      "sourceId": "other",
+      "url": "https://raidenelectric.com/other-services/",
+      "checkedAt": "2026-11-12T12:24:38.977241+00:00",
+      "status": "readable",
+      "sha256": "1ee7ca77be9933f108899686afb88c2ef36acbb8d7bb55b111befce7a4211d5a",
+      "textLength": 4136
+    },
+    {
+      "company": "Solar Power & Light",
+      "sourceId": "home",
+      "url": "https://www.splsolar.com/",
+      "checkedAt": "2026-11-12T12:24:39.832980+00:00",
+      "status": "readable",
+      "sha256": "0febe717ae4f3bf24352efa646e056eebd748ae3db44e0e9bd12cbc4eb864f8a",
+      "textLength": 11621
+    },
+    {
+      "company": "Solar Power & Light",
+      "sourceId": "services",
+      "url": "https://www.splsolar.com/services.html",
+      "checkedAt": "2026-11-12T12:24:43.422591+00:00",
+      "status": "readable",
+      "sha256": "6234b87c00de6721b51cadaf09032bd19eb5721c3b32769b0d0690aa1b6e5b37",
+      "textLength": 19018
+    },
+    {
+      "company": "Solar Power & Light",
+      "sourceId": "about",
+      "url": "https://www.splsolar.com/about.html",
+      "checkedAt": "2026-11-12T12:24:46.950958+00:00",
+      "status": "readable",
+      "sha256": "516bb587af3283f7281b914f2cd18e2bc21cf37495bc1cbf2fd75c7bf5122f13",
+      "textLength": 7443
+    },
+    {
+      "company": "APA Solar",
+      "sourceId": "home",
+      "url": "https://apasolar.com/",
+      "checkedAt": "2026-11-12T12:24:55.139620+00:00",
+      "status": "readable",
+      "sha256": "ac8902bca13fd1b69096578cca4412ff8db3701ba1cff2e0c76dff7ad8d4986c",
+      "textLength": 17104
+    },
+    {
+      "company": "APA Solar",
+      "sourceId": "about",
+      "url": "https://apasolar.com/about/",
+      "checkedAt": "2026-11-12T12:24:57.850138+00:00",
+      "status": "readable",
+      "sha256": "d92e77dbf35b4a29cee8cf1e3b8e6ac6b800a1c2bd7bb60731f080e91108ee25",
+      "textLength": 4965
+    },
+    {
+      "company": "APA Solar",
+      "sourceId": "ready-rack",
+      "url": "https://apasolar.com/products/ready-rack-commercial/",
+      "checkedAt": "2026-11-12T12:25:00.400865+00:00",
+      "status": "readable",
+      "sha256": "d261fc0403d4a2e0e8cdd2cafbfdbc02900911728709e8b84f734881ddb3870e",
+      "textLength": 3717
+    },
+    {
+      "company": "APA Solar",
+      "sourceId": "headquarters",
+      "url": "https://apasolar.com/blog/apa-solar-racking-announces-opening-of-new-headquarters-in-ohio/",
+      "checkedAt": "2026-11-12T12:25:03.157907+00:00",
+      "status": "readable",
+      "sha256": "5cbfef966d6e5a98a1513455efe5b0db1b84ba182bcf5b10284026fe3ca24082",
+      "textLength": 6477
+    },
+    {
+      "company": "Exel Solar",
+      "sourceId": "home",
+      "url": "https://exelsolarus.com/",
+      "checkedAt": "2026-11-12T12:24:45.973670+00:00",
+      "status": "readable",
+      "sha256": "4c227bb5df5419b5af413e2fff9a15a2ee377001f7478f3ad1a78c2bbd73f870",
+      "textLength": 5894
+    },
+    {
+      "company": "Exel Solar",
+      "sourceId": "products",
+      "url": "https://exelsolarus.com/products",
+      "checkedAt": "2026-11-12T12:24:47.377148+00:00",
+      "status": "readable",
+      "sha256": "8833a7dd51757ee4c7f3574804be17c799db272723d9e51a44e6bea13a849261",
+      "textLength": 10646
+    },
+    {
+      "company": "Ampica",
+      "sourceId": "about",
+      "url": "https://ampica.com/about/",
+      "checkedAt": "2026-11-12T12:24:49.881455+00:00",
+      "status": "readable",
+      "sha256": "5ad3767d98111cdf01b56363400c96b5cb1edf7f56caececc6b0e6d42a5eccfb",
+      "textLength": 13079
+    },
+    {
+      "company": "Ampica",
+      "sourceId": "solar",
+      "url": "https://ampica.com/solutions/solar/",
+      "checkedAt": "2026-11-12T12:24:51.747095+00:00",
+      "status": "readable",
+      "sha256": "58dfdd56587e9391521eb83c3c271daf220be5b3179a841f729086d8c20050f3",
+      "textLength": 10897
+    },
+    {
+      "company": "Ampica",
+      "sourceId": "renewables",
+      "url": "https://ampica.com/solutions/renewable-energy/",
+      "checkedAt": "2026-11-12T12:24:53.704737+00:00",
+      "status": "readable",
+      "sha256": "c341281df93aa5737460f6a79b8082feb5564d5b502eccb58ff5ebae30ec6957",
+      "textLength": 9956
+    }
+  ]
+}

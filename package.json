@@ -18,6 +18,7 @@
     "directory:cache-logos": "node apps/api/dist/import-company-logos.js",
     "directory:claims": "node apps/api/dist/review-claims.js",
     "directory:credentials": "node apps/api/dist/import-credentials.js",
+    "providers:enrich": "node apps/api/dist/import-provider-enrichment.js",
     "credentials:research": "python3 tools/research-credentials.py",
     "credentials:batch": "python3 tools/build-credential-batch.py",
     "test:credential-research": "python3 tests/credential-research.test.py",

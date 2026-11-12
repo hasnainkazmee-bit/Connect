@@ -310,8 +310,10 @@ async fn provider_detail(
         "SELECT (to_jsonb(c)||jsonb_build_object('trades',COALESCE(p.trades,'{}'::text[]),
          'project_types',COALESCE(p.project_types,'{}'::text[]),'availability',COALESCE(p.availability,''),
          'crew_size',COALESCE(p.crew_size,''),'capacity',COALESCE(p.capacity,''),
-         'license_details',COALESCE(p.license_details,''),'insurance_details',COALESCE(p.insurance_details,'')))::text
+         'license_details',COALESCE(p.license_details,''),'insurance_details',COALESCE(p.insurance_details,''),
+         'capabilities',CASE WHEN p.updated_at<=e.updated_at THEN e.research-'reviewNotes'-'identityNote'-'confirmationNeeded' ELSE NULL END))::text
          FROM companies c LEFT JOIN provider_profiles p ON p.company_id=c.id
+         LEFT JOIN provider_capabilities e ON e.company_id=c.id
          WHERE c.slug=$1 OR c.username=$1 OR c.id::text=$1 LIMIT 1"
     ).bind(slug).fetch_optional(&app.db).await?;
     Ok(Json(

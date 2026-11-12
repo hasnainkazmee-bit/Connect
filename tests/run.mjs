@@ -90,6 +90,7 @@ try {
     "tests/sunhub-integration.test.mjs",
     "tests/credentials.test.mjs",
     "tests/credential-batches.test.mjs",
+    "tests/provider-enrichment.test.mjs",
     "tests/notifications.test.mjs",
   ]) {
     env.REQUIRE_EMAIL_VERIFICATION =

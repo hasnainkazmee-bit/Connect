@@ -22,6 +22,13 @@ import {
   useUnsavedChanges,
 } from "./management";
 import type { Company, Profile, Project } from "./types";
+import {
+  ProviderServices,
+  ProviderProducts,
+  ProviderCoverage,
+  ProviderSources,
+  type ProviderCapabilities,
+} from "./provider-capabilities";
 
 type Provider = Company & {
   trades: string[];
@@ -31,6 +38,7 @@ type Provider = Company & {
   capacity: string;
   license_details: string;
   insurance_details: string;
+  capabilities?: ProviderCapabilities | null;
 };
 type Stats = {
   rating: number;
@@ -490,7 +498,8 @@ export function ProviderProfilePage() {
         {c.service_areas.length > 0 && (
           <div>
             <dt>
-              <Globe2 size={16} /> Working across
+              <Globe2 size={16} />{" "}
+              {c.capabilities ? "Coverage" : "Working across"}
             </dt>
             <dd>
               {c.service_areas.slice(0, 2).join(" · ")}
@@ -522,6 +531,9 @@ export function ProviderProfilePage() {
         aria-label="Company profile sections"
       >
         <a href="#overview">Overview</a>
+        {!!c.capabilities?.products.length && (
+          <a href="#products">Products & equipment</a>
+        )}
         {(profile.projects.length > 0 || owner) && (
           <a href="#recent-work">
             Recent work <span>{profile.projects.length}</span>
@@ -551,15 +563,19 @@ export function ProviderProfilePage() {
                   : `${c.name} is listed as a ${c.type.toLowerCase()}${c.location ? " based in " + c.location : ""}.`}
               </p>
             )}
-            {services.length > 0 && (
-              <div className="provider-service-list" aria-label="Services">
-                {services.map((service, i) => (
-                  <div key={service}>
-                    <span>{String(i + 1).padStart(2, "0")}</span>
-                    <h3>{service}</h3>
-                  </div>
-                ))}
-              </div>
+            {c.capabilities ? (
+              <ProviderServices data={c.capabilities} />
+            ) : (
+              services.length > 0 && (
+                <div className="provider-service-list" aria-label="Services">
+                  {services.map((service, i) => (
+                    <div key={service}>
+                      <span>{String(i + 1).padStart(2, "0")}</span>
+                      <h3>{service}</h3>
+                    </div>
+                  ))}
+                </div>
+              )
             )}
             {c.project_types.length > 0 && (
               <div className="provider-project-types">
@@ -568,6 +584,7 @@ export function ProviderProfilePage() {
               </div>
             )}
           </section>
+          {c.capabilities && <ProviderProducts data={c.capabilities} />}
           {(profile.projects.length > 0 || owner) && (
             <section className="profile-editorial-section" id="recent-work">
               <div className="profile-section-heading">
@@ -782,20 +799,27 @@ export function ProviderProfilePage() {
             </section>
           )}
           <section className="provider-aside-section" id="coverage">
-            <h2>Where we work</h2>
+            <h2>
+              {c.capabilities ? "Service & supply areas" : "Where we work"}
+            </h2>
             {c.location && (
               <p className="provider-based-in">
                 <MapPin size={16} />
                 {c.location}
               </p>
             )}
-            {c.service_areas.length > 0 && (
-              <div className="provider-area-list">
-                {c.service_areas.map((area) => (
-                  <span key={area}>{area}</span>
-                ))}
-              </div>
+            {c.capabilities ? (
+              <ProviderCoverage data={c.capabilities} />
+            ) : (
+              c.service_areas.length > 0 && (
+                <div className="provider-area-list">
+                  {c.service_areas.map((area) => (
+                    <span key={area}>{area}</span>
+                  ))}
+                </div>
+              )
             )}
+            {c.capabilities && <ProviderSources data={c.capabilities} />}
           </section>
           <section className="provider-aside-section">
             <h2>Company details</h2>

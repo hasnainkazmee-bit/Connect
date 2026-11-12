@@ -1,0 +1,2269 @@
+{
+  "version": 1,
+  "batchId": "ohio-provider-pilot-2026-11-12",
+  "inventoryOrigin": "https://connect.sunhubapp.com",
+  "cohort": "Eight existing Ohio-based companies: installation, maintenance, electrical, advisory, manufacturing and distribution.",
+  "records": [
+    {
+      "companyId": "46cb6d28-d43f-44f6-9f9c-81aaecfa3094",
+      "companyName": "Yellowlite Inc",
+      "website": "https://www.yellowlite.com/",
+      "expectedProfile": {
+        "description": "Yellowlite Inc operates in solar installation. Its published company location is Cleveland, OH. Listed services include solar installation.",
+        "tagline": "Solar installation in Cleveland, OH",
+        "services": [
+          "Solar installation"
+        ],
+        "serviceAreas": [
+          "Ohio",
+          "Indiana",
+          "Michigan",
+          "Pennsylvania"
+        ],
+        "trades": [],
+        "projectTypes": []
+      },
+      "profile": {
+        "description": "YellowLite designs and installs solar and battery systems for homes, businesses, farms, and institutions. Its services include project engineering, permitting and utility coordination, plus diagnostics, repairs, and ongoing monitoring for existing systems, including systems installed by others.",
+        "tagline": "Solar installation, engineering, battery storage, and system care.",
+        "services": [
+          "Solar design and installation",
+          "Solar engineering and permitting",
+          "Home battery installation",
+          "Solar repair and maintenance",
+          "Home EV charger installation",
+          "Solar panels and system equipment",
+          "Home batteries"
+        ],
+        "serviceAreas": [
+          "Ohio",
+          "Indiana",
+          "Michigan",
+          "Pennsylvania"
+        ],
+        "trades": [
+          "Installation",
+          "Design & Engineering",
+          "O&M",
+          "Energy Storage",
+          "EV Charging"
+        ],
+        "projectTypes": [
+          "Residential solar",
+          "Commercial solar",
+          "Agricultural solar",
+          "Institutional solar"
+        ]
+      },
+      "research": {
+        "checkedAt": "2026-11-12T12:17:57Z",
+        "identityNote": "Official domain and Cleveland office match the existing listing. Neighboring-state installation can involve partners.",
+        "identitySourceIds": [
+          "home"
+        ],
+        "summarySourceIds": [
+          "home",
+          "commercial",
+          "engineering",
+          "storage",
+          "care"
+        ],
+        "services": [
+          {
+            "id": "solar-install",
+            "category": "solar-installation",
+            "title": "Solar design and installation",
+            "detail": "Site assessment, system design, permitting, installation, and utility coordination for new solar projects.",
+            "sectors": [
+              "residential",
+              "commercial",
+              "industrial",
+              "agricultural",
+              "municipal",
+              "nonprofit"
+            ],
+            "delivery": "turnkey",
+            "systems": [],
+            "sourceIds": [
+              "home",
+              "commercial"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "engineering",
+            "category": "solar-design",
+            "title": "Solar engineering and permitting",
+            "detail": "Site layouts, production modeling, electrical and structural plans, civil design, and interconnection documentation.",
+            "sectors": [
+              "residential",
+              "commercial",
+              "municipal"
+            ],
+            "delivery": "specialist-service",
+            "systems": [
+              "Rooftop",
+              "Ground mount"
+            ],
+            "sourceIds": [
+              "engineering"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "battery-install",
+            "category": "battery-storage",
+            "title": "Home battery installation",
+            "detail": "Battery system sizing, permits, installation, and integration with home solar or backup power.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "turnkey",
+            "systems": [],
+            "sourceIds": [
+              "storage"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "solar-care",
+            "category": "solar-maintenance",
+            "title": "Solar repair and maintenance",
+            "detail": "Fault diagnosis, equipment replacement, monitoring, and warranty coordination; accepts systems installed by other providers.",
+            "sectors": [
+              "residential",
+              "commercial",
+              "municipal"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "sourceIds": [
+              "care"
+            ],
+            "thirdPartySystems": "accepted"
+          },
+          {
+            "id": "ev-install",
+            "category": "ev-charging",
+            "title": "Home EV charger installation",
+            "detail": "EV charging is offered among the upgrades for residential solar customers.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "sourceIds": [
+              "care"
+            ],
+            "thirdPartySystems": "unknown"
+          }
+        ],
+        "products": [
+          {
+            "id": "pv-system",
+            "title": "Solar panels and system equipment",
+            "detail": "Equipment supplied as part of solar installation projects.",
+            "role": "supplies-and-installs",
+            "brands": [],
+            "sourceIds": [
+              "home"
+            ],
+            "category": "solar-system"
+          },
+          {
+            "id": "home-batteries",
+            "title": "Home batteries",
+            "detail": "Tesla Powerwall and FranklinWH home storage systems.",
+            "role": "supplies-and-installs",
+            "brands": [
+              "Tesla",
+              "FranklinWH"
+            ],
+            "sourceIds": [
+              "storage"
+            ],
+            "category": "battery-storage"
+          }
+        ],
+        "coverage": [
+          {
+            "label": "Ohio",
+            "kind": "state",
+            "countryCode": "US",
+            "stateCode": "OH",
+            "serviceIds": [
+              "solar-install",
+              "engineering"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "home",
+              "engineering"
+            ]
+          },
+          {
+            "label": "Indiana",
+            "kind": "state",
+            "countryCode": "US",
+            "stateCode": "IN",
+            "serviceIds": [
+              "solar-install",
+              "engineering"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "home",
+              "engineering"
+            ]
+          },
+          {
+            "label": "Michigan",
+            "kind": "state",
+            "countryCode": "US",
+            "stateCode": "MI",
+            "serviceIds": [
+              "solar-install",
+              "engineering"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "home",
+              "engineering"
+            ]
+          },
+          {
+            "label": "Pennsylvania",
+            "kind": "state",
+            "countryCode": "US",
+            "stateCode": "PA",
+            "serviceIds": [
+              "solar-install",
+              "engineering"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "home",
+              "engineering"
+            ]
+          },
+          {
+            "label": "Ohio",
+            "kind": "state",
+            "countryCode": "US",
+            "stateCode": "OH",
+            "serviceIds": [
+              "solar-care",
+              "ev-install",
+              "battery-install"
+            ],
+            "productIds": [
+              "home-batteries"
+            ],
+            "sourceIds": [
+              "care",
+              "storage"
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": "home",
+            "title": "Company and service area",
+            "url": "https://www.yellowlite.com/",
+            "evidence": "Lists Cleveland, Columbus, and Cincinnati offices; solar installation coverage in Ohio, Indiana, Michigan, and Pennsylvania, including partners.",
+            "basis": "company-website"
+          },
+          {
+            "id": "commercial",
+            "title": "Commercial solar",
+            "url": "https://www.yellowlite.com/commercial-solar-panels/",
+            "evidence": "Describes commercial project planning, installation, permits and grid coordination, and business, farm, school and municipal applications.",
+            "basis": "company-website"
+          },
+          {
+            "id": "engineering",
+            "title": "Design and engineering",
+            "url": "https://www.yellowlite.com/solar-system-design-engineering-services/",
+            "evidence": "Dedicated design service covers electrical, structural and civil planning, energy modeling and utility documentation.",
+            "basis": "company-website"
+          },
+          {
+            "id": "storage",
+            "title": "Home energy storage",
+            "url": "https://www.yellowlite.com/energy-storage/",
+            "evidence": "Offers home battery design and installation and names Tesla and FranklinWH systems.",
+            "basis": "company-website"
+          },
+          {
+            "id": "care",
+            "title": "Service and maintenance",
+            "url": "https://www.yellowlite.com/solar-repair-maintenance/",
+            "evidence": "Details residential and commercial service, third-party installations, Ohio service teams, EV charger upgrades and commercial O&M packages.",
+            "basis": "company-website"
+          }
+        ],
+        "availability": "unknown",
+        "earliestStart": null,
+        "crewCapacity": null,
+        "stockAvailability": "unknown",
+        "laborOnly": "unknown",
+        "subcontracting": "unknown",
+        "confirmationNeeded": [
+          "Earliest start date",
+          "Current team capacity",
+          "Labor-only and subcontract work",
+          "Job size limits",
+          "Current license and insurance evidence",
+          "Service coverage outside Ohio",
+          "Named staff credential and state engineering license verification"
+        ],
+        "reviewNotes": [
+          "NABCEP personnel and Tesla installer claims need issuer checks before required-certification matching.",
+          "O&M size range on the service page is not a company-wide installation capacity.",
+          "Do not treat an installation partner network as labor-only crew availability."
+        ],
+        "baseLocation": {
+          "city": "Cleveland",
+          "stateCode": "OH",
+          "countryCode": "US",
+          "latitude": null,
+          "longitude": null,
+          "precision": "city",
+          "sourceIds": [
+            "home"
+          ]
+        }
+      }
+    },
+    {
+      "companyId": "ea7cbc96-f0c2-4580-bfba-73d6fe912f70",
+      "companyName": "Icon Solar",
+      "website": "https://iconsolar.com/",
+      "expectedProfile": {
+        "description": "Icon Solar operates in solar installation and services. Its published company location is Milford, OH. Listed services include solar installation and services.",
+        "tagline": "Solar installation and services in Milford, OH",
+        "services": [
+          "Solar installation and services"
+        ],
+        "serviceAreas": [],
+        "trades": [],
+        "projectTypes": []
+      },
+      "profile": {
+        "description": "Icon Solar provides residential and commercial solar installations in Ohio, Kentucky, and Indiana. Its team handles assessment, design, permits, utility applications, and monitoring setup. It also offers repairs, system expansions, and home battery installation.",
+        "tagline": "Home and business solar installations across the tristate region.",
+        "services": [
+          "Residential and commercial solar",
+          "Solar troubleshooting and upgrades",
+          "Home battery installation",
+          "Solar panels and inverters",
+          "FranklinWH home batteries"
+        ],
+        "serviceAreas": [
+          "Ohio",
+          "Kentucky",
+          "Indiana"
+        ],
+        "trades": [
+          "Installation",
+          "Design & Engineering",
+          "O&M",
+          "Energy Storage"
+        ],
+        "projectTypes": [
+          "Residential solar",
+          "Commercial solar",
+          "Agricultural solar"
+        ]
+      },
+      "research": {
+        "checkedAt": "2026-11-12T12:17:57Z",
+        "identityNote": "Official site lists 50 West Technecenter Drive, Milford, Ohio, consistent with the Connect profile.",
+        "identitySourceIds": [
+          "home"
+        ],
+        "summarySourceIds": [
+          "home",
+          "services",
+          "commercial",
+          "battery"
+        ],
+        "services": [
+          {
+            "id": "solar-install",
+            "category": "solar-installation",
+            "title": "Residential and commercial solar",
+            "detail": "Complete solar projects, including design, permits, inspections, utility paperwork, installation, and monitoring setup.",
+            "sectors": [
+              "residential",
+              "commercial",
+              "agricultural"
+            ],
+            "delivery": "turnkey",
+            "systems": [],
+            "sourceIds": [
+              "services",
+              "commercial"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "solar-care",
+            "category": "solar-maintenance",
+            "title": "Solar troubleshooting and upgrades",
+            "detail": "Troubleshooting, repairs, additional panels, and upgrades to existing solar installations.",
+            "sectors": [
+              "residential",
+              "commercial"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "sourceIds": [
+              "services"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "battery-install",
+            "category": "battery-storage",
+            "title": "Home battery installation",
+            "detail": "Battery storage integrated with a new or existing home solar system.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "sourceIds": [
+              "services",
+              "battery"
+            ],
+            "thirdPartySystems": "unknown"
+          }
+        ],
+        "products": [
+          {
+            "id": "pv-system",
+            "title": "Solar panels and inverters",
+            "detail": "Solar equipment supplied within installation projects.",
+            "role": "supplies-and-installs",
+            "brands": [],
+            "sourceIds": [
+              "services"
+            ],
+            "category": "solar-system"
+          },
+          {
+            "id": "home-battery",
+            "title": "FranklinWH home batteries",
+            "detail": "FranklinWH aPower 2 storage is presented in its home battery offering.",
+            "role": "supplies-and-installs",
+            "brands": [
+              "FranklinWH"
+            ],
+            "sourceIds": [
+              "battery"
+            ],
+            "category": "battery-storage"
+          }
+        ],
+        "coverage": [
+          {
+            "label": "Ohio",
+            "kind": "state",
+            "countryCode": "US",
+            "stateCode": "OH",
+            "serviceIds": [
+              "solar-install"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "home",
+              "commercial"
+            ]
+          },
+          {
+            "label": "Kentucky",
+            "kind": "state",
+            "countryCode": "US",
+            "stateCode": "KY",
+            "serviceIds": [
+              "solar-install"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "home",
+              "commercial"
+            ]
+          },
+          {
+            "label": "Indiana",
+            "kind": "state",
+            "countryCode": "US",
+            "stateCode": "IN",
+            "serviceIds": [
+              "solar-install"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "home",
+              "commercial"
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": "home",
+            "title": "Company and coverage",
+            "url": "https://iconsolar.com/",
+            "evidence": "Names a Milford, Ohio address, Ohio/Kentucky/Indiana service region, and installations handled without subcontracting.",
+            "basis": "company-website"
+          },
+          {
+            "id": "services",
+            "title": "Installation and support",
+            "url": "https://iconsolar.com/solar-services/",
+            "evidence": "Lists residential rooftop and ground-mount systems, commercial solar, maintenance, repairs, expansions and home batteries.",
+            "basis": "company-website"
+          },
+          {
+            "id": "commercial",
+            "title": "Commercial installation",
+            "url": "https://iconsolar.com/commercial-solar/",
+            "evidence": "States commercial service in Ohio, Kentucky and Indiana and describes design, permit and interconnection submissions.",
+            "basis": "company-website"
+          },
+          {
+            "id": "battery",
+            "title": "Home battery offering",
+            "url": "https://iconsolar.com/franklin-wh/",
+            "evidence": "Product page identifies FranklinWH aPower 2 for new and retrofit home storage installations.",
+            "basis": "company-website"
+          }
+        ],
+        "availability": "unknown",
+        "earliestStart": null,
+        "crewCapacity": null,
+        "stockAvailability": "unknown",
+        "laborOnly": "unknown",
+        "subcontracting": "unknown",
+        "confirmationNeeded": [
+          "Earliest start date",
+          "Current team capacity",
+          "Labor-only and subcontract work",
+          "Job size limits",
+          "Current license and insurance evidence",
+          "Battery and repair service territory"
+        ],
+        "reviewNotes": [
+          "Uses its own installation team; this does not establish whether it accepts subcontract jobs from other firms.",
+          "Battery and repair coverage should be confirmed separately from new installation territory.",
+          "No issuer-verified certifications added from partner logos."
+        ],
+        "baseLocation": {
+          "city": "Milford",
+          "stateCode": "OH",
+          "countryCode": "US",
+          "latitude": null,
+          "longitude": null,
+          "precision": "city",
+          "sourceIds": [
+            "home"
+          ]
+        }
+      }
+    },
+    {
+      "companyId": "b18ac21b-6911-4753-b44c-15fb76108223",
+      "companyName": "Ohio Power Solutions",
+      "website": "https://www.ohiopowersolutions.com/",
+      "expectedProfile": {
+        "description": "Ohio Power Solutions operates in solar installation and services. Its published company location is London, OH. Listed services include solar installation and services.",
+        "tagline": "Solar installation and services in London, OH",
+        "services": [
+          "Solar installation and services"
+        ],
+        "serviceAreas": [],
+        "trades": [],
+        "projectTypes": []
+      },
+      "profile": {
+        "description": "Ohio Power Solutions installs solar for residential, agricultural, and commercial customers around central Ohio. It also provides home battery backup, Generac generators, solar thermal systems, wind power options, and lighting installation.",
+        "tagline": "Solar and backup power for central Ohio homes, farms, and businesses.",
+        "services": [
+          "Solar panel installation",
+          "Home solar battery backup",
+          "Backup generator installation",
+          "Solar thermal systems",
+          "Wind energy systems",
+          "Lighting installation",
+          "Solar panels and battery systems",
+          "Generac generators"
+        ],
+        "serviceAreas": [
+          "Columbus, OH",
+          "London, OH",
+          "Dayton, OH",
+          "Springfield, OH",
+          "Etna, OH",
+          "Westerville, OH",
+          "Central Ohio"
+        ],
+        "trades": [
+          "Installation",
+          "Energy Storage",
+          "Electrical"
+        ],
+        "projectTypes": [
+          "Residential solar",
+          "Agricultural solar",
+          "Commercial solar"
+        ]
+      },
+      "research": {
+        "checkedAt": "2026-11-12T12:17:57Z",
+        "identityNote": "Official site identifies London, Ohio, and a central Ohio service area, consistent with the existing listing.",
+        "identitySourceIds": [
+          "home"
+        ],
+        "summarySourceIds": [
+          "home",
+          "solar",
+          "generators"
+        ],
+        "services": [
+          {
+            "id": "solar-install",
+            "category": "solar-installation",
+            "title": "Solar panel installation",
+            "detail": "Installation of solar panel systems using its own project team.",
+            "sectors": [
+              "residential",
+              "commercial",
+              "agricultural"
+            ],
+            "delivery": "turnkey",
+            "systems": [
+              "Rooftop"
+            ],
+            "sourceIds": [
+              "home",
+              "solar"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "battery-install",
+            "category": "battery-storage",
+            "title": "Home solar battery backup",
+            "detail": "Home solar systems paired with battery storage for backup power.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "sourceIds": [
+              "solar"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "generator-install",
+            "category": "backup-power",
+            "title": "Backup generator installation",
+            "detail": "Generac generator installation and backup-power equipment selection.",
+            "sectors": [
+              "residential",
+              "commercial"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "sourceIds": [
+              "generators"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "solar-thermal",
+            "category": "solar-thermal",
+            "title": "Solar thermal systems",
+            "detail": "Solar-heated water solutions for homes and facilities.",
+            "sectors": [
+              "residential",
+              "commercial"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "sourceIds": [
+              "home"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "wind-power",
+            "category": "wind-power",
+            "title": "Wind energy systems",
+            "detail": "Wind power options offered alongside its solar services.",
+            "sectors": [],
+            "delivery": "specialist-service",
+            "systems": [],
+            "sourceIds": [
+              "home"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "lighting",
+            "category": "lighting",
+            "title": "Lighting installation",
+            "detail": "Indoor and outdoor lighting installation for homes.",
+            "sectors": [
+              "residential"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "sourceIds": [
+              "home"
+            ],
+            "thirdPartySystems": "unknown"
+          }
+        ],
+        "products": [
+          {
+            "id": "pv-system",
+            "title": "Solar panels and battery systems",
+            "detail": "Solar and storage equipment supplied with installation.",
+            "role": "supplies-and-installs",
+            "brands": [],
+            "sourceIds": [
+              "solar"
+            ],
+            "category": "solar-system"
+          },
+          {
+            "id": "generators",
+            "title": "Generac generators",
+            "detail": "Backup generators supplied as part of installation projects.",
+            "role": "supplies-and-installs",
+            "brands": [
+              "Generac"
+            ],
+            "sourceIds": [
+              "generators"
+            ],
+            "category": "backup-generators"
+          }
+        ],
+        "coverage": [
+          {
+            "label": "Columbus, OH",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "OH",
+            "serviceIds": [
+              "solar-install"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "label": "London, OH",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "OH",
+            "serviceIds": [
+              "solar-install"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "label": "Dayton, OH",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "OH",
+            "serviceIds": [
+              "solar-install"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "label": "Springfield, OH",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "OH",
+            "serviceIds": [
+              "solar-install"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "label": "Etna, OH",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "OH",
+            "serviceIds": [
+              "solar-install"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "label": "Westerville, OH",
+            "kind": "city",
+            "countryCode": "US",
+            "stateCode": "OH",
+            "serviceIds": [
+              "solar-install"
+            ],
+            "productIds": [
+              "pv-system"
+            ],
+            "sourceIds": [
+              "home"
+            ]
+          },
+          {
+            "label": "Central Ohio",
+            "kind": "region",
+            "countryCode": "US",
+            "stateCode": "OH",
+            "serviceIds": [
+              "solar-install",
+              "battery-install",
+              "generator-install",
+              "solar-thermal",
+              "wind-power",
+              "lighting"
+            ],
+            "productIds": [
+              "pv-system",
+              "generators"
+            ],
+            "sourceIds": [
+              "home"
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": "home",
+            "title": "Company and local services",
+            "url": "https://www.ohiopowersolutions.com/",
+            "evidence": "Lists central Ohio service, six named cities, residential/farm/business customers, solar thermal, wind, lighting, and an in-house installation approach.",
+            "basis": "company-website"
+          },
+          {
+            "id": "solar",
+            "title": "Solar and battery installation",
+            "url": "https://www.ohiopowersolutions.com/solar-installation",
+            "evidence": "Describes home PV installation and battery-backed systems.",
+            "basis": "company-website"
+          },
+          {
+            "id": "generators",
+            "title": "Generator installation",
+            "url": "https://www.ohiopowersolutions.com/generators",
+            "evidence": "Describes supply and installation of Generac backup generators for homes and businesses.",
+            "basis": "company-website"
+          }
+        ],
+        "availability": "unknown",
+        "earliestStart": null,
+        "crewCapacity": null,
+        "stockAvailability": "unknown",
+        "laborOnly": "unknown",
+        "subcontracting": "unknown",
+        "confirmationNeeded": [
+          "Earliest start date",
+          "Current team capacity",
+          "Labor-only and subcontract work",
+          "Job size limits",
+          "Current license and insurance evidence",
+          "Wind system type and project scale"
+        ],
+        "reviewNotes": [
+          "Ignore unrelated kitchen-remodeling template text on the solar and generator pages.",
+          "Ohio EL 50096 and NABCEP 032611-295 are website claims; current holder/status need issuer checks.",
+          "EV charger work appears in a testimonial only and was not added as a service."
+        ],
+        "baseLocation": {
+          "city": "London",
+          "stateCode": "OH",
+          "countryCode": "US",
+          "latitude": null,
+          "longitude": null,
+          "precision": "city",
+          "sourceIds": [
+            "home"
+          ]
+        }
+      }
+    },
+    {
+      "companyId": "5a99c544-0ce2-49c9-891d-15fda9d6ded8",
+      "companyName": "Raiden Electric",
+      "website": "https://raidenelectric.com/",
+      "expectedProfile": {
+        "description": "Raiden Electric operates in solar or building-system installation. Its published company location is Mason, OH. Listed services include solar or building-system installation.",
+        "tagline": "Solar or building-system installation in Mason, OH",
+        "services": [
+          "Solar or building-system installation"
+        ],
+        "serviceAreas": [],
+        "trades": [],
+        "projectTypes": []
+      },
+      "profile": {
+        "description": "Raiden Electric is an electrical contractor serving the Cincinnati and Dayton metro areas. It works on residential, commercial, and industrial electrical systems, solar and batteries, and EV charging. It also provides facility maintenance contracts, contracted maintenance staff, and project management.",
+        "tagline": "Electrical, solar, EV charging, and contracted facility maintenance.",
+        "services": [
+          "Electrical installation and upgrades",
+          "Solar installation",
+          "Facility battery systems",
+          "EV charger installation",
+          "Electrical preventive maintenance",
+          "Contracted maintenance staff",
+          "Facility project management",
+          "Workplace safety audits",
+          "LED lighting upgrades"
+        ],
+        "serviceAreas": [
+          "Cincinnati metro, OH",
+          "Dayton metro, OH"
+        ],
+        "trades": [
+          "Electrical",
+          "Installation",
+          "Energy Storage",
+          "EV Charging",
+          "O&M",
+          "Project Management"
+        ],
+        "projectTypes": [
+          "Residential electrical",
+          "Commercial facilities",
+          "Industrial facilities",
+          "Residential solar"
+        ]
+      },
+      "research": {
+        "checkedAt": "2026-11-12T12:17:57Z",
+        "identityNote": "Official domain, Mason address, and Cincinnati/Dayton service territory match the imported company.",
+        "identitySourceIds": [
+          "home"
+        ],
+        "summarySourceIds": [
+          "home",
+          "electrical",
+          "other"
+        ],
+        "services": [
+          {
+            "id": "electrical",
+            "category": "electrical",
+            "title": "Electrical installation and upgrades",
+            "detail": "Service and panel upgrades, equipment connections, and wiring for new homes, additions, and facilities.",
+            "sectors": [
+              "residential",
+              "commercial",
+              "industrial"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "sourceIds": [
+              "electrical"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "solar-install",
+            "category": "solar-installation",
+            "title": "Solar installation",
+            "detail": "Residential roof, ground, pergola and carport solar; solar systems for commercial and industrial facilities.",
+            "sectors": [
+              "residential",
+              "commercial",
+              "industrial"
+            ],
+            "delivery": "turnkey",
+            "systems": [
+              "Rooftop",
+              "Ground mount",
+              "Carport",
+              "Pergola"
+            ],
+            "sourceIds": [
+              "electrical"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "battery-install",
+            "category": "battery-storage",
+            "title": "Facility battery systems",
+            "detail": "Battery systems designed and installed for facility energy use and demand management.",
+            "sectors": [
+              "commercial",
+              "industrial"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "sourceIds": [
+              "electrical"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "ev-install",
+            "category": "ev-charging",
+            "title": "EV charger installation",
+            "detail": "Home Level 2 chargers and charging installations for commercial properties.",
+            "sectors": [
+              "residential",
+              "commercial"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "sourceIds": [
+              "electrical"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "maintenance",
+            "category": "electrical",
+            "title": "Electrical preventive maintenance",
+            "detail": "Facility maintenance programs, equipment and service upgrades.",
+            "sectors": [
+              "commercial",
+              "industrial"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "sourceIds": [
+              "electrical"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "maintenance-staff",
+            "category": "contract-maintenance-staff",
+            "title": "Contracted maintenance staff",
+            "detail": "Maintenance professionals supporting a facilities department on hourly or longer-term contracts.",
+            "sectors": [
+              "commercial",
+              "industrial"
+            ],
+            "delivery": "contract-staff",
+            "systems": [],
+            "sourceIds": [
+              "other"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "project-management",
+            "category": "project-management",
+            "title": "Facility project management",
+            "detail": "Management of facility upgrades and equipment projects.",
+            "sectors": [
+              "commercial",
+              "industrial"
+            ],
+            "delivery": "managed-project",
+            "systems": [],
+            "sourceIds": [
+              "other"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "safety-audits",
+            "category": "safety-audits",
+            "title": "Workplace safety audits",
+            "detail": "Workplace safety reviews and preparation for OSHA or VPP audits.",
+            "sectors": [
+              "commercial",
+              "industrial"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "sourceIds": [
+              "other"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "lighting",
+            "category": "lighting",
+            "title": "LED lighting upgrades",
+            "detail": "Lighting upgrades for commercial and industrial facilities.",
+            "sectors": [
+              "commercial",
+              "industrial"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "sourceIds": [
+              "electrical"
+            ],
+            "thirdPartySystems": "unknown"
+          }
+        ],
+        "products": [],
+        "coverage": [
+          {
+            "label": "Cincinnati metro, OH",
+            "kind": "metro",
+            "countryCode": "US",
+            "stateCode": "OH",
+            "serviceIds": [
+              "electrical",
+              "solar-install",
+              "battery-install",
+              "ev-install",
+              "maintenance",
+              "maintenance-staff",
+              "project-management",
+              "safety-audits",
+              "lighting"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "electrical",
+              "other"
+            ]
+          },
+          {
+            "label": "Dayton metro, OH",
+            "kind": "metro",
+            "countryCode": "US",
+            "stateCode": "OH",
+            "serviceIds": [
+              "electrical",
+              "solar-install",
+              "battery-install",
+              "ev-install",
+              "maintenance",
+              "maintenance-staff",
+              "project-management",
+              "safety-audits",
+              "lighting"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "electrical",
+              "other"
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": "home",
+            "title": "Company identity",
+            "url": "https://raidenelectric.com/",
+            "evidence": "Mason electrical contractor naming Cincinnati and Dayton coverage, solar, EV charging, project management and energy audits.",
+            "basis": "company-website"
+          },
+          {
+            "id": "electrical",
+            "title": "Electrical services and territory",
+            "url": "https://raidenelectric.com/electrical/",
+            "evidence": "Details electrical, solar, facility batteries, EV charging, preventive maintenance, and Cincinnati/Dayton service towns.",
+            "basis": "company-website"
+          },
+          {
+            "id": "other",
+            "title": "Maintenance staffing and project services",
+            "url": "https://raidenelectric.com/other-services/",
+            "evidence": "Explicitly offers hourly or longer-term maintenance staff, facility project management and workplace safety audits.",
+            "basis": "company-website"
+          }
+        ],
+        "availability": "unknown",
+        "earliestStart": null,
+        "crewCapacity": null,
+        "stockAvailability": "unknown",
+        "laborOnly": "unknown",
+        "subcontracting": "unknown",
+        "confirmationNeeded": [
+          "Earliest start date",
+          "Current team capacity",
+          "Labor-only and subcontract work",
+          "Job size limits",
+          "Current license and insurance evidence",
+          "Exact maintenance staffing capacity and contract terms"
+        ],
+        "reviewNotes": [
+          "Maintenance staffing is explicit; generic solar installation crew hire remains unconfirmed.",
+          "Amazon product recommendations are not evidence of wholesale stock or equipment distribution.",
+          "Ohio WBE and EDGE claims require current issuer verification."
+        ],
+        "baseLocation": {
+          "city": "Mason",
+          "stateCode": "OH",
+          "countryCode": "US",
+          "latitude": null,
+          "longitude": null,
+          "precision": "city",
+          "sourceIds": [
+            "home"
+          ]
+        }
+      }
+    },
+    {
+      "companyId": "1f951b40-e37e-4364-a345-8bb9d891ea94",
+      "companyName": "Solar Power & Light",
+      "website": "https://www.splsolar.com/",
+      "expectedProfile": {
+        "description": "Solar Power & Light operates in solar installation. Its published company location is Miamisburg, OH. Listed services include solar installation.",
+        "tagline": "Solar installation in Miamisburg, OH",
+        "services": [
+          "Solar installation"
+        ],
+        "serviceAreas": [
+          "OH",
+          "KY",
+          "PA",
+          "IL",
+          "MN"
+        ],
+        "trades": [],
+        "projectTypes": []
+      },
+      "profile": {
+        "description": "Solar Power & Light delivers solar projects for homes, businesses, farms, nonprofits, and public facilities. It also services systems installed by other companies, installs and maintains batteries, and removes and reinstalls arrays for roofing work. Its development offering includes engineering, procurement, construction management, and asset support.",
+        "tagline": "Solar projects, existing-system repairs, batteries, and detach-and-reset work.",
+        "services": [
+          "Solar installation",
+          "Solar repair and monitoring",
+          "Solar panel removal and reinstallation",
+          "Battery installation and servicing",
+          "Solar development and EPC coordination",
+          "Energy and project planning",
+          "Solar systems and storage equipment"
+        ],
+        "serviceAreas": [
+          "Ohio",
+          "Kentucky",
+          "Pennsylvania",
+          "Illinois",
+          "Minnesota"
+        ],
+        "trades": [
+          "Installation",
+          "Design & Engineering",
+          "O&M",
+          "Energy Storage",
+          "EPC",
+          "Project Management"
+        ],
+        "projectTypes": [
+          "Residential solar",
+          "Commercial solar",
+          "Agricultural solar",
+          "Municipal solar",
+          "Nonprofit solar",
+          "Utility development"
+        ]
+      },
+      "research": {
+        "checkedAt": "2026-11-12T12:17:57Z",
+        "identityNote": "Official website lists 2411 Cross Pointe Drive, Miamisburg, Ohio, matching the Connect identity.",
+        "identitySourceIds": [
+          "home"
+        ],
+        "summarySourceIds": [
+          "home",
+          "services",
+          "about"
+        ],
+        "services": [
+          {
+            "id": "solar-install",
+            "category": "solar-installation",
+            "title": "Solar installation",
+            "detail": "Solar projects from assessment and design through permits, construction, and interconnection.",
+            "sectors": [
+              "residential",
+              "commercial",
+              "industrial",
+              "agricultural",
+              "municipal",
+              "nonprofit"
+            ],
+            "delivery": "turnkey",
+            "systems": [],
+            "sourceIds": [
+              "services"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "solar-care",
+            "category": "solar-maintenance",
+            "title": "Solar repair and monitoring",
+            "detail": "Fault diagnosis, component replacement, maintenance, and monitoring for existing systems, including other installers’ work.",
+            "sectors": [
+              "residential",
+              "commercial",
+              "industrial",
+              "agricultural",
+              "municipal",
+              "nonprofit"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "sourceIds": [
+              "services"
+            ],
+            "thirdPartySystems": "accepted"
+          },
+          {
+            "id": "detach-reset",
+            "category": "solar-detach-reset",
+            "title": "Solar panel removal and reinstallation",
+            "detail": "Array removal, storage, coordination with roofers, and reinstallation and commissioning after roofing work.",
+            "sectors": [
+              "residential",
+              "commercial"
+            ],
+            "delivery": "specialist-service",
+            "systems": [],
+            "sourceIds": [
+              "services"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "battery-install",
+            "category": "battery-storage",
+            "title": "Battery installation and servicing",
+            "detail": "Battery installation, health checks, testing, firmware support, monitoring, and replacement.",
+            "sectors": [],
+            "delivery": "specialist-service",
+            "systems": [],
+            "sourceIds": [
+              "services"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "development",
+            "category": "solar-development",
+            "title": "Solar development and EPC coordination",
+            "detail": "Development, engineering, procurement, construction and asset management through its SUNTEAM consortium.",
+            "sectors": [
+              "commercial",
+              "municipal",
+              "utility"
+            ],
+            "delivery": "managed-project",
+            "systems": [],
+            "sourceIds": [
+              "about",
+              "services"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "consulting",
+            "category": "energy-consulting",
+            "title": "Energy and project planning",
+            "detail": "Energy audits, project economics, system sizing, and permitting support.",
+            "sectors": [
+              "residential",
+              "commercial",
+              "industrial",
+              "agricultural",
+              "municipal",
+              "nonprofit"
+            ],
+            "delivery": "advisory",
+            "systems": [],
+            "sourceIds": [
+              "services"
+            ],
+            "thirdPartySystems": "unknown"
+          }
+        ],
+        "products": [
+          {
+            "id": "solar-systems",
+            "title": "Solar systems and storage equipment",
+            "detail": "Solar and storage equipment supplied within project delivery.",
+            "role": "supplies-and-installs",
+            "brands": [],
+            "sourceIds": [
+              "home",
+              "services"
+            ],
+            "category": "solar-system"
+          }
+        ],
+        "coverage": [
+          {
+            "label": "Ohio",
+            "kind": "state",
+            "countryCode": "US",
+            "stateCode": "OH",
+            "serviceIds": [
+              "solar-install"
+            ],
+            "productIds": [
+              "solar-systems"
+            ],
+            "sourceIds": [
+              "services",
+              "about"
+            ]
+          },
+          {
+            "label": "Kentucky",
+            "kind": "state",
+            "countryCode": "US",
+            "stateCode": "KY",
+            "serviceIds": [
+              "solar-install"
+            ],
+            "productIds": [
+              "solar-systems"
+            ],
+            "sourceIds": [
+              "services",
+              "about"
+            ]
+          },
+          {
+            "label": "Pennsylvania",
+            "kind": "state",
+            "countryCode": "US",
+            "stateCode": "PA",
+            "serviceIds": [
+              "solar-install"
+            ],
+            "productIds": [
+              "solar-systems"
+            ],
+            "sourceIds": [
+              "services",
+              "about"
+            ]
+          },
+          {
+            "label": "Illinois",
+            "kind": "state",
+            "countryCode": "US",
+            "stateCode": "IL",
+            "serviceIds": [
+              "solar-install"
+            ],
+            "productIds": [
+              "solar-systems"
+            ],
+            "sourceIds": [
+              "services",
+              "about"
+            ]
+          },
+          {
+            "label": "Minnesota",
+            "kind": "state",
+            "countryCode": "US",
+            "stateCode": "MN",
+            "serviceIds": [
+              "solar-install"
+            ],
+            "productIds": [
+              "solar-systems"
+            ],
+            "sourceIds": [
+              "services",
+              "about"
+            ]
+          },
+          {
+            "label": "Ohio",
+            "kind": "state",
+            "countryCode": "US",
+            "stateCode": "OH",
+            "serviceIds": [
+              "solar-care",
+              "detach-reset",
+              "battery-install",
+              "development",
+              "consulting"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "services",
+              "about"
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": "home",
+            "title": "Company and markets",
+            "url": "https://www.splsolar.com/",
+            "evidence": "Ohio solar company offering residential, commercial, agricultural, nonprofit and municipal solar, with projects beyond Ohio.",
+            "basis": "company-website"
+          },
+          {
+            "id": "services",
+            "title": "Solar and service capabilities",
+            "url": "https://www.splsolar.com/services.html",
+            "evidence": "Details installs, storage care, third-party system repairs, detach/reset, O&M, consulting and consortium development; names OH, KY, PA, IL and MN as five states served.",
+            "basis": "company-website"
+          },
+          {
+            "id": "about",
+            "title": "Company and development team",
+            "url": "https://www.splsolar.com/about.html",
+            "evidence": "Miamisburg address and an Ohio-based solar developer/EPC model with engineering, finance, construction and asset services.",
+            "basis": "company-website"
+          }
+        ],
+        "availability": "unknown",
+        "earliestStart": null,
+        "crewCapacity": null,
+        "stockAvailability": "unknown",
+        "laborOnly": "unknown",
+        "subcontracting": "unknown",
+        "confirmationNeeded": [
+          "Earliest start date",
+          "Current team capacity",
+          "Labor-only and subcontract work",
+          "Job size limits",
+          "Current license and insurance evidence",
+          "Repair and detach/reset service area outside Ohio"
+        ],
+        "reviewNotes": [
+          "Utility development involves a consortium; it is not evidence of an available in-house utility crew.",
+          "Brand logos are not a live stock list or independently verified installer certifications.",
+          "Existing three manufacturer installer claims are retained separately without upgrading their verification."
+        ],
+        "baseLocation": {
+          "city": "Miamisburg",
+          "stateCode": "OH",
+          "countryCode": "US",
+          "latitude": null,
+          "longitude": null,
+          "precision": "city",
+          "sourceIds": [
+            "home"
+          ]
+        }
+      }
+    },
+    {
+      "companyId": "9edbaefb-1966-4afe-8302-8fb3a56abd0d",
+      "companyName": "APA Solar",
+      "website": "https://apasolar.com/",
+      "expectedProfile": {
+        "description": "APA Solar operates in product manufacturing. Its published company location is Ridgeville Corners, OH.",
+        "tagline": "Product manufacturing in Ridgeville Corners, OH",
+        "services": [],
+        "serviceAreas": [],
+        "trades": [],
+        "projectTypes": []
+      },
+      "profile": {
+        "description": "APA Solar designs and manufactures ground-mount solar racking and foundations. Its products include fixed-tilt structures, tracker interfaces, ground screws, helical foundations, piles, and ballast options. It supports developers, EPCs, and installers with project engineering and racking installation programs.",
+        "tagline": "Ground-mount racking, foundations, and project engineering.",
+        "services": [
+          "Racking and foundation engineering",
+          "Racking installation programs",
+          "Racking and foundation supply",
+          "Fixed-tilt ground-mount racking",
+          "Tracker foundation interfaces",
+          "Solar foundations"
+        ],
+        "serviceAreas": [
+          "United States"
+        ],
+        "trades": [
+          "Equipment Supply",
+          "Design & Engineering",
+          "Racking"
+        ],
+        "projectTypes": [
+          "Commercial ground mount",
+          "Utility ground mount",
+          "Residential ground mount"
+        ]
+      },
+      "research": {
+        "checkedAt": "2026-11-12T12:17:57Z",
+        "identityNote": "Official company and new-headquarters announcement confirm Ridgeville Corners, Ohio. APA is part of ARRAY.",
+        "identitySourceIds": [
+          "home"
+        ],
+        "summarySourceIds": [
+          "home",
+          "about",
+          "ready-rack",
+          "headquarters"
+        ],
+        "services": [
+          {
+            "id": "racking-design",
+            "category": "racking-design",
+            "title": "Racking and foundation engineering",
+            "detail": "Project-specific racking design and engineering for ground-mount sites.",
+            "sectors": [
+              "commercial",
+              "utility"
+            ],
+            "delivery": "specialist-service",
+            "systems": [
+              "Ground mount",
+              "Fixed tilt",
+              "Tracker foundations"
+            ],
+            "sourceIds": [
+              "home",
+              "about"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "racking-install",
+            "category": "racking-installation",
+            "title": "Racking installation programs",
+            "detail": "Turnkey racking installation and certified installer program options for customers.",
+            "sectors": [
+              "commercial",
+              "utility"
+            ],
+            "delivery": "managed-project",
+            "systems": [
+              "Ground mount"
+            ],
+            "sourceIds": [
+              "home"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "racking-supply",
+            "category": "equipment-supply",
+            "title": "Racking and foundation supply",
+            "detail": "Manufactured racking and foundations delivered to project sites.",
+            "sectors": [
+              "residential",
+              "commercial",
+              "utility"
+            ],
+            "delivery": "supply",
+            "systems": [],
+            "sourceIds": [
+              "home",
+              "ready-rack"
+            ],
+            "thirdPartySystems": "unknown"
+          }
+        ],
+        "products": [
+          {
+            "id": "fixed-tilt",
+            "title": "Fixed-tilt ground-mount racking",
+            "detail": "TITAN, TITAN Duo, and Ready Rack ground-mount structures.",
+            "role": "manufactures",
+            "brands": [
+              "APA Solar"
+            ],
+            "sourceIds": [
+              "home",
+              "ready-rack"
+            ],
+            "category": "racking-mounting"
+          },
+          {
+            "id": "tracker-interface",
+            "title": "Tracker foundation interfaces",
+            "detail": "A-Frame dual-post foundation interfaces for tracker projects.",
+            "role": "manufactures",
+            "brands": [
+              "APA Solar"
+            ],
+            "sourceIds": [
+              "home"
+            ],
+            "category": "foundations"
+          },
+          {
+            "id": "foundations",
+            "title": "Solar foundations",
+            "detail": "Ground screws, helical foundations, C-piles, and ballast options.",
+            "role": "manufactures",
+            "brands": [
+              "APA Solar"
+            ],
+            "sourceIds": [
+              "home",
+              "ready-rack"
+            ],
+            "category": "foundations"
+          }
+        ],
+        "coverage": [
+          {
+            "label": "United States",
+            "kind": "country",
+            "countryCode": "US",
+            "stateCode": null,
+            "serviceIds": [
+              "racking-supply"
+            ],
+            "productIds": [
+              "fixed-tilt",
+              "tracker-interface",
+              "foundations"
+            ],
+            "sourceIds": [
+              "home",
+              "about"
+            ]
+          },
+          {
+            "label": "United States",
+            "kind": "country",
+            "countryCode": "US",
+            "stateCode": null,
+            "serviceIds": [
+              "racking-design"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "ready-rack"
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": "home",
+            "title": "Products and installation programs",
+            "url": "https://apasolar.com/",
+            "evidence": "Lists racking/foundation product families, engineering, site delivery, and turnkey/certified installer programs.",
+            "basis": "company-website"
+          },
+          {
+            "id": "about",
+            "title": "Company and Ohio manufacturing",
+            "url": "https://apasolar.com/about/",
+            "evidence": "Describes its developer/EPC customer base, commercial/utility focus, and Ridgeville Corners operations.",
+            "basis": "company-website"
+          },
+          {
+            "id": "ready-rack",
+            "title": "Ready Rack specifications",
+            "url": "https://apasolar.com/products/ready-rack-commercial/",
+            "evidence": "Describes residential-through-utility applications and project drawings that can be PE stamped across US states.",
+            "basis": "company-website"
+          },
+          {
+            "id": "headquarters",
+            "title": "New Ohio headquarters",
+            "url": "https://apasolar.com/blog/apa-solar-racking-announces-opening-of-new-headquarters-in-ohio/",
+            "evidence": "March 2026 announcement confirms the expanded headquarters remains on the Ridgeville Corners manufacturing campus.",
+            "basis": "company-website"
+          }
+        ],
+        "availability": "unknown",
+        "earliestStart": null,
+        "crewCapacity": null,
+        "stockAvailability": "unknown",
+        "laborOnly": "unknown",
+        "subcontracting": "unknown",
+        "confirmationNeeded": [
+          "Earliest start date",
+          "Current team capacity",
+          "Labor-only and subcontract work",
+          "Job size limits",
+          "Current license and insurance evidence",
+          "On-site installation territory",
+          "Product lead times and quantities"
+        ],
+        "reviewNotes": [
+          "National product coverage does not establish nationwide installation crew availability.",
+          "Ready Rack engineering scope is not a blanket professional license or certification for every employee.",
+          "No panel manufacturing, full-system EPC, or electrical installation inferred from racking supply."
+        ],
+        "baseLocation": {
+          "city": "Ridgeville Corners",
+          "stateCode": "OH",
+          "countryCode": "US",
+          "latitude": null,
+          "longitude": null,
+          "precision": "city",
+          "sourceIds": [
+            "home"
+          ]
+        }
+      }
+    },
+    {
+      "companyId": "8c3cafc5-16b2-4071-940a-069c62cfa2ef",
+      "companyName": "Exel Solar",
+      "website": "https://exelsolarus.com/",
+      "expectedProfile": {
+        "description": "Exel Solar is a distributor. Its published company location is Columbus, OH.",
+        "tagline": "Distributor in Columbus, OH",
+        "services": [],
+        "serviceAreas": [
+          "US"
+        ],
+        "trades": [],
+        "projectTypes": []
+      },
+      "profile": {
+        "description": "Exel Solar is a wholesale solar equipment distributor based in Columbus. It supplies installers, EPCs, and developers with modules, inverters, batteries, racking, and balance-of-system components. Its services include procurement planning and scheduled jobsite delivery.",
+        "tagline": "Wholesale solar equipment, procurement support, and jobsite delivery.",
+        "services": [
+          "Wholesale solar equipment",
+          "Equipment procurement planning",
+          "Jobsite equipment delivery",
+          "Solar modules",
+          "Inverters and microinverters",
+          "Racking and mounting",
+          "Battery storage",
+          "Electrical balance of system"
+        ],
+        "serviceAreas": [
+          "United States"
+        ],
+        "trades": [
+          "Equipment Supply",
+          "Logistics"
+        ],
+        "projectTypes": [
+          "Residential supply",
+          "Commercial supply",
+          "Utility supply"
+        ]
+      },
+      "research": {
+        "checkedAt": "2026-11-12T12:17:57Z",
+        "identityNote": "Official site lists its Columbus headquarters at 421 W State Street, consistent with the imported city and domain.",
+        "identitySourceIds": [
+          "home"
+        ],
+        "summarySourceIds": [
+          "home",
+          "products"
+        ],
+        "services": [
+          {
+            "id": "wholesale",
+            "category": "equipment-supply",
+            "title": "Wholesale solar equipment",
+            "detail": "Equipment sourcing for installers, EPCs, and project developers.",
+            "sectors": [
+              "residential",
+              "commercial",
+              "industrial",
+              "utility"
+            ],
+            "delivery": "supply",
+            "systems": [],
+            "sourceIds": [
+              "home",
+              "products"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "procurement",
+            "category": "equipment-procurement",
+            "title": "Equipment procurement planning",
+            "detail": "Project pipeline planning and equipment quoting for solar procurement.",
+            "sectors": [
+              "commercial",
+              "utility"
+            ],
+            "delivery": "advisory",
+            "systems": [],
+            "sourceIds": [
+              "home"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "delivery",
+            "category": "logistics",
+            "title": "Jobsite equipment delivery",
+            "detail": "Scheduled deliveries, LTL freight and fulfillment for project sites.",
+            "sectors": [
+              "residential",
+              "commercial",
+              "utility"
+            ],
+            "delivery": "supply",
+            "systems": [],
+            "sourceIds": [
+              "home"
+            ],
+            "thirdPartySystems": "unknown"
+          }
+        ],
+        "products": [
+          {
+            "id": "modules",
+            "title": "Solar modules",
+            "detail": "Monocrystalline and bifacial modules, including named Canadian Solar, First Solar, and JinkoSolar offerings.",
+            "role": "distributes",
+            "brands": [
+              "Canadian Solar",
+              "First Solar",
+              "JinkoSolar"
+            ],
+            "sourceIds": [
+              "products"
+            ],
+            "category": "solar-modules"
+          },
+          {
+            "id": "inverters",
+            "title": "Inverters and microinverters",
+            "detail": "String, central, and module-level power conversion equipment.",
+            "role": "distributes",
+            "brands": [
+              "Enphase",
+              "Hoymiles",
+              "APsystems"
+            ],
+            "sourceIds": [
+              "products"
+            ],
+            "category": "inverters"
+          },
+          {
+            "id": "racking",
+            "title": "Racking and mounting",
+            "detail": "Mounting for pitched and flat roofs and ground-mounted arrays.",
+            "role": "distributes",
+            "brands": [],
+            "sourceIds": [
+              "products"
+            ],
+            "category": "racking-mounting"
+          },
+          {
+            "id": "storage",
+            "title": "Battery storage",
+            "detail": "Lithium-ion storage for residential, commercial and utility applications.",
+            "role": "distributes",
+            "brands": [],
+            "sourceIds": [
+              "products"
+            ],
+            "category": "battery-storage"
+          },
+          {
+            "id": "bos",
+            "title": "Electrical balance of system",
+            "detail": "PV wire, connectors, combiner boxes, rapid shutdown and monitoring equipment.",
+            "role": "distributes",
+            "brands": [],
+            "sourceIds": [
+              "products"
+            ],
+            "category": "electrical-bos"
+          }
+        ],
+        "coverage": [
+          {
+            "label": "United States",
+            "kind": "country",
+            "countryCode": "US",
+            "stateCode": null,
+            "serviceIds": [
+              "wholesale",
+              "procurement",
+              "delivery"
+            ],
+            "productIds": [
+              "modules",
+              "inverters",
+              "racking",
+              "storage",
+              "bos"
+            ],
+            "sourceIds": [
+              "home"
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": "home",
+            "title": "Company, supply services and coverage",
+            "url": "https://exelsolarus.com/",
+            "evidence": "Lists Columbus headquarters, EPC/installer/developer customers, wholesale supply, procurement planning and nationwide logistics.",
+            "basis": "company-website"
+          },
+          {
+            "id": "products",
+            "title": "Wholesale product catalog",
+            "url": "https://exelsolarus.com/products",
+            "evidence": "Identifies modules, inverter types, batteries, racking applications and BOS components with example manufacturers.",
+            "basis": "company-website"
+          }
+        ],
+        "availability": "unknown",
+        "earliestStart": null,
+        "crewCapacity": null,
+        "stockAvailability": "unknown",
+        "laborOnly": "unknown",
+        "subcontracting": "unknown",
+        "confirmationNeeded": [
+          "Earliest start date",
+          "Current team capacity",
+          "Labor-only and subcontract work",
+          "Job size limits",
+          "Current license and insurance evidence",
+          "Live stock, minimum order and delivery lead times"
+        ],
+        "reviewNotes": [
+          "Product catalog indicates sourcing capability, not live stock, brand authorization, price or delivery commitment.",
+          "Do not match this distributor to installation or labor-only crew jobs.",
+          "US logistics claim is separate from any advertised expedited-delivery subset."
+        ],
+        "baseLocation": {
+          "city": "Columbus",
+          "stateCode": "OH",
+          "countryCode": "US",
+          "latitude": null,
+          "longitude": null,
+          "precision": "city",
+          "sourceIds": [
+            "home"
+          ]
+        }
+      }
+    },
+    {
+      "companyId": "c99e5776-08be-4695-8e5e-9cb29eca1d4d",
+      "companyName": "Ampica",
+      "website": "https://ampica.com/",
+      "expectedProfile": {
+        "description": "Ampica operates in engineering/consulting. Its published company location is Cleveland, OH.",
+        "tagline": "Engineering/Consulting in Cleveland, OH",
+        "services": [],
+        "serviceAreas": [],
+        "trades": [],
+        "projectTypes": []
+      },
+      "profile": {
+        "description": "Ampica advises commercial and industrial organizations on energy procurement and onsite energy projects. Its services include solar planning, sustainability assessment, renewable-energy purchasing, project funding coordination, and implementation support, followed by energy monitoring and optimization.",
+        "tagline": "Energy advisory, procurement, and solar project implementation support.",
+        "services": [
+          "Solar project assessment and planning",
+          "Renewable energy procurement",
+          "Solar implementation support",
+          "Energy monitoring and optimization"
+        ],
+        "serviceAreas": [
+          "North America"
+        ],
+        "trades": [
+          "Energy Consulting",
+          "Project Management",
+          "Procurement"
+        ],
+        "projectTypes": [
+          "Commercial energy projects",
+          "Industrial energy projects"
+        ]
+      },
+      "research": {
+        "checkedAt": "2026-11-12T12:17:57Z",
+        "identityNote": "The official site identifies a Cleveland office and the unified Ampica brand, matching the existing domain and city.",
+        "identitySourceIds": [
+          "about"
+        ],
+        "summarySourceIds": [
+          "about",
+          "solar",
+          "renewables"
+        ],
+        "services": [
+          {
+            "id": "solar-advisory",
+            "category": "energy-consulting",
+            "title": "Solar project assessment and planning",
+            "detail": "Energy and infrastructure assessment, solar options, project design coordination, and funding support.",
+            "sectors": [
+              "commercial",
+              "industrial"
+            ],
+            "delivery": "advisory",
+            "systems": [],
+            "sourceIds": [
+              "solar"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "renewable-procurement",
+            "category": "energy-procurement",
+            "title": "Renewable energy procurement",
+            "detail": "Renewable purchasing strategy, procurement management, and VPPA development support.",
+            "sectors": [
+              "commercial",
+              "industrial"
+            ],
+            "delivery": "advisory",
+            "systems": [],
+            "sourceIds": [
+              "renewables"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "implementation",
+            "category": "project-management",
+            "title": "Solar implementation support",
+            "detail": "Coordination of solar installation and integration with existing facilities, training, and energy-management setup.",
+            "sectors": [
+              "commercial",
+              "industrial"
+            ],
+            "delivery": "managed-project",
+            "systems": [],
+            "sourceIds": [
+              "solar"
+            ],
+            "thirdPartySystems": "unknown"
+          },
+          {
+            "id": "monitoring",
+            "category": "energy-consulting",
+            "title": "Energy monitoring and optimization",
+            "detail": "Tracking energy use and performance, reviewing results, and refining energy strategies.",
+            "sectors": [
+              "commercial",
+              "industrial"
+            ],
+            "delivery": "advisory",
+            "systems": [],
+            "sourceIds": [
+              "solar",
+              "renewables"
+            ],
+            "thirdPartySystems": "unknown"
+          }
+        ],
+        "products": [],
+        "coverage": [
+          {
+            "label": "North America",
+            "kind": "region",
+            "countryCode": null,
+            "stateCode": null,
+            "serviceIds": [
+              "solar-advisory",
+              "renewable-procurement",
+              "monitoring"
+            ],
+            "productIds": [],
+            "sourceIds": [
+              "about"
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": "about",
+            "title": "Company identity and advisory footprint",
+            "url": "https://ampica.com/about/",
+            "evidence": "Identifies Cleveland, Cincinnati and Medina offices and a North American industrial/manufacturing advisory business.",
+            "basis": "company-website"
+          },
+          {
+            "id": "solar",
+            "title": "Solar project services",
+            "url": "https://ampica.com/solutions/solar/",
+            "evidence": "Describes assessment, solar procurement/design, funding support, project implementation, staff training and ongoing monitoring.",
+            "basis": "company-website"
+          },
+          {
+            "id": "renewables",
+            "title": "Renewable energy consulting",
+            "url": "https://ampica.com/solutions/renewable-energy/",
+            "evidence": "Describes renewable strategy, purchase management, VPPA support, implementation and optimization.",
+            "basis": "company-website"
+          }
+        ],
+        "availability": "unknown",
+        "earliestStart": null,
+        "crewCapacity": null,
+        "stockAvailability": "unknown",
+        "laborOnly": "unknown",
+        "subcontracting": "unknown",
+        "confirmationNeeded": [
+          "Earliest start date",
+          "Current team capacity",
+          "Labor-only and subcontract work",
+          "Job size limits",
+          "Current license and insurance evidence",
+          "On-site delivery partners and service territory"
+        ],
+        "reviewNotes": [
+          "North American advisory coverage is not a verified territory for onsite installation crews.",
+          "Implementation support does not prove self-performed construction or labor-only crew supply.",
+          "Educational references to BESS and solar technology are not a wholesale equipment catalog."
+        ],
+        "baseLocation": {
+          "city": "Cleveland",
+          "stateCode": "OH",
+          "countryCode": "US",
+          "latitude": null,
+          "longitude": null,
+          "precision": "city",
+          "sourceIds": [
+            "about"
+          ]
+        }
+      }
+    }
+  ]
+}
