@@ -12,12 +12,15 @@ import {
 import { useApp } from "./context";
 
 export type JobFile = {
+  provider_company_id?: string | null;
   id: string;
   original_name: string;
   mime_type: string;
   size_bytes: number;
   quote_id?: string | null;
+  quote_version?: number | null;
   update_id?: string | null;
+  message_id?: string | null;
 };
 type ViewFile = {
   name: string;

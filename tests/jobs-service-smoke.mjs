@@ -244,8 +244,12 @@ try {
   });
   await call(`/jobs/${demoJob.id}/choose`, demo, "POST", {
     quoteId: mixedQuote.id,
+    version: mixedQuote.version,
   });
-  await call(`/jobs/${demoJob.id}/confirm`, hirer, "POST", {});
+  await call(`/jobs/${demoJob.id}/confirm`, hirer, "POST", {
+    quoteId: mixedQuote.id,
+    version: mixedQuote.version,
+  });
   assert.equal(
     (await call(`/jobs/${demoJob.id}`, demo)).job.status,
     "in_progress",
@@ -329,6 +333,7 @@ try {
   );
   await call(`/jobs/${id}/choose`, hirer, "POST", {
     quoteId: providerQuote.id,
+    version: providerQuote.current_version,
   });
   const rejectedView = await call(`/jobs/${id}`, other);
   assert.equal(
@@ -337,7 +342,10 @@ try {
     "Rejected bidder must not see winner's price",
   );
   assert.equal(rejectedView.job.exact_address, "");
-  await call(`/jobs/${id}/confirm`, provider, "POST", {});
+  await call(`/jobs/${id}/confirm`, provider, "POST", {
+    quoteId: providerQuote.id,
+    version: providerQuote.current_version,
+  });
   await assert.rejects(
     () =>
       call(`/jobs/${id}/activity`, provider, "POST", {
@@ -425,6 +433,7 @@ try {
   );
   const progress = await call(`/jobs/${id}/updates`, provider, "POST", {
     kind: "progress",
+    attachmentCount: 1,
     body: "First half of the roofs are finished.",
   });
   const privateUpload = await fetch(
@@ -437,6 +446,12 @@ try {
   );
   assert.equal(privateUpload.status, 201);
   const privateFileId = (await privateUpload.json()).id;
+  await call(
+    `/jobs/${id}/updates/${progress.id}/publish`,
+    provider,
+    "POST",
+    {},
+  );
   assert.equal(
     (
       await fetch(`${base}/jobs/files/${privateFileId}?preview=1`, {
@@ -451,12 +466,15 @@ try {
     ),
     false,
   );
-  await call(`/jobs/${id}/updates`, provider, "POST", {
+  const completion = await call(`/jobs/${id}/updates`, provider, "POST", {
     kind: "completion",
     body: "All 18 systems installed and commissioned.",
   });
   assert.equal((await call(`/jobs/${id}`, hirer)).job.status, "review");
-  await call(`/jobs/${id}/review-work`, hirer, "POST", { decision: "accept" });
+  await call(`/jobs/${id}/review-work`, hirer, "POST", {
+    decision: "accept",
+    updateId: completion.id,
+  });
   await call(`/jobs/${id}/reviews`, hirer, "POST", {
     rating: 5,
     text: "Finished on schedule.",

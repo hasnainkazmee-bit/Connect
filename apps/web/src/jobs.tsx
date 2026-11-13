@@ -60,6 +60,7 @@ import {
 import { usePageGuard } from "./page-navigation";
 import type { Company } from "./types";
 import { jobNextStep, sortAttentionJobs } from "./job-list-focus";
+import "./job-quote-workflow.css";
 
 export type JobStatus =
   | "draft"
@@ -106,7 +107,7 @@ type Job = {
   my_quote_status?: string;
   chosen_quote_id?: string | null;
 };
-type Quote = {
+export type Quote = {
   job_rating?: number | null;
   job_review_count?: number;
   id: string;
@@ -120,9 +121,14 @@ type Quote = {
   payment_terms: string;
   price_breakdown?: { label: string; amountCents: number }[];
   status: string;
+  current_version: number;
+  upload_pending?: boolean;
+  accepted_version?: number | null;
+  decision_note?: string;
   company?: Company;
 };
 type JobUpdate = {
+  provider_company_id?: string | null;
   id: string;
   kind: string;
   body: string;
@@ -143,6 +149,15 @@ export type JobDetail = {
   quotes: Quote[];
   ownQuote: Quote | null;
   selected: Quote | null;
+  agreement?: {
+    revision: number;
+    quote_version: number;
+    amount_cents: number;
+    start_window: string;
+    duration: string;
+    scope: string;
+  } | null;
+  paymentStagesNeedReview?: boolean;
   updates: JobUpdate[];
   files: JobFile[];
   paymentStages: JobStage[];
@@ -1639,14 +1654,24 @@ export function NewJobPage() {
   );
 }
 
+const fileUploadIds = new WeakMap<File, string>();
 async function upload(
   jobId: string,
   file: File,
-  destination?: { quoteId?: string; updateId?: string },
+  destination?: { quoteId?: string; quoteVersion?: string; updateId?: string },
 ) {
   const issue = fileError([file]);
   if (issue) throw new Error(issue);
-  const params = new URLSearchParams({ name: file.name, ...destination });
+  let uploadId = fileUploadIds.get(file);
+  if (!uploadId) {
+    uploadId = crypto.randomUUID();
+    fileUploadIds.set(file, uploadId);
+  }
+  const params = new URLSearchParams({
+    name: file.name,
+    uploadId,
+    ...destination,
+  });
   return api<{ id: string }>(`/jobs/${jobId}/files?${params}`, {
     method: "POST",
     body: file,
@@ -1677,10 +1702,17 @@ export function JobDetailPage() {
     [selectedQuote, setSelectedQuote] = useState<string>(""),
     [quoteSort, setQuoteSort] = useState("best"),
     [expandedQuote, setExpandedQuote] = useState(""),
-    [tab, setTab] = useState<"overview" | "payments">("overview");
+    [tab, setTab] = useState<"overview" | "payments">(
+      searchParams.get("tab") === "payments" ? "payments" : "overview",
+    );
   const messageCompany = searchParams.get("provider") || "";
   const [messageBusy, setMessageBusy] = useState(false);
   const [quoteEditing, setQuoteEditing] = useState(false);
+  const [revisionNote, setRevisionNote] = useState("");
+  const [pendingQuote, setPendingQuote] = useState<{
+    id: string;
+    version: number;
+  } | null>(null);
   const [breakdown, setBreakdown] = useState<
     { label: string; amount: string }[]
   >([]);
@@ -1714,6 +1746,7 @@ export function JobDetailPage() {
       "Final payment",
     ]),
     [stageAmounts, setStageAmounts] = useState<string[]>(["", ""]);
+  usePageGuard(!!pendingQuote || !!pendingUpdate, working);
   useEffect(() => {
     setInviteSample(!!company?.is_demo);
     setSelectedInvite([]);
@@ -1766,6 +1799,25 @@ export function JobDetailPage() {
     participant = !!(hirer || chosen),
     selectedProvider = detail?.selected?.provider_company_id;
   useEffect(() => {
+    if (
+      searchParams.get("action") !== "quote" ||
+      !detail ||
+      detail.permissions.hirer ||
+      detail.job.status !== "open" ||
+      !admin
+    )
+      return;
+    if (
+      detail.job.quote_deadline &&
+      new Date(detail.job.quote_deadline).getTime() < Date.now()
+    )
+      return;
+    setQuoteEditing(true);
+    requestAnimationFrame(() =>
+      document.getElementById("quote-form")?.scrollIntoView({ block: "start" }),
+    );
+  }, [detail?.job.id, admin, searchParams]);
+  useEffect(() => {
     setJobSection(
       detail &&
         (detail.permissions.hirer ||
@@ -1789,6 +1841,10 @@ export function JobDetailPage() {
       items.sort((a, b) => a.amount_cents - b.amount_cents);
     if (quoteSort === "price_desc")
       items.sort((a, b) => b.amount_cents - a.amount_cents);
+    items.sort(
+      (a, b) =>
+        Number(b.status === "submitted") - Number(a.status === "submitted"),
+    );
     return items;
   }, [detail?.quotes, quoteSort]);
   const canMessage =
@@ -1868,23 +1924,35 @@ export function JobDetailPage() {
     setWorking(true);
     setError("");
     try {
-      const r = await post<{ id: string }>(`/jobs/${id}/quote`, {
-        amountCents: Math.round(Number(amount) * 100),
-        note: quoteNote,
-        startWindow: quoteStart,
-        duration,
-        included,
-        excluded,
-        paymentTerms: terms,
-        priceBreakdown: breakdown.map((x) => ({
-          label: x.label,
-          amountCents: Math.round(Number(x.amount) * 100),
-        })),
-      });
+      const r =
+        pendingQuote ||
+        (await post<{ id: string; version: number }>(`/jobs/${id}/quote`, {
+          version: detail?.ownQuote?.current_version,
+          attachmentCount: quoteFiles.length,
+          revisionNote,
+          amountCents: Math.round(Number(amount) * 100),
+          note: quoteNote,
+          startWindow: quoteStart,
+          duration,
+          included,
+          excluded,
+          paymentTerms: terms,
+          priceBreakdown: breakdown.map((x) => ({
+            label: x.label,
+            amountCents: Math.round(Number(x.amount) * 100),
+          })),
+        }));
+      setPendingQuote(r);
       for (const file of quoteFiles) {
-        await upload(id, file, { quoteId: r.id });
+        await upload(id, file, {
+          quoteId: r.id,
+          quoteVersion: String(r.version),
+        });
         setQuoteFiles((v) => v.filter((f) => f !== file));
       }
+      await post(`/jobs/${id}/quotes/${r.id}/publish`, { version: r.version });
+      setPendingQuote(null);
+      setRevisionNote("");
       toast(detail?.ownQuote ? "Quote updated" : "Quote sent");
       setQuoteEditing(false);
       refresh();
@@ -1904,12 +1972,14 @@ export function JobDetailPage() {
         (await post<{ id: string }>(`/jobs/${id}/updates`, {
           kind,
           body: update,
+          attachmentCount: updateFiles.length,
         }));
       setPendingUpdate({ id: r.id, kind });
       for (const file of updateFiles) {
         await upload(id, file, { updateId: r.id });
         setUpdateFiles((v) => v.filter((f) => f !== file));
       }
+      await post(`/jobs/${id}/updates/${r.id}/publish`, {});
       setPendingUpdate(null);
       setUpdate("");
       setUpdateFiles([]);
@@ -1973,8 +2043,25 @@ export function JobDetailPage() {
       `Their quote is ${money(q.amount_cents)}. They’ll be asked to confirm before the work starts. Your exact site address will be shared with them.`,
       "Choose company",
       "choose",
-      { quoteId: q.id },
+      { quoteId: q.id, version: q.current_version },
       "Company chosen",
+    );
+  const reviewQuote = (q: Quote, action: "changes" | "decline") =>
+    open(
+      <QuoteDecisionPage
+        quote={q}
+        action={action}
+        onConfirm={async (note) => {
+          await post(`/jobs/${id}/quote-decision`, {
+            quoteId: q.id,
+            version: q.current_version,
+            decision: action,
+            note,
+          });
+          refresh();
+          toast(action === "changes" ? "Changes requested" : "Quote declined");
+        }}
+      />,
     );
   const reportProblem = () =>
     open(
@@ -2015,6 +2102,15 @@ export function JobDetailPage() {
     admin &&
     !hirer &&
     job.status === "open" &&
+    (!detail.ownQuote ||
+      [
+        "submitted",
+        "changes_requested",
+        "declined",
+        "withdrawn",
+        "award_declined",
+        "not_chosen",
+      ].includes(detail.ownQuote.status)) &&
     (!job.quote_deadline ||
       new Date(job.quote_deadline).getTime() >= Date.now());
   const statusText: Record<JobStatus, string> = {
@@ -2330,6 +2426,14 @@ export function JobDetailPage() {
         <div className="jobs-detail-layout">
           <section className="jobs-panel">
             <h2>Payment plan</h2>
+            {detail.paymentStagesNeedReview && (
+              <p className="quote-decision-note" role="status">
+                The agreed price has changed.{" "}
+                {hirer
+                  ? "Update the planned stages below before invoicing continues."
+                  : "The hiring company needs to update the payment stages before you can invoice."}
+              </p>
+            )}
             <p className="job-muted">
               Payments happen directly between the two companies. Connect
               records only what each side reports.
@@ -2351,34 +2455,37 @@ export function JobDetailPage() {
                     </small>
                   </span>
                   <b>{money(stage.amount_cents)}</b>
-                  {stage.status === "planned" && chosen && admin && (
-                    <div className="job-invoice-action">
-                      <input
-                        aria-label={`Invoice reference for ${stage.title}`}
-                        placeholder="Invoice reference (optional)"
-                        maxLength={120}
-                        value={invoiceRefs[stage.id] || ""}
-                        onChange={(e) =>
-                          setInvoiceRefs((v) => ({
-                            ...v,
-                            [stage.id]: e.target.value,
-                          }))
-                        }
-                      />
-                      <button
-                        className="jobs-button jobs-secondary"
-                        disabled={working}
-                        onClick={() =>
-                          void mutate(`payment-stages/${stage.id}`, {
-                            status: "invoiced",
-                            invoiceReference: invoiceRefs[stage.id] || "",
-                          })
-                        }
-                      >
-                        Mark invoiced
-                      </button>
-                    </div>
-                  )}
+                  {stage.status === "planned" &&
+                    chosen &&
+                    admin &&
+                    !detail.paymentStagesNeedReview && (
+                      <div className="job-invoice-action">
+                        <input
+                          aria-label={`Invoice reference for ${stage.title}`}
+                          placeholder="Invoice reference (optional)"
+                          maxLength={120}
+                          value={invoiceRefs[stage.id] || ""}
+                          onChange={(e) =>
+                            setInvoiceRefs((v) => ({
+                              ...v,
+                              [stage.id]: e.target.value,
+                            }))
+                          }
+                        />
+                        <button
+                          className="jobs-button jobs-secondary"
+                          disabled={working}
+                          onClick={() =>
+                            void mutate(`payment-stages/${stage.id}`, {
+                              status: "invoiced",
+                              invoiceReference: invoiceRefs[stage.id] || "",
+                            })
+                          }
+                        >
+                          Mark invoiced
+                        </button>
+                      </div>
+                    )}
                   {stage.status === "invoiced" && hirer && admin && (
                     <button
                       disabled={working}
@@ -2483,15 +2590,22 @@ export function JobDetailPage() {
                         0,
                       ),
                     )}{" "}
-                    of {money(detail.selected?.amount_cents)} agreed.
+                    of{" "}
+                    {money(
+                      detail.agreement?.amount_cents ??
+                        detail.selected?.amount_cents,
+                    )}{" "}
+                    agreed.
                   </small>
                 </div>
               )}
           </section>
           <aside className="jobs-panel">
-            <h2>Agreed quote</h2>
+            <h2>Agreed price</h2>
             <strong className="job-price">
-              {money(detail.selected?.amount_cents)}
+              {money(
+                detail.agreement?.amount_cents ?? detail.selected?.amount_cents,
+              )}
             </strong>
             <p>
               {detail.selected?.payment_terms ||
@@ -2592,6 +2706,12 @@ export function JobDetailPage() {
                         )}
                       </div>
                       <div className="quote-offer-summary">
+                        <div className="quote-version-status">
+                          <span className="job-status">
+                            {quoteStatusLabel(q.status)}
+                          </span>
+                          <small>Version {q.current_version || 1}</small>
+                        </div>
                         <div className="quote-offer-facts">
                           <div>
                             <small>Quote amount</small>
@@ -2610,7 +2730,9 @@ export function JobDetailPage() {
                         <div className="quote-card-actions">
                           <button
                             className={`jobs-button ${selectedQuote === q.id ? "jobs-primary" : "jobs-secondary"}`}
-                            disabled={working || !admin}
+                            disabled={
+                              working || !admin || q.status !== "submitted"
+                            }
                             onClick={() => chooseQuote(q)}
                           >
                             Choose company
@@ -2640,6 +2762,27 @@ export function JobDetailPage() {
                             Message
                           </button>
                         </div>
+                        {q.decision_note && (
+                          <p className="quote-decision-note">
+                            {q.decision_note}
+                          </p>
+                        )}
+                        {admin && q.status === "submitted" && (
+                          <div className="quote-review-options">
+                            <button
+                              className="job-text-button"
+                              onClick={() => reviewQuote(q, "changes")}
+                            >
+                              Request changes
+                            </button>
+                            <button
+                              className="job-text-button"
+                              onClick={() => reviewQuote(q, "decline")}
+                            >
+                              Decline quote
+                            </button>
+                          </div>
+                        )}
                       </div>
                       {expandedQuote === q.id && (
                         <div className="quote-expanded-details">
@@ -2754,7 +2897,18 @@ export function JobDetailPage() {
                 <button
                   className="jobs-button jobs-primary"
                   disabled={working}
-                  onClick={() => void mutate("confirm", {}, "Job confirmed")}
+                  onClick={() =>
+                    void mutate(
+                      "confirm",
+                      {
+                        quoteId: detail.selected?.id,
+                        version:
+                          detail.selected?.accepted_version ||
+                          detail.selected?.current_version,
+                      },
+                      "Job confirmed",
+                    )
+                  }
                 >
                   Confirm job <Check size={17} />
                 </button>
@@ -2818,7 +2972,14 @@ export function JobDetailPage() {
                   )}
                   {job.status === "in_progress" && chosen && (
                     <div className="job-update-form">
+                      {pendingUpdate && (
+                        <p role="status" className="quote-decision-note">
+                          Your update is saved. Retry to finish uploading and
+                          send it.
+                        </p>
+                      )}
                       <textarea
+                        disabled={working || !!pendingUpdate}
                         value={update}
                         onChange={(e) => setUpdate(e.target.value)}
                         rows={3}
@@ -2832,23 +2993,37 @@ export function JobDetailPage() {
                         files={updateFiles}
                         onChange={setUpdateFiles}
                         label="Add progress photos or files"
-                        disabled={working}
+                        disabled={working || !!pendingUpdate}
                       />
                       <div className="job-form-actions">
                         <button
                           className="jobs-button jobs-secondary"
-                          disabled={!update.trim() || working}
+                          disabled={
+                            !update.trim() ||
+                            working ||
+                            (!!pendingUpdate &&
+                              pendingUpdate.kind !== "progress")
+                          }
                           onClick={() => void addUpdate("progress")}
                         >
-                          Post update
+                          {pendingUpdate?.kind === "progress"
+                            ? "Retry sending update"
+                            : "Post update"}
                         </button>
                         {chosen && (
                           <button
                             className="jobs-button jobs-primary"
-                            disabled={!update.trim() || working}
+                            disabled={
+                              !update.trim() ||
+                              working ||
+                              (!!pendingUpdate &&
+                                pendingUpdate.kind !== "completion")
+                            }
                             onClick={() => void addUpdate("completion")}
                           >
-                            Send work for review
+                            {pendingUpdate?.kind === "completion"
+                              ? "Retry sending work"
+                              : "Send work for review"}
                           </button>
                         )}
                       </div>
@@ -2890,7 +3065,7 @@ export function JobDetailPage() {
                     <CheckCircle2 size={19} /> Your review was submitted.
                   </div>
                 ) : (
-                  <div className="job-review-form">
+                  <div className="job-review-form" id="job-review">
                     <div className="job-stars" role="group" aria-label="Rating">
                       {[1, 2, 3, 4, 5].map((n) => (
                         <button
@@ -3001,13 +3176,27 @@ export function JobDetailPage() {
                 <div className="jobs-section-title">
                   <h2>Your quote</h2>
                   <span className="job-status">
-                    {detail.ownQuote.status.replaceAll("_", " ")}
+                    {detail.ownQuote.upload_pending
+                      ? "Not sent yet"
+                      : quoteStatusLabel(detail.ownQuote.status)}{" "}
+                    · v{detail.ownQuote.current_version || 1}
                   </span>
                 </div>
                 <strong className="job-price">
                   {money(detail.ownQuote.amount_cents)}
                 </strong>
                 <p>{detail.ownQuote.note}</p>
+                {detail.ownQuote.upload_pending && (
+                  <p className="quote-decision-note">
+                    This quote has unfinished attachments. Open it to check the
+                    files and send it.
+                  </p>
+                )}
+                {detail.ownQuote.decision_note && (
+                  <p className="quote-decision-note">
+                    {detail.ownQuote.decision_note}
+                  </p>
+                )}
                 <div className="job-chips">
                   {detail.ownQuote.start_window && (
                     <span>
@@ -3032,9 +3221,14 @@ export function JobDetailPage() {
                     className="jobs-button jobs-secondary"
                     onClick={editQuote}
                   >
-                    Edit quote
+                    {detail.ownQuote.upload_pending
+                      ? "Finish quote"
+                      : "Revise quote"}
                   </button>
                 )}
+                <Link className="job-text-button" to={inboxPath(company?.id)}>
+                  Conversation &amp; quote history <ArrowRight size={15} />
+                </Link>
               </div>
             )}
             {canQuote && quoteEditing && (
@@ -3045,164 +3239,197 @@ export function JobDetailPage() {
                   deliver. Only they can see this quote.
                 </p>
                 <form className="job-quote-form" onSubmit={sendQuote}>
-                  <div className="jobs-fields-three">
-                    <label>
-                      Your price (USD)
-                      <input
-                        required
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        placeholder="e.g. 275000"
-                      />
-                    </label>
-                    <label>
-                      Earliest start
-                      <input
-                        required
-                        maxLength={120}
-                        value={quoteStart}
-                        onChange={(e) => setQuoteStart(e.target.value)}
-                        placeholder="e.g. In 2 weeks"
-                      />
-                    </label>
-                    <label>
-                      Estimated duration
-                      <input
-                        required
-                        maxLength={120}
-                        value={duration}
-                        onChange={(e) => setDuration(e.target.value)}
-                        placeholder="e.g. 3 weeks"
-                      />
-                    </label>
-                  </div>
-                  <label>
-                    Your approach
-                    <textarea
-                      required
-                      minLength={10}
-                      rows={4}
-                      value={quoteNote}
-                      onChange={(e) => setQuoteNote(e.target.value)}
-                      placeholder="Explain the work you’ll do and why your team is a fit."
-                    />
-                  </label>
-                  <details>
-                    <summary>Add a price breakdown (optional)</summary>
-                    <div className="price-breakdown">
-                      {breakdown.map((item, i) => (
-                        <div className="price-breakdown-row" key={i}>
-                          <input
-                            aria-label={`Cost item ${i + 1}`}
-                            maxLength={160}
-                            required
-                            placeholder="e.g. Installation labor"
-                            value={item.label}
-                            onChange={(e) =>
-                              setBreakdown((v) =>
-                                v.map((x, n) =>
-                                  n === i ? { ...x, label: e.target.value } : x,
-                                ),
-                              )
-                            }
-                          />
-                          <input
-                            aria-label={`Cost item ${i + 1} amount in USD`}
-                            required
-                            type="number"
-                            min="0.01"
-                            step="0.01"
-                            placeholder="USD"
-                            value={item.amount}
-                            onChange={(e) =>
-                              setBreakdown((v) =>
-                                v.map((x, n) =>
-                                  n === i
-                                    ? { ...x, amount: e.target.value }
-                                    : x,
-                                ),
-                              )
-                            }
-                          />
-                          <button
-                            type="button"
-                            aria-label={`Remove cost item ${i + 1}`}
-                            onClick={() =>
-                              setBreakdown((v) => v.filter((_, n) => n !== i))
-                            }
-                          >
-                            <X size={16} />
-                          </button>
-                        </div>
-                      ))}
-                      <button
-                        type="button"
-                        className="job-text-button"
-                        disabled={breakdown.length >= 20}
-                        onClick={() =>
-                          setBreakdown((v) => [...v, { label: "", amount: "" }])
-                        }
-                      >
-                        Add cost item
-                      </button>
-                      {breakdown.length > 0 && (
-                        <small>
-                          Breakdown total:{" "}
-                          {money(
-                            breakdown.reduce(
-                              (sum, x) =>
-                                sum + Math.round(Number(x.amount || 0) * 100),
-                              0,
-                            ),
-                          )}
-                          . This must match your quote price.
-                        </small>
-                      )}
-                    </div>
-                  </details>
-                  <details>
-                    <summary>Add scope and payment details</summary>
-                    <label>
-                      Included
-                      <textarea
-                        value={included}
-                        onChange={(e) => setIncluded(e.target.value)}
-                        rows={2}
-                      />
-                    </label>
-                    <label>
-                      Not included
-                      <textarea
-                        value={excluded}
-                        onChange={(e) => setExcluded(e.target.value)}
-                        rows={2}
-                      />
-                    </label>
-                    <label>
-                      Payment terms
-                      <textarea
-                        value={terms}
-                        onChange={(e) => setTerms(e.target.value)}
-                        rows={2}
-                      />
-                    </label>
-                  </details>
-                  <AttachmentPicker
-                    files={quoteFiles}
-                    onChange={setQuoteFiles}
-                    label="Add proposal files or photos"
-                    disabled={working}
-                  />
-                  {detail.ownQuote && (
-                    <FileList
-                      files={detail.files.filter(
-                        (f) => f.quote_id === detail.ownQuote!.id,
-                      )}
-                    />
+                  {pendingQuote && (
+                    <p role="status" className="quote-decision-note">
+                      Your quote is saved. Retry to finish uploading the
+                      remaining attachments.
+                    </p>
                   )}
+                  <fieldset
+                    className="quote-form-fields"
+                    disabled={working || !!pendingQuote}
+                  >
+                    <div className="jobs-fields-three">
+                      <label>
+                        Your price (USD)
+                        <input
+                          required
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={amount}
+                          onChange={(e) => setAmount(e.target.value)}
+                          placeholder="e.g. 275000"
+                        />
+                      </label>
+                      <label>
+                        Earliest start
+                        <input
+                          required
+                          maxLength={120}
+                          value={quoteStart}
+                          onChange={(e) => setQuoteStart(e.target.value)}
+                          placeholder="e.g. In 2 weeks"
+                        />
+                      </label>
+                      <label>
+                        Estimated duration
+                        <input
+                          required
+                          maxLength={120}
+                          value={duration}
+                          onChange={(e) => setDuration(e.target.value)}
+                          placeholder="e.g. 3 weeks"
+                        />
+                      </label>
+                    </div>
+                    <label>
+                      Your approach
+                      <textarea
+                        required
+                        minLength={10}
+                        rows={4}
+                        value={quoteNote}
+                        onChange={(e) => setQuoteNote(e.target.value)}
+                        placeholder="Explain the work you’ll do and why your team is a fit."
+                      />
+                    </label>
+                    <details>
+                      <summary>Add a price breakdown (optional)</summary>
+                      <div className="price-breakdown">
+                        {breakdown.map((item, i) => (
+                          <div className="price-breakdown-row" key={i}>
+                            <input
+                              aria-label={`Cost item ${i + 1}`}
+                              maxLength={160}
+                              required
+                              placeholder="e.g. Installation labor"
+                              value={item.label}
+                              onChange={(e) =>
+                                setBreakdown((v) =>
+                                  v.map((x, n) =>
+                                    n === i
+                                      ? { ...x, label: e.target.value }
+                                      : x,
+                                  ),
+                                )
+                              }
+                            />
+                            <input
+                              aria-label={`Cost item ${i + 1} amount in USD`}
+                              required
+                              type="number"
+                              min="0.01"
+                              step="0.01"
+                              placeholder="USD"
+                              value={item.amount}
+                              onChange={(e) =>
+                                setBreakdown((v) =>
+                                  v.map((x, n) =>
+                                    n === i
+                                      ? { ...x, amount: e.target.value }
+                                      : x,
+                                  ),
+                                )
+                              }
+                            />
+                            <button
+                              type="button"
+                              aria-label={`Remove cost item ${i + 1}`}
+                              onClick={() =>
+                                setBreakdown((v) => v.filter((_, n) => n !== i))
+                              }
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          className="job-text-button"
+                          disabled={breakdown.length >= 20}
+                          onClick={() =>
+                            setBreakdown((v) => [
+                              ...v,
+                              { label: "", amount: "" },
+                            ])
+                          }
+                        >
+                          Add cost item
+                        </button>
+                        {breakdown.length > 0 && (
+                          <small>
+                            Breakdown total:{" "}
+                            {money(
+                              breakdown.reduce(
+                                (sum, x) =>
+                                  sum + Math.round(Number(x.amount || 0) * 100),
+                                0,
+                              ),
+                            )}
+                            . This must match your quote price.
+                          </small>
+                        )}
+                      </div>
+                    </details>
+                    <details>
+                      <summary>Add scope and payment details</summary>
+                      <label>
+                        Included
+                        <textarea
+                          value={included}
+                          onChange={(e) => setIncluded(e.target.value)}
+                          rows={2}
+                        />
+                      </label>
+                      <label>
+                        Not included
+                        <textarea
+                          value={excluded}
+                          onChange={(e) => setExcluded(e.target.value)}
+                          rows={2}
+                        />
+                      </label>
+                      <label>
+                        Payment terms
+                        <textarea
+                          value={terms}
+                          onChange={(e) => setTerms(e.target.value)}
+                          rows={2}
+                        />
+                      </label>
+                    </details>
+                    <AttachmentPicker
+                      files={quoteFiles}
+                      onChange={setQuoteFiles}
+                      label="Add proposal files or photos"
+                      disabled={working}
+                    />
+                    {detail.ownQuote && (
+                      <label>
+                        What changed?
+                        <textarea
+                          rows={2}
+                          maxLength={2000}
+                          required={[
+                            "declined",
+                            "not_chosen",
+                            "award_declined",
+                          ].includes(detail.ownQuote.status)}
+                          placeholder="Summarize the changes to price, scope, or timing."
+                          value={revisionNote}
+                          onChange={(e) => setRevisionNote(e.target.value)}
+                        />
+                      </label>
+                    )}
+                    {detail.ownQuote && (
+                      <FileList
+                        files={detail.files.filter(
+                          (f) => f.quote_id === detail.ownQuote!.id,
+                        )}
+                      />
+                    )}
+                  </fieldset>
                   <button
                     className="jobs-button jobs-primary"
                     disabled={working}
@@ -3210,9 +3437,11 @@ export function JobDetailPage() {
                   >
                     {working
                       ? "Sending…"
-                      : detail.ownQuote
-                        ? "Update quote"
-                        : "Send quote"}{" "}
+                      : pendingQuote
+                        ? "Retry attachments"
+                        : detail.ownQuote
+                          ? "Send revised quote"
+                          : "Send quote"}{" "}
                     <ArrowRight size={16} />
                   </button>
                 </form>
@@ -3235,7 +3464,11 @@ export function JobDetailPage() {
                           "This closes the job and lets both companies leave a review. Confirm that the agreed scope is complete.",
                           "Accept and finish",
                           "review-work",
-                          { decision: "accept", note: "" },
+                          {
+                            decision: "accept",
+                            note: "",
+                            updateId: completion?.id,
+                          },
                           "Job finished",
                         )
                       }
@@ -3260,7 +3493,11 @@ export function JobDetailPage() {
                           onClick={() =>
                             void mutate(
                               "review-work",
-                              { decision: "changes", note: reviewNote },
+                              {
+                                decision: "changes",
+                                note: reviewNote,
+                                updateId: completion?.id,
+                              },
                               "Changes requested",
                             )
                           }
@@ -3552,10 +3789,17 @@ function WorkFacts({ job, detail }: { job: Job; detail: JobDetail }) {
         <div>
           <dt>
             <Tag size={19} />
-            Selected quote
+            Agreed price
           </dt>
           <dd>
-            <strong>{money(detail.selected?.amount_cents)}</strong>
+            <strong>
+              {money(
+                detail.agreement?.amount_cents ?? detail.selected?.amount_cents,
+              )}
+            </strong>
+            {!!detail.agreement && detail.agreement.revision > 1 && (
+              <small>Includes accepted changes</small>
+            )}
             {detail.selected?.payment_terms && (
               <small>{detail.selected.payment_terms}</small>
             )}
@@ -3567,18 +3811,19 @@ function WorkFacts({ job, detail }: { job: Job; detail: JobDetail }) {
             Agreed start
           </dt>
           <dd>
-            {detail.selected?.start_window ||
+            {detail.agreement?.start_window ||
+              detail.selected?.start_window ||
               job.start_window ||
               "To be agreed"}
           </dd>
         </div>
-        {detail.selected?.duration && (
+        {(detail.agreement?.duration || detail.selected?.duration) && (
           <div>
             <dt>
               <Clock3 size={19} />
               Duration
             </dt>
-            <dd>{detail.selected.duration}</dd>
+            <dd>{detail.agreement?.duration || detail.selected?.duration}</dd>
           </div>
         )}
         {job.people_needed && (
@@ -3605,7 +3850,14 @@ function WorkFacts({ job, detail }: { job: Job; detail: JobDetail }) {
             Scope
           </dt>
           <dd>
-            <p>{job.description}</p>
+            <p>{detail.agreement?.scope || job.description}</p>
+            {detail.agreement?.scope &&
+              detail.agreement.scope !== job.description && (
+                <details>
+                  <summary>Original job description</summary>
+                  <p>{job.description}</p>
+                </details>
+              )}
             {job.requirements && (
               <details>
                 <summary>Requirements</summary>
@@ -3717,6 +3969,110 @@ function JobProblem({
           disabled={busy || body.trim().length < 10}
         >
           {busy ? "Sending…" : "Share problem"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+export function quoteStatusLabel(status: string) {
+  return (
+    (
+      {
+        submitted: "Awaiting review",
+        changes_requested: "Changes requested",
+        declined: "Declined",
+        chosen: "Chosen",
+        not_chosen: "Another company chosen",
+        award_declined: "Job declined",
+        withdrawn: "Withdrawn",
+      } as Record<string, string>
+    )[status] || status.replaceAll("_", " ")
+  );
+}
+
+function QuoteDecisionPage({
+  quote,
+  action,
+  onConfirm,
+}: {
+  quote: Quote;
+  action: "changes" | "decline";
+  onConfirm: (note: string) => Promise<void>;
+}) {
+  const { close } = useApp();
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  usePageGuard(!!note.trim(), busy);
+  const changes = action === "changes";
+  return (
+    <form
+      className="manage-dialog quote-decision-page"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        if (!note.trim() || busy) return;
+        setBusy(true);
+        setError("");
+        try {
+          await onConfirm(note.trim());
+          close(true);
+        } catch (e) {
+          setError((e as Error).message);
+          setBusy(false);
+        }
+      }}
+    >
+      <span className="job-eyebrow">
+        Quote version {quote.current_version || 1}
+      </span>
+      <h1>{changes ? "Request a revised quote" : "Decline this quote"}</h1>
+      <p>
+        {changes
+          ? "Tell the company what you need changed. Their current quote stays in your conversation history."
+          : "Let the company know why this quote isn’t a fit. This doesn’t close your job or affect other quotes."}
+      </p>
+      <div className="quote-decision-summary">
+        <JobLogo company={quote.company} />
+        <span>
+          <b>{quote.company?.name || "Company quote"}</b>
+          <small>{quote.start_window || "Start to be agreed"}</small>
+        </span>
+        <strong>{money(quote.amount_cents)}</strong>
+      </div>
+      <label>
+        {changes ? "What needs to change?" : "Reason for declining"}
+        <textarea
+          autoFocus
+          required
+          maxLength={2000}
+          rows={5}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder={
+            changes
+              ? "For example: include the electrical inspection and confirm your earliest start."
+              : "For example: the proposed schedule is later than we need."
+          }
+          disabled={busy}
+        />
+      </label>
+      <JobError text={error} />
+      <div className="job-form-actions">
+        <button
+          type="button"
+          className="jobs-button jobs-secondary"
+          onClick={() => close()}
+          disabled={busy}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="jobs-button jobs-primary"
+          disabled={busy || !note.trim()}
+        >
+          {busy ? "Saving…" : changes ? "Request changes" : "Decline quote"}
         </button>
       </div>
     </form>

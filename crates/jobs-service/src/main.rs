@@ -1,4 +1,7 @@
+mod project_chat;
+mod project_publication;
 mod provider_matching;
+mod quote_workflow;
 use axum::{
     body::Bytes,
     extract::{DefaultBodyLimit, Path, Query, State},
@@ -399,7 +402,7 @@ async fn list_jobs(
         "SELECT json_build_object('id',j.id,'title',j.title,'description',j.description,'trade',j.trade,\
          'people_needed',j.people_needed,'expected_duration',j.expected_duration,'work_arrangement',j.work_arrangement,'project_type',j.project_type,'system_size_kw',j.system_size_kw,'site_count',j.site_count,'location',j.location,'postal_code',j.postal_code,'start_window',j.start_window,'budget_cents',j.budget_cents,\
          'quote_deadline',j.quote_deadline,'visibility',j.visibility,'status',j.status,'created_at',j.created_at,\
-         'company',{},'quote_count',(SELECT count(*) FROM job_quotes q WHERE q.job_id=j.id AND q.status='submitted'),\
+         'company',{},'quote_count',(SELECT count(*) FROM job_quotes q WHERE q.job_id=j.id AND q.status='submitted' AND NOT q.upload_pending),\
          'invited',EXISTS(SELECT 1 FROM job_invitations i WHERE i.job_id=j.id AND i.provider_company_id=$1::uuid))::text \
          FROM jobs j JOIN companies c ON c.id=j.hiring_company_id WHERE j.status='open' \
          AND (j.visibility='open' OR EXISTS(SELECT 1 FROM job_invitations i WHERE i.job_id=j.id AND i.provider_company_id=$1::uuid AND i.status='pending')) \
@@ -428,7 +431,7 @@ async fn my_jobs(State(app): State<Arc<App>>, headers: HeaderMap) -> Result<Json
         "SELECT json_build_object('id',j.id,'title',j.title,'description',j.description,'budget_cents',j.budget_cents,'people_needed',j.people_needed,'expected_duration',j.expected_duration,'work_arrangement',j.work_arrangement,'project_type',j.project_type,'system_size_kw',j.system_size_kw,'site_count',j.site_count,'trade',j.trade,'location',j.location,\
          'start_window',j.start_window,'status',j.status,'created_at',j.created_at,'updated_at',j.updated_at,\
          'hiring_company_id',j.hiring_company_id,'chosen_quote_id',j.chosen_quote_id,'company',{},\
-         'quote_count',(SELECT count(*) FROM job_quotes q WHERE q.job_id=j.id AND q.status='submitted'),\
+         'quote_count',(SELECT count(*) FROM job_quotes q WHERE q.job_id=j.id AND q.status='submitted' AND NOT q.upload_pending),\
          'my_quote_status',(SELECT q.status FROM job_quotes q WHERE q.job_id=j.id AND q.provider_company_id=$1::uuid), \
          'invited',EXISTS(SELECT 1 FROM job_invitations i WHERE i.job_id=j.id AND i.provider_company_id=$1::uuid AND i.status='pending'))::text \
          FROM jobs j JOIN companies c ON c.id=j.hiring_company_id WHERE j.hiring_company_id=$1::uuid \
@@ -464,7 +467,7 @@ async fn get_job(
     .await?;
     let hiring_company = parse_json(company_raw)?;
     let quotes = if a.hirer {
-        let sql = format!("SELECT (to_jsonb(q)||jsonb_build_object('company',{},'job_rating',(SELECT round(avg(rating)::numeric,1) FROM job_reviews WHERE reviewed_company_id=c.id),'job_review_count',(SELECT count(*) FROM job_reviews WHERE reviewed_company_id=c.id)))::text FROM job_quotes q JOIN companies c ON c.id=q.provider_company_id WHERE q.job_id=$1::uuid ORDER BY q.created_at DESC", company_json());
+        let sql = format!("SELECT (to_jsonb(q)||jsonb_build_object('company',{},'job_rating',(SELECT round(avg(rating)::numeric,1) FROM job_reviews WHERE reviewed_company_id=c.id),'job_review_count',(SELECT count(*) FROM job_reviews WHERE reviewed_company_id=c.id)))::text FROM job_quotes q JOIN companies c ON c.id=q.provider_company_id WHERE q.job_id=$1::uuid AND NOT q.upload_pending ORDER BY q.created_at DESC", company_json());
         let rows: Vec<String> = sqlx::query_scalar(&sql)
             .bind(&id)
             .fetch_all(&app.db)
@@ -499,9 +502,9 @@ async fn get_job(
     } else {
         None
     };
-    let updates = if a.hirer || a.chosen {
-        let rows: Vec<String> = sqlx::query_scalar("SELECT (to_jsonb(u)||jsonb_build_object('company_name',c.name))::text FROM job_updates u JOIN companies c ON c.id=u.company_id WHERE u.job_id=$1::uuid ORDER BY u.created_at DESC")
-            .bind(&id).fetch_all(&app.db).await?;
+    let updates = if actor.as_ref().and_then(|v| v.company.as_deref()).is_some() {
+        let rows: Vec<String> = sqlx::query_scalar("SELECT (to_jsonb(u)||jsonb_build_object('company_name',c.name,'created_at',COALESCE(u.published_at,u.created_at)))::text FROM job_updates u JOIN companies c ON c.id=u.company_id WHERE u.job_id=$1::uuid AND NOT u.upload_pending AND ($2::boolean OR u.provider_company_id=$3::uuid) ORDER BY u.published_at DESC NULLS LAST,u.created_at DESC,u.id DESC")
+            .bind(&id).bind(a.hirer).bind(actor.as_ref().and_then(|v|v.company.as_deref())).fetch_all(&app.db).await?;
         rows.into_iter()
             .map(parse_json)
             .collect::<Result<Vec<_>>>()?
@@ -519,18 +522,32 @@ async fn get_job(
     };
     let files = if actor.as_ref().and_then(|v| v.company.as_deref()).is_some() {
         let rows: Vec<String> = sqlx::query_scalar(
-            "SELECT (to_jsonb(f)-'storage_key'||jsonb_build_object('provider_company_id',q.provider_company_id))::text \
-             FROM job_files f LEFT JOIN job_quotes q ON q.id=f.quote_id WHERE f.job_id=$1::uuid \
+            "SELECT (to_jsonb(f)-'storage_key'||jsonb_build_object('provider_company_id',COALESCE(q.provider_company_id,u.provider_company_id)))::text \
+             FROM job_files f LEFT JOIN job_quotes q ON q.id=f.quote_id LEFT JOIN job_updates u ON u.id=f.update_id WHERE f.job_id=$1::uuid AND f.provider_company_id IS NULL \
              AND ((f.quote_id IS NULL AND f.update_id IS NULL) \
-              OR (f.quote_id IS NOT NULL AND ($2::uuid=(SELECT hiring_company_id FROM jobs WHERE id=$1::uuid) OR q.provider_company_id=$2::uuid)) \
-              OR (f.update_id IS NOT NULL AND $3::boolean)) ORDER BY f.created_at DESC")
-            .bind(&id).bind(actor.as_ref().and_then(|a| a.company.as_deref())).bind(a.hirer || a.chosen).fetch_all(&app.db).await?;
+              OR (f.quote_id IS NOT NULL AND (NOT q.upload_pending OR q.provider_company_id=$2::uuid) AND EXISTS(SELECT 1 FROM job_quote_version_files vf WHERE vf.file_id=f.id AND vf.quote_id=q.id AND vf.version=q.current_version) AND ($2::uuid=(SELECT hiring_company_id FROM jobs WHERE id=$1::uuid) OR q.provider_company_id=$2::uuid)) \
+              OR (f.update_id IS NOT NULL AND NOT u.upload_pending AND ($3::boolean OR u.provider_company_id=$2::uuid))) ORDER BY f.created_at DESC")
+            .bind(&id).bind(actor.as_ref().and_then(|a| a.company.as_deref())).bind(a.hirer).fetch_all(&app.db).await?;
         rows.into_iter()
             .map(parse_json)
             .collect::<Result<Vec<_>>>()?
     } else {
         vec![]
     };
+    let agreement = if a.hirer || a.chosen {
+        sqlx::query_scalar::<_, String>(
+            "SELECT row_to_json(g)::text FROM job_agreements g WHERE job_id=$1::uuid",
+        )
+        .bind(&id)
+        .fetch_optional(&app.db)
+        .await?
+        .map(parse_json)
+        .transpose()?
+    } else {
+        None
+    };
+    let payment_review =
+        (a.hirer || a.chosen) && quote_workflow::payment_review_needed(&app, &id).await?;
     let reviews = if job["status"] == "completed" {
         let rows: Vec<String> = sqlx::query_scalar(
             "SELECT row_to_json(r)::text FROM job_reviews r WHERE r.job_id=$1::uuid",
@@ -558,7 +575,7 @@ async fn get_job(
     };
     Ok(Json(
         json!({"conversations":conversations,"job":job,"hiringCompany":hiring_company,"quotes":quotes,"ownQuote":own_quote,
-        "selected":selected,"updates":updates,"paymentStages":stages,"files":files,"reviews":reviews,
+        "selected":selected,"agreement":agreement,"paymentStagesNeedReview":payment_review,"updates":updates,"paymentStages":stages,"files":files,"reviews":reviews,
         "permissions":{"hirer":a.hirer,"chosen":a.chosen,"invited":a.invited,"quoted":a.quoted}}),
     ))
 }
@@ -599,34 +616,177 @@ async fn upload_file(
     }
     let quote = query.get("quoteId").map(String::as_str);
     let update = query.get("updateId").map(String::as_str);
-    if quote.is_some() && update.is_some() {
+    let draft = query.get("messageDraftId").map(String::as_str);
+    if [quote.is_some(), update.is_some(), draft.is_some()]
+        .into_iter()
+        .filter(|v| *v)
+        .count()
+        > 1
+    {
         return Err(bad("Choose one attachment destination."));
     }
-    if let Some(qid) = quote {
-        checked_id(qid)?;
-        let owner: Option<String> = sqlx::query_scalar("SELECT provider_company_id::text FROM job_quotes WHERE id=$1::uuid AND job_id=$2::uuid AND status='submitted'")
-            .bind(qid).bind(&id).fetch_optional(&app.db).await?;
-        if owner.as_deref() != actor.company.as_deref() || a.status() != "open" {
+    let chat_contact = if draft.is_some() {
+        Some(
+            message_provider(
+                &app,
+                &a,
+                &actor,
+                query.get("providerId").map(String::as_str),
+                true,
+            )
+            .await?,
+        )
+    } else {
+        None
+    };
+    let mut tx = app.db.begin().await?;
+    let current=sqlx::query("SELECT j.status,COALESCE(j.quote_deadline<now(),false) AS expired,q.provider_company_id::text AS selected FROM jobs j LEFT JOIN job_quotes q ON q.id=j.chosen_quote_id WHERE j.id=$1::uuid FOR UPDATE OF j")
+        .bind(&id).fetch_one(&mut *tx).await?;
+    let status: String = current.get("status");
+    let upload_id = query.get("uploadId").map(String::as_str);
+    if let Some(uid) = upload_id {
+        checked_id(uid)?;
+    }
+    let content_hash = format!("{:x}", Sha256::digest(&body));
+    if let Some(uid) = upload_id {
+        let old=sqlx::query("SELECT id::text,job_id::text,quote_id::text,update_id::text,message_draft_id::text,company_id::text,original_name,mime_type,size_bytes,content_sha256,quote_version FROM job_files WHERE uploaded_by=$1::uuid AND client_upload_id=$2::uuid")
+            .bind(&actor.user).bind(uid).fetch_optional(&mut *tx).await?;
+        if let Some(old) = old {
+            let same = old.get::<String, _>("job_id") == id
+                && old.get::<Option<String>, _>("quote_id").as_deref() == quote
+                && old.get::<Option<String>, _>("update_id").as_deref() == update
+                && old.get::<Option<String>, _>("message_draft_id").as_deref() == draft
+                && Some(old.get::<String, _>("company_id").as_str()) == actor.company.as_deref()
+                && old.get::<String, _>("original_name") == name
+                && old.get::<Option<String>, _>("content_sha256").as_deref()
+                    == Some(content_hash.as_str())
+                && query
+                    .get("quoteVersion")
+                    .map(|v| v.parse::<i32>().ok())
+                    .flatten()
+                    .map(|v| Some(v) == old.get::<Option<i32>, _>("quote_version"))
+                    .unwrap_or(true);
+            if !same {
+                return Err(conflict(
+                    "This upload was already used for a different attachment.",
+                ));
+            }
+            return Ok((
+                StatusCode::CREATED,
+                Json(
+                    json!({"id":old.get::<String,_>("id"),"name":name,"mime":mime,"original_name":name,"mime_type":mime,"size_bytes":body.len(),"quote_version":old.get::<Option<i32>,_>("quote_version"),"duplicate":true}),
+                ),
+            ));
+        }
+    }
+    let mut message_provider_id = None;
+    let mut quote_version = None;
+    if let Some(draft) = draft {
+        checked_id(draft)?;
+        let contact = chat_contact.unwrap();
+        if contact.needs_start
+            && new_conversation_reason(&actor, &status, current.get("expired")).is_some()
+        {
             return Err(forbidden());
         }
+        if project_chat::status_reason(
+            &status,
+            current.get::<Option<String>, _>("selected").as_deref(),
+            &contact.provider,
+        )
+        .is_some()
+        {
+            return Err(forbidden());
+        }
+        let sent:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM job_messages WHERE author_id=$1::uuid AND sender_company_id=$2::uuid AND client_id=$3::uuid)")
+            .bind(&actor.user).bind(actor.company.as_deref()).bind(draft).fetch_one(&mut *tx).await?;
+        if sent {
+            return Err(conflict("This message has already been sent."));
+        }
+        let count:i64=sqlx::query_scalar("SELECT count(*) FROM job_files WHERE uploaded_by=$1::uuid AND message_draft_id=$2::uuid AND message_id IS NULL")
+            .bind(&actor.user).bind(draft).fetch_one(&mut *tx).await?;
+        if count >= 30 {
+            return Err(bad("Start a new message before attaching more files."));
+        }
+        message_provider_id = Some(contact.provider);
+    } else if let Some(qid) = quote {
+        checked_id(qid)?;
+        let row=sqlx::query("SELECT provider_company_id::text AS owner,current_version,status,upload_pending,expected_files FROM job_quotes WHERE id=$1::uuid AND job_id=$2::uuid")
+            .bind(qid).bind(&id).fetch_optional(&mut *tx).await?.ok_or_else(not_found)?;
+        if row.get::<String, _>("owner") != actor.company.as_deref().unwrap()
+            || status != "open"
+            || row.get::<String, _>("status") != "submitted"
+        {
+            return Err(forbidden());
+        }
+        let version: i32 = row.get("current_version");
+        let requested = query
+            .get("quoteVersion")
+            .map(|v| {
+                v.parse::<i32>()
+                    .map_err(|_| bad("Choose a valid quote version."))
+            })
+            .transpose()?;
+        if requested.unwrap_or(1) != version {
+            return Err(conflict(
+                "The quote has changed. Refresh it before attaching files.",
+            ));
+        }
+        if !row.get::<bool, _>("upload_pending") {
+            return Err(conflict(
+                "This quote is already published. Revise it to attach more files.",
+            ));
+        }
+        let count: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM job_files WHERE quote_id=$1::uuid AND quote_version=$2",
+        )
+        .bind(qid)
+        .bind(version)
+        .fetch_one(&mut *tx)
+        .await?;
+        if count >= row.get::<i32, _>("expected_files") as i64 {
+            return Err(conflict(
+                "All quote attachments are uploaded. Send the quote to finish.",
+            ));
+        }
+        quote_version = Some(version);
     } else if let Some(uid) = update {
         checked_id(uid)?;
         a.participant()?;
-        let owner: Option<String> = sqlx::query_scalar(
-            "SELECT company_id::text FROM job_updates WHERE id=$1::uuid AND job_id=$2::uuid",
-        )
-        .bind(uid)
-        .bind(&id)
-        .fetch_optional(&app.db)
-        .await?;
-        if owner.as_deref() != actor.company.as_deref() {
+        if !["in_progress", "review"].contains(&status.as_str()) {
             return Err(forbidden());
         }
-    } else if !a.hirer || !["open", "draft"].contains(&a.status()) {
+        let row=sqlx::query("SELECT company_id::text AS owner,provider_company_id::text AS provider,upload_pending,expected_files FROM job_updates WHERE id=$1::uuid AND job_id=$2::uuid")
+            .bind(uid).bind(&id).fetch_optional(&mut *tx).await?.ok_or_else(not_found)?;
+        if row.get::<String, _>("owner") != actor.company.as_deref().unwrap()
+            || row.get::<Option<String>, _>("provider")
+                != current.get::<Option<String>, _>("selected")
+        {
+            return Err(forbidden());
+        }
+        if !row.get::<bool, _>("upload_pending") {
+            return Err(conflict(
+                "This update is already shared. Add a new update for more files.",
+            ));
+        }
+        let count: i64 =
+            sqlx::query_scalar("SELECT count(*) FROM job_files WHERE update_id=$1::uuid")
+                .bind(uid)
+                .fetch_one(&mut *tx)
+                .await?;
+        if count >= row.get::<i32, _>("expected_files") as i64 {
+            return Err(conflict(
+                "All update attachments are uploaded. Share the update to finish.",
+            ));
+        }
+    } else if query.get("providerId").is_some()
+        || !a.hirer
+        || !["open", "draft"].contains(&status.as_str())
+    {
         return Err(forbidden());
     }
     let file_id: String = sqlx::query_scalar("SELECT gen_random_uuid()::text")
-        .fetch_one(&app.db)
+        .fetch_one(&mut *tx)
         .await?;
     let dir = app.uploads.join("jobs").join(&id);
     tokio::fs::create_dir_all(&dir).await.map_err(|_| {
@@ -654,16 +814,29 @@ async fn upload_file(
         )
     })?;
     let key = format!("jobs/{id}/{file_id}");
-    let saved = sqlx::query("INSERT INTO job_files(id,job_id,quote_id,update_id,company_id,uploaded_by,original_name,storage_backend,storage_key,mime_type,size_bytes) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5::uuid,$6::uuid,$7,'local',$8,$9,$10)")
+    let saved = sqlx::query("INSERT INTO job_files(id,job_id,quote_id,update_id,company_id,uploaded_by,original_name,storage_backend,storage_key,mime_type,size_bytes,provider_company_id,message_draft_id,quote_version,client_upload_id,content_sha256) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5::uuid,$6::uuid,$7,'local',$8,$9,$10,$11::uuid,$12::uuid,$13,$14::uuid,$15)")
         .bind(&file_id).bind(&id).bind(quote).bind(update).bind(actor.company.as_deref()).bind(&actor.user)
-        .bind(name).bind(&key).bind(mime).bind(body.len() as i64).execute(&app.db).await;
+        .bind(name).bind(&key).bind(mime).bind(body.len() as i64).bind(message_provider_id.as_deref()).bind(draft).bind(quote_version).bind(upload_id).bind(&content_hash).execute(&mut *tx).await;
     if let Err(error) = saved {
+        let _ = tokio::fs::remove_file(&file).await;
+        return Err(error.into());
+    }
+    if let (Some(quote), Some(version)) = (quote, quote_version) {
+        if let Err(error)=sqlx::query("INSERT INTO job_quote_version_files(quote_id,version,file_id) VALUES($1::uuid,$2,$3::uuid)")
+            .bind(quote).bind(version).bind(&file_id).execute(&mut *tx).await {
+            let _=tokio::fs::remove_file(&file).await;
+            return Err(error.into());
+        }
+    }
+    if let Err(error) = tx.commit().await {
         let _ = tokio::fs::remove_file(&file).await;
         return Err(error.into());
     }
     Ok((
         StatusCode::CREATED,
-        Json(json!({"id":file_id,"name":name,"mime":mime})),
+        Json(
+            json!({"id":file_id,"name":name,"mime":mime,"original_name":name,"mime_type":mime,"size_bytes":body.len(),"quote_version":quote_version}),
+        ),
     ))
 }
 async fn download_file(
@@ -674,16 +847,45 @@ async fn download_file(
 ) -> Result<Response> {
     let actor = company_actor(&app, &headers, false).await?;
     checked_id(&file_id)?;
-    let row = sqlx::query("SELECT f.job_id::text AS job_id,f.quote_id::text AS quote_id,f.update_id::text AS update_id,f.original_name,f.mime_type,f.storage_key,q.provider_company_id::text AS provider FROM job_files f LEFT JOIN job_quotes q ON q.id=f.quote_id WHERE f.id=$1::uuid")
+    let row = sqlx::query("SELECT f.job_id::text AS job_id,f.quote_id::text AS quote_id,f.update_id::text AS update_id,f.original_name,f.mime_type,f.storage_key,f.provider_company_id::text AS message_provider,f.message_id::text AS message_id,f.uploaded_by::text AS uploaded_by,f.company_id::text AS file_company_id,q.provider_company_id::text AS provider,u.provider_company_id::text AS update_provider,u.upload_pending AS update_pending,EXISTS(SELECT 1 FROM job_quote_publications p JOIN job_quote_version_files vf ON vf.quote_id=p.quote_id AND vf.version=p.version WHERE vf.file_id=f.id) AS quote_published FROM job_files f LEFT JOIN job_quotes q ON q.id=f.quote_id LEFT JOIN job_updates u ON u.id=f.update_id WHERE f.id=$1::uuid")
         .bind(&file_id).fetch_optional(&app.db).await?.ok_or_else(not_found)?;
     let job_id: String = row.get("job_id");
     let a = job_access(&app, &job_id, actor.company.as_deref()).await?;
+    let message_provider: Option<String> = row.get("message_provider");
+    if let Some(provider) = message_provider {
+        if row.get::<Option<String>, _>("message_id").is_none() {
+            if row.get::<String, _>("uploaded_by") != actor.user
+                || Some(row.get::<String, _>("file_company_id").as_str())
+                    != actor.company.as_deref()
+            {
+                return Err(not_found());
+            }
+        } else if !a.hirer && actor.company.as_deref() != Some(provider.as_str()) {
+            return Err(not_found());
+        }
+    }
     let provider: Option<String> = row.get("provider");
     if provider.is_some() && !a.hirer && provider.as_deref() != actor.company.as_deref() {
         return Err(not_found());
     }
-    if row.get::<Option<String>, _>("update_id").is_some() && !a.hirer && !a.chosen {
+    if row.get::<Option<String>, _>("quote_id").is_some()
+        && !row.get::<bool, _>("quote_published")
+        && provider.as_deref() != actor.company.as_deref()
+    {
         return Err(not_found());
+    }
+    if row.get::<Option<String>, _>("update_id").is_some() {
+        if !a.hirer
+            && row.get::<Option<String>, _>("update_provider").as_deref()
+                != actor.company.as_deref()
+        {
+            return Err(not_found());
+        }
+        if row.get::<Option<bool>, _>("update_pending") == Some(true)
+            && Some(row.get::<String, _>("file_company_id").as_str()) != actor.company.as_deref()
+        {
+            return Err(not_found());
+        }
     }
     let key: String = row.get("storage_key");
     if !key.starts_with(&format!("jobs/{job_id}/")) || key.contains("..") {
@@ -701,6 +903,8 @@ async fn download_file(
     Ok((
         [
             (header::CONTENT_TYPE, mime),
+            (header::CACHE_CONTROL, "private, no-store".to_owned()),
+            (header::X_CONTENT_TYPE_OPTIONS, "nosniff".to_owned()),
             (
                 header::CONTENT_DISPOSITION,
                 format!(
@@ -802,18 +1006,24 @@ async fn job_inbox(
           UNION SELECT job_id,provider_company_id FROM job_invitations WHERE provider_company_id=$1::uuid OR job_id IN (SELECT id FROM jobs WHERE hiring_company_id=$1::uuid)
         )
         SELECT json_build_object('job_id',j.id,'title',j.title,'status',j.status,
-          'provider_id',t.provider_company_id,'company',{},'body',m.body,
-          'sender_company_id',m.sender_company_id,'unread_count',unread.total,
-          'updated_at',COALESCE(m.created_at,j.updated_at))::text
+          'provider_id',t.provider_company_id,'company',{},'body',CASE WHEN e.created_at>COALESCE(m.created_at,'epoch') THEN COALESCE(NULLIF(e.body,''),CASE e.kind WHEN 'quote_submitted' THEN 'Quote received' WHEN 'quote_revised' THEN 'Updated quote received' WHEN 'quote_changes_requested' THEN 'Quote changes requested' WHEN 'quote_declined' THEN 'Quote declined' WHEN 'quote_withdrawn' THEN 'Quote withdrawn' WHEN 'company_chosen' THEN 'Company chosen — confirmation needed' WHEN 'not_chosen' THEN 'Another company was chosen' WHEN 'award_accepted' THEN 'Job confirmed — ready to start' WHEN 'award_declined' THEN 'Selection declined' WHEN 'change_proposed' THEN 'Change requested' WHEN 'change_accepted' THEN 'Change accepted' WHEN 'change_declined' THEN 'Change declined' ELSE replace(initcap(e.kind),'_',' ') END) ELSE COALESCE(NULLIF(m.body,''),CASE WHEN m.id IS NOT NULL THEN 'Attachment' END) END,
+          'quote_status',quote.status,'hiring_company_id',j.hiring_company_id,
+          'sender_company_id',CASE WHEN e.created_at>COALESCE(m.created_at,'epoch') THEN NULL ELSE m.sender_company_id END,
+          'preview_kind',CASE WHEN e.created_at>COALESCE(m.created_at,'epoch') THEN 'event' ELSE 'message' END,
+          'unread_count',unread.total+workflow_unread.total,
+          'updated_at',GREATEST(m.created_at,e.created_at,j.updated_at))::text
         FROM threads t JOIN jobs j ON j.id=t.job_id
         JOIN companies c ON c.id=CASE WHEN j.hiring_company_id=$1::uuid THEN t.provider_company_id ELSE j.hiring_company_id END
-        LEFT JOIN LATERAL (SELECT body,created_at,sender_company_id FROM job_messages WHERE job_id=j.id AND provider_company_id=t.provider_company_id ORDER BY created_at DESC,id DESC LIMIT 1) m ON true
+        LEFT JOIN job_quotes quote ON quote.job_id=j.id AND quote.provider_company_id=t.provider_company_id
+        LEFT JOIN LATERAL (SELECT body,kind,created_at FROM job_conversation_events WHERE job_id=j.id AND provider_company_id=t.provider_company_id ORDER BY created_at DESC,id DESC LIMIT 1) e ON true
+        LEFT JOIN LATERAL (SELECT id,body,created_at,sender_company_id FROM job_messages WHERE job_id=j.id AND provider_company_id=t.provider_company_id ORDER BY created_at DESC,id DESC LIMIT 1) m ON true
         LEFT JOIN job_message_reads r ON r.job_id=j.id AND r.provider_company_id=t.provider_company_id AND r.company_id=$1::uuid AND r.user_id=$4::uuid
         CROSS JOIN LATERAL (SELECT count(*) AS total FROM job_messages um WHERE um.job_id=j.id AND um.provider_company_id=t.provider_company_id AND um.sender_company_id<>$1::uuid AND (r.user_id IS NULL OR (um.created_at,um.id)>(r.last_read_at,r.last_read_message_id))) unread
+        CROSS JOIN LATERAL (SELECT count(*) AS total FROM user_notifications wn JOIN job_conversation_events we ON wn.event_key='job-event:'||we.id::text WHERE wn.user_id=$4::uuid AND wn.company_id=$1::uuid AND wn.read_at IS NULL AND wn.expires_at>now() AND we.job_id=j.id AND we.provider_company_id=t.provider_company_id AND (wn.category<>'requests' OR EXISTS(SELECT 1 FROM memberships wm WHERE wm.user_id=$4::uuid AND wm.company_id=$1::uuid AND wm.role IN('owner','admin')))) workflow_unread
         WHERE (j.hiring_company_id=$1::uuid OR t.provider_company_id=$1::uuid)
           AND (j.title ILIKE $2 OR c.name ILIKE $2)
-          AND (NOT $5::boolean OR unread.total>0)
-        ORDER BY COALESCE(m.created_at,j.updated_at) DESC,j.id,t.provider_company_id
+          AND (NOT $5::boolean OR unread.total+workflow_unread.total>0)
+        ORDER BY GREATEST(m.created_at,e.created_at,j.updated_at) DESC,j.id,t.provider_company_id
         LIMIT 51 OFFSET $3
     "#,
         company_json()
@@ -871,10 +1081,14 @@ async fn job_activity(
             "Already sent. Give the other company a moment to respond.",
         ));
     }
-    let update_id: String = sqlx::query_scalar("INSERT INTO job_updates(job_id,company_id,author_id,kind,body) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5) RETURNING id::text")
-        .bind(&id).bind(actor.company.as_deref()).bind(&actor.user).bind(kind).bind(text).fetch_one(&mut *tx).await?;
+    let provider: String = sqlx::query_scalar("SELECT q.provider_company_id::text FROM jobs j JOIN job_quotes q ON q.id=j.chosen_quote_id WHERE j.id=$1::uuid").bind(&id).fetch_one(&mut *tx).await?;
+    if !a.hirer && actor.company.as_deref() != Some(provider.as_str()) {
+        return Err(forbidden());
+    }
+    let update_id: String = sqlx::query_scalar("INSERT INTO job_updates(job_id,company_id,author_id,kind,body,provider_company_id) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5,$6::uuid) RETURNING id::text")
+        .bind(&id).bind(actor.company.as_deref()).bind(&actor.user).bind(kind).bind(text).bind(&provider).fetch_one(&mut *tx).await?;
     let target = if a.hirer {
-        selected_provider(&app, &id).await?
+        provider.clone()
     } else {
         a.hirer_id().to_owned()
     };
@@ -882,6 +1096,19 @@ async fn job_activity(
         .bind(&target).bind(actor.company.as_deref()).bind(&actor.user).bind(format!("job-activity:{update_id}"))
         .bind(if kind == "problem" { "Problem reported on a job" } else { "Job update requested" })
         .bind(text).bind(format!("/jobs/{id}")).bind(&id).execute(&mut *tx).await?;
+    quote_workflow::event(
+        &mut tx,
+        &id,
+        &provider,
+        &actor,
+        kind,
+        text,
+        None,
+        None,
+        Some(&update_id),
+        None,
+    )
+    .await?;
     tx.commit().await?;
     Ok((StatusCode::CREATED, Json(json!({"id":update_id}))))
 }
@@ -982,11 +1209,17 @@ async fn quote_messages(
     }
     let comparison = if after.is_some() { ">" } else { "<" };
     let order = if after.is_some() { "ASC" } else { "DESC" };
-    let sql = format!("SELECT (to_jsonb(m)||jsonb_build_object('sender_name',c.name,'author_name',u.name))::text FROM job_messages m JOIN companies c ON c.id=m.sender_company_id JOIN users u ON u.id=m.author_id WHERE m.job_id=$1::uuid AND m.provider_company_id=$2::uuid AND ($3::uuid IS NULL OR (m.created_at,m.id) {comparison} (SELECT created_at,id FROM job_messages WHERE id=$3::uuid)) ORDER BY m.created_at {order},m.id {order} LIMIT 51");
+    let search = query
+        .get("q")
+        .map(|v| v.chars().take(160).collect::<String>())
+        .unwrap_or_default();
+    let sql = format!("SELECT {}::text FROM job_messages m JOIN companies c ON c.id=m.sender_company_id JOIN users u ON u.id=m.author_id WHERE m.job_id=$1::uuid AND m.provider_company_id=$2::uuid AND ($3::uuid IS NULL OR (m.created_at,m.id) {comparison} (SELECT created_at,id FROM job_messages WHERE id=$3::uuid)) AND ($5='' OR m.body ILIKE '%'||$5||'%' OR EXISTS(SELECT 1 FROM job_files sf WHERE sf.message_id=m.id AND sf.original_name ILIKE '%'||$5||'%')) ORDER BY m.created_at {order},m.id {order} LIMIT 51",project_chat::message_json(4));
     let mut rows: Vec<String> = sqlx::query_scalar(&sql)
         .bind(&id)
         .bind(&provider)
         .bind(cursor)
+        .bind(&actor.user)
+        .bind(&search)
         .fetch_all(&app.db)
         .await?;
     let more = rows.len() > 50;
@@ -994,6 +1227,10 @@ async fn quote_messages(
     if after.is_none() {
         rows.reverse();
     }
+    let pinned: Vec<String> = sqlx::query_scalar(&format!("SELECT {}::text FROM job_messages m JOIN companies c ON c.id=m.sender_company_id JOIN users u ON u.id=m.author_id WHERE m.job_id=$1::uuid AND m.provider_company_id=$2::uuid AND m.pinned_at IS NOT NULL ORDER BY m.pinned_at DESC LIMIT 10",project_chat::message_json(3)))
+        .bind(&id).bind(&provider).bind(&actor.user).fetch_all(&app.db).await?;
+    let events: Vec<String> = sqlx::query_scalar("SELECT (to_jsonb(e)||jsonb_build_object('author_name',u.name,'company_name',c.name))::text FROM job_conversation_events e LEFT JOIN users u ON u.id=e.actor_id LEFT JOIN companies c ON c.id=e.company_id WHERE e.job_id=$1::uuid AND e.provider_company_id=$2::uuid ORDER BY e.created_at DESC,e.id DESC LIMIT 100")
+        .bind(&id).bind(&provider).fetch_all(&app.db).await?;
     let recipient = if a.hirer {
         provider.as_str()
     } else {
@@ -1010,13 +1247,13 @@ async fn quote_messages(
         .bind(&id).bind(&provider).fetch_one(&app.db).await?;
     let reason = if contact.needs_start {
         new_conversation_reason(&actor, a.status(), context.get("expired"))
-    } else if a.status() != "open" && !a.hirer && !a.chosen {
-        Some("This job is no longer accepting messages from your company.")
     } else {
-        None
+        project_chat::sending_reason(&app, &id, &provider).await?
     };
     Ok(Json(json!({
         "messages":rows.into_iter().map(parse_json).collect::<Result<Vec<_>>>()?,
+        "pinnedMessages":pinned.into_iter().map(parse_json).collect::<Result<Vec<_>>>()?,
+        "events":events.into_iter().map(parse_json).collect::<Result<Vec<_>>>()?,
         "hasOlder":after.is_none() && more,"hasNewer":after.is_some() && more,
         "conversation":{"company":parse_json(company)?,"needsStart":contact.needs_start,
             "canSend":reason.is_none(),"reason":reason,"invited":context.get::<bool,_>("invited")}
@@ -1059,15 +1296,11 @@ async fn send_message(
 ) -> Result<(StatusCode, Json<Value>)> {
     let actor = company_actor(&app, &headers, false).await?;
     let a = job_access(&app, &id, actor.company.as_deref()).await?;
-    if a.status() != "open" && !a.hirer && !a.chosen {
-        return Err(forbidden());
-    }
-    let text = required_text(&body, "body", 1, 5000)?;
+    let text = optional_text(&body, "body", 5000)?;
     let start_conversation = body
         .get("startConversation")
-        .map(|value| {
-            value
-                .as_bool()
+        .map(|v| {
+            v.as_bool()
                 .ok_or_else(|| bad("Check the conversation request."))
         })
         .transpose()?
@@ -1085,13 +1318,39 @@ async fn send_message(
         .get("clientId")
         .map(|v| checked_id(v.as_str().unwrap_or("")))
         .transpose()?;
+    let reply = body
+        .get("replyTo")
+        .filter(|v| !v.is_null())
+        .map(|v| checked_id(v.as_str().unwrap_or("")))
+        .transpose()?;
+    let mut files = match body.get("fileIds") {
+        None => Vec::new(),
+        Some(Value::Array(values)) if values.len() <= 10 => values
+            .iter()
+            .map(|v| checked_id(v.as_str().unwrap_or("")).map(str::to_owned))
+            .collect::<Result<Vec<_>>>()?,
+        _ => return Err(bad("Attach up to 10 files.")),
+    };
+    files.sort();
+    if files.windows(2).any(|p| p[0] == p[1]) {
+        return Err(bad("An attachment was added twice."));
+    }
+    if text.is_empty() && files.is_empty() {
+        return Err(bad("Write a message or attach a file."));
+    }
+    if !files.is_empty() && client.is_none() {
+        return Err(bad("Add a send identifier for these attachments."));
+    }
     let mut tx = app.db.begin().await?;
+    // Serializes sending with choosing/closing a job; neither side can write into a losing thread.
+    let current=sqlx::query("SELECT j.status,COALESCE(j.quote_deadline<now(),false) AS expired,q.provider_company_id::text AS selected FROM jobs j LEFT JOIN job_quotes q ON q.id=j.chosen_quote_id WHERE j.id=$1::uuid FOR UPDATE OF j")
+        .bind(&id).fetch_one(&mut *tx).await?;
     if contact.needs_start {
-        let job = sqlx::query("SELECT status,COALESCE(quote_deadline<now(),false) AS expired FROM jobs WHERE id=$1::uuid FOR UPDATE")
-            .bind(&id).fetch_one(&mut *tx).await?;
-        if let Some(reason) =
-            new_conversation_reason(&actor, &job.get::<String, _>("status"), job.get("expired"))
-        {
+        if let Some(reason) = new_conversation_reason(
+            &actor,
+            &current.get::<String, _>("status"),
+            current.get("expired"),
+        ) {
             return Err(
                 if matches!(actor.role.as_deref(), Some("owner" | "admin")) {
                     conflict(reason)
@@ -1101,22 +1360,66 @@ async fn send_message(
             );
         }
     }
-    let inserted: Option<String> = sqlx::query_scalar("INSERT INTO job_messages(job_id,provider_company_id,sender_company_id,author_id,body,client_id) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6::uuid) ON CONFLICT(author_id,sender_company_id,client_id) WHERE client_id IS NOT NULL DO NOTHING RETURNING id::text")
-        .bind(&id).bind(&provider).bind(actor.company.as_deref()).bind(&actor.user).bind(text).bind(client).fetch_optional(&mut *tx).await?;
+    if project_chat::status_reason(
+        &current.get::<String, _>("status"),
+        current.get::<Option<String>, _>("selected").as_deref(),
+        &provider,
+    )
+    .is_some()
+    {
+        return Err(forbidden());
+    }
+    if let Some(reply) = reply {
+        let exists:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM job_messages WHERE id=$1::uuid AND job_id=$2::uuid AND provider_company_id=$3::uuid)")
+            .bind(reply).bind(&id).bind(&provider).fetch_one(&mut *tx).await?;
+        if !exists {
+            return Err(not_found());
+        }
+    }
+    let inserted:Option<String>=sqlx::query_scalar("INSERT INTO job_messages(job_id,provider_company_id,sender_company_id,author_id,body,client_id,reply_to) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6::uuid,$7::uuid) ON CONFLICT(author_id,sender_company_id,client_id) WHERE client_id IS NOT NULL DO NOTHING RETURNING id::text")
+        .bind(&id).bind(&provider).bind(actor.company.as_deref()).bind(&actor.user).bind(text).bind(client).bind(reply).fetch_optional(&mut *tx).await?;
     let duplicate = inserted.is_none();
-    let message_id = match inserted {
-        Some(value) => value,
-        None => sqlx::query_scalar::<_,String>("SELECT id::text FROM job_messages WHERE author_id=$1::uuid AND sender_company_id=$2::uuid AND client_id=$3::uuid AND job_id=$4::uuid AND provider_company_id=$5::uuid AND body=$6")
-            .bind(&actor.user).bind(actor.company.as_deref()).bind(client).bind(&id).bind(&provider).bind(text).fetch_optional(&mut *tx).await?.ok_or_else(|| conflict("This send was already used for a different message."))?,
+    let message_id=match inserted {
+        Some(value)=>value,
+        None=>sqlx::query_scalar::<_,String>("SELECT id::text FROM job_messages WHERE author_id=$1::uuid AND sender_company_id=$2::uuid AND client_id=$3::uuid AND job_id=$4::uuid AND provider_company_id=$5::uuid AND body=$6 AND reply_to IS NOT DISTINCT FROM $7::uuid")
+            .bind(&actor.user).bind(actor.company.as_deref()).bind(client).bind(&id).bind(&provider).bind(text).bind(reply).fetch_optional(&mut *tx).await?.ok_or_else(||conflict("This send was already used for a different message."))?,
     };
-    if !duplicate {
-        let target = if a.hirer { &provider } else { a.hirer_id() };
+    if duplicate {
+        let old_files: Vec<String> = sqlx::query_scalar(
+            "SELECT id::text FROM job_files WHERE message_id=$1::uuid ORDER BY id::text",
+        )
+        .bind(&message_id)
+        .fetch_all(&mut *tx)
+        .await?;
+        if old_files != files {
+            return Err(conflict(
+                "This send was already used for different attachments.",
+            ));
+        }
+    } else {
+        let attached=sqlx::query("UPDATE job_files SET message_id=$1::uuid WHERE id::text=ANY($2::text[]) AND job_id=$3::uuid AND provider_company_id=$4::uuid AND uploaded_by=$5::uuid AND company_id=$6::uuid AND message_draft_id=$7::uuid AND message_id IS NULL")
+            .bind(&message_id).bind(&files).bind(&id).bind(&provider).bind(&actor.user).bind(actor.company.as_deref()).bind(client).execute(&mut *tx).await?.rows_affected();
+        if attached != files.len() as u64 {
+            return Err(bad(
+                "These attachments belong to another message. Attach them again.",
+            ));
+        }
+        let target = if a.hirer {
+            provider.as_str()
+        } else {
+            a.hirer_id()
+        };
+        let preview = if text.is_empty() {
+            "Sent an attachment"
+        } else {
+            text
+        };
         sqlx::query("SELECT connect_notify($1::uuid,NULL,$2::uuid,$3::uuid,$4,'job','messages',$5,$6,$7,'job',$8::uuid)")
             .bind(target).bind(actor.company.as_deref()).bind(&actor.user).bind(format!("job-message:{message_id}"))
-            .bind("New job message").bind(text).bind(format!("/jobs/inbox?job={id}&provider={provider}")).bind(&id).execute(&mut *tx).await?;
+            .bind("New job message").bind(preview).bind(format!("/jobs/inbox?job={id}&provider={provider}")).bind(&id).execute(&mut *tx).await?;
     }
-    let raw: String = sqlx::query_scalar("SELECT (to_jsonb(m)||jsonb_build_object('sender_name',c.name,'author_name',u.name))::text FROM job_messages m JOIN companies c ON c.id=m.sender_company_id JOIN users u ON u.id=m.author_id WHERE m.id=$1::uuid")
-        .bind(&message_id).fetch_one(&mut *tx).await?;
+    let raw:String=sqlx::query_scalar(&format!("SELECT {}::text FROM job_messages m JOIN companies c ON c.id=m.sender_company_id JOIN users u ON u.id=m.author_id WHERE m.id=$1::uuid",project_chat::message_json(2)))
+        .bind(&message_id).bind(&actor.user).fetch_one(&mut *tx).await?;
     tx.commit().await?;
     Ok((
         if duplicate {
@@ -1160,14 +1463,27 @@ async fn set_payment_stages(
             .checked_add(amount)
             .ok_or_else(|| bad("Payment total is too large."))?;
     }
-    let expected: i64 = sqlx::query_scalar("SELECT amount_cents FROM job_quotes WHERE id=$1::uuid")
-        .bind(a.job["chosen_quote_id"].as_str())
-        .fetch_one(&app.db)
-        .await?;
-    if total != expected {
-        return Err(bad("Payment stages must add up to the chosen quote."));
-    }
     let mut tx = app.db.begin().await?;
+    let current: String =
+        sqlx::query_scalar("SELECT status FROM jobs WHERE id=$1::uuid FOR UPDATE")
+            .bind(&id)
+            .fetch_one(&mut *tx)
+            .await?;
+    if !["awarded", "in_progress"].contains(&current.as_str()) {
+        return Err(conflict(
+            "The job has changed. Review it before setting payment stages.",
+        ));
+    }
+    let expected: i64 =
+        sqlx::query_scalar("SELECT amount_cents FROM job_agreements WHERE job_id=$1::uuid")
+            .bind(&id)
+            .fetch_one(&mut *tx)
+            .await?;
+    if total != expected {
+        return Err(bad(
+            "Payment stages must add up to the current agreed price.",
+        ));
+    }
     let changed: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM job_payment_stages WHERE job_id=$1::uuid AND status<>'planned')")
         .bind(&id).fetch_one(&mut *tx).await?;
     if changed {
@@ -1204,11 +1520,29 @@ async fn advance_payment(
         "confirmed_received" if a.chosen => ("reported_paid", "confirmed_received"),
         _ => return Err(forbidden()),
     };
+    let mut tx = app.db.begin().await?;
+    let current = sqlx::query("SELECT j.status,q.provider_company_id::text AS provider FROM jobs j LEFT JOIN job_quotes q ON q.id=j.chosen_quote_id WHERE j.id=$1::uuid FOR UPDATE OF j").bind(&job_id).fetch_one(&mut *tx).await?;
+    if !["awarded", "in_progress", "review", "completed"]
+        .contains(&current.get::<String, _>("status").as_str())
+        || (!a.hirer
+            && current.get::<Option<String>, _>("provider").as_deref() != actor.company.as_deref())
+    {
+        return Err(conflict(
+            "This job is no longer available for payment updates.",
+        ));
+    }
+    let balanced: bool = sqlx::query_scalar("SELECT g.amount_cents=(SELECT COALESCE(sum(amount_cents),0) FROM job_payment_stages WHERE job_id=$1::uuid) FROM job_agreements g WHERE g.job_id=$1::uuid").bind(&job_id).fetch_one(&mut *tx).await?;
+    if !balanced {
+        return Err(conflict(
+            "The agreed price changed. Ask the hiring company to update payment stages first.",
+        ));
+    }
     let affected = sqlx::query("UPDATE job_payment_stages SET status=$1,invoice_reference=CASE WHEN $1='invoiced' THEN $2 ELSE invoice_reference END,updated_at=now() WHERE id=$3::uuid AND job_id=$4::uuid AND status=$5")
-        .bind(new).bind(reference).bind(&stage_id).bind(&job_id).bind(old).execute(&app.db).await?.rows_affected();
+        .bind(new).bind(reference).bind(&stage_id).bind(&job_id).bind(old).execute(&mut *tx).await?.rows_affected();
     if affected == 0 {
         return Err(conflict("Payment status changed. Refresh and try again."));
     }
+    tx.commit().await?;
     let target = if a.hirer {
         selected_provider(&app, &job_id).await?
     } else {
@@ -1588,199 +1922,6 @@ async fn edit_job(
     Ok(Json(json!({"id":id})))
 }
 
-async fn send_quote(
-    State(app): State<Arc<App>>,
-    headers: HeaderMap,
-    Path(id): Path<String>,
-    Json(body): Json<Value>,
-) -> Result<Json<Value>> {
-    let actor = company_actor(&app, &headers, true).await?;
-    let company = actor.company.as_deref().unwrap();
-    checked_id(&id)?;
-    let amount = body["amountCents"]
-        .as_i64()
-        .ok_or_else(|| bad("Enter your quote amount."))?;
-    if !(1..=100_000_000_000).contains(&amount) {
-        return Err(bad("Enter a valid quote amount."));
-    }
-    let note = required_text(&body, "note", 10, 5000)?;
-    let start = optional_text(&body, "startWindow", 120)?;
-    let duration = optional_text(&body, "duration", 120)?;
-    let included = optional_text(&body, "included", 5000)?;
-    let excluded = optional_text(&body, "excluded", 5000)?;
-    let payment = optional_text(&body, "paymentTerms", 2000)?;
-    let breakdown = parse_breakdown(&body, amount)?;
-    let mut tx = app.db.begin().await?;
-    let job = sqlx::query("SELECT j.hiring_company_id::text AS hirer,j.title,j.status,j.visibility,COALESCE(j.quote_deadline<now(),false) AS expired FROM jobs j WHERE j.id=$1::uuid FOR UPDATE OF j")
-        .bind(&id).fetch_optional(&mut *tx).await?.ok_or_else(not_found)?;
-    let hirer: String = job.get("hirer");
-    if hirer == company {
-        return Err(forbidden());
-    }
-    let expired: bool = job.get("expired");
-    if job.get::<String, _>("status") != "open" || expired {
-        return Err(conflict("This job is no longer accepting quotes."));
-    }
-    if job.get::<String, _>("visibility") == "invite_only" {
-        let invited: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM job_invitations WHERE job_id=$1::uuid AND provider_company_id=$2::uuid AND status='pending')")
-            .bind(&id).bind(company).fetch_one(&mut *tx).await?;
-        if !invited {
-            return Err(forbidden());
-        }
-    }
-    let quote_id: Option<String> = sqlx::query_scalar(
-        "INSERT INTO job_quotes(job_id,provider_company_id,author_id,amount_cents,start_window,duration,note,included,excluded,payment_terms,price_breakdown)\
-         VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5,$6,$7,$8,$9,$10,$11::jsonb)\
-         ON CONFLICT(job_id,provider_company_id) DO UPDATE SET amount_cents=$4,start_window=$5,duration=$6,note=$7,\
-         included=$8,excluded=$9,payment_terms=$10,price_breakdown=$11::jsonb,status='submitted',updated_at=now()\
-         WHERE job_quotes.status IN ('submitted','withdrawn') RETURNING id::text")
-        .bind(&id).bind(company).bind(&actor.user).bind(amount).bind(start).bind(duration).bind(note)
-        .bind(included).bind(excluded).bind(payment).bind(breakdown.to_string()).fetch_optional(&mut *tx).await?;
-    let quote_id = quote_id.ok_or_else(|| conflict("This quote can no longer be changed."))?;
-    sqlx::query("UPDATE jobs SET updated_at=now() WHERE id=$1::uuid")
-        .bind(&id)
-        .execute(&mut *tx)
-        .await?;
-    tx.commit().await?;
-    notify(
-        &app,
-        &hirer,
-        &actor,
-        &format!("job-quote:{quote_id}:{}", chrono_stamp()),
-        "New quote received",
-        &job.get::<String, _>("title"),
-        &id,
-    )
-    .await?;
-    Ok(Json(json!({"id":quote_id})))
-}
-
-fn chrono_stamp() -> u128 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis()
-}
-
-async fn choose_company(
-    State(app): State<Arc<App>>,
-    headers: HeaderMap,
-    Path(id): Path<String>,
-    Json(body): Json<Value>,
-) -> Result<Json<Value>> {
-    let actor = company_actor(&app, &headers, true).await?;
-    let qid = required_text(&body, "quoteId", 36, 36)?;
-    checked_id(qid)?;
-    checked_id(&id)?;
-    let mut tx = app.db.begin().await?;
-    let job = sqlx::query("SELECT hiring_company_id::text AS hirer,title,status FROM jobs WHERE id=$1::uuid FOR UPDATE")
-        .bind(&id).fetch_optional(&mut *tx).await?.ok_or_else(not_found)?;
-    if job.get::<String, _>("hirer") != actor.company.as_deref().unwrap() {
-        return Err(forbidden());
-    }
-    if job.get::<String, _>("status") != "open" {
-        return Err(conflict("This job cannot choose a company."));
-    }
-    let provider: String = sqlx::query_scalar("SELECT provider_company_id::text FROM job_quotes WHERE id=$1::uuid AND job_id=$2::uuid AND status='submitted'")
-        .bind(qid).bind(&id).fetch_optional(&mut *tx).await?.ok_or_else(not_found)?;
-    sqlx::query("UPDATE jobs SET status='awarded',chosen_quote_id=$1::uuid,updated_at=now() WHERE id=$2::uuid")
-        .bind(qid).bind(&id).execute(&mut *tx).await?;
-    sqlx::query("UPDATE job_quotes SET status=CASE WHEN id=$1::uuid THEN 'chosen' ELSE 'not_chosen' END,updated_at=now() WHERE job_id=$2::uuid AND status='submitted'")
-        .bind(qid).bind(&id).execute(&mut *tx).await?;
-    tx.commit().await?;
-    notify(
-        &app,
-        &provider,
-        &actor,
-        &format!("job-chosen:{id}"),
-        "Your quote was chosen",
-        &job.get::<String, _>("title"),
-        &id,
-    )
-    .await?;
-    Ok(Json(json!({"ok":true})))
-}
-
-async fn confirm_job(
-    State(app): State<Arc<App>>,
-    headers: HeaderMap,
-    Path(id): Path<String>,
-) -> Result<Json<Value>> {
-    let actor = company_actor(&app, &headers, true).await?;
-    checked_id(&id)?;
-    let row = sqlx::query("UPDATE jobs j SET status='in_progress',updated_at=now() FROM job_quotes q WHERE j.id=$1::uuid AND j.status='awarded' AND q.id=j.chosen_quote_id AND q.provider_company_id=$2::uuid RETURNING j.hiring_company_id::text AS hirer,j.title")
-        .bind(&id).bind(actor.company.as_deref()).fetch_optional(&app.db).await?.ok_or_else(|| conflict("This job is not awaiting your confirmation."))?;
-    notify(
-        &app,
-        &row.get::<String, _>("hirer"),
-        &actor,
-        &format!("job-confirmed:{id}"),
-        "Work confirmed",
-        &row.get::<String, _>("title"),
-        &id,
-    )
-    .await?;
-    Ok(Json(json!({"ok":true})))
-}
-
-async fn add_update(
-    State(app): State<Arc<App>>,
-    headers: HeaderMap,
-    Path(id): Path<String>,
-    Json(body): Json<Value>,
-) -> Result<(StatusCode, Json<Value>)> {
-    let actor = company_actor(&app, &headers, false).await?;
-    let kind = required_text(&body, "kind", 1, 30)?;
-    if !["progress", "completion"].contains(&kind) {
-        return Err(bad("Choose an update type."));
-    }
-    let text = required_text(&body, "body", 1, 5000)?;
-    let a = job_access(&app, &id, actor.company.as_deref()).await?;
-    a.participant()?;
-    if a.status() != "in_progress" {
-        return Err(conflict("This job is not in progress."));
-    }
-    if kind == "completion" && !a.chosen {
-        return Err(forbidden());
-    }
-    let mut tx = app.db.begin().await?;
-    let status: String = sqlx::query_scalar("SELECT status FROM jobs WHERE id=$1::uuid FOR UPDATE")
-        .bind(&id)
-        .fetch_one(&mut *tx)
-        .await?;
-    if status != "in_progress" {
-        return Err(conflict("This job has changed. Refresh it and try again."));
-    }
-    let update_id: String = sqlx::query_scalar("INSERT INTO job_updates(job_id,company_id,author_id,kind,body) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5) RETURNING id::text")
-        .bind(&id).bind(actor.company.as_deref()).bind(&actor.user).bind(kind).bind(text).fetch_one(&mut *tx).await?;
-    if kind == "completion" {
-        sqlx::query("UPDATE jobs SET status='review',updated_at=now() WHERE id=$1::uuid")
-            .bind(&id)
-            .execute(&mut *tx)
-            .await?;
-    }
-    tx.commit().await?;
-    let target = if a.hirer {
-        selected_provider(&app, &id).await?
-    } else {
-        a.hirer_id().to_owned()
-    };
-    notify(
-        &app,
-        &target,
-        &actor,
-        &format!("job-update:{update_id}"),
-        if kind == "completion" {
-            "Work ready for review"
-        } else {
-            "New job update"
-        },
-        text,
-        &id,
-    )
-    .await?;
-    Ok((StatusCode::CREATED, Json(json!({"id":update_id}))))
-}
 async fn selected_provider(app: &App, id: &str) -> Result<String> {
     sqlx::query_scalar("SELECT q.provider_company_id::text FROM jobs j JOIN job_quotes q ON q.id=j.chosen_quote_id WHERE j.id=$1::uuid")
         .bind(id).fetch_optional(&app.db).await?.ok_or_else(not_found)
@@ -1814,6 +1955,13 @@ async fn review_work(
     if current != "review" {
         return Err(conflict("This job has changed. Refresh it and try again."));
     }
+    let provider: String = sqlx::query_scalar("SELECT q.provider_company_id::text FROM jobs j JOIN job_quotes q ON q.id=j.chosen_quote_id WHERE j.id=$1::uuid").bind(&id).fetch_one(&mut *tx).await?;
+    let latest: Option<String> = sqlx::query_scalar("SELECT id::text FROM job_updates WHERE job_id=$1::uuid AND provider_company_id=$2::uuid AND kind='completion' AND NOT upload_pending ORDER BY published_at DESC NULLS LAST,created_at DESC,id DESC LIMIT 1").bind(&id).bind(&provider).fetch_optional(&mut *tx).await?;
+    if latest.as_deref() != body["updateId"].as_str() || latest.is_none() {
+        return Err(conflict(
+            "The submitted work has changed. Review the latest update before deciding.",
+        ));
+    }
     sqlx::query("UPDATE jobs SET status=$1,updated_at=now() WHERE id=$2::uuid")
         .bind(if decision == "accept" {
             "completed"
@@ -1824,16 +1972,36 @@ async fn review_work(
         .execute(&mut *tx)
         .await?;
     if !note.is_empty() {
-        sqlx::query("INSERT INTO job_updates(job_id,company_id,author_id,kind,body) VALUES($1::uuid,$2::uuid,$3::uuid,'changes_requested',$4)")
-            .bind(&id).bind(actor.company.as_deref()).bind(&actor.user).bind(note).execute(&mut *tx).await?;
+        sqlx::query("INSERT INTO job_updates(job_id,company_id,author_id,kind,body,provider_company_id) VALUES($1::uuid,$2::uuid,$3::uuid,$5,$4,$6::uuid)")
+            .bind(&id).bind(actor.company.as_deref()).bind(&actor.user).bind(note).bind(if decision == "accept" {"system"} else {"changes_requested"}).bind(&provider).execute(&mut *tx).await?;
     }
-    tx.commit().await?;
-    let provider = selected_provider(&app, &id).await?;
-    notify(
-        &app,
+    let eid = quote_workflow::event(
+        &mut tx,
+        &id,
         &provider,
         &actor,
-        &format!("job-review:{id}:{}", chrono_stamp()),
+        if decision == "accept" {
+            "work_accepted"
+        } else {
+            "work_changes_requested"
+        },
+        if note.is_empty() {
+            "The work was accepted."
+        } else {
+            note
+        },
+        None,
+        None,
+        None,
+        None,
+    )
+    .await?;
+    quote_workflow::alert(
+        &mut tx,
+        &provider,
+        &provider,
+        &actor,
+        &eid,
         if decision == "accept" {
             "Job finished"
         } else {
@@ -1847,6 +2015,7 @@ async fn review_work(
         &id,
     )
     .await?;
+    tx.commit().await?;
     Ok(Json(json!({"ok":true})))
 }
 
@@ -1931,15 +2100,40 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         .route("/jobs/mine", get(my_jobs))
         .route("/jobs/inbox", get(job_inbox))
         .route("/jobs/{id}/messages/read", post(read_messages))
+        .route("/jobs/{id}/events/read", post(project_chat::read_events))
+        .route("/jobs/{id}/messages/files", get(project_chat::files))
+        .route(
+            "/jobs/{id}/messages/{message_id}/react",
+            post(project_chat::react),
+        )
+        .route(
+            "/jobs/{id}/messages/{message_id}/pin",
+            post(project_chat::pin),
+        )
         .route("/jobs/companies/{slug}", get(work_profile))
         .route("/jobs/files/{file_id}", get(download_file))
         .route("/jobs/{id}", get(get_job).patch(edit_job))
         .route("/jobs/{id}/matches", get(provider_matching::for_job))
         .route("/jobs/{id}/invite", post(invite_companies))
-        .route("/jobs/{id}/quote", post(send_quote))
-        .route("/jobs/{id}/choose", post(choose_company))
-        .route("/jobs/{id}/confirm", post(confirm_job))
-        .route("/jobs/{id}/updates", post(add_update))
+        .route("/jobs/{id}/quote", post(quote_workflow::send))
+        .route("/jobs/{id}/quote-history", get(quote_workflow::history))
+        .route("/jobs/{id}/quote-decision", post(quote_workflow::decide))
+        .route("/jobs/{id}/changes", post(quote_workflow::propose_change))
+        .route(
+            "/jobs/{id}/changes/{change_id}/decision",
+            post(quote_workflow::decide_change),
+        )
+        .route("/jobs/{id}/choose", post(quote_workflow::choose))
+        .route("/jobs/{id}/confirm", post(quote_workflow::confirm))
+        .route("/jobs/{id}/updates", post(project_publication::add_update))
+        .route(
+            "/jobs/{id}/updates/{update_id}/publish",
+            post(project_publication::publish_update),
+        )
+        .route(
+            "/jobs/{id}/quotes/{quote_id}/publish",
+            post(project_publication::publish_quote),
+        )
         .route("/jobs/{id}/activity", post(job_activity))
         .route("/jobs/{id}/review-work", post(review_work))
         .route("/jobs/{id}/reviews", post(review_company))

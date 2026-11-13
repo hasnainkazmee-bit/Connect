@@ -363,8 +363,8 @@ try {
   check(
     quoteOnlyContext.messages.length === 0 &&
       !quoteOnlyContext.conversation.needsStart &&
-      quoteOnlyContext.conversation.canSend,
-    "A quote establishes conversation access without messages or an invitation",
+      !quoteOnlyContext.conversation.canSend,
+    "A quote preserves read-only conversation access after a job closes",
   );
   console.log(JSON.stringify({ status: "passed", assertions }));
 } catch (e) {

@@ -121,6 +121,14 @@ test("only the hiring company is prompted to finish its draft", () => {
   assert.equal(jobNextStep(providerJob("draft"), COMPANY), null);
 });
 
+test("a requested quote revision is actionable for its provider only", () => {
+  const job = providerJob("open", { my_quote_status: "changes_requested" });
+  assert.equal(jobNextStep(job, COMPANY)?.label, "Revise quote");
+  assert.equal(jobNextStep({ ...job, status: "awarded" }, COMPANY), null);
+  assert.equal(jobNextStep({ ...job, status: "completed" }, COMPANY), null);
+  assert.equal(jobNextStep(ownerJob("open", { my_quote_status: "changes_requested", quote_count: 0 }), COMPANY), null);
+});
+
 test("waiting, ongoing, finished, and closed jobs do not manufacture actions", () => {
   for (const status of ["in_progress", "completed", "cancelled", "unknown"]) {
     assert.equal(

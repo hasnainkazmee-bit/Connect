@@ -1,0 +1,1123 @@
+/* The job stays in view; conversation and decisions share one readable timeline. */
+.workspace-inbox .inbox-layout {
+  grid-template-columns: 300px minmax(0, 1fr);
+  border-color: #cfdeea;
+}
+.project-thread-group {
+  padding: 15px 3px 10px;
+  border-bottom: 1px solid #e0e9f1;
+}
+.project-thread-group:last-child {
+  border-bottom: 0;
+}
+.project-thread-group-heading {
+  display: flex;
+  gap: 8px;
+  padding: 0 9px;
+  align-items: flex-start;
+  color: #243d50;
+}
+.project-thread-group-heading svg {
+  flex: none;
+  margin-top: 3px;
+  color: #70889a;
+}
+.project-thread-group-heading strong {
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.project-thread-group-status {
+  display: block;
+  margin: 5px 9px 10px 32px;
+  font-size: 11px;
+  color: #71879a;
+}
+.workspace-inbox .project-thread-group .workspace-inbox-thread {
+  padding: 12px 9px;
+  gap: 9px;
+}
+.workspace-inbox .project-thread-group .inbox-thread-heading strong {
+  font-size: 12px;
+  font-weight: 550;
+}
+.project-thread-group .inbox-thread-heading time {
+  font-size: 10px;
+}
+.project-thread-group .inbox-thread-preview {
+  font-size: 12px;
+  line-height: 1.4;
+}
+.workspace-inbox .project-thread-group .job-logo {
+  width: 31px;
+  height: 31px;
+  flex-basis: 31px;
+  border-radius: 8px;
+  padding: 3px;
+  object-fit: contain;
+}
+.workspace-inbox .inbox-conversation-header {
+  padding: 18px 24px;
+  min-height: 92px;
+  gap: 8px;
+}
+.workspace-inbox .inbox-conversation-title > :first-child {
+  font-size: 18px;
+  line-height: 1.35;
+  letter-spacing: -0.35px;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.workspace-inbox .inbox-conversation-title .project-conversation-company {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 7px;
+  font-size: 12px;
+  color: #6a8092;
+}
+.workspace-inbox .project-conversation-company a {
+  font-weight: 550;
+  color: #4b657b;
+  text-decoration: none;
+}
+.workspace-inbox .project-conversation-company .job-logo {
+  width: 20px;
+  height: 20px;
+  flex-basis: 20px;
+  border-radius: 4px;
+  background: #fff;
+  padding: 1px;
+}
+.workspace-inbox .inbox-conversation-title .project-company-separator {
+  margin: 0;
+  color: #afbdc8;
+}
+.project-conversation-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 22px;
+  min-height: 48px;
+  flex: none;
+  border-bottom: 1px solid #e0e8ef;
+  background: #fff;
+}
+.project-conversation-toolbar [role="tablist"] {
+  display: flex;
+  align-self: stretch;
+  gap: 22px;
+}
+.project-conversation-toolbar [role="tab"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #73889a;
+  padding: 0;
+  font-size: 13px;
+  min-height: 46px;
+  font-weight: 550;
+}
+.project-conversation-toolbar [role="tab"][aria-selected="true"] {
+  color: #243d50;
+  border-bottom-color: #ff6b00;
+}
+.project-conversation-toolbar > .project-text-button,
+.project-invited {
+  margin-left: auto;
+  font-size: 12px;
+}
+.project-invited {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #557566;
+}
+.project-pinned-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 5px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: #6c8294;
+  font-size: 12px;
+}
+.project-pinned-toggle.is-active {
+  background: #edf4fa;
+  border-color: #d6e4ee;
+  color: #304e64;
+}
+.project-message-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 22px;
+  background: #f8fbfd;
+  border-bottom: 1px solid #dce7ef;
+  color: #71879b;
+  flex: none;
+}
+.jobs-page .project-message-search input {
+  padding: 5px 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  min-height: 36px;
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+}
+.project-search-status {
+  text-align: center;
+  font-size: 13px;
+  color: #698295;
+}
+.project-next-action {
+  flex: none;
+  background: #f5f9fc;
+  border-bottom: 1px solid #dbe6ef;
+}
+.project-next-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 22px;
+}
+.project-next-icon {
+  color: #526e85;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  background: #e7f0f7;
+  border-radius: 11px;
+}
+.project-next-summary > div {
+  flex: 1;
+  min-width: 0;
+}
+.project-next-summary strong {
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 650;
+  display: block;
+}
+.workspace-inbox .project-next-summary p {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #70869a;
+  margin: 3px 0 0;
+}
+.project-next-summary > .jobs-button {
+  font-size: 12px;
+  min-height: 38px;
+  padding: 8px 15px;
+  flex: none;
+  gap: 6px;
+}
+.project-next-action.is-expanded {
+  background: #fff;
+}
+.project-action-body {
+  padding: 0 24px 20px;
+  max-height: min(390px, 45dvh);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.project-action-body h3 {
+  font-size: 17px;
+  letter-spacing: -0.2px;
+  margin: 3px 0 14px;
+}
+.workspace-inbox .project-action-body p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #536e83;
+  margin: 12px 0;
+}
+.project-action-label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 550;
+  color: #3e5a70;
+}
+.jobs-page .project-action-label textarea {
+  font-size: 15px;
+  line-height: 1.55;
+  min-height: 100px;
+  border: 1px solid #cbdce9;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+  resize: vertical;
+}
+.project-action-label textarea:focus {
+  border-color: #91adc3;
+  box-shadow: 0 0 0 2px #eef4f9;
+  outline: none;
+}
+.project-action-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 18px;
+}
+.project-action-body .jobs-button {
+  font-size: 13px;
+  min-height: 42px;
+  padding: 10px 17px;
+}
+.project-action-body form > .jobs-button {
+  margin-top: 14px;
+}
+.project-text-button {
+  border: 0;
+  background: transparent;
+  color: #4e6a80;
+  padding: 8px 4px;
+  font-size: 13px;
+  text-decoration: none;
+  min-height: 34px;
+}
+.project-text-button:hover {
+  color: #203b50;
+  text-decoration: underline;
+}
+.workspace-inbox .project-action-notice {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  margin: 0;
+  padding: 0 22px 12px;
+  color: #3c745f;
+}
+.workspace-inbox .project-action-helper {
+  font-size: 12px;
+  margin: 10px 0 0;
+}
+.project-action-body .attachment-add {
+  margin-top: 15px;
+  padding: 11px;
+  min-height: 50px;
+}
+.project-action-body .attachment-add b {
+  font-size: 13px;
+}
+.project-action-body .attachment-add small {
+  font-size: 11px;
+}
+.project-action-body .job-attachment-grid {
+  grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+}
+.project-action-body .attachment-thumbnail {
+  height: 90px;
+}
+.project-event {
+  padding: 17px 20px;
+  border: 1px solid #dbe5ee;
+  border-radius: 14px;
+  background: #fcfdff;
+  max-width: 620px;
+  margin: 20px auto;
+  color: #355167;
+}
+.project-event-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.project-event-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  background: #eaf2f8;
+  border-radius: 9px;
+  color: #5c7a90;
+}
+.project-event-heading > div {
+  flex: 1;
+  min-width: 0;
+}
+.project-event-heading strong {
+  font-size: 13px;
+  font-weight: 650;
+  display: block;
+  color: #28455a;
+}
+.project-event-heading span:not(.project-event-icon) {
+  font-size: 11px;
+  color: #8497a6;
+  display: block;
+  margin-top: 2px;
+}
+.project-event-heading time {
+  font-size: 10px;
+  color: #91a2af;
+  flex: none;
+}
+.workspace-inbox .project-event > p {
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  margin: 13px 0 0;
+  color: #4a667c;
+}
+.project-event-quote {
+  background: #fff;
+  border-color: #cbdde9;
+  box-shadow: 0 2px 5px #20374d04;
+}
+.project-quote-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 17px 0 12px;
+}
+.project-quote-summary b {
+  font-size: 24px;
+  letter-spacing: -0.7px;
+  line-height: 1.2;
+  color: #213f53;
+}
+.project-quote-summary > span {
+  font-size: 11px;
+  color: #879aa9;
+}
+.project-quote-facts {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  border-top: 1px solid #e5edf3;
+  border-bottom: 1px solid #e5edf3;
+}
+.project-quote-facts > span {
+  display: grid;
+  gap: 4px;
+  color: #8598a8;
+  font-size: 11px;
+}
+.project-quote-facts strong {
+  font-size: 13px;
+  font-weight: 550;
+  color: #4a657a;
+}
+.project-event details,
+.project-action-body details {
+  margin-top: 14px;
+}
+.project-event summary,
+.project-action-body summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 550;
+  color: #4e6b81;
+}
+.project-quote-terms {
+  padding-top: 9px;
+}
+.project-quote-terms h4 {
+  font-size: 12px;
+  color: #6a8295;
+  margin: 14px 0 4px;
+}
+.workspace-inbox .project-quote-terms p,
+.workspace-inbox .project-quote-note {
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #466278;
+}
+.project-quote-terms dl {
+  margin: 8px 0 16px;
+}
+.project-quote-terms dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #e5ecf2;
+  padding: 7px 0;
+  font-size: 13px;
+}
+.project-quote-terms dt {
+  color: #668093;
+}
+.project-quote-terms dd {
+  margin: 0;
+  color: #3d5c72;
+}
+.workspace-inbox .inbox-message {
+  max-width: min(82%, 600px);
+  margin-bottom: 18px;
+}
+.workspace-inbox .inbox-message-body {
+  font-size: 14px;
+  line-height: 1.65;
+  padding: 12px 15px;
+  border-radius: 13px;
+}
+.project-message-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.inbox-message-author {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.inbox-message-author > span {
+  font-weight: 400;
+  color: #8b9dab;
+}
+.project-quoted-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-left: 3px solid #b5c8d8;
+  border-radius: 3px;
+  background: #e9f0f6;
+  padding: 9px 11px;
+  margin-bottom: 10px;
+  color: #617e94;
+  max-width: 100%;
+}
+.project-quoted-message > svg {
+  flex: none;
+  margin-top: 2px;
+}
+.project-quoted-message > div {
+  min-width: 0;
+}
+.project-quoted-message strong {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+}
+.project-quoted-message span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  max-width: 410px;
+}
+.project-message-tools {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 5px;
+}
+.project-message-tools button {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 26px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #8a9caa;
+}
+.project-message-tools button:hover {
+  color: #35576f;
+  background: #eaf2f8;
+}
+.project-message-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 6px 0 0;
+}
+.project-message-reactions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  min-height: 28px;
+  border: 1px solid #dce7ef;
+  background: #fff;
+  border-radius: 999px;
+  font-size: 11px;
+  color: #698297;
+}
+.project-message-reactions button[aria-pressed="true"] {
+  background: #eaf3fa;
+  border-color: #b8cede;
+  color: #2b5875;
+}
+.project-message-reactions button > span {
+  font-size: 15px;
+}
+.project-message-reactions button:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.project-reaction-picker {
+  padding: 8px;
+  border: 1px solid #d8e5ee;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 3px 12px #213d5210;
+  margin: 5px 0;
+  max-width: 320px;
+}
+.project-reaction-picker > div {
+  display: flex;
+  gap: 3px;
+}
+.project-reaction-picker > div button {
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  min-width: 38px;
+  min-height: 36px;
+  font-size: 20px;
+}
+.project-reaction-picker > div button:hover {
+  background: #eef5fa;
+}
+.project-reaction-picker form {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-top: 1px solid #edf1f6;
+  margin-top: 6px;
+  padding-top: 7px;
+}
+.jobs-page .project-reaction-picker input {
+  min-width: 0;
+  flex: 1;
+  min-height: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: #f5f8fb;
+  font-size: 12px;
+  padding: 5px 8px;
+}
+.project-reaction-picker form button {
+  border: 0;
+  background: transparent;
+  color: #4c708b;
+  padding: 6px;
+  font-size: 12px;
+}
+.project-reply-composer {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 8px 10px;
+  background: #edf4f9;
+  border-left: 3px solid #a3bdcf;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  color: #628299;
+}
+.project-reply-composer > div {
+  flex: 1;
+  min-width: 0;
+}
+.project-reply-composer strong {
+  display: block;
+  font-size: 11px;
+  color: #527087;
+}
+.project-reply-composer span {
+  display: block;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.project-chat-uploads {
+  margin-bottom: 8px;
+}
+.project-attach-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #658198;
+  font-size: 12px;
+  cursor: pointer;
+  min-height: 26px;
+}
+.project-attach-button:hover {
+  color: #274e69;
+}
+.project-attach-button.is-disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.project-attach-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.project-attach-button:focus-within {
+  outline: 2px solid #96b2c7;
+  outline-offset: 3px;
+  border-radius: 5px;
+}
+.project-upload-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 8px 0 4px;
+  max-height: 155px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.project-upload-item {
+  position: relative;
+  border: 1px solid #d7e4ee;
+  border-radius: 10px;
+  background: #f7fafc;
+  min-width: 0;
+  width: 165px;
+  overflow: hidden;
+}
+.project-upload-item.is-ready .job-attachment-grid {
+  display: block;
+  margin: 0;
+}
+.project-upload-item.is-ready .job-attachment-card {
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+}
+.project-upload-item .attachment-thumbnail {
+  height: 65px;
+}
+.project-upload-item .attachment-preview > span:last-child {
+  padding: 7px 9px;
+}
+.project-upload-item .attachment-preview b {
+  font-size: 11px;
+}
+.project-upload-item .attachment-preview small {
+  font-size: 10px;
+}
+.project-upload-preview {
+  height: 65px;
+  background: #edf3f8;
+  display: grid;
+  place-items: center;
+  color: #8aa0b1;
+}
+.project-upload-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.project-upload-copy {
+  padding: 7px 9px;
+}
+.project-upload-copy strong {
+  display: block;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 5px;
+}
+.project-upload-copy span {
+  display: block;
+  color: #748a9c;
+  font-size: 10px;
+  line-height: 1.5;
+  margin-top: 3px;
+}
+.project-upload-copy progress {
+  width: 100%;
+  height: 4px;
+  accent-color: #769ab5;
+}
+.project-upload-remove {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  background: #fff;
+  border: 1px solid #dce5ed;
+  border-radius: 50%;
+  color: #617d92;
+}
+.project-upload-item.has-error {
+  border-color: #dfb5ab;
+}
+.project-upload-item.has-error .project-upload-copy span {
+  color: #a84e3f;
+}
+.project-upload-item > .inbox-spinner,
+.project-upload-item > .inbox-icon-button {
+  position: absolute;
+  right: 5px;
+  bottom: 6px;
+  width: 20px;
+  height: 20px;
+}
+.project-files-view {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 26px;
+  scrollbar-width: thin;
+}
+.project-files-view header {
+  margin-bottom: 24px;
+}
+.workspace-inbox .project-files-view h2 {
+  font-size: 20px;
+  letter-spacing: -0.4px;
+  margin: 0 0 8px;
+}
+.workspace-inbox .project-files-view header p {
+  font-size: 13px;
+  color: #748b9e;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 510px;
+}
+.project-files-view .job-attachment-grid {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+.project-files-view .attachment-thumbnail {
+  height: 150px;
+}
+.project-files-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 50px 20px;
+  text-align: center;
+  color: #87a0b3;
+}
+.project-files-empty h3 {
+  color: #3e5c73;
+  font-size: 17px;
+  margin: 15px 0 5px;
+}
+.workspace-inbox .project-files-empty p {
+  font-size: 13px;
+  line-height: 1.6;
+  max-width: 300px;
+}
+.inbox-message .job-attachment-grid,
+.project-event .job-attachment-grid {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  margin-top: 10px;
+}
+.inbox-message .job-attachment-card {
+  background: #fff;
+}
+.inbox-message .attachment-thumbnail,
+.project-event .attachment-thumbnail {
+  height: 145px;
+}
+.inbox-message .attachment-preview > span:last-child,
+.project-event .attachment-preview > span:last-child {
+  padding: 9px 11px;
+}
+.inbox-message .attachment-preview b,
+.project-event .attachment-preview b {
+  font-size: 12px;
+}
+.inbox-message .attachment-preview small,
+.project-event .attachment-preview small {
+  font-size: 10px;
+}
+@media (min-width: 1440px) {
+  .workspace-inbox .inbox-layout.details-open {
+    grid-template-columns: 300px minmax(0, 1fr) 290px;
+  }
+  .workspace-inbox.inbox-from-matches .inbox-layout.details-open {
+    grid-template-columns: minmax(0, 1fr) 290px;
+  }
+}
+@media (max-width: 1439px) and (min-width: 701px) {
+  .workspace-inbox .inbox-layout.details-open {
+    grid-template-columns: 270px minmax(0, 1fr);
+  }
+  .workspace-inbox .details-open .inbox-conversation {
+    display: none;
+  }
+  .workspace-inbox .inbox-job-details {
+    position: static;
+    inset: auto;
+    width: auto;
+    box-shadow: none;
+  }
+  .workspace-inbox.inbox-from-matches .inbox-layout.details-open {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 1100px) {
+  .workspace-inbox .inbox-layout {
+    grid-template-columns: 270px minmax(0, 1fr);
+  }
+  .workspace-inbox .inbox-conversation-header {
+    padding: 15px 18px;
+  }
+  .workspace-inbox .inbox-conversation-title > :first-child {
+    font-size: 16px;
+  }
+  .project-next-summary {
+    padding: 13px 18px;
+    gap: 9px;
+  }
+  .project-next-icon {
+    display: none;
+  }
+  .project-next-summary > .jobs-button {
+    font-size: 11px;
+    padding: 8px 11px;
+  }
+  .project-next-summary strong {
+    font-size: 13px;
+  }
+  .project-next-summary p {
+    display: none;
+  }
+  .project-action-body {
+    padding-inline: 18px;
+  }
+}
+@media (max-width: 700px) {
+  .workspace-inbox .inbox-layout,
+  .workspace-inbox .inbox-layout.details-open {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace-inbox .inbox-conversation-header {
+    padding: 13px 12px;
+    min-height: 85px;
+  }
+  .workspace-inbox .inbox-conversation-title > :first-child {
+    font-size: 16px;
+    line-height: 1.4;
+  }
+  .workspace-inbox .inbox-conversation-title .project-conversation-company {
+    font-size: 11px;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+  .project-conversation-company .project-company-separator {
+    display: none !important;
+  }
+  .workspace-inbox .project-conversation-company .job-logo {
+    width: 16px;
+    height: 16px;
+    flex-basis: 16px;
+  }
+  .project-conversation-toolbar {
+    padding-inline: 14px;
+    gap: 10px;
+    min-height: 46px;
+  }
+  .project-conversation-toolbar [role="tablist"] {
+    gap: 17px;
+  }
+  .project-conversation-toolbar [role="tab"] {
+    font-size: 12px;
+  }
+  .project-invited {
+    display: none;
+  }
+  .project-next-summary {
+    padding: 12px 14px;
+  }
+  .project-next-summary strong {
+    font-size: 12px;
+  }
+  .project-next-summary > .jobs-button {
+    min-height: 36px;
+    white-space: normal;
+    text-align: center;
+    max-width: 125px;
+    line-height: 1.3;
+  }
+  .project-action-body {
+    max-height: 42dvh;
+    padding: 0 14px 15px;
+  }
+  .project-action-body .jobs-button {
+    font-size: 12px;
+  }
+  .project-action-buttons {
+    gap: 8px;
+  }
+  .project-quote-summary b {
+    font-size: 22px;
+  }
+  .project-event {
+    padding: 14px;
+    margin: 16px 0;
+  }
+  .project-event-heading time {
+    font-size: 9px;
+  }
+  .project-event-heading strong {
+    font-size: 12px;
+  }
+  .project-event-heading span:not(.project-event-icon) {
+    font-size: 10px;
+  }
+  .workspace-inbox .inbox-message {
+    max-width: 94%;
+  }
+  .workspace-inbox .inbox-message-body {
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 11px 13px;
+  }
+  .inbox-message-author {
+    font-size: 10px;
+    flex-wrap: wrap;
+  }
+  .project-message-tools button {
+    width: 29px;
+    height: 28px;
+  }
+  .project-message-search {
+    padding-inline: 14px;
+  }
+  .jobs-page .project-message-search input {
+    font-size: 16px;
+  }
+  .project-files-view {
+    padding: 20px 14px;
+  }
+  .project-files-view .job-attachment-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .project-files-view .attachment-thumbnail {
+    height: 120px;
+  }
+  .project-upload-item {
+    width: 140px;
+  }
+  .project-upload-list {
+    max-height: 135px;
+  }
+  .project-upload-item .attachment-thumbnail,
+  .project-upload-preview {
+    height: 54px;
+  }
+  .project-attach-button {
+    min-height: 30px;
+  }
+  .workspace-inbox .details-open .inbox-conversation {
+    display: none;
+  }
+  .workspace-inbox .inbox-job-details {
+    position: static;
+    width: 100%;
+    border-left: 0;
+  }
+  .project-thread-group-heading strong {
+    font-size: 15px;
+  }
+  .workspace-inbox .project-thread-group .inbox-thread-heading strong {
+    font-size: 13px;
+  }
+  .project-quoted-message span {
+    max-width: 230px;
+  }
+}
+.project-secondary-action {
+  padding: 0 22px 9px;
+  margin-top: -7px;
+}
+.project-secondary-action .project-text-button {
+  font-size: 11px;
+  min-height: 27px;
+  padding: 4px 0;
+  color: #748b9d;
+}
+.project-change-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.project-action-body .project-action-label + .project-action-label {
+  margin-top: 14px;
+}
+.jobs-page .project-action-label input {
+  min-height: 43px;
+  font-size: 14px;
+  border: 1px solid #cbdce9;
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-width: 0;
+  background: #fff;
+}
+.project-action-label small {
+  font-size: 10px;
+  color: #8b9dab;
+  font-weight: 400;
+}
+.workspace-inbox .project-payment-review {
+  font-size: 12px;
+  padding: 0 22px 13px;
+  margin: 0;
+  line-height: 1.6;
+  color: #668095;
+}
+.project-payment-review a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #365d7b;
+  margin-left: 4px;
+}
+@media (max-width: 700px) {
+  .project-secondary-action {
+    padding-inline: 14px;
+  }
+  .project-change-fields {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .project-payment-review {
+    padding-inline: 14px !important;
+  }
+}
+@media (min-width: 1101px) {
+  .workspace-inbox .project-next-summary p {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+.project-workflow-host {
+  flex: none;
+  min-height: 0;
+}
+.project-workflow-host[hidden] {
+  display: none;
+}

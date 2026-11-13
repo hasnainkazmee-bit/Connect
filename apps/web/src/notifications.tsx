@@ -118,7 +118,10 @@ export function useNotificationInbox(userId: string | null, revision: number) {
     }
     void load();
     const stream = new EventSource("/api/notifications/events");
-    const changed = () => void load();
+    const changed = () => {
+      void load();
+      window.dispatchEvent(new Event("connect:job-activity"));
+    };
     const visible = () => {
       if (!document.hidden) void load();
     };

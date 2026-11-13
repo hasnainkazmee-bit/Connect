@@ -1,6 +1,18 @@
 import { pool, tx } from "./db.js";
 import { hashPassword } from "./auth.js";
 
+// These one-off legacy imports bypass the immutable quote workflow.
+if (
+  (await pool.query(
+    "SELECT to_regclass('public.job_quote_versions') IS NOT NULL AS active",
+  )).rows[0].active
+) {
+  await pool.end();
+  throw new Error(
+    "Project quote history is enabled. Create or revise demo quotes through the jobs API instead of this legacy import.",
+  );
+}
+
 if (
   process.env.NODE_ENV === "production" &&
   process.env.ALLOW_DEMO_SEED !== "true"

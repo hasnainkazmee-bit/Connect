@@ -1,0 +1,98 @@
+.quote-version-status,
+.quote-review-options {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.quote-version-status {
+  margin-bottom: 16px;
+}
+.quote-version-status small {
+  color: #597083;
+}
+.quote-review-options {
+  margin-top: 14px;
+}
+.quote-review-options button {
+  min-height: 36px;
+}
+.quote-decision-note {
+  border-left: 3px solid #c3d4e4;
+  padding: 10px 14px;
+  background: #f3f8fc;
+  color: #365167;
+  border-radius: 0 10px 10px 0;
+  white-space: pre-wrap;
+}
+.quote-form-fields {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.quote-form-fields:disabled {
+  opacity: 0.7;
+}
+.quote-decision-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: clamp(24px, 4vw, 48px);
+}
+.quote-decision-page h1 {
+  font-size: clamp(26px, 3vw, 34px);
+  letter-spacing: -0.8px;
+  line-height: 1.2;
+}
+.quote-decision-page > p {
+  color: #526b7f;
+  line-height: 1.6;
+}
+.quote-decision-page label {
+  display: grid;
+  gap: 10px;
+  font-weight: 600;
+}
+.quote-decision-page textarea {
+  padding: 14px 16px;
+  min-height: 150px;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.5;
+  border: 1px solid #cddce9;
+  border-radius: 14px;
+}
+.quote-decision-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  background: #f3f8fc;
+  border: 1px solid #dbe6ef;
+  border-radius: 16px;
+  margin: 24px 0;
+}
+.quote-decision-summary > span {
+  display: grid;
+  gap: 5px;
+}
+.quote-decision-summary small {
+  color: #597083;
+}
+.quote-decision-summary strong {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.quote-decision-page .job-form-actions {
+  margin-top: 24px;
+}
+@media (max-width: 600px) {
+  .quote-decision-page {
+    padding: 22px 16px;
+  }
+  .quote-decision-summary {
+    flex-wrap: wrap;
+  }
+}

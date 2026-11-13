@@ -53,6 +53,13 @@ export function jobNextStep(
       priority: 4,
     };
   }
+  if (!own && job.status === "open" && job.my_quote_status === "changes_requested") {
+    return {
+      label: "Revise quote",
+      detail: "The hiring company requested changes to your quote.",
+      priority: 3,
+    };
+  }
   if (own && job.status === "draft") {
     return {
       label: "Finish draft",

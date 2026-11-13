@@ -7,6 +7,7 @@ import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getMessaging } from "firebase-admin/messaging";
 import { pool, tx, HttpError } from "./db.js";
 import { requireAuth, requireVerified, hashToken } from "./auth.js";
+import { subscribeNotificationChanges } from "./notification-stream.js";
 
 const defaults = {
   messages: true,
@@ -411,16 +412,23 @@ export function notificationRoutes() {
     res.write(": connected\n\n");
     let previous = "",
       checking = false,
+      queued = false,
       closed = false;
+    let unsubscribe = () => {};
     const close = () => {
       if (closed) return;
       closed = true;
       clearInterval(timer);
+      unsubscribe();
       streams.delete(close);
       res.end();
     };
     const tick = async () => {
-      if (checking || closed) return;
+      if (closed) return;
+      if (checking) {
+        queued = true;
+        return;
+      }
       checking = true;
       try {
         if (
@@ -449,10 +457,18 @@ export function notificationRoutes() {
         close();
       } finally {
         checking = false;
+        if (queued && !closed) {
+          queued = false;
+          void tick();
+        }
       }
     };
     const timer = setInterval(() => void tick(), 5000);
     timer.unref();
+    unsubscribe = subscribeNotificationChanges(
+      req.auth!.userId,
+      () => void tick(),
+    );
     streams.add(close);
     req.on("close", close);
     void tick();
