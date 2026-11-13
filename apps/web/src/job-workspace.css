@@ -1597,3 +1597,803 @@ body:has(:is(.workspace-posting, .job-workspace, .workspace-inbox)) {
     font-size: 16px;
   }
 }
+
+/* Posting follows the brief's reading order. Sections divide one form rather
+   than introducing another layer of cards or numbered steps. */
+.workspace-posting .posting-form {
+  gap: 0;
+}
+
+.workspace-posting .posting-form > #posting-error:not(:empty) {
+  margin-bottom: 24px;
+}
+
+.workspace-posting .posting-form > .posting-section,
+.workspace-posting .posting-form > .posting-section-options {
+  min-width: 0;
+  margin: 0;
+  padding: 28px 0;
+  border: 0;
+  border-top: 1px solid #dce5ed;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.workspace-posting .posting-form > .posting-section-scope {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.workspace-posting .posting-section-heading,
+.workspace-posting .posting-section-questions .proposal-section-heading {
+  margin: 0 0 18px;
+}
+
+.workspace-posting .posting-section-heading h3,
+.workspace-posting .posting-section-questions .proposal-section-heading h3,
+.workspace-posting .posting-section-matching .matching-fields h2 {
+  margin: 0;
+  color: var(--market-ink);
+  font-size: 20px;
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+  font-weight: 650;
+}
+
+.workspace-posting .posting-section-heading p,
+.workspace-posting .posting-section-questions .proposal-section-heading p,
+.workspace-posting .posting-section-matching .matching-fields > p {
+  margin: 6px 0 0;
+  color: var(--market-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  font-weight: 400;
+}
+
+.workspace-posting .posting-form label {
+  font-size: 16px;
+  font-weight: 550;
+}
+
+.workspace-posting .posting-form .field-optional {
+  color: var(--market-muted);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.workspace-posting .posting-section > label + label,
+.workspace-posting .posting-section > .jobs-fields-two + .jobs-fields-two,
+.workspace-posting .posting-section > fieldset + .jobs-fields-two,
+.workspace-posting .posting-section > .posting-key-fields + label {
+  margin-top: 20px;
+}
+
+.jobs-page.workspace-posting
+  .posting-form
+  :is(input, select, textarea):not([type="radio"]):not([type="checkbox"]):not(
+    [type="file"]
+  ) {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.workspace-posting .posting-section-scope textarea {
+  min-height: 11rem;
+}
+
+.workspace-posting .posting-section-scope > label:has(select) {
+  max-width: 440px;
+}
+
+.workspace-posting .posting-section-location .posting-arrangement {
+  gap: 8px 20px;
+}
+
+.workspace-posting .posting-section-location .posting-arrangement legend {
+  margin-bottom: 8px;
+  font-size: 16px;
+  font-weight: 550;
+}
+
+.workspace-posting .posting-section-location .posting-arrangement label {
+  min-height: 44px;
+  gap: 9px;
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.workspace-posting .posting-section-location .posting-remote {
+  padding-top: 0;
+  min-height: 44px;
+}
+
+.workspace-posting .posting-address-details {
+  margin-top: 20px;
+}
+
+.workspace-posting .posting-address-details > summary,
+.workspace-posting .matching-fields details > summary {
+  width: fit-content;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 10px 0;
+  border-radius: 6px;
+  color: #36576e;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.6;
+  cursor: pointer;
+}
+
+.workspace-posting .posting-address-details[open] > :not(summary) {
+  margin-top: 18px;
+}
+
+.workspace-posting .posting-form summary:focus-visible {
+  outline: 2px solid #708b9e;
+  outline-offset: 4px;
+}
+
+.workspace-posting .posting-section-files .attachment-add {
+  background: #f7fafc;
+}
+
+.workspace-posting .posting-section-files .attachment-add b {
+  font-size: 15px;
+}
+
+.workspace-posting .posting-section-files .attachment-add small {
+  font-size: 13px;
+}
+
+.workspace-posting .posting-section-questions .proposal-section-icon,
+.workspace-posting .posting-section-questions .proposal-question-number,
+.workspace-posting
+  .posting-section-matching
+  .matching-fields
+  > div:first-child
+  > svg {
+  display: none;
+}
+
+.workspace-posting .posting-section-questions .proposal-question-editor {
+  padding: 18px 0;
+  border: 0;
+  border-bottom: 1px solid #e2e9ef;
+  border-radius: 0;
+  background: transparent;
+}
+
+.workspace-posting .posting-section-questions .proposal-question-list {
+  gap: 0;
+}
+
+.workspace-posting .posting-section-questions .proposal-question-prompt-label {
+  font-size: 15px;
+}
+
+.workspace-posting .posting-section-questions .proposal-question-required {
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.workspace-posting .posting-section-matching .matching-fields {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.workspace-posting .posting-form .posting-section-options > summary {
+  min-height: 44px;
+  color: var(--market-ink);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.workspace-posting .posting-form .posting-section-options > summary span {
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.workspace-posting .posting-form > .posting-actions {
+  margin-top: 4px;
+}
+
+@media (max-width: 760px) {
+  .workspace-posting .posting-form > .posting-section,
+  .workspace-posting .posting-form > .posting-section-options {
+    padding-block: 24px;
+  }
+  .workspace-posting .posting-form > .posting-section-scope {
+    padding-top: 0;
+  }
+  .workspace-posting .posting-section-scope > label:has(select) {
+    max-width: none;
+  }
+  .workspace-posting
+    .posting-section
+    :is(.jobs-fields-two, .jobs-fields-three) {
+    grid-template-columns: 1fr;
+  }
+  .workspace-posting .posting-form > .posting-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .workspace-posting .posting-actions .jobs-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* The optional work checklist begins as plain items and becomes trackable
+   after a company is chosen. The list stays readable in either state. */
+.workspace-posting .posting-checklist {
+  min-width: 0;
+  margin-top: 24px;
+}
+
+.workspace-posting .posting-checklist h4,
+.posting-preview-checklist h4 {
+  margin: 0;
+  color: var(--market-ink);
+  font-size: 16px;
+  font-weight: 550;
+  line-height: 1.5;
+}
+
+.workspace-posting .posting-checklist header p {
+  margin: 6px 0 0;
+  color: var(--market-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.workspace-posting .posting-checklist-items {
+  list-style: none;
+  margin: 14px 0;
+  padding: 0;
+}
+
+.workspace-posting .posting-checklist-items:empty {
+  margin: 0;
+}
+
+.workspace-posting .posting-checklist-items li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 5px 0;
+  border-bottom: 1px solid #e1e9ef;
+  color: var(--market-ink);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.workspace-posting .posting-checklist-items li > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.workspace-posting .posting-checklist-items button {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #5e778b;
+  cursor: pointer;
+}
+
+.workspace-posting .posting-checklist-items button:hover:not(:disabled) {
+  background: #eef4f8;
+  color: var(--market-ink);
+}
+
+.workspace-posting .posting-checklist-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.workspace-posting .posting-checklist-entry > input {
+  flex: 1;
+  min-width: 0;
+  width: 0;
+}
+
+.workspace-posting .posting-checklist-entry > .jobs-button {
+  flex: none;
+  min-height: 44px;
+  padding-inline: 18px;
+  font-size: 14px;
+}
+
+.workspace-posting .posting-checklist-count {
+  display: block;
+  margin-top: 7px;
+  color: var(--market-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.posting-preview-checklist {
+  margin: 20px 0;
+}
+
+.posting-preview-checklist ul {
+  margin: 8px 0;
+  padding-left: 20px;
+  color: #415b6e;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.posting-preview-checklist li + li {
+  margin-top: 5px;
+}
+
+.posting-preview-checklist > small {
+  color: var(--market-muted);
+  font-size: 12px;
+}
+
+.job-workspace .job-deliverables {
+  min-width: 0;
+}
+
+.job-workspace .job-deliverables > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-bottom: 14px;
+}
+
+.job-workspace .job-deliverables > header h3 {
+  margin: 0;
+  color: var(--market-ink);
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.4;
+}
+
+.job-workspace .job-deliverables > header :is(small, span) {
+  color: var(--market-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.job-workspace .job-deliverables > p:not([role="alert"]) {
+  margin: 8px 0;
+  color: var(--market-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.job-workspace .job-deliverables-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.job-workspace .job-deliverable-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 44px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e3eaf0;
+  color: var(--market-ink);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.job-workspace .job-deliverable-item:last-child {
+  border-bottom: 0;
+}
+
+.job-workspace .job-deliverable-item:has(> label) {
+  padding-block: 0;
+}
+
+.job-workspace .job-deliverable-item > label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  min-height: 44px;
+  width: 100%;
+  padding: 10px 0;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.job-workspace .job-deliverable-item > label:has(input:disabled) {
+  cursor: default;
+}
+
+.job-workspace .job-deliverable-item span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.job-workspace .job-deliverable-item input[type="checkbox"] {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  margin: 2px 0 0;
+  padding: 0;
+  accent-color: #385c76;
+}
+
+.job-workspace .job-deliverable-state {
+  display: grid;
+  place-items: center;
+  flex: 0 0 20px;
+  width: 20px;
+  min-height: 24px;
+  color: #6d8598;
+}
+
+.job-workspace .job-deliverable-state svg {
+  width: 19px;
+  height: 19px;
+  stroke-width: 1.6;
+}
+
+.job-workspace .job-deliverables-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 16px 0;
+  color: #49667c;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.job-workspace .job-deliverables-progress progress {
+  appearance: none;
+  flex-basis: 100%;
+  width: 100%;
+  height: 6px;
+  border: 0;
+  border-radius: 999px;
+  background: #e5edf3;
+  overflow: hidden;
+}
+
+.job-workspace .job-deliverables-progress progress::-webkit-progress-bar {
+  border-radius: 999px;
+  background: #e5edf3;
+}
+
+.job-workspace .job-deliverables-progress progress::-webkit-progress-value {
+  border-radius: 999px;
+  background: #416880;
+}
+
+.job-workspace .job-deliverables-progress progress::-moz-progress-bar {
+  border-radius: 999px;
+  background: #416880;
+}
+
+/* Proof and review belong to their task, rather than a separate dialog. */
+.job-workspace .job-deliverable-item:has(> .job-deliverable-row) {
+  display: block;
+  padding-block: 16px;
+}
+
+.job-workspace .job-deliverable-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px 12px;
+  min-height: 44px;
+}
+
+.job-workspace .job-deliverable-title {
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.job-workspace :is(.job-deliverable-status, .work-proof-status) {
+  justify-self: start;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #edf3f7;
+  color: #496378;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.job-workspace .is-approved :is(.job-deliverable-status, .work-proof-status) {
+  background: #edf6f1;
+  color: #2e6550;
+}
+
+.job-workspace .is-approved > .job-deliverable-row .job-deliverable-state {
+  color: #2e6550;
+}
+
+.job-workspace
+  .is-changes-requested
+  :is(.job-deliverable-status, .work-proof-status) {
+  background: #f3f0ea;
+  color: #765c32;
+}
+
+.job-workspace .job-deliverable-actions,
+.job-workspace .work-proof-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.job-workspace .job-deliverable-actions .jobs-button,
+.job-workspace .job-deliverable-row > .jobs-button,
+.job-workspace .work-proof-toggle,
+.job-workspace .work-proof-actions .jobs-button {
+  min-height: 44px;
+  padding: 10px 17px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.job-workspace .work-proof-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #d2dee7;
+  border-radius: 999px;
+  background: #fff;
+  color: #35556c;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.job-workspace .work-proof-toggle:hover:not(:disabled) {
+  background: #f1f6fa;
+  border-color: #b6c8d5;
+}
+
+.job-workspace .work-proof-toggle:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.job-workspace .job-deliverable-details {
+  min-width: 0;
+  margin: 16px 0 4px 32px;
+  padding: 2px 0 4px 20px;
+  border-left: 2px solid #dfe8ef;
+}
+
+.job-workspace .work-proof-form,
+.job-workspace .work-proof-review-note {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+}
+
+.job-workspace .work-proof-submission + .work-proof-form,
+.job-workspace .work-proof-submission + .work-proof-actions,
+.job-workspace .work-proof-submission + .work-proof-review,
+.job-workspace .work-proof-review-note {
+  margin-top: 20px;
+}
+
+.job-workspace .job-deliverable-details :is(h4, label) {
+  margin: 0;
+  color: var(--market-ink);
+  font-size: 15px;
+  font-weight: 550;
+  line-height: 1.5;
+}
+
+.job-workspace .job-deliverable-details label:has(textarea) {
+  display: grid;
+  gap: 8px;
+}
+
+.job-workspace .job-deliverable-details textarea {
+  width: 100%;
+  min-height: 88px;
+  padding: 11px 13px;
+  border: 1px solid #cedbe5;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--market-ink);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.job-workspace .job-deliverable-details p:not([role="alert"]) {
+  margin: 8px 0;
+  color: #496173;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.job-workspace .work-proof-form > h4 + p {
+  margin: -8px 0 0;
+}
+
+.job-workspace
+  :is(.work-proof-form, .work-proof-review-note)
+  > label
+  + textarea {
+  margin-top: -8px;
+}
+
+.job-workspace .work-proof-submission > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.job-workspace .work-proof-submission > header :is(time, small) {
+  color: var(--market-muted);
+  font-size: 12px;
+}
+
+.job-workspace .job-deliverable-details .work-proof-submission > p {
+  font-size: 16px;
+  white-space: pre-wrap;
+}
+
+.job-workspace .work-proof-approved {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.job-workspace .work-proof-approved > svg {
+  flex: none;
+  color: #2e6550;
+}
+
+.job-workspace .work-proof-save-notice:empty {
+  display: none;
+}
+
+.job-workspace .job-deliverables .work-proof-upload-state {
+  color: var(--market-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.job-workspace .job-deliverables > .work-proof-save-notice:not(:empty) {
+  margin-top: 16px;
+  color: #35556c;
+}
+
+.job-workspace .job-deliverables .job-deliverables-error {
+  margin: 8px 0;
+  color: #a33e34;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.job-workspace .work-proof-feedback {
+  margin: 16px 0;
+  padding: 0 0 0 12px;
+  border-left: 2px solid #cbbb9f;
+  white-space: pre-wrap;
+}
+
+.job-workspace .job-deliverable-details .attachment-add {
+  padding: 16px;
+  background: #f7fafc;
+}
+
+.job-workspace .job-deliverable-details .attachment-add b {
+  font-size: 15px;
+}
+
+.job-workspace .job-deliverable-details .attachment-add small {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.job-workspace .job-deliverable-details .job-attachment-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.job-workspace .job-deliverable-details .attachment-preview {
+  display: block;
+  padding: 0;
+  width: 100%;
+  border-radius: 11px;
+}
+
+.job-workspace .job-deliverable-details .attachment-thumbnail {
+  display: flex;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  border-radius: 0;
+}
+
+.job-workspace .job-deliverable-details .attachment-thumbnail img {
+  object-fit: contain;
+}
+
+.job-workspace .job-deliverable-details .attachment-preview > span:last-child {
+  display: block;
+  padding: 12px;
+}
+
+.job-workspace
+  .job-deliverable-details
+  .attachment-preview
+  > span:last-child
+  > b {
+  font-size: 13px;
+}
+
+.job-workspace .job-deliverable-details .attachment-remove {
+  width: 44px;
+  min-height: 44px;
+}
+
+@media (max-width: 600px) {
+  .job-workspace .job-deliverable-row {
+    grid-template-columns: 20px minmax(0, 1fr);
+    align-items: start;
+  }
+  .job-workspace
+    .job-deliverable-row
+    :is(.job-deliverable-status, .work-proof-status),
+  .job-workspace .job-deliverable-actions,
+  .job-workspace .work-proof-toggle,
+  .job-workspace .job-deliverable-row > .jobs-button {
+    grid-column: 2;
+  }
+  .job-workspace .job-deliverable-row > .jobs-button,
+  .job-workspace .work-proof-toggle {
+    justify-self: start;
+  }
+  .job-workspace .job-deliverable-details {
+    margin-left: 0;
+    padding-left: 12px;
+  }
+  .job-workspace .work-proof-actions > .jobs-button {
+    flex: 1 1 auto;
+  }
+}

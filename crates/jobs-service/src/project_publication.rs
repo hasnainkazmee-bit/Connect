@@ -146,9 +146,11 @@ async fn finish_update(
             "Finish uploading the update attachments before sharing it.",
         ));
     }
+    let checklist_proof = work_checklist::publish_in_transaction(tx, id, uid, actor).await?;
     let kind: String = update.get("kind");
     let text: String = update.get("body");
     if kind == "completion" {
+        work_checklist::ensure_complete(tx, id).await?;
         let pending:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM job_scope_changes WHERE job_id=$1::uuid AND status='pending')").bind(id).fetch_one(&mut **tx).await?;
         if pending {
             return Err(conflict(
@@ -187,21 +189,34 @@ async fn finish_update(
     } else {
         &hirer
     };
-    quote_workflow::alert(
-        tx,
-        target,
-        &provider,
-        actor,
-        &eid,
-        if kind == "completion" {
-            "Work ready for review"
-        } else {
-            "New job update"
-        },
-        &text,
-        id,
-    )
-    .await?;
+    if checklist_proof {
+        work_checklist::alert(
+            tx,
+            target,
+            actor,
+            &eid,
+            "Task ready for approval",
+            &text,
+            id,
+        )
+        .await?;
+    } else {
+        quote_workflow::alert(
+            tx,
+            target,
+            &provider,
+            actor,
+            &eid,
+            if kind == "completion" {
+                "Work ready for review"
+            } else {
+                "New job update"
+            },
+            &text,
+            id,
+        )
+        .await?;
+    }
     Ok(())
 }
 pub(super) async fn add_update(
@@ -232,6 +247,7 @@ pub(super) async fn add_update(
         return Err(forbidden());
     }
     if kind == "completion" {
+        work_checklist::ensure_complete(&mut tx, &id).await?;
         let pending:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM job_scope_changes WHERE job_id=$1::uuid AND status='pending')").bind(&id).fetch_one(&mut *tx).await?;
         if pending {
             return Err(conflict(

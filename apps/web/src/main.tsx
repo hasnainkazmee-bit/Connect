@@ -138,6 +138,9 @@ import "./job-workspace.css";
 import "./job-inbox.css";
 import "./profile-workspace.css";
 import "./job-discovery.css";
+import "./job-document.css";
+import "./job-progress.css";
+import "./job-attachment-viewer.css";
 
 const date = (s: string) =>
   new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric" });

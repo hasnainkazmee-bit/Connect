@@ -1,0 +1,1111 @@
+/* The public job brief is one document. Comparison and active-work views keep
+   their own workspace layouts; only .is-job-document opts into this surface. */
+html:has(.is-job-document) {
+  --job-document-width: 80%;
+  --job-document-inset: clamp(24px, 2.65vw, 42px);
+  --job-document-dock-space: 9rem;
+  scroll-padding-bottom: calc(
+    var(--job-document-dock-space) + env(safe-area-inset-bottom)
+  );
+}
+
+body:has(.is-job-document) {
+  background: #eef5fb;
+}
+
+html:not(.connect-desktop) .app-main:has(.is-job-document),
+html.connect-desktop .app-main:has(.is-job-document) {
+  width: var(--job-document-width);
+  max-width: none;
+  padding-inline: 0;
+  margin-inline: auto;
+}
+
+.jobs-page.job-workspace.is-job-document {
+  width: 100%;
+  margin-block: 24px
+    calc(var(--job-document-dock-space) + env(safe-area-inset-bottom));
+  padding: 16px var(--job-document-inset) 32px;
+  border: 1px solid #d6e2ec;
+  border-radius: 22px;
+  background: #fff;
+  color: var(--market-ink);
+  box-shadow: 0 3px 12px #26476008;
+  font-size: 16px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.jobs-page.job-workspace.is-job-document.is-editing-quote {
+  margin-bottom: 40px;
+}
+
+.is-job-document > .job-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin: 0 0 10px;
+  padding: 0;
+  color: var(--market-ink);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.is-job-document > .job-back:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.is-job-document .job-document-header {
+  position: relative;
+  padding-bottom: 22px;
+}
+
+.is-job-document .job-document-header > .job-status {
+  padding: 4px 12px;
+  border: 0;
+  background: #e3effa;
+  color: #284b67;
+  border-radius: 999px;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+.jobs-page.is-job-document .job-document-header h1 {
+  max-width: 38ch;
+  margin: 12px 0 20px;
+  font-size: clamp(26px, 1.55rem + 0.75vw, 36px);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.2;
+  text-wrap: pretty;
+}
+
+.is-job-document .job-document-identity {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18px 28px;
+}
+
+.is-job-document .job-document-company,
+.is-job-document .job-document-location {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  color: var(--market-ink);
+  text-decoration: none;
+}
+
+.is-job-document .job-document-company > span,
+.is-job-document .job-document-location > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.is-job-document .job-document-company .job-logo {
+  flex: 0 0 54px;
+  width: 54px;
+  height: auto;
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: 9px;
+  object-fit: contain;
+  background: #fff;
+}
+
+.is-job-document .job-document-company strong {
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.is-job-document .job-document-company small {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #3c607b;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.is-job-document .job-document-company:hover small {
+  color: var(--market-ink);
+}
+
+.is-job-document .job-document-location {
+  padding-left: 28px;
+  border-left: 1px solid #dce5ed;
+}
+
+.is-job-document .job-document-location strong {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.is-job-document .job-document-location small {
+  color: var(--market-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.is-job-document .job-document-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 0;
+  margin-top: 22px;
+  color: var(--market-ink);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.is-job-document .job-document-facts > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding-right: 24px;
+  margin-right: 24px;
+  border-right: 1px solid #d6e0e9;
+  min-width: 0;
+}
+
+.is-job-document .job-document-facts > span:last-child {
+  border-right: 0;
+  margin-right: 0;
+  padding-right: 0;
+}
+
+.is-job-document .job-document-facts > span > span {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  min-width: 0;
+}
+
+.is-job-document .job-document-facts small {
+  color: var(--market-muted);
+  font-size: inherit;
+}
+
+.is-job-document
+  :is(.job-document-facts, .job-document-location, .job-back)
+  svg {
+  flex-shrink: 0;
+  width: 19px;
+  height: auto;
+  aspect-ratio: 1;
+  stroke-width: 1.6;
+}
+
+.is-job-document .workspace-heading-actions {
+  max-width: none;
+  justify-content: flex-start;
+  margin-top: 20px;
+}
+
+.is-job-document .job-document-nav {
+  display: flex;
+  gap: clamp(16px, 2vw, 28px);
+  border-block: 1px solid #d5dfe8;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #c8d6e2 transparent;
+}
+
+.is-job-document .job-document-nav a {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 46px;
+  padding: 10px 3px 8px;
+  border-bottom: 3px solid transparent;
+  color: #425b6e;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.is-job-document
+  .job-document-nav
+  :is(a.active, a[aria-current="true"], a[aria-current="location"]) {
+  border-bottom-color: var(--market-orange);
+  color: var(--market-ink);
+  font-weight: 650;
+}
+
+.is-job-document .job-document-nav a:hover {
+  color: var(--market-ink);
+  background: #f6f9fc;
+}
+
+.is-job-document .workspace-detail-layout,
+.is-job-document .workspace-detail-layout > .jobs-detail-main,
+.is-job-document .job-document-content {
+  display: block;
+  min-width: 0;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.is-job-document .job-document-content > section {
+  padding-top: 28px;
+  scroll-margin-top: 24px;
+}
+
+.is-job-document .job-document-content h2,
+.is-job-document .job-proposal-questions h3 {
+  margin: 0 0 10px;
+  font-size: 22px;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+}
+
+.is-job-document .job-document-content h2 > small {
+  display: inline-block;
+  margin-left: 6px;
+  color: var(--market-muted);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+.is-job-document .job-document-content p {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.is-job-document .job-document-content .job-description {
+  max-width: 100ch;
+}
+
+.is-job-document .job-document-specs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 40px;
+  margin: 24px 0 0;
+  padding: 0;
+}
+
+.is-job-document .job-document-specs > div {
+  min-width: 0;
+}
+
+.is-job-document .job-document-specs dt,
+.is-job-document .job-requirements h3 {
+  margin: 0 0 5px;
+  color: var(--market-ink);
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.is-job-document .job-document-specs dd {
+  margin: 0;
+  color: #41596b;
+  font-size: 15px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.is-job-document .job-requirements {
+  margin-top: 24px;
+}
+
+.is-job-document .job-attachment-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.is-job-document .job-attachment-card {
+  min-width: 0;
+  border: 1px solid #d3dee8;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.is-job-document .attachment-preview {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--market-ink);
+  text-align: left;
+}
+
+.is-job-document .attachment-preview:hover {
+  background: #f4f8fc;
+}
+
+.is-job-document .attachment-thumbnail {
+  display: flex;
+  flex: 0 0 44%;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 44%;
+  height: auto;
+  aspect-ratio: 1.8;
+  border-radius: 7px;
+  background: #f0f5f9;
+  color: #587086;
+  overflow: hidden;
+}
+
+.is-job-document .attachment-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.is-job-document .attachment-thumbnail b {
+  font-size: 11px;
+}
+
+.is-job-document .attachment-preview > span:last-child {
+  min-width: 0;
+  flex: 1;
+  padding: 0;
+}
+
+.is-job-document .attachment-preview > span:last-child b {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  font-weight: 550;
+  line-height: 1.45;
+}
+
+.is-job-document .attachment-preview small {
+  display: block;
+  margin-top: 5px;
+  color: var(--market-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.is-job-document .job-proposal-questions {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.is-job-document .job-proposal-questions ol {
+  display: grid;
+  gap: 12px;
+  counter-reset: proposal-question;
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+}
+
+.is-job-document .job-proposal-questions li {
+  display: grid;
+  grid-template-columns: 1.65em minmax(0, max-content) max-content;
+  justify-content: start;
+  align-items: start;
+  gap: 10px;
+  padding: 0;
+  list-style: none;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.is-job-document .job-proposal-questions li::marker {
+  content: "";
+}
+
+.is-job-document .job-proposal-questions li::before {
+  content: counter(proposal-question);
+  content: counter(proposal-question) / "";
+  counter-increment: proposal-question;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #e2effa;
+  color: #294f6e;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.is-job-document .job-proposal-questions small {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #edf4fa;
+  color: #405c72;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.7;
+}
+
+.is-job-document .jobs-panel.job-own-quote,
+.is-job-document #quote-form {
+  margin-top: 28px;
+  padding: 28px 0 0;
+  border: 0;
+  border-top: 1px solid #d6e0e9;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.is-job-document .job-document-return {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 20px;
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+  color: #35576f;
+  font-size: 14px;
+}
+
+.is-job-document .job-document-dock {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 25;
+  pointer-events: none;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.is-job-document .job-document-dock-inner {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  width: var(--job-document-width);
+  margin-inline: auto;
+  padding: 18px var(--job-document-inset);
+  border: 1px solid #d4e0ea;
+  border-bottom: 0;
+  border-radius: 18px 18px 0 0;
+  background: #fffffff7;
+  box-shadow: 0 -3px 18px #29496309;
+  backdrop-filter: blur(12px);
+  pointer-events: auto;
+}
+
+.is-job-document .job-document-budget {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.is-job-document .job-document-budget strong {
+  font-size: clamp(23px, 1.4rem + 0.55vw, 32px);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.is-job-document .job-document-budget small {
+  color: var(--market-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.is-job-document .job-document-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.is-job-document .job-document-actions .jobs-button {
+  min-height: 46px;
+  padding: 11px 24px;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.is-job-document .job-document-action-note {
+  flex: 1 0 100%;
+  margin: 0;
+  color: var(--market-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+body:has(.is-job-document) .jobs-site-header .header-post-job,
+.is-job-document .workspace-heading-actions .jobs-primary {
+  border: 1px solid #bccbd7;
+  background: #fff;
+  color: var(--market-ink);
+}
+
+body:has(.is-job-document) .jobs-site-header .header-post-job:hover,
+.is-job-document .workspace-heading-actions .jobs-primary:hover:not(:disabled) {
+  border-color: #94aabb;
+  background: #f3f7fa;
+}
+
+body:has(.is-job-document) .jobs-top-nav a {
+  border-color: transparent;
+  border-radius: 0;
+  background: transparent;
+}
+
+body:has(.is-job-document) .jobs-top-nav a:hover {
+  box-shadow: inset 0 -3px #c8d8e5;
+}
+
+body:has(.is-job-document) .jobs-top-nav a.active {
+  box-shadow: inset 0 -3px var(--market-orange);
+}
+
+html.connect-desktop:has(.is-job-document) {
+  --job-document-width: calc(100% - 2 * var(--page-gutter));
+}
+
+@media (max-width: 1100px) {
+  .is-job-document .job-attachment-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  html:has(.is-job-document),
+  html.connect-desktop:has(.is-job-document) {
+    --job-document-width: calc(100% - 24px);
+    --job-document-inset: clamp(16px, 4vw, 24px);
+    --job-document-dock-space: 14rem;
+  }
+  .jobs-page.job-workspace.is-job-document {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-radius: 16px;
+  }
+  .is-job-document .job-document-header h1 {
+    margin-bottom: 18px;
+  }
+  .is-job-document .job-document-identity {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .is-job-document .job-document-location {
+    padding-left: 0;
+    border-left: 0;
+    align-items: flex-start;
+  }
+  .is-job-document .job-document-location > svg {
+    margin-top: 2px;
+  }
+  .is-job-document .job-document-facts {
+    display: grid;
+    gap: 12px;
+    margin-top: 20px;
+  }
+  .is-job-document .job-document-facts > span {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 14px;
+  }
+  .is-job-document .job-document-nav {
+    gap: 20px;
+  }
+  .is-job-document .job-document-nav a {
+    font-size: 14px;
+  }
+  .is-job-document .job-document-content > section {
+    padding-top: 24px;
+  }
+  .is-job-document .job-document-specs {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .is-job-document .job-document-content h2,
+  .is-job-document .job-proposal-questions h3 {
+    font-size: 20px;
+  }
+  .is-job-document .job-document-dock-inner {
+    padding-block: 14px;
+    gap: 12px;
+    border-radius: 16px 16px 0 0;
+  }
+  .is-job-document .job-document-budget {
+    grid-template-columns: auto 1fr;
+    gap: 8px;
+    align-items: baseline;
+    width: 100%;
+  }
+  .is-job-document .job-document-budget small {
+    font-size: 13px;
+  }
+  .is-job-document .job-document-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    gap: 8px;
+  }
+  .is-job-document .job-document-actions .jobs-button {
+    padding-inline: 12px;
+    font-size: 14px;
+  }
+  .is-job-document .job-document-actions > :only-child {
+    grid-column: 1 / -1;
+  }
+  .is-job-document .job-document-action-note {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 520px) {
+  .is-job-document .job-attachment-grid {
+    grid-template-columns: 1fr;
+  }
+  .is-job-document .attachment-thumbnail {
+    flex-basis: 35%;
+    width: 35%;
+  }
+  .is-job-document .job-proposal-questions li {
+    grid-template-columns: 1.65em minmax(0, 1fr);
+    gap: 6px 10px;
+  }
+  .is-job-document .job-proposal-questions small {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+@media print {
+  .jobs-page.job-workspace.is-job-document {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+  }
+  .is-job-document :is(.job-document-dock, .job-document-nav, .job-back) {
+    display: none;
+  }
+}
+
+/* Writing a quote follows the same document surface: proposal first, then
+   supporting details, with the total and final action at the end. */
+.is-job-document #quote-form .quote-editor-header {
+  margin-bottom: 28px;
+}
+
+.is-job-document #quote-form .quote-editor-header h2 {
+  margin: 0;
+  color: var(--market-ink);
+  font-size: clamp(24px, 1.5rem + 0.25vw, 28px);
+  line-height: 1.3;
+  letter-spacing: -0.025em;
+}
+
+.is-job-document #quote-form .quote-editor-header p {
+  max-width: 78ch;
+  margin: 9px 0 0;
+  color: var(--market-muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.is-job-document .job-quote-form,
+.is-job-document .job-quote-form .quote-form-fields {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+
+.is-job-document
+  .job-quote-form
+  > :is(.proposal-review-notice, .quote-decision-note) {
+  margin: 0 0 24px;
+}
+
+.is-job-document .quote-form-fields > .quote-section {
+  min-width: 0;
+  margin: 0;
+  padding: 28px 0;
+  border: 0;
+  border-top: 1px solid #dce5ed;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.is-job-document .quote-form-fields > .quote-section:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.is-job-document .quote-section-heading,
+.is-job-document .quote-questions-section .proposal-section-heading {
+  margin: 0 0 18px;
+}
+
+.is-job-document .quote-section-heading h3,
+.is-job-document .quote-questions-section .proposal-section-heading h3 {
+  margin: 0;
+  color: var(--market-ink);
+  font-size: 20px;
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+  font-weight: 650;
+}
+
+.is-job-document .quote-section-heading p,
+.is-job-document .quote-questions-section .proposal-section-heading p {
+  margin: 6px 0 0;
+  color: var(--market-muted);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.is-job-document .quote-section-hint {
+  margin: 8px 0 0;
+  color: var(--market-muted);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.is-job-document .quote-section .field-optional {
+  color: var(--market-muted);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+.is-job-document .quote-proposal-section > label + label,
+.is-job-document .quote-proposal-section > p + label {
+  margin-top: 20px;
+}
+
+.is-job-document .job-quote-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  color: var(--market-ink);
+  font-size: 16px;
+  font-weight: 550;
+  line-height: 1.5;
+}
+
+.is-job-document .job-quote-form label small {
+  color: var(--market-muted);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.is-job-document
+  #quote-form
+  :is(input, textarea, select):not([type="file"]):not([type="checkbox"]) {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 9px 13px;
+  border: 1px solid #c4d2dd;
+  border-radius: 12px;
+  background-color: #fff;
+  color: var(--market-ink);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.is-job-document
+  #quote-form
+  :is(input, textarea, select):not([type="file"]):focus {
+  outline: none;
+  border-color: #708b9e;
+  box-shadow: 0 0 0 3px #eaf1f7;
+}
+
+.is-job-document #quote-form textarea {
+  resize: vertical;
+}
+
+.is-job-document #quote-form #quote-proposal-text {
+  min-height: 12rem;
+  padding: 14px 16px;
+  line-height: 1.65;
+}
+
+.is-job-document .quote-files-section .attachment-add {
+  padding: 18px;
+  border-color: #c5d4df;
+  border-radius: 12px;
+  background: #f7fafc;
+}
+
+.is-job-document .quote-files-section .attachment-add b {
+  font-size: 15px;
+}
+
+.is-job-document .quote-files-section .attachment-add small {
+  font-size: 13px;
+}
+
+.is-job-document .quote-files-section .job-attachment-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+}
+
+.is-job-document
+  .quote-files-section
+  .job-attachment-card:has(.attachment-remove)
+  .attachment-preview {
+  padding-right: 52px;
+}
+
+.is-job-document .quote-files-section .attachment-remove {
+  width: 44px;
+  height: 44px;
+  top: 4px;
+  right: 4px;
+  box-shadow: 0 1px 5px #24475d12;
+}
+
+.is-job-document
+  .quote-questions-section
+  :is(.proposal-section-icon, .proposal-question-number) {
+  display: none;
+}
+
+.is-job-document .quote-questions-section .proposal-question-list {
+  gap: 24px;
+}
+
+.is-job-document .quote-questions-section .proposal-answer-field > label {
+  margin-bottom: 10px;
+  font-size: 16px;
+  font-weight: 550;
+}
+
+.is-job-document .quote-questions-section .proposal-answer-prompt small {
+  margin-top: 3px;
+  font-size: 13px;
+}
+
+.is-job-document #quote-form .proposal-answer-fields textarea {
+  min-height: 108px;
+}
+
+.is-job-document .quote-timing-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.is-job-document
+  .job-quote-form
+  :is(.quote-additional-details, .quote-price-breakdown) {
+  margin-top: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.is-job-document
+  .job-quote-form
+  :is(.quote-additional-details, .quote-price-breakdown)
+  > summary {
+  width: fit-content;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 10px 0;
+  border-radius: 6px;
+  color: #36576e;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.is-job-document
+  .job-quote-form
+  :is(.quote-additional-details, .quote-price-breakdown)
+  > summary:hover {
+  color: var(--market-ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.is-job-document .job-quote-form details[open] > label {
+  margin-top: 18px;
+}
+
+.is-job-document .job-quote-form summary:focus-visible {
+  outline: 2px solid #708b9e;
+  outline-offset: 4px;
+}
+
+.is-job-document .quote-price-section > label {
+  display: block;
+  max-width: 420px;
+}
+
+.is-job-document .quote-price-money {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-height: 44px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+  border: 1px solid #c4d2dd;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.is-job-document .quote-price-money:focus-within {
+  border-color: #708b9e;
+  box-shadow: 0 0 0 3px #eaf1f7;
+}
+
+.is-job-document .quote-price-money > span {
+  flex: none;
+  padding-left: 14px;
+  color: #5e778b;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.is-job-document #quote-form .quote-price-money input,
+.is-job-document #quote-form .quote-price-money input:focus {
+  flex: 1;
+  min-height: 42px;
+  padding: 9px 13px 9px 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.is-job-document .quote-price-breakdown .price-breakdown-row {
+  grid-template-columns: minmax(0, 1fr) minmax(110px, 180px) 44px;
+  gap: 12px;
+}
+
+.is-job-document .quote-price-breakdown .price-breakdown-row button {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+}
+
+.is-job-document .quote-price-breakdown .price-breakdown-row button:hover {
+  background: #eef4f8;
+}
+
+.is-job-document .quote-price-breakdown .job-text-button {
+  justify-self: start;
+  min-height: 44px;
+  font-size: 14px;
+}
+
+.is-job-document .quote-price-breakdown .price-breakdown > small {
+  color: var(--market-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.is-job-document .quote-submit-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.is-job-document .quote-submit-actions .jobs-button {
+  min-height: 44px;
+  padding: 11px 24px;
+  font-size: 15px;
+}
+
+@media (max-width: 760px) {
+  .is-job-document #quote-form .quote-editor-header {
+    margin-bottom: 24px;
+  }
+  .is-job-document .quote-form-fields > .quote-section {
+    padding-block: 24px;
+  }
+  .is-job-document .quote-form-fields > .quote-section:first-child {
+    padding-top: 0;
+  }
+  .is-job-document .quote-timing-fields {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .is-job-document #quote-form #quote-proposal-text {
+    min-height: 10rem;
+    padding: 12px 13px;
+  }
+  .is-job-document .quote-price-section > label {
+    max-width: none;
+  }
+  .is-job-document .quote-submit-actions .jobs-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .is-job-document .quote-price-breakdown .price-breakdown-row {
+    grid-template-columns: minmax(0, 1fr) 44px;
+    gap: 8px;
+    padding-bottom: 16px;
+  }
+  .is-job-document
+    .quote-price-breakdown
+    .price-breakdown-row
+    input:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+.is-job-document .job-deliverables {
+  margin-top: 24px;
+}
+
+.is-job-document .job-deliverables > header h3 {
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.is-job-document .job-deliverable-item {
+  padding-block: 10px;
+  border-bottom: 0;
+}

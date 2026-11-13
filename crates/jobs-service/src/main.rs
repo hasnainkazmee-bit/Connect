@@ -3,6 +3,7 @@ mod project_publication;
 mod proposal_questions;
 mod provider_matching;
 mod quote_workflow;
+mod work_checklist;
 use axum::{
     body::Bytes,
     extract::{DefaultBodyLimit, Path, Query, State},
@@ -189,7 +190,7 @@ async fn job_access(app: &App, id: &str, company: Option<&str>) -> Result<JobAcc
     .fetch_optional(&app.db)
     .await?
     .ok_or_else(not_found)?;
-    let job = parse_json(raw)?;
+    let mut job = parse_json(raw)?;
     let hirer = company == job["hiring_company_id"].as_str();
     let mut chosen = false;
     let mut invited = false;
@@ -215,6 +216,9 @@ async fn job_access(app: &App, id: &str, company: Option<&str>) -> Result<JobAcc
         && !(job["visibility"] == "open" && job["status"] == "open")
     {
         return Err(not_found());
+    }
+    if !hirer && !chosen {
+        job["work_checklist"] = work_checklist::public_scope(&job["work_checklist"]);
     }
     Ok(JobAccess {
         job,
@@ -458,6 +462,9 @@ async fn get_job(
     let mut job = a.job;
     if !a.hirer && !a.chosen {
         job["exact_address"] = json!("");
+        job["work_checklist"] = work_checklist::public_scope(&job["work_checklist"]);
+    } else {
+        work_checklist::decorate(&app.db, &id, &mut job["work_checklist"]).await?;
     }
     let company_raw: String = sqlx::query_scalar(&format!(
         "SELECT {}::text FROM companies c WHERE c.id=$1::uuid",
@@ -753,6 +760,7 @@ async fn upload_file(
         quote_version = Some(version);
     } else if let Some(uid) = update {
         checked_id(uid)?;
+        work_checklist::guard_upload(&mut tx, &id, uid, &actor).await?;
         a.participant()?;
         if !["in_progress", "review"].contains(&status.as_str()) {
             return Err(forbidden());
@@ -1818,16 +1826,17 @@ async fn create_job(
     let brief = parse_brief(&body)?;
     let posting = parse_posting_details(&body)?;
     let proposal_questions = proposal_questions::parse(&body)?;
+    let checklist = work_checklist::parse(&body)?;
     let matching = provider_matching::parse_job_preferences(&app, &body).await?;
     validate_job_dates(&app.db, deadline, posting.as_ref(), status).await?;
     let (start, duration) = posting_labels(posting.as_ref(), start, brief.duration);
     let new_id: String = sqlx::query_scalar(
         "INSERT INTO jobs(hiring_company_id,author_id,title,description,trade,location,postal_code,exact_address,\
-         start_window,budget_cents,visibility,quote_deadline,status,project_type,system_size_kw,site_count,materials_by,requirements,people_needed,expected_duration,work_arrangement,posting_details,matching_preferences,proposal_questions) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10,$11,NULLIF($12,'')::timestamptz,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22::jsonb,$23::jsonb,$24::jsonb) RETURNING id::text")
+         start_window,budget_cents,visibility,quote_deadline,status,project_type,system_size_kw,site_count,materials_by,requirements,people_needed,expected_duration,work_arrangement,posting_details,matching_preferences,proposal_questions,work_checklist) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10,$11,NULLIF($12,'')::timestamptz,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22::jsonb,$23::jsonb,$24::jsonb,$25::jsonb) RETURNING id::text")
         .bind(a.company.as_deref()).bind(&a.user).bind(title).bind(description).bind(trade).bind(location)
         .bind(postal).bind(exact).bind(start).bind(budget).bind(visibility).bind(deadline).bind(status)
         .bind(brief.project).bind(brief.size).bind(brief.sites).bind(brief.materials).bind(brief.requirements)
-        .bind(brief.people).bind(duration).bind(brief.arrangement).bind(posting.map(|v|v.to_string())).bind(matching.map(|v|v.to_string())).bind(proposal_questions.unwrap_or_else(||json!([])).to_string())
+        .bind(brief.people).bind(duration).bind(brief.arrangement).bind(posting.map(|v|v.to_string())).bind(matching.map(|v|v.to_string())).bind(proposal_questions.unwrap_or_else(||json!([])).to_string()).bind(checklist.unwrap_or_else(||json!([])).to_string())
         .fetch_one(&app.db).await?;
     Ok((StatusCode::CREATED, Json(json!({"id":new_id}))))
 }
@@ -1889,12 +1898,13 @@ async fn edit_job(
     let brief = parse_brief(&body)?;
     let posting = parse_posting_details(&body)?;
     let proposal_questions = proposal_questions::parse(&body)?;
+    let checklist = work_checklist::parse(&body)?;
     let matching = provider_matching::parse_job_preferences(&app, &body).await?;
     validate_job_dates(&app.db, deadline, posting.as_ref(), status).await?;
     let (start, duration) = posting_labels(posting.as_ref(), start, brief.duration);
     let mut tx = app.db.begin().await?;
     let row = sqlx::query(
-        "SELECT hiring_company_id::text AS hirer,status FROM jobs WHERE id=$1::uuid FOR UPDATE",
+        "SELECT hiring_company_id::text AS hirer,status,work_checklist::text AS work_checklist FROM jobs WHERE id=$1::uuid FOR UPDATE",
     )
     .bind(&id)
     .fetch_optional(&mut *tx)
@@ -1916,11 +1926,16 @@ async fn edit_job(
             "Quotes have arrived. This job can no longer be edited.",
         ));
     }
-    sqlx::query("UPDATE jobs SET title=$1,description=$2,trade=$3,location=$4,postal_code=$5,exact_address=$6,start_window=$7,budget_cents=$8,visibility=$9,quote_deadline=NULLIF($10,'')::timestamptz,status=$11,project_type=$13,system_size_kw=$14,site_count=$15,materials_by=$16,requirements=$17,people_needed=$18,expected_duration=$19,work_arrangement=$20,posting_details=COALESCE($21::jsonb,posting_details),matching_preferences=CASE WHEN $23 THEN $22::jsonb ELSE matching_preferences END,questions_version=questions_version+CASE WHEN $24::jsonb IS NOT NULL AND proposal_questions<>$24::jsonb THEN 1 ELSE 0 END,proposal_questions=COALESCE($24::jsonb,proposal_questions),updated_at=now() WHERE id=$12::uuid")
+    let checklist = checklist
+        .map(|replacement| {
+            work_checklist::merge(&parse_json(row.get("work_checklist"))?, replacement)
+        })
+        .transpose()?;
+    sqlx::query("UPDATE jobs SET title=$1,description=$2,trade=$3,location=$4,postal_code=$5,exact_address=$6,start_window=$7,budget_cents=$8,visibility=$9,quote_deadline=NULLIF($10,'')::timestamptz,status=$11,project_type=$13,system_size_kw=$14,site_count=$15,materials_by=$16,requirements=$17,people_needed=$18,expected_duration=$19,work_arrangement=$20,posting_details=COALESCE($21::jsonb,posting_details),matching_preferences=CASE WHEN $23 THEN $22::jsonb ELSE matching_preferences END,questions_version=questions_version+CASE WHEN $24::jsonb IS NOT NULL AND proposal_questions<>$24::jsonb THEN 1 ELSE 0 END,proposal_questions=COALESCE($24::jsonb,proposal_questions),checklist_version=checklist_version+CASE WHEN $25::jsonb IS NOT NULL AND work_checklist<>$25::jsonb THEN 1 ELSE 0 END,work_checklist=COALESCE($25::jsonb,work_checklist),updated_at=now() WHERE id=$12::uuid")
         .bind(title).bind(description).bind(trade).bind(location).bind(postal).bind(exact).bind(start).bind(budget)
         .bind(visibility).bind(deadline).bind(status).bind(&id)
         .bind(brief.project).bind(brief.size).bind(brief.sites).bind(brief.materials).bind(brief.requirements)
-        .bind(brief.people).bind(duration).bind(brief.arrangement).bind(posting.map(|v|v.to_string())).bind(matching.map(|v|v.to_string())).bind(body.get("matchingPreferences").is_some()).bind(proposal_questions.map(|v|v.to_string())).execute(&mut *tx).await?;
+        .bind(brief.people).bind(duration).bind(brief.arrangement).bind(posting.map(|v|v.to_string())).bind(matching.map(|v|v.to_string())).bind(body.get("matchingPreferences").is_some()).bind(proposal_questions.map(|v|v.to_string())).bind(checklist.map(|v|v.to_string())).execute(&mut *tx).await?;
     tx.commit().await?;
     Ok(Json(json!({"id":id})))
 }
@@ -1964,6 +1979,9 @@ async fn review_work(
         return Err(conflict(
             "The submitted work has changed. Review the latest update before deciding.",
         ));
+    }
+    if decision == "accept" {
+        work_checklist::ensure_complete(&mut tx, &id).await?;
     }
     sqlx::query("UPDATE jobs SET status=$1,updated_at=now() WHERE id=$2::uuid")
         .bind(if decision == "accept" {
@@ -2128,6 +2146,18 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         )
         .route("/jobs/{id}/choose", post(quote_workflow::choose))
         .route("/jobs/{id}/confirm", post(quote_workflow::confirm))
+        .route(
+            "/jobs/{id}/checklist/{item_id}/submissions",
+            post(work_checklist::submit),
+        )
+        .route(
+            "/jobs/{id}/checklist/{item_id}/submissions/cancel",
+            post(work_checklist::cancel),
+        )
+        .route(
+            "/jobs/{id}/checklist/{item_id}/review",
+            post(work_checklist::review),
+        )
         .route("/jobs/{id}/updates", post(project_publication::add_update))
         .route(
             "/jobs/{id}/updates/{update_id}/publish",

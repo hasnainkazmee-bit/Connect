@@ -1,0 +1,807 @@
+/* Active projects use a task-and-proof workspace. The public job document,
+   quote comparison, and posting form keep their own layouts. */
+.is-active-work.job-progress-shell {
+  --progress-line: #d9e4ed;
+  --progress-muted: #587184;
+  --progress-inset: clamp(20px, 2.4vw, 32px);
+  min-width: 0;
+  padding-block: 24px 64px;
+}
+
+.job-progress-shell [hidden] {
+  display: none !important;
+}
+
+.is-active-work.job-progress-shell .workspace-job-header {
+  margin-bottom: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.is-active-work.job-progress-shell .workspace-job-heading {
+  align-items: center;
+  gap: 20px;
+}
+
+.is-active-work.job-progress-shell .workspace-title-line {
+  gap: 10px 14px;
+}
+
+.is-active-work.job-progress-shell .workspace-title-line h1 {
+  font-size: clamp(25px, 2.15vw, 34px);
+  line-height: 1.25;
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
+}
+
+.is-active-work.job-progress-shell .workspace-company-pair {
+  gap: 8px 14px;
+  margin-top: 12px;
+}
+
+.is-active-work.job-progress-shell .workspace-company-pair > a {
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.is-active-work.job-progress-shell .workspace-company-pair svg {
+  flex: none;
+  color: #658095;
+  stroke-width: 1.6;
+}
+
+.is-active-work.job-progress-shell .workspace-company-pair > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--progress-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.is-active-work.job-progress-shell .workspace-heading-actions {
+  max-width: none;
+}
+
+.is-active-work.job-progress-shell .jobs-button {
+  min-height: 44px;
+  font-size: 14px;
+}
+
+.is-active-work.job-progress-shell .job-progress-summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px 28px;
+  margin: 14px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.is-active-work.job-progress-shell .job-progress-summary > dl {
+  display: contents;
+}
+
+.is-active-work.job-progress-shell .job-progress-summary :is(dt, dd) {
+  margin: 0;
+}
+
+.is-active-work.job-progress-shell .job-progress-summary dt {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--progress-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.is-active-work.job-progress-shell .job-progress-summary dt svg {
+  flex: none;
+  stroke-width: 1.6;
+}
+
+.is-active-work.job-progress-shell .job-progress-summary dd {
+  color: var(--market-ink);
+  font-size: 15px;
+  font-weight: 550;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.is-active-work.job-progress-shell .job-progress-summary > div {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 5px 9px;
+  min-width: 0;
+}
+
+.is-active-work.job-progress-shell .job-progress-tabs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin: 0 0 24px;
+  border-bottom: 1px solid #cedde8;
+}
+
+.is-active-work.job-progress-shell .job-progress-tabs :is(button, a) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  margin-bottom: -1px;
+  padding: 12px 2px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #526c80;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-decoration: none;
+}
+
+.is-active-work.job-progress-shell .job-progress-tabs :is(button, a):hover {
+  color: var(--market-ink);
+}
+
+.is-active-work.job-progress-shell .job-progress-tabs .active,
+.is-active-work.job-progress-shell .job-progress-tabs [aria-selected="true"] {
+  border-bottom-color: var(--market-orange);
+  color: var(--market-ink);
+}
+
+.is-active-work.job-progress-shell .job-progress-layout {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.is-active-work.job-progress-shell .job-progress-layout > .job-progress-main {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+
+.is-active-work.job-progress-shell .work-checklist-panel {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  scroll-margin-top: 110px;
+}
+
+.is-active-work.job-progress-shell .work-checklist-workspace {
+  display: grid;
+  grid-template-columns: minmax(235px, 0.3fr) minmax(0, 0.7fr);
+  align-items: stretch;
+  min-width: 0;
+  border: 1px solid #cbdbe7;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 3px 10px #28465e04;
+}
+
+.is-active-work.job-progress-shell .work-checklist-rail {
+  min-width: 0;
+  padding: 24px 16px;
+  border-right: 1px solid var(--progress-line);
+  border-radius: 19px 0 0 19px;
+  background: #f5f9fc;
+}
+
+.is-active-work.job-progress-shell .work-checklist-rail > header {
+  padding-inline: 8px;
+}
+
+.is-active-work.job-progress-shell .work-checklist-rail h3 {
+  margin: 0 0 14px;
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.is-active-work.job-progress-shell .work-checklist-progress {
+  margin: 0 8px 20px;
+  color: var(--progress-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.is-active-work.job-progress-shell .work-checklist-progress progress {
+  display: block;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  margin-block: 8px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: #dfe9f1;
+}
+
+.is-active-work.job-progress-shell
+  .work-checklist-progress
+  progress::-webkit-progress-bar {
+  border-radius: 999px;
+  background: #dfe9f1;
+}
+
+.is-active-work.job-progress-shell
+  .work-checklist-progress
+  progress::-webkit-progress-value {
+  border-radius: 999px;
+  background: #416880;
+}
+
+.is-active-work.job-progress-shell
+  .work-checklist-progress
+  progress::-moz-progress-bar {
+  border-radius: 999px;
+  background: #416880;
+}
+
+.is-active-work.job-progress-shell .work-checklist-tasks {
+  display: grid;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.is-active-work.job-progress-shell .work-checklist-task {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  gap: 11px;
+  width: 100%;
+  min-height: 44px;
+  padding: 13px 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--market-ink);
+  text-align: left;
+}
+
+.is-active-work.job-progress-shell .work-checklist-task:hover {
+  background: #eaf2f8;
+}
+
+.is-active-work.job-progress-shell .work-checklist-task.is-selected {
+  border-color: #c7d8e5;
+  background: #e8f1f8;
+}
+
+.is-active-work.job-progress-shell .work-checklist-task-icon {
+  display: grid;
+  place-items: center;
+  min-height: 23px;
+  color: #668195;
+}
+
+.is-active-work.job-progress-shell .work-checklist-task-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.7;
+}
+
+.is-active-work.job-progress-shell .is-approved .work-checklist-task-icon {
+  color: #2e6550;
+}
+
+.is-active-work.job-progress-shell .work-checklist-task-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.is-active-work.job-progress-shell .work-checklist-task-label strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 550;
+  line-height: 1.5;
+}
+
+.is-active-work.job-progress-shell .work-checklist-task-label small {
+  display: block;
+  margin-top: 4px;
+  color: #607b90;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.is-active-work.job-progress-shell .work-checklist-count {
+  margin-top: 20px;
+  padding-inline: 8px;
+  color: var(--progress-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.is-active-work.job-progress-shell
+  .work-checklist-rail
+  > .job-deliverables-hint {
+  margin: 12px 8px 0;
+  color: var(--progress-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.is-active-work.job-progress-shell .work-checklist-detail {
+  min-width: 0;
+  padding: var(--progress-inset);
+}
+
+.is-active-work.job-progress-shell .work-checklist-detail-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px 20px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid #e2eaf0;
+}
+
+.is-active-work.job-progress-shell .work-checklist-detail-heading > div {
+  grid-row: 1 / span 2;
+  min-width: 0;
+}
+
+.is-active-work.job-progress-shell .work-checklist-task-number {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--progress-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.is-active-work.job-progress-shell .work-checklist-detail-heading h3 {
+  margin: 0;
+  font-size: clamp(20px, 1.7vw, 25px);
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+
+.is-active-work.job-progress-shell
+  .work-checklist-detail-heading
+  > .work-proof-status {
+  justify-self: end;
+}
+
+.is-active-work.job-progress-shell .work-proof-status.status-approved {
+  background: #edf6f1;
+  color: #2e6550;
+}
+
+.is-active-work.job-progress-shell .work-proof-status.status-changes-requested {
+  background: #f3f0ea;
+  color: #765c32;
+}
+
+.is-active-work.job-progress-shell .work-checklist-date {
+  grid-column: 2;
+  color: var(--progress-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: right;
+}
+
+.is-active-work.job-progress-shell
+  .work-checklist-detail
+  .job-deliverable-details {
+  margin: 22px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.is-active-work.job-progress-shell .work-checklist-waiting {
+  margin-top: 24px;
+  color: #587184;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.is-active-work.job-progress-shell .work-checklist-waiting > svg {
+  margin-bottom: 12px;
+  color: #7690a3;
+  stroke-width: 1.5;
+}
+
+.is-active-work.job-progress-shell
+  .work-checklist-detail
+  .job-deliverables-error {
+  color: #a33e34;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.is-active-work.job-progress-shell .work-checklist-detail .job-attachment-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.is-active-work.job-progress-shell
+  .work-checklist-detail
+  .job-attachment-card[data-kind="document"] {
+  grid-column: 1 / -1;
+}
+
+.is-active-work.job-progress-shell
+  .work-checklist-detail
+  .job-attachment-card[data-kind="image"]
+  .attachment-thumbnail {
+  aspect-ratio: 16 / 10;
+  max-height: 250px;
+}
+
+.is-active-work.job-progress-shell
+  .work-checklist-detail
+  .attachment-thumbnail
+  img {
+  object-fit: contain;
+}
+
+.is-active-work.job-progress-shell
+  .work-checklist-detail
+  .job-attachment-card[data-kind="document"]
+  .attachment-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 88px;
+  padding: 14px;
+}
+
+.is-active-work.job-progress-shell
+  .work-checklist-detail
+  .job-attachment-card[data-kind="document"]
+  .attachment-thumbnail {
+  flex: 0 0 44px;
+  width: 44px;
+  aspect-ratio: 3 / 4;
+  border-radius: 5px;
+}
+
+.is-active-work.job-progress-shell
+  .work-checklist-detail
+  .job-attachment-card[data-kind="document"]
+  .attachment-preview
+  > span:last-child {
+  min-width: 0;
+  padding: 0;
+}
+
+.is-active-work.job-progress-shell
+  .work-checklist-workspace
+  > .work-proof-save-notice {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 14px 24px;
+  border-top: 1px solid var(--progress-line);
+  color: #35556c;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.is-active-work.job-progress-shell
+  .work-checklist-workspace
+  > .work-proof-save-notice:empty {
+  display: none;
+}
+
+.is-active-work.job-progress-shell .job-progress-ready {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px 18px;
+  margin-top: 20px;
+  padding: 20px 24px;
+  border: 1px solid var(--progress-line);
+  border-radius: 16px;
+  background: #f7fafc;
+}
+
+.is-active-work.job-progress-shell .job-progress-ready > svg {
+  flex: none;
+  color: #416880;
+  stroke-width: 1.6;
+}
+
+.is-active-work.job-progress-shell .job-progress-ready > div {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.is-active-work.job-progress-shell .job-progress-ready strong {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.is-active-work.job-progress-shell .job-progress-ready p {
+  margin: 4px 0 0;
+  color: var(--progress-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.is-active-work.job-progress-shell .job-progress-text-link {
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #355b78;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.is-active-work.job-progress-shell
+  :is(
+    .job-progress-panel,
+    .job-progress-details,
+    .job-progress-activity,
+    .job-progress-composer
+  ) {
+  min-width: 0;
+  margin-top: 0;
+  order: 0;
+}
+
+.is-active-work.job-progress-shell
+  :is(.job-progress-panel, .job-progress-details)
+  > .jobs-panel,
+.is-active-work.job-progress-shell .job-progress-panel.jobs-panel {
+  padding: var(--progress-inset);
+  border-color: var(--progress-line);
+  border-radius: 20px;
+}
+
+.is-active-work.job-progress-shell .job-progress-panel > h2 {
+  margin-bottom: 22px;
+}
+
+.is-active-work.job-progress-shell .job-update {
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: 6px 14px;
+  padding-bottom: 22px;
+}
+
+.is-active-work.job-progress-shell .job-update:last-of-type::before {
+  bottom: 22px;
+}
+
+.is-active-work.job-progress-shell .job-update-dot {
+  grid-row: 1 / span 2;
+  width: 10px;
+  height: 10px;
+  margin-top: 7px;
+  background: #f5f9fc;
+  border-color: #8aa3b7;
+}
+
+.is-active-work.job-progress-shell .job-update > .job-update-time {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 0;
+}
+
+.is-active-work.job-progress-shell .job-update-time :is(b, small) {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.is-active-work.job-progress-shell .job-update > .job-update-content {
+  grid-column: 2;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.is-active-work.job-progress-shell .job-update-content h3 {
+  margin: 0 0 5px;
+  font-size: 15px;
+  font-weight: 550;
+}
+
+.is-active-work.job-progress-shell .job-update-content p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.is-active-work.job-progress-shell .job-progress-composer-toggle {
+  min-height: 44px;
+}
+
+.is-active-work.job-progress-shell
+  :is(.job-progress-composer, .job-progress-activity .job-update-form) {
+  margin-top: 20px;
+  padding-top: 24px;
+  border-top: 1px solid var(--progress-line);
+}
+
+.is-active-work.job-progress-shell
+  :is(.job-progress-composer, .job-progress-activity .job-update-form)
+  textarea {
+  width: 100%;
+  min-height: 110px;
+  padding: 12px 14px;
+  border: 1px solid #cbdbe6;
+  border-radius: 12px;
+  font-size: 16px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.is-active-work.job-progress-shell
+  :is(.job-progress-composer, .job-progress-activity .job-update-form)
+  .job-form-actions {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.is-active-work.job-progress-shell .job-progress-details {
+  display: grid;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.is-active-work.job-progress-shell
+  .job-progress-details
+  .workspace-work-facts
+  > dl
+  > div {
+  grid-template-columns: minmax(120px, 0.3fr) minmax(0, 0.7fr);
+  gap: 24px;
+}
+
+.is-active-work.job-progress-shell
+  .job-progress-details
+  .workspace-work-facts
+  dd {
+  padding-left: 0;
+  font-size: 15px;
+}
+
+@media (min-width: 851px) {
+  .is-active-work.job-progress-shell .work-checklist-workspace {
+    background: #f5f9fc;
+  }
+  .is-active-work.job-progress-shell .work-checklist-rail {
+    border-right: 0;
+  }
+  .is-active-work.job-progress-shell .work-checklist-detail {
+    border-left: 1px solid var(--progress-line);
+    border-radius: 0 19px 19px 0;
+    background: #fff;
+  }
+}
+
+@media (min-width: 851px) and (min-height: 600px) {
+  .is-active-work.job-progress-shell .work-checklist-rail {
+    position: sticky;
+    top: 16px;
+    align-self: start;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 32px);
+  }
+  .is-active-work.job-progress-shell
+    .work-checklist-rail
+    > :not(.work-checklist-tasks) {
+    flex: none;
+  }
+  .is-active-work.job-progress-shell .work-checklist-tasks {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+}
+
+@media (max-width: 1000px) {
+  .is-active-work.job-progress-shell .workspace-job-heading {
+    flex-direction: column;
+    align-items: start;
+    gap: 14px;
+  }
+  .is-active-work.job-progress-shell .workspace-heading-actions {
+    justify-content: start;
+  }
+  .is-active-work.job-progress-shell .work-checklist-detail-heading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .is-active-work.job-progress-shell .work-checklist-detail-heading > div {
+    grid-row: auto;
+  }
+  .is-active-work.job-progress-shell
+    .work-checklist-detail-heading
+    > .work-proof-status,
+  .is-active-work.job-progress-shell .work-checklist-date {
+    grid-column: 1;
+    justify-self: start;
+    text-align: left;
+  }
+}
+
+@media (max-width: 850px) {
+  .is-active-work.job-progress-shell .work-checklist-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .is-active-work.job-progress-shell .work-checklist-rail {
+    padding: 20px 16px;
+    border-right: 0;
+    border-bottom: 1px solid var(--progress-line);
+    border-radius: 19px 19px 0 0;
+  }
+  .is-active-work.job-progress-shell .work-checklist-tasks {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  }
+  .is-active-work.job-progress-shell .work-checklist-progress {
+    margin-bottom: 14px;
+  }
+  .is-active-work.job-progress-shell .work-checklist-task {
+    padding-block: 10px;
+  }
+}
+
+@media (max-width: 520px) {
+  .is-active-work.job-progress-shell {
+    --progress-inset: 18px;
+    padding-top: 18px;
+  }
+  .is-active-work.job-progress-shell .job-progress-summary {
+    gap: 10px 20px;
+  }
+  .is-active-work.job-progress-shell .job-progress-tabs {
+    gap: 0 16px;
+    margin-bottom: 18px;
+  }
+  .is-active-work.job-progress-shell .work-checklist-rail {
+    padding: 18px 12px;
+  }
+  .is-active-work.job-progress-shell
+    .job-progress-details
+    .workspace-work-facts
+    > dl
+    > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+  .is-active-work.job-progress-shell
+    :is(.job-progress-composer, .job-progress-activity .job-update-form)
+    .job-form-actions
+    > .jobs-button {
+    flex: 1 1 auto;
+  }
+  .is-active-work.job-progress-shell
+    .work-checklist-detail
+    .job-attachment-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .is-active-work.job-progress-shell .job-progress-ready {
+    padding: 18px;
+  }
+  .is-active-work.job-progress-shell .job-progress-ready > .jobs-button {
+    width: 100%;
+  }
+}

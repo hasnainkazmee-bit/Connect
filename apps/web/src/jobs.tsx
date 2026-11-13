@@ -68,6 +68,7 @@ import {
   type ProposalAnswer,
 } from "./proposal-questions";
 import "./job-quote-workflow.css";
+import { WorkChecklist, type WorkChecklistItem } from "./work-checklist";
 
 export type JobStatus =
   | "draft"
@@ -84,6 +85,8 @@ type PostingDetails = {
   durationUnit: string;
 };
 type Job = {
+  work_checklist?: WorkChecklistItem[];
+  checklist_version?: number;
   proposal_questions?: ProposalQuestion[];
   questions_version?: number;
   matching_preferences?: MatchingPreferences | null;
@@ -882,6 +885,16 @@ function DurationFields({
 }
 
 export function NewJobPage() {
+  const { id } = useParams();
+  const { company, session } = useApp();
+  return (
+    <NewJobForm
+      key={`${id || "new"}:${session.user?.id || "guest"}:${company?.id || "none"}`}
+    />
+  );
+}
+
+function NewJobForm() {
   const { id } = useParams(),
     { company, admin, session, createCompany, signIn, toast } = useApp(),
     navigate = useNavigate();
@@ -901,6 +914,12 @@ export function NewJobPage() {
   const [materials, setMaterials] = useState("to_agree");
   const [requirements, setRequirements] = useState("");
   const [questions, setQuestions] = useState<ProposalQuestion[]>([]);
+  const [workChecklist, setWorkChecklist] = useState<
+    { id: string; title: string }[]
+  >([]);
+  const [checklistDraft, setChecklistDraft] = useState("");
+  const [checklistNotice, setChecklistNotice] = useState("");
+  const checklistInput = useRef<HTMLInputElement>(null);
   const [savingDraft, setSavingDraft] = useState(false);
   const [budgetMode, setBudgetMode] = useState("quotes");
   const [budgetFocused, setBudgetFocused] = useState(false);
@@ -921,8 +940,10 @@ export function NewJobPage() {
     [error, setError] = useState("");
   useEffect(() => {
     if (!id) return;
-    api<JobDetail>(`/jobs/${id}`)
+    const controller = new AbortController();
+    api<JobDetail>(`/jobs/${id}`, { signal: controller.signal })
       .then(({ job, permissions, quotes, files: storedFiles }) => {
+        if (controller.signal.aborted) return;
         if (
           !permissions.hirer ||
           quotes.length > 0 ||
@@ -946,6 +967,9 @@ export function NewJobPage() {
         setMaterials(job.materials_by || "to_agree");
         setRequirements(job.requirements || "");
         setQuestions(job.proposal_questions || []);
+        setWorkChecklist(
+          (job.work_checklist || []).map(({ id, title }) => ({ id, title })),
+        );
         setExistingFiles(
           storedFiles.filter((f) => !f.quote_id && !f.update_id),
         );
@@ -982,7 +1006,10 @@ export function NewJobPage() {
         setExact(job.exact_address || "");
         setEditReady(true);
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        if (!controller.signal.aborted) setError(e.message);
+      });
+    return () => controller.abort();
   }, [id]);
   const stageError = (stage: number) => {
     if (stage === 0 && (title.trim().length < 8 || !trade))
@@ -1043,6 +1070,17 @@ export function NewJobPage() {
     }
     return true;
   };
+  const addChecklistItem = () => {
+    const itemTitle = checklistDraft.trim();
+    if (!itemTitle || workChecklist.length >= 30) return;
+    setWorkChecklist((current) => [
+      ...current,
+      { id: crypto.randomUUID(), title: itemTitle },
+    ]);
+    setChecklistDraft("");
+    setChecklistNotice(`Task ${workChecklist.length + 1} added.`);
+    checklistInput.current?.focus();
+  };
   const publish = async (status: "open" | "draft") => {
     const emptyQuestion = questions.findIndex(
       (question) => !question.prompt.trim(),
@@ -1077,11 +1115,28 @@ export function NewJobPage() {
       setError("Enter a whole number for the duration, between 1 and 10,000.");
       return;
     }
+    let checklistToSave = workChecklist;
+    if (checklistDraft.trim()) {
+      if (workChecklist.length >= 30) {
+        setError(
+          "You can add up to 30 tasks. Remove one before adding another.",
+        );
+        checklistInput.current?.focus();
+        return;
+      }
+      checklistToSave = [
+        ...workChecklist,
+        { id: crypto.randomUUID(), title: checklistDraft.trim() },
+      ];
+      setWorkChecklist(checklistToSave);
+      setChecklistDraft("");
+    }
     setSavingDraft(status === "draft");
     setBusy(true);
     setError("");
     try {
       const body = {
+        workChecklist: checklistToSave,
         proposalQuestions: questions,
         matchingPreferences:
           matching.categoryId && matching.stateCode
@@ -1174,6 +1229,9 @@ export function NewJobPage() {
       setBusy(false);
     }
   };
+  const checklistPreview = checklistDraft.trim()
+    ? [...workChecklist, { id: "pending", title: checklistDraft.trim() }]
+    : workChecklist;
   if (id && !editReady)
     return (
       <div className="jobs-page">
@@ -1259,20 +1317,27 @@ export function NewJobPage() {
           <div id="posting-error">
             <JobError text={error} />
           </div>
-          <label>
-            What needs to be done?
-            <input
-              aria-label="Job title"
-              autoComplete="off"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Need a crew for 18 rooftop installations"
-              maxLength={160}
-              minLength={8}
-              required
-            />
-          </label>
-          <div className="posting-key-fields">
+          <section
+            className="posting-section posting-section-scope"
+            aria-labelledby="posting-scope-heading"
+          >
+            <header className="posting-section-heading">
+              <h3 id="posting-scope-heading">What do you need?</h3>
+              <p>Start with the work so companies can understand the job.</p>
+            </header>
+            <label>
+              Job title
+              <input
+                aria-label="Job title"
+                autoComplete="off"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Need a crew for 18 rooftop installations"
+                maxLength={160}
+                minLength={8}
+                required
+              />
+            </label>
             <label>
               Type of work
               <select
@@ -1297,102 +1362,377 @@ export function NewJobPage() {
                 ))}
               </select>
             </label>
-            {arrangement !== "remote" ? (
-              <label>
-                Location
-                <input
-                  aria-label="City or service area"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  autoComplete="address-level2"
-                  placeholder="City, state or service area"
-                  maxLength={160}
-                  required
-                />
-              </label>
-            ) : (
-              <div className="posting-remote">
-                <Monitor size={18} />
-                <span>
-                  Remote work<small>No site visit needed</small>
-                </span>
-              </div>
-            )}
             <label>
-              When should work start?
-              <select
-                aria-label="When should work start?"
-                value={startMode}
-                onChange={(e) => {
-                  const mode = e.target.value;
-                  setStartMode(mode);
-                  setStart(
-                    mode === "date"
-                      ? startDate
-                      : (
-                          {
-                            flexible: "Flexible",
-                            asap: "As soon as possible",
-                            two_weeks: "Within 2 weeks",
-                            month: "Within a month",
-                          } as Record<string, string>
-                        )[mode] || start,
+              Describe the work
+              <textarea
+                aria-label="Describe what you need"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="What needs doing? Include the scope, what you’ll supply, and what a finished job should look like."
+                rows={6}
+                minLength={20}
+                maxLength={10000}
+                required
+              />
+            </label>
+            <section
+              className="posting-checklist"
+              aria-labelledby="posting-checklist-heading"
+            >
+              <header>
+                <h4 id="posting-checklist-heading">
+                  What needs to be completed?{" "}
+                  <span className="field-optional">Optional</span>
+                </h4>
+                <p>
+                  Add the work you’ll review. The company submits proof for each
+                  item, and you approve it.
+                </p>
+              </header>
+              {!!workChecklist.length && (
+                <ol className="posting-checklist-items">
+                  {workChecklist.map((item, index) => (
+                    <li key={item.id}>
+                      <span>{item.title}</span>
+                      <button
+                        type="button"
+                        aria-label={`Remove task ${index + 1}: ${item.title}`}
+                        disabled={busy}
+                        onClick={() => {
+                          setWorkChecklist((current) =>
+                            current.filter((task) => task.id !== item.id),
+                          );
+                          setChecklistNotice(`Task ${index + 1} removed.`);
+                          checklistInput.current?.focus();
+                        }}
+                      >
+                        <X size={17} aria-hidden="true" />
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              )}
+              <div className="posting-checklist-entry">
+                <input
+                  ref={checklistInput}
+                  aria-label="Task to complete"
+                  aria-describedby="posting-checklist-count"
+                  type="text"
+                  autoComplete="off"
+                  value={checklistDraft}
+                  maxLength={300}
+                  disabled={busy || workChecklist.length >= 30}
+                  onChange={(event) => setChecklistDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === "Enter" &&
+                      !event.nativeEvent.isComposing
+                    ) {
+                      event.preventDefault();
+                      addChecklistItem();
+                    }
+                  }}
+                  placeholder="e.g. Complete electrical testing"
+                />
+                <button
+                  type="button"
+                  className="jobs-button jobs-secondary"
+                  disabled={
+                    busy || !checklistDraft.trim() || workChecklist.length >= 30
+                  }
+                  onClick={addChecklistItem}
+                >
+                  Add
+                </button>
+              </div>
+              <small
+                id="posting-checklist-count"
+                className="posting-checklist-count"
+              >
+                {workChecklist.length} / 30 tasks
+              </small>
+              <span className="sr-only" role="status">
+                {checklistNotice}
+              </span>
+            </section>
+          </section>
+          <section
+            className="posting-section posting-section-location"
+            aria-labelledby="posting-location-heading"
+          >
+            <header className="posting-section-heading">
+              <h3 id="posting-location-heading">Where and when</h3>
+            </header>
+            <fieldset className="posting-arrangement">
+              <legend>Where will the work happen?</legend>
+              {Object.entries(arrangementLabels).map(([value, label]) => (
+                <label key={value}>
+                  <input
+                    type="radio"
+                    name="arrangement"
+                    value={value}
+                    checked={arrangement === value}
+                    onChange={() => setArrangement(value)}
+                  />
+                  {label}
+                </label>
+              ))}
+            </fieldset>
+            <div className="jobs-fields-two posting-location-fields">
+              {arrangement !== "remote" ? (
+                <label>
+                  Location
+                  <input
+                    aria-label="City or service area"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    autoComplete="address-level2"
+                    placeholder="City, state or service area"
+                    maxLength={160}
+                    required
+                  />
+                </label>
+              ) : (
+                <div className="posting-remote">
+                  <Monitor size={18} />
+                  <span>
+                    Remote work<small>No site visit needed</small>
+                  </span>
+                </div>
+              )}
+              <label>
+                When should work start?
+                <select
+                  aria-label="When should work start?"
+                  value={startMode}
+                  onChange={(e) => {
+                    const mode = e.target.value;
+                    setStartMode(mode);
+                    setStart(
+                      mode === "date"
+                        ? startDate
+                        : (
+                            {
+                              flexible: "Flexible",
+                              asap: "As soon as possible",
+                              two_weeks: "Within 2 weeks",
+                              month: "Within a month",
+                            } as Record<string, string>
+                          )[mode] || start,
+                    );
+                  }}
+                >
+                  <option value="flexible">I’m flexible</option>
+                  <option value="asap">As soon as possible</option>
+                  <option value="two_weeks">Within 2 weeks</option>
+                  <option value="month">Within a month</option>
+                  <option value="date">Choose a date</option>
+                  {startMode === "existing" && (
+                    <option value="existing">{start}</option>
+                  )}
+                </select>
+                {startMode === "date" && (
+                  <input
+                    type="date"
+                    aria-label="Preferred start date"
+                    required
+                    min={today}
+                    value={startDate}
+                    onChange={(e) => {
+                      setStartDate(e.target.value);
+                      setStart(e.target.value);
+                    }}
+                  />
+                )}
+              </label>
+            </div>
+            <div className="jobs-fields-two posting-availability-fields">
+              <DurationFields
+                amount={durationAmount}
+                unit={durationUnit}
+                existing={expectedDuration}
+                onChange={(amount, unit) => {
+                  setDurationAmount(amount);
+                  setDurationUnit(unit);
+                  setExpectedDuration(
+                    unit === "existing"
+                      ? expectedDuration
+                      : amount
+                        ? amount + " " + unit
+                        : "",
                   );
                 }}
-              >
-                <option value="flexible">I’m flexible</option>
-                <option value="asap">As soon as possible</option>
-                <option value="two_weeks">Within 2 weeks</option>
-                <option value="month">Within a month</option>
-                <option value="date">Choose a date</option>
-                {startMode === "existing" && (
-                  <option value="existing">{start}</option>
-                )}
-              </select>
-              {startMode === "date" && (
-                <input
-                  type="date"
-                  aria-label="Preferred start date"
-                  required
-                  min={today}
-                  value={startDate}
-                  onChange={(e) => {
-                    setStartDate(e.target.value);
-                    setStart(e.target.value);
-                  }}
-                />
+              />
+              {trade === "crew" && (
+                <label>
+                  People needed{" "}
+                  <span className="field-optional">(optional)</span>
+                  <input
+                    aria-label="How many people do you need?"
+                    type="number"
+                    min="1"
+                    max="1000"
+                    step="1"
+                    inputMode="numeric"
+                    value={people}
+                    onChange={(e) => setPeople(e.target.value)}
+                    placeholder="e.g. 4"
+                  />
+                </label>
               )}
-            </label>
-          </div>
-          <label>
-            Describe the work
-            <textarea
-              aria-label="Describe what you need"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What needs doing? Include the scope, what you’ll supply, and what a finished job should look like."
-              rows={6}
-              minLength={20}
-              maxLength={10000}
-              required
-            />
-          </label>
-          <AttachmentPicker
-            files={files}
-            onChange={setFiles}
-            label="Add files or photos"
-            disabled={busy}
-          />
-          <FileList files={existingFiles} />
-          <QuestionBuilder
-            value={questions}
-            onChange={setQuestions}
-            disabled={busy}
-          />
+            </div>
+            {arrangement !== "remote" && (
+              <details className="posting-address-details">
+                <summary>
+                  Exact address and postal code <span>Optional</span>
+                  <ChevronDown size={17} />
+                </summary>
+                <p>
+                  The exact address is shared only with the company you choose.
+                </p>
+                <div className="jobs-fields-two">
+                  <label>
+                    Exact address{" "}
+                    <span className="field-optional">(private)</span>
+                    <input
+                      aria-label="Exact address"
+                      autoComplete="street-address"
+                      value={exact}
+                      onChange={(e) => setExact(e.target.value)}
+                      placeholder="Shared only with the company you choose"
+                      maxLength={300}
+                    />
+                  </label>
+                  <label>
+                    ZIP or postal code{" "}
+                    <span className="field-optional">(optional)</span>
+                    <input
+                      type="text"
+                      autoComplete="postal-code"
+                      maxLength={20}
+                      value={postalCode}
+                      onChange={(e) => setPostalCode(e.target.value)}
+                      placeholder="e.g. 44114"
+                    />
+                  </label>
+                </div>
+              </details>
+            )}
+          </section>
           <section
-            className="posting-budget-section"
+            className="posting-section posting-section-files"
+            aria-labelledby="posting-files-heading"
+          >
+            <header className="posting-section-heading">
+              <h3 id="posting-files-heading">
+                Files and photos{" "}
+                <span className="field-optional">Optional</span>
+              </h3>
+              <p>Add plans, photos, or documents that explain the work.</p>
+            </header>
+            <AttachmentPicker
+              files={files}
+              onChange={setFiles}
+              label="Add files or photos"
+              disabled={busy}
+            />
+            <FileList files={existingFiles} />
+          </section>
+          <div className="posting-section posting-section-questions">
+            <QuestionBuilder
+              value={questions}
+              onChange={setQuestions}
+              disabled={busy}
+            />
+          </div>
+          <div className="posting-section posting-section-matching">
+            <MatchingFields value={matching} onChange={setMatching} />
+          </div>
+          <details className="posting-more posting-section-options">
+            <summary>
+              Requirements & project details <span>Optional</span>
+              <ChevronDown size={17} />
+            </summary>
+            <div className="posting-more-fields">
+              <label>
+                Requirements
+                <textarea
+                  value={requirements}
+                  onChange={(e) => setRequirements(e.target.value)}
+                  placeholder="Licenses, insurance, experience, or equipment your team needs"
+                  rows={3}
+                  maxLength={3000}
+                />
+              </label>
+              <div className="jobs-fields-three">
+                <label>
+                  Project type
+                  <select
+                    aria-label="Project type"
+                    value={projectType}
+                    onChange={(e) => setProjectType(e.target.value)}
+                  >
+                    <option value="">Not specified</option>
+                    {projectTypes.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  System size (kW)
+                  <input
+                    type="number"
+                    value={systemSize}
+                    onChange={(e) => setSystemSize(e.target.value)}
+                    min="0.01"
+                    max="100000000"
+                    inputMode="decimal"
+                    step="0.01"
+                    placeholder="Optional"
+                  />
+                </label>
+                <label>
+                  Number of sites
+                  <input
+                    type="number"
+                    value={siteCount}
+                    onChange={(e) => setSiteCount(e.target.value)}
+                    min="1"
+                    max="100000"
+                    inputMode="numeric"
+                    step="1"
+                    placeholder="Optional"
+                  />
+                </label>
+              </div>
+              <label>
+                Who supplies materials?
+                <select
+                  aria-label="Who supplies materials?"
+                  value={materials}
+                  onChange={(e) => setMaterials(e.target.value)}
+                >
+                  {Object.entries(materialsLabels).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </details>
+          <section
+            className="posting-section posting-budget-section"
             aria-label="Budget and quote deadline"
           >
+            <header className="posting-section-heading">
+              <h3>Budget and deadline</h3>
+              <p>
+                Set a budget if you have one, or let companies suggest a price.
+              </p>
+            </header>
             <div
               className={`posting-budget-fields ${budgetMode === "fixed" ? "has-total" : ""}`}
             >
@@ -1471,177 +1811,6 @@ export function NewJobPage() {
               </label>
             </div>
           </section>
-          {trade === "crew" && (
-            <div className="jobs-fields-two">
-              <label>
-                People needed <span className="field-optional">(optional)</span>
-                <input
-                  aria-label="How many people do you need?"
-                  type="number"
-                  min="1"
-                  max="1000"
-                  step="1"
-                  inputMode="numeric"
-                  value={people}
-                  onChange={(e) => setPeople(e.target.value)}
-                  placeholder="e.g. 4"
-                />
-              </label>
-              <DurationFields
-                amount={durationAmount}
-                unit={durationUnit}
-                existing={expectedDuration}
-                onChange={(amount, unit) => {
-                  setDurationAmount(amount);
-                  setDurationUnit(unit);
-                  setExpectedDuration(
-                    unit === "existing"
-                      ? expectedDuration
-                      : amount
-                        ? amount + " " + unit
-                        : "",
-                  );
-                }}
-              />
-            </div>
-          )}
-          <MatchingFields value={matching} onChange={setMatching} />
-          <details className="posting-more">
-            <summary>
-              Requirements & project details <span>Optional</span>
-              <ChevronDown size={17} />
-            </summary>
-            <div className="posting-more-fields">
-              <fieldset className="posting-arrangement">
-                <legend>Where will the work happen?</legend>
-                {Object.entries(arrangementLabels).map(([value, label]) => (
-                  <label key={value}>
-                    <input
-                      type="radio"
-                      name="arrangement"
-                      value={value}
-                      checked={arrangement === value}
-                      onChange={() => setArrangement(value)}
-                    />
-                    {label}
-                  </label>
-                ))}
-              </fieldset>
-              {trade !== "crew" && (
-                <DurationFields
-                  amount={durationAmount}
-                  unit={durationUnit}
-                  existing={expectedDuration}
-                  onChange={(amount, unit) => {
-                    setDurationAmount(amount);
-                    setDurationUnit(unit);
-                    setExpectedDuration(
-                      unit === "existing"
-                        ? expectedDuration
-                        : amount
-                          ? amount + " " + unit
-                          : "",
-                    );
-                  }}
-                />
-              )}
-              <label>
-                Requirements
-                <textarea
-                  value={requirements}
-                  onChange={(e) => setRequirements(e.target.value)}
-                  placeholder="Licenses, insurance, experience, or equipment your team needs"
-                  rows={3}
-                  maxLength={3000}
-                />
-              </label>
-              <div className="jobs-fields-three">
-                <label>
-                  Project type
-                  <select
-                    aria-label="Project type"
-                    value={projectType}
-                    onChange={(e) => setProjectType(e.target.value)}
-                  >
-                    <option value="">Not specified</option>
-                    {projectTypes.map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  System size (kW)
-                  <input
-                    type="number"
-                    value={systemSize}
-                    onChange={(e) => setSystemSize(e.target.value)}
-                    min="0.01"
-                    max="100000000"
-                    inputMode="decimal"
-                    step="0.01"
-                    placeholder="Optional"
-                  />
-                </label>
-                <label>
-                  Number of sites
-                  <input
-                    type="number"
-                    value={siteCount}
-                    onChange={(e) => setSiteCount(e.target.value)}
-                    min="1"
-                    max="100000"
-                    inputMode="numeric"
-                    step="1"
-                    placeholder="Optional"
-                  />
-                </label>
-              </div>
-              <label>
-                Who supplies materials?
-                <select
-                  aria-label="Who supplies materials?"
-                  value={materials}
-                  onChange={(e) => setMaterials(e.target.value)}
-                >
-                  {Object.entries(materialsLabels).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {arrangement !== "remote" && (
-                <label>
-                  Exact address{" "}
-                  <span className="field-optional">(private)</span>
-                  <input
-                    aria-label="Exact address"
-                    autoComplete="street-address"
-                    value={exact}
-                    onChange={(e) => setExact(e.target.value)}
-                    placeholder="Shared only with the company you choose"
-                    maxLength={300}
-                  />
-                </label>
-              )}
-              {arrangement !== "remote" && (
-                <label>
-                  ZIP or postal code{" "}
-                  <span className="field-optional">(optional)</span>
-                  <input
-                    type="text"
-                    autoComplete="postal-code"
-                    maxLength={20}
-                    value={postalCode}
-                    onChange={(e) => setPostalCode(e.target.value)}
-                    placeholder="e.g. 44114"
-                  />
-                </label>
-              )}
-            </div>
-          </details>
           <footer className="posting-actions">
             <button
               type="submit"
@@ -1692,6 +1861,19 @@ export function NewJobPage() {
                 {description.trim() ||
                   "Describe the work so the right companies can send you a useful quote."}
               </p>
+              {!!checklistPreview.length && (
+                <section className="posting-preview-checklist">
+                  <h4>Tasks to complete</h4>
+                  <ul>
+                    {checklistPreview.slice(0, 4).map((item) => (
+                      <li key={item.id}>{item.title}</li>
+                    ))}
+                  </ul>
+                  {checklistPreview.length > 4 && (
+                    <small>+{checklistPreview.length - 4} more tasks</small>
+                  )}
+                </section>
+              )}
               {budgetMode === "fixed" &&
                 budget &&
                 Number.isFinite(Number(budget)) &&
@@ -1784,11 +1966,13 @@ export function JobDetailPage() {
     [selectedQuote, setSelectedQuote] = useState<string>(""),
     [quoteSort, setQuoteSort] = useState("best"),
     [expandedQuote, setExpandedQuote] = useState(""),
-    [tab, setTab] = useState<"overview" | "payments">(
+    [tab, setTab] = useState<"overview" | "updates" | "details" | "payments">(
       searchParams.get("tab") === "payments" ? "payments" : "overview",
     );
   const messageCompany = searchParams.get("provider") || "";
   const [messageBusy, setMessageBusy] = useState(false);
+  const [checklistSaving, setChecklistSaving] = useState(false);
+  const [checklistDirty, setChecklistDirty] = useState(false);
   const [quoteEditing, setQuoteEditing] = useState(false);
   const [revisionNote, setRevisionNote] = useState("");
   const [quoteAnswers, setQuoteAnswers] = useState<Record<string, string>>({});
@@ -1803,11 +1987,14 @@ export function JobDetailPage() {
     version: number;
   } | null>(null);
   const proposalFormOpen = useRef(false);
-  proposalFormOpen.current = quoteEditing || !!pendingQuote;
+  const quoteDraftHeld = useRef(false);
+  proposalFormOpen.current =
+    quoteEditing || !!pendingQuote || quoteDraftHeld.current;
   const [breakdown, setBreakdown] = useState<
     { label: string; amount: string }[]
   >([]);
   const [invoiceRefs, setInvoiceRefs] = useState<Record<string, string>>({});
+  const [quoteAmountFocused, setQuoteAmountFocused] = useState(false);
   const [amount, setAmount] = useState(""),
     [quoteNote, setQuoteNote] = useState(""),
     [quoteStart, setQuoteStart] = useState(""),
@@ -1837,6 +2024,16 @@ export function JobDetailPage() {
       "Final payment",
     ]),
     [stageAmounts, setStageAmounts] = useState<string[]>(["", ""]);
+  const [paymentPlanBaseline, setPaymentPlanBaseline] = useState(() =>
+    JSON.stringify([
+      ["Deposit", "Final payment"],
+      ["", ""],
+    ]),
+  );
+  const paymentPlanSnapshot = JSON.stringify([stageTitles, stageAmounts]);
+  const paymentPlanDirty = paymentPlanSnapshot !== paymentPlanBaseline;
+  const paymentPlanDirtyRef = useRef(paymentPlanDirty);
+  paymentPlanDirtyRef.current = paymentPlanDirty;
   const answersDirty = proposalDraft?.questions.some(
     (question) =>
       (quoteAnswers[question.id] || "") !==
@@ -1845,8 +2042,38 @@ export function JobDetailPage() {
       )?.answer || ""),
   );
   usePageGuard(
-    !!pendingQuote || !!pendingUpdate || (quoteEditing && !!answersDirty),
-    working,
+    checklistDirty ||
+      !!update.trim() ||
+      !!updateFiles.length ||
+      !!message.trim() ||
+      !!reviewNote.trim() ||
+      !!reviewText.trim() ||
+      rating !== 5 ||
+      paymentPlanDirty ||
+      Object.values(invoiceRefs).some((value) => !!value.trim()) ||
+      !!pendingQuote ||
+      !!pendingUpdate ||
+      ((quoteEditing || quoteDraftHeld.current) &&
+        (!!answersDirty ||
+          !!quoteFiles.length ||
+          !!revisionNote.trim() ||
+          amount !==
+            (detail?.ownQuote
+              ? String(detail.ownQuote.amount_cents / 100)
+              : "") ||
+          quoteNote !== (detail?.ownQuote?.note || "") ||
+          quoteStart !== (detail?.ownQuote?.start_window || "") ||
+          duration !== (detail?.ownQuote?.duration || "") ||
+          included !== (detail?.ownQuote?.included || "") ||
+          excluded !== (detail?.ownQuote?.excluded || "") ||
+          terms !== (detail?.ownQuote?.payment_terms || "") ||
+          JSON.stringify(
+            breakdown.map((item) => ({
+              label: item.label,
+              amountCents: Math.round(Number(item.amount) * 100),
+            })),
+          ) !== JSON.stringify(detail?.ownQuote?.price_breakdown || []))),
+    working || checklistSaving || messageBusy,
   );
   useEffect(() => {
     setInviteSample(!!company?.is_demo);
@@ -1863,8 +2090,38 @@ export function JobDetailPage() {
         if (controller.signal.aborted) return;
         setDetail(v);
         const context = `${v.job.id}:${company?.id || "guest"}`;
-        const hydrateProposal =
-          answerContext.current !== context || !proposalFormOpen.current;
+        const contextChanged = answerContext.current !== context;
+        const hydrateProposal = contextChanged || !proposalFormOpen.current;
+        if (contextChanged) {
+          quoteDraftHeld.current = false;
+          setQuoteEditing(false);
+          setPendingQuote(null);
+          setQuoteFiles([]);
+          setRevisionNote("");
+          setTab(
+            searchParams.get("tab") === "payments" ? "payments" : "overview",
+          );
+          setUpdate("");
+          setUpdateFiles([]);
+          setPendingUpdate(null);
+          setMessage("");
+          setReviewNote("");
+          setShowReviewNote(false);
+          setReviewText("");
+          setRating(5);
+          setInvoiceRefs({});
+        }
+        if (contextChanged || !paymentPlanDirtyRef.current) {
+          const titles = v.paymentStages.length
+            ? v.paymentStages.map((stage) => stage.title)
+            : ["Deposit", "Final payment"];
+          const amounts = v.paymentStages.length
+            ? v.paymentStages.map((stage) => String(stage.amount_cents / 100))
+            : ["", ""];
+          setStageTitles(titles);
+          setStageAmounts(amounts);
+          setPaymentPlanBaseline(JSON.stringify([titles, amounts]));
+        }
         if (hydrateProposal) {
           answerContext.current = context;
           setQuoteAnswers(
@@ -1886,16 +2143,16 @@ export function JobDetailPage() {
             ? current
             : v.selected?.id || v.quotes[0]?.id || "",
         );
-        if (v.ownQuote && hydrateProposal) {
-          setAmount(String(v.ownQuote.amount_cents / 100));
-          setQuoteNote(v.ownQuote.note);
-          setQuoteStart(v.ownQuote.start_window);
-          setDuration(v.ownQuote.duration);
-          setIncluded(v.ownQuote.included);
-          setExcluded(v.ownQuote.excluded);
-          setTerms(v.ownQuote.payment_terms);
+        if (hydrateProposal) {
+          setAmount(v.ownQuote ? String(v.ownQuote.amount_cents / 100) : "");
+          setQuoteNote(v.ownQuote?.note || "");
+          setQuoteStart(v.ownQuote?.start_window || "");
+          setDuration(v.ownQuote?.duration || "");
+          setIncluded(v.ownQuote?.included || "");
+          setExcluded(v.ownQuote?.excluded || "");
+          setTerms(v.ownQuote?.payment_terms || "");
           setBreakdown(
-            (v.ownQuote.price_breakdown || []).map((x) => ({
+            (v.ownQuote?.price_breakdown || []).map((x) => ({
               label: x.label,
               amount: String(x.amountCents / 100),
             })),
@@ -1933,11 +2190,12 @@ export function JobDetailPage() {
       new Date(detail.job.quote_deadline).getTime() < Date.now()
     )
       return;
+    quoteDraftHeld.current = true;
     setQuoteEditing(true);
     requestAnimationFrame(() =>
       document.getElementById("quote-form")?.scrollIntoView({ block: "start" }),
     );
-  }, [detail?.job.id, admin, searchParams]);
+  }, [detail?.job.id, company?.id, admin, searchParams]);
   useEffect(() => {
     setJobSection(
       detail &&
@@ -2101,6 +2359,7 @@ export function JobDetailPage() {
       setPendingQuote(null);
       setRevisionNote("");
       toast(detail?.ownQuote ? "Quote updated" : "Quote sent");
+      quoteDraftHeld.current = false;
       setQuoteEditing(false);
       if (searchParams.get("action") === "quote") {
         const params = new URLSearchParams(searchParams);
@@ -2193,6 +2452,10 @@ export function JobDetailPage() {
         label={label}
         onConfirm={async () => {
           await post(`/jobs/${id}/${path}`, body);
+          if (path === "review-work") {
+            setReviewNote("");
+            setShowReviewNote(false);
+          }
           refresh();
           toast(done);
         }}
@@ -2235,6 +2498,7 @@ export function JobDetailPage() {
       />,
     );
   const editQuote = () => {
+    quoteDraftHeld.current = true;
     setQuoteEditing(true);
     requestAnimationFrame(() =>
       document
@@ -2341,14 +2605,118 @@ export function JobDetailPage() {
     ["awarded", "in_progress", "review", "completed"].includes(job.status);
   const comparing =
     !!hirer && job.status === "open" && detail.quotes.length > 0;
+  const documentView = !comparing && !activeWork;
+  const hasChecklist = !!job.work_checklist?.length;
+  const progressView = tab === "overview" && !hasChecklist ? "updates" : tab;
+  const quoteDeadlinePassed =
+    !!job.quote_deadline && new Date(job.quote_deadline).getTime() < Date.now();
   const completion = detail.updates.find((u) => u.kind === "completion");
+  const checklistComplete = (job.work_checklist || []).every(
+    (item) => item.completed,
+  );
   const completionFiles = completion
     ? detail.files.filter((f) => f.update_id === completion.id)
     : [];
+  const headingActions = (
+    <div className="workspace-heading-actions">
+      {hirer && admin && ["draft", "open"].includes(job.status) && (
+        <>
+          {detail.quotes.length === 0 && (
+            <Link
+              className="jobs-button jobs-secondary"
+              to={`/jobs/${id}/edit`}
+            >
+              <Pencil size={16} />
+              Edit {job.status === "draft" ? "draft" : "job"}
+            </Link>
+          )}
+          {!documentView && job.status === "open" && (
+            <Link
+              className="jobs-button jobs-secondary"
+              to={`/jobs/${id}/matches`}
+            >
+              <Users size={17} />
+              Company matches
+            </Link>
+          )}
+          {job.status === "open" && (
+            <button
+              className="jobs-button jobs-secondary"
+              onClick={() => setShowInvite(!showInvite)}
+            >
+              <Users size={17} />
+              Invite companies
+            </button>
+          )}
+        </>
+      )}
+      {activeWork && canMessage && (
+        <Link className="jobs-button jobs-secondary" to={inboxPath()}>
+          <MessageCircle size={17} /> Message company
+        </Link>
+      )}
+      {hirer &&
+        admin &&
+        job.status === "in_progress" &&
+        progressView === "updates" && (
+          <button
+            className="jobs-button jobs-secondary"
+            disabled={working}
+            onClick={() =>
+              void mutate(
+                "activity",
+                { kind: "update_requested" },
+                "Update requested",
+              )
+            }
+          >
+            <MessageCircle size={17} />
+            Request update
+          </button>
+        )}
+      {activeWork &&
+        progressView === "details" &&
+        !(hirer && admin && job.status === "review") && (
+          <button className="job-report-link" onClick={reportProblem}>
+            Report a problem
+          </button>
+        )}
+      {!documentView && canQuote && !quoteEditing && (
+        <button
+          className="jobs-button jobs-primary job-quote-cta"
+          onClick={editQuote}
+        >
+          {detail.ownQuote ? "Edit your quote" : "Send a quote"}
+          <ArrowRight size={17} />
+        </button>
+      )}
+      {!documentView &&
+        !company &&
+        job.status === "open" &&
+        (!job.quote_deadline ||
+          new Date(job.quote_deadline).getTime() >= Date.now()) && (
+          <button
+            className="jobs-button jobs-primary"
+            onClick={
+              session.user && session.user.account_type !== "individual"
+                ? createCompany
+                : signIn
+            }
+          >
+            {session.user?.account_type === "individual"
+              ? "Use a company account"
+              : session.user
+                ? "Create company profile"
+                : "Sign in to quote"}
+            <ArrowRight size={16} />
+          </button>
+        )}
+    </div>
+  );
   return (
     <div
       data-status={job.status}
-      className={`jobs-page job-detail job-workspace ${activeWork ? "is-active-work" : ""} ${comparing ? "is-comparing" : ""} ${canQuote && !quoteEditing ? "has-mobile-action" : ""}`}
+      className={`jobs-page job-detail job-workspace ${activeWork ? "is-active-work job-progress-shell" : ""} ${comparing ? "is-comparing" : ""} ${documentView ? "is-job-document" : ""} ${documentView && quoteEditing ? "is-editing-quote" : ""} ${!documentView && canQuote && !quoteEditing ? "has-mobile-action" : ""}`}
     >
       <Link
         to={hirer || activeWork ? "/jobs/mine" : "/jobs"}
@@ -2357,178 +2725,114 @@ export function JobDetailPage() {
         <ArrowLeft size={18} />
         {hirer || activeWork ? "My jobs" : "Find work"}
       </Link>
-      <header className="workspace-job-header">
-        <div className="workspace-job-heading">
-          <div>
-            <div className="workspace-title-line">
-              <h1>{job.title || "Untitled draft"}</h1>
-              <span className={`job-status ${cls(job.status)}`}>
-                {statusText[job.status]}
-              </span>
-            </div>
-            {activeWork ? (
-              <div className="workspace-company-pair">
-                <Link
-                  to={`/jobs/companies/${detail.hiringCompany.slug}?back=${id}`}
-                >
-                  <Building2 size={20} />
-                  {detail.hiringCompany.name}
-                </Link>
-                {detail.selected?.company && (
-                  <>
-                    <ArrowLeftRight size={19} />
-                    <Link
-                      to={`/jobs/companies/${detail.selected.company.slug}?back=${id}`}
-                    >
-                      <Building2 size={20} />
-                      {detail.selected.company.name}
-                    </Link>
-                  </>
-                )}
+      {documentView ? (
+        <JobDocumentHeader
+          job={job}
+          company={detail.hiringCompany}
+          status={statusText[job.status]}
+          compact={quoteEditing}
+        >
+          {hirer && headingActions}
+        </JobDocumentHeader>
+      ) : (
+        <header className="workspace-job-header">
+          <div className="workspace-job-heading">
+            <div>
+              <div className="workspace-title-line">
+                <h1>{job.title || "Untitled draft"}</h1>
+                <span className={`job-status ${cls(job.status)}`}>
+                  {statusText[job.status]}
+                </span>
               </div>
-            ) : (
-              <p className="workspace-job-meta">
-                <span>
-                  <MapPin size={17} />
-                  {job.location || "Location to be added"}
-                </span>
-                <span>{workLabel(job.trade)}</span>
-                <span>
-                  <CalendarDays size={16} />
-                  {job.start_window || "Flexible start"}
-                </span>
-                {job.people_needed && (
-                  <span>
-                    <Users size={16} />
-                    {job.people_needed} people
-                  </span>
-                )}
-              </p>
-            )}
-          </div>
-          <div className="workspace-heading-actions">
-            {hirer && admin && ["draft", "open"].includes(job.status) && (
-              <>
-                {detail.quotes.length === 0 && (
+              {activeWork ? (
+                <div className="workspace-company-pair">
                   <Link
-                    className="jobs-button jobs-secondary"
-                    to={`/jobs/${id}/edit`}
+                    to={`/jobs/companies/${detail.hiringCompany.slug}?back=${id}`}
                   >
-                    <Pencil size={16} />
-                    Edit {job.status === "draft" ? "draft" : "job"}
+                    <Building2 size={20} />
+                    {detail.hiringCompany.name}
                   </Link>
-                )}
-                {job.status === "open" && (
-                  <Link
-                    className="jobs-button jobs-secondary"
-                    to={`/jobs/${id}/matches`}
-                  >
-                    <Users size={17} />
-                    Company matches
-                  </Link>
-                )}
-                {job.status === "open" && (
-                  <button
-                    className="jobs-button jobs-secondary"
-                    onClick={() => setShowInvite(!showInvite)}
-                  >
-                    <Users size={17} />
-                    Invite companies
-                  </button>
-                )}
-              </>
-            )}
-            {hirer && job.status === "in_progress" && (
-              <button
-                className="jobs-button jobs-secondary"
-                disabled={working}
-                onClick={() =>
-                  void mutate(
-                    "activity",
-                    { kind: "update_requested" },
-                    "Update requested",
-                  )
-                }
-              >
-                <MessageCircle size={17} />
-                Request update
-              </button>
-            )}
-            {activeWork && !(hirer && job.status === "review") && (
-              <button className="job-report-link" onClick={reportProblem}>
-                Report a problem
-              </button>
-            )}
-            {canQuote && !quoteEditing && (
-              <button
-                className="jobs-button jobs-primary job-quote-cta"
-                onClick={editQuote}
-              >
-                {detail.ownQuote ? "Edit your quote" : "Send a quote"}
-                <ArrowRight size={17} />
-              </button>
-            )}
-            {!company &&
-              job.status === "open" &&
-              (!job.quote_deadline ||
-                new Date(job.quote_deadline).getTime() >= Date.now()) && (
-                <button
-                  className="jobs-button jobs-primary"
-                  onClick={
-                    session.user && session.user.account_type !== "individual"
-                      ? createCompany
-                      : signIn
-                  }
-                >
-                  {session.user?.account_type === "individual"
-                    ? "Use a company account"
-                    : session.user
-                      ? "Create company profile"
-                      : "Sign in to quote"}
-                  <ArrowRight size={16} />
-                </button>
-              )}
-          </div>
-        </div>
-        {activeWork && job.status !== "review" && (
-          <ol className="workspace-job-steps" aria-label="Job progress">
-            {["Company chosen", "Work underway", "Review work", "Finished"].map(
-              (label, i) => {
-                const current = (
-                  {
-                    awarded: 0,
-                    in_progress: 1,
-                    review: 2,
-                    completed: 3,
-                  } as Record<string, number>
-                )[job.status];
-                return (
-                  <li
-                    key={label}
-                    className={
-                      i < current || job.status === "completed"
-                        ? "complete"
-                        : i === current
-                          ? "current"
-                          : ""
-                    }
-                    aria-current={i === current ? "step" : undefined}
-                  >
+                  {detail.selected?.company && (
+                    <>
+                      <ArrowLeftRight size={19} />
+                      <Link
+                        to={`/jobs/companies/${detail.selected.company.slug}?back=${id}`}
+                      >
+                        <Building2 size={20} />
+                        {detail.selected.company.name}
+                      </Link>
+                    </>
+                  )}
+                  {job.location && (
                     <span>
-                      {i < current || job.status === "completed" ? (
-                        <Check size={16} />
-                      ) : (
-                        <i />
-                      )}
+                      <MapPin size={17} />
+                      {job.location}
                     </span>
-                    <b>{label}</b>
-                  </li>
-                );
-              },
-            )}
-          </ol>
-        )}
-      </header>
+                  )}
+                </div>
+              ) : (
+                <p className="workspace-job-meta">
+                  <span>
+                    <MapPin size={17} />
+                    {job.location || "Location to be added"}
+                  </span>
+                  <span>{workLabel(job.trade)}</span>
+                  <span>
+                    <CalendarDays size={16} />
+                    {job.start_window || "Flexible start"}
+                  </span>
+                  {job.people_needed && (
+                    <span>
+                      <Users size={16} />
+                      {job.people_needed} people
+                    </span>
+                  )}
+                </p>
+              )}
+            </div>
+            {headingActions}
+          </div>
+          {activeWork && (
+            <dl className="job-progress-summary">
+              <div>
+                <dt>
+                  <Tag size={17} />
+                  Agreed price
+                </dt>
+                <dd>
+                  {money(
+                    detail.agreement?.amount_cents ??
+                      detail.selected?.amount_cents,
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt>
+                  <CalendarDays size={17} />
+                  Start
+                </dt>
+                <dd>
+                  {detail.agreement?.start_window ||
+                    detail.selected?.start_window ||
+                    job.start_window ||
+                    "To be agreed"}
+                </dd>
+              </div>
+              {(detail.agreement?.duration || detail.selected?.duration) && (
+                <div>
+                  <dt>
+                    <Clock3 size={17} />
+                    Duration
+                  </dt>
+                  <dd>
+                    {detail.agreement?.duration || detail.selected?.duration}
+                  </dd>
+                </div>
+              )}
+            </dl>
+          )}
+        </header>
+      )}
       {detail.hiringCompany.is_demo && (
         <p className="job-demo-note">
           Demo job · Fictional example for testing
@@ -2614,235 +2918,283 @@ export function JobDetailPage() {
         </div>
       )}
       <JobError text={error} />
-      {canMessage && (
-        <div className="job-subnav">
+      {activeWork ? (
+        <nav className="job-progress-tabs" aria-label="Project sections">
+          {hasChecklist && (
+            <button
+              type="button"
+              className={progressView === "overview" ? "active" : ""}
+              aria-current={progressView === "overview" ? "page" : undefined}
+              onClick={() => setTab("overview")}
+            >
+              <CheckCircle2 size={17} />
+              Work checklist
+            </button>
+          )}
           <button
-            className={tab === "overview" ? "active" : ""}
-            onClick={() => setTab("overview")}
+            type="button"
+            className={progressView === "updates" ? "active" : ""}
+            aria-current={progressView === "updates" ? "page" : undefined}
+            onClick={() => setTab("updates")}
           >
-            Overview
+            <MessageCircle size={17} />
+            Updates
           </button>
-          <button onClick={() => navigate(inboxPath())}>Messages</button>
-          {participant &&
-            ["awarded", "in_progress", "review", "completed"].includes(
-              job.status,
-            ) && (
-              <button
-                className={tab === "payments" ? "active" : ""}
-                onClick={() => setTab("payments")}
-              >
-                Payments
-              </button>
-            )}
-        </div>
-      )}
-      {tab === "payments" && participant ? (
-        <div className="jobs-detail-layout">
-          <section className="jobs-panel">
-            <h2>Payment plan</h2>
-            {detail.paymentStagesNeedReview && (
-              <p className="quote-decision-note" role="status">
-                The agreed price has changed.{" "}
-                {hirer
-                  ? "Update the planned stages below before invoicing continues."
-                  : "The hiring company needs to update the payment stages before you can invoice."}
-              </p>
-            )}
-            <p className="job-muted">
-              Payments happen directly between the two companies. Connect
-              records only what each side reports.
-            </p>
-            {detail.paymentStages.length ? (
-              detail.paymentStages.map((stage) => (
-                <div className="job-payment" key={stage.id}>
-                  <span>
-                    <b>{stage.title}</b>
-                    <small>
-                      {{
-                        planned: "Planned",
-                        invoiced: "Invoice sent",
-                        reported_paid: "Payment reported",
-                        confirmed_received: "Payment received",
-                      }[stage.status] || stage.status}
-                      {stage.invoice_reference &&
-                        ` · ${stage.invoice_reference}`}
-                    </small>
-                  </span>
-                  <b>{money(stage.amount_cents)}</b>
-                  {stage.status === "planned" &&
-                    chosen &&
-                    admin &&
-                    !detail.paymentStagesNeedReview && (
-                      <div className="job-invoice-action">
-                        <input
-                          aria-label={`Invoice reference for ${stage.title}`}
-                          placeholder="Invoice reference (optional)"
-                          maxLength={120}
-                          value={invoiceRefs[stage.id] || ""}
-                          onChange={(e) =>
-                            setInvoiceRefs((v) => ({
-                              ...v,
-                              [stage.id]: e.target.value,
-                            }))
-                          }
-                        />
-                        <button
-                          className="jobs-button jobs-secondary"
-                          disabled={working}
-                          onClick={() =>
-                            void mutate(`payment-stages/${stage.id}`, {
-                              status: "invoiced",
-                              invoiceReference: invoiceRefs[stage.id] || "",
-                            })
-                          }
-                        >
-                          Mark invoiced
-                        </button>
-                      </div>
-                    )}
-                  {stage.status === "invoiced" && hirer && admin && (
-                    <button
-                      disabled={working}
-                      className="jobs-button jobs-secondary"
-                      onClick={() =>
-                        void mutate(`payment-stages/${stage.id}`, {
-                          status: "reported_paid",
-                        })
-                      }
-                    >
-                      Report paid
-                    </button>
-                  )}
-                  {stage.status === "reported_paid" && chosen && admin && (
-                    <button
-                      disabled={working}
-                      className="jobs-button jobs-secondary"
-                      onClick={() =>
-                        void mutate(`payment-stages/${stage.id}`, {
-                          status: "confirmed_received",
-                        })
-                      }
-                    >
-                      Confirm received
-                    </button>
-                  )}
-                </div>
-              ))
-            ) : (
-              <JobEmpty
-                title="No payment stages yet"
-                detail="The hiring company can set stages after choosing a quote."
-              />
-            )}
-            {hirer &&
-              admin &&
-              ["awarded", "in_progress"].includes(job.status) &&
-              detail.paymentStages.every((s) => s.status === "planned") && (
-                <div className="job-stage-editor">
-                  <h3>Set payment stages</h3>
-                  {stageTitles.map((title, i) => (
-                    <div className="jobs-fields-two" key={i}>
-                      <input
-                        value={title}
-                        onChange={(e) =>
-                          setStageTitles((v) =>
-                            v.map((x, n) => (n === i ? e.target.value : x)),
-                          )
-                        }
-                        aria-label={`Payment stage ${i + 1} name`}
-                        placeholder="Stage name"
-                      />
-                      <input
-                        type="number"
-                        min="1"
-                        value={stageAmounts[i]}
-                        onChange={(e) =>
-                          setStageAmounts((v) =>
-                            v.map((x, n) => (n === i ? e.target.value : x)),
-                          )
-                        }
-                        aria-label={`Payment stage ${i + 1} amount`}
-                        placeholder="Amount in USD"
-                      />
-                    </div>
-                  ))}
-                  <button
-                    className="jobs-button jobs-secondary"
-                    disabled={stageTitles.length >= 8 || working}
-                    onClick={() => {
-                      setStageTitles((v) => [...v, ""]);
-                      setStageAmounts((v) => [...v, ""]);
-                    }}
-                  >
-                    Add stage
-                  </button>
-                  <button
-                    className="jobs-button jobs-primary"
-                    disabled={working}
-                    onClick={() =>
-                      void mutate(
-                        "payment-stages",
-                        {
-                          stages: stageTitles.map((title, i) => ({
-                            title,
-                            amountCents: Math.round(
-                              Number(stageAmounts[i]) * 100,
-                            ),
-                          })),
-                        },
-                        "Payment plan saved",
-                      )
-                    }
-                  >
-                    Save plan
-                  </button>
-                  <small>
-                    Total{" "}
-                    {money(
-                      stageAmounts.reduce(
-                        (sum, n) => sum + Math.round(Number(n || 0) * 100),
-                        0,
-                      ),
-                    )}{" "}
-                    of{" "}
-                    {money(
-                      detail.agreement?.amount_cents ??
-                        detail.selected?.amount_cents,
-                    )}{" "}
-                    agreed.
-                  </small>
-                </div>
-              )}
-          </section>
-          <aside className="jobs-panel">
-            <h2>Agreed price</h2>
-            <strong className="job-price">
-              {money(
-                detail.agreement?.amount_cents ?? detail.selected?.amount_cents,
-              )}
-            </strong>
-            <p>
-              {detail.selected?.payment_terms ||
-                "Payment terms can be discussed in job messages."}
-            </p>
-            <p className="job-muted">
-              <LockKeyhole size={15} /> No card or bank information is stored
-              here.
-            </p>
-          </aside>
-        </div>
+          <button
+            type="button"
+            className={progressView === "details" ? "active" : ""}
+            aria-current={progressView === "details" ? "page" : undefined}
+            onClick={() => setTab("details")}
+          >
+            <FileText size={17} />
+            Job details
+          </button>
+          <button
+            type="button"
+            className={progressView === "payments" ? "active" : ""}
+            aria-current={progressView === "payments" ? "page" : undefined}
+            onClick={() => setTab("payments")}
+          >
+            <Tag size={17} />
+            Payments
+          </button>
+        </nav>
       ) : (
-        <JobDetailLayout
-          comparing={comparing}
-          bounded={!comparing && !activeWork}
-        >
+        canMessage &&
+        !documentView && (
+          <div className="job-subnav">
+            <button className="active" onClick={() => setTab("overview")}>
+              Overview
+            </button>
+            <button onClick={() => navigate(inboxPath())}>Messages</button>
+          </div>
+        )
+      )}
+      <div hidden={tab !== "payments" || !participant}>
+        {participant && (
+          <div className="jobs-detail-layout">
+            <section className="jobs-panel">
+              <h2>Payment plan</h2>
+              {detail.paymentStagesNeedReview && (
+                <p className="quote-decision-note" role="status">
+                  The agreed price has changed.{" "}
+                  {hirer
+                    ? "Update the planned stages below before invoicing continues."
+                    : "The hiring company needs to update the payment stages before you can invoice."}
+                </p>
+              )}
+              <p className="job-muted">
+                Payments happen directly between the two companies. Connect
+                records only what each side reports.
+              </p>
+              {detail.paymentStages.length ? (
+                detail.paymentStages.map((stage) => (
+                  <div className="job-payment" key={stage.id}>
+                    <span>
+                      <b>{stage.title}</b>
+                      <small>
+                        {{
+                          planned: "Planned",
+                          invoiced: "Invoice sent",
+                          reported_paid: "Payment reported",
+                          confirmed_received: "Payment received",
+                        }[stage.status] || stage.status}
+                        {stage.invoice_reference &&
+                          ` · ${stage.invoice_reference}`}
+                      </small>
+                    </span>
+                    <b>{money(stage.amount_cents)}</b>
+                    {stage.status === "planned" &&
+                      chosen &&
+                      admin &&
+                      !detail.paymentStagesNeedReview && (
+                        <div className="job-invoice-action">
+                          <input
+                            aria-label={`Invoice reference for ${stage.title}`}
+                            placeholder="Invoice reference (optional)"
+                            maxLength={120}
+                            disabled={working}
+                            value={invoiceRefs[stage.id] || ""}
+                            onChange={(e) =>
+                              setInvoiceRefs((v) => ({
+                                ...v,
+                                [stage.id]: e.target.value,
+                              }))
+                            }
+                          />
+                          <button
+                            className="jobs-button jobs-secondary"
+                            disabled={working}
+                            onClick={async () => {
+                              if (
+                                await mutate(`payment-stages/${stage.id}`, {
+                                  status: "invoiced",
+                                  invoiceReference: invoiceRefs[stage.id] || "",
+                                })
+                              )
+                                setInvoiceRefs((current) => {
+                                  const next = { ...current };
+                                  delete next[stage.id];
+                                  return next;
+                                });
+                            }}
+                          >
+                            Mark invoiced
+                          </button>
+                        </div>
+                      )}
+                    {stage.status === "invoiced" && hirer && admin && (
+                      <button
+                        disabled={working}
+                        className="jobs-button jobs-secondary"
+                        onClick={() =>
+                          void mutate(`payment-stages/${stage.id}`, {
+                            status: "reported_paid",
+                          })
+                        }
+                      >
+                        Report paid
+                      </button>
+                    )}
+                    {stage.status === "reported_paid" && chosen && admin && (
+                      <button
+                        disabled={working}
+                        className="jobs-button jobs-secondary"
+                        onClick={() =>
+                          void mutate(`payment-stages/${stage.id}`, {
+                            status: "confirmed_received",
+                          })
+                        }
+                      >
+                        Confirm received
+                      </button>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <JobEmpty
+                  title="No payment stages yet"
+                  detail="The hiring company can set stages after choosing a quote."
+                />
+              )}
+              {hirer &&
+                admin &&
+                ["awarded", "in_progress"].includes(job.status) &&
+                detail.paymentStages.every((s) => s.status === "planned") && (
+                  <div className="job-stage-editor">
+                    <h3>Set payment stages</h3>
+                    {stageTitles.map((title, i) => (
+                      <div className="jobs-fields-two" key={i}>
+                        <input
+                          value={title}
+                          disabled={working}
+                          onChange={(e) =>
+                            setStageTitles((v) =>
+                              v.map((x, n) => (n === i ? e.target.value : x)),
+                            )
+                          }
+                          aria-label={`Payment stage ${i + 1} name`}
+                          placeholder="Stage name"
+                        />
+                        <input
+                          type="number"
+                          min="1"
+                          disabled={working}
+                          value={stageAmounts[i]}
+                          onChange={(e) =>
+                            setStageAmounts((v) =>
+                              v.map((x, n) => (n === i ? e.target.value : x)),
+                            )
+                          }
+                          aria-label={`Payment stage ${i + 1} amount`}
+                          placeholder="Amount in USD"
+                        />
+                      </div>
+                    ))}
+                    <button
+                      className="jobs-button jobs-secondary"
+                      disabled={stageTitles.length >= 8 || working}
+                      onClick={() => {
+                        setStageTitles((v) => [...v, ""]);
+                        setStageAmounts((v) => [...v, ""]);
+                      }}
+                    >
+                      Add stage
+                    </button>
+                    <button
+                      className="jobs-button jobs-primary"
+                      disabled={working}
+                      onClick={async () => {
+                        const submittedDraft = paymentPlanSnapshot;
+                        if (
+                          await mutate(
+                            "payment-stages",
+                            {
+                              stages: stageTitles.map((title, i) => ({
+                                title,
+                                amountCents: Math.round(
+                                  Number(stageAmounts[i]) * 100,
+                                ),
+                              })),
+                            },
+                            "Payment plan saved",
+                          )
+                        )
+                          setPaymentPlanBaseline(submittedDraft);
+                      }}
+                    >
+                      Save plan
+                    </button>
+                    <small>
+                      Total{" "}
+                      {money(
+                        stageAmounts.reduce(
+                          (sum, n) => sum + Math.round(Number(n || 0) * 100),
+                          0,
+                        ),
+                      )}{" "}
+                      of{" "}
+                      {money(
+                        detail.agreement?.amount_cents ??
+                          detail.selected?.amount_cents,
+                      )}{" "}
+                      agreed.
+                    </small>
+                  </div>
+                )}
+            </section>
+            <aside className="jobs-panel">
+              <h2>Agreed price</h2>
+              <strong className="job-price">
+                {money(
+                  detail.agreement?.amount_cents ??
+                    detail.selected?.amount_cents,
+                )}
+              </strong>
+              <p>
+                {detail.selected?.payment_terms ||
+                  "Payment terms can be discussed in job messages."}
+              </p>
+              <p className="job-muted">
+                <LockKeyhole size={15} /> No card or bank information is stored
+                here.
+              </p>
+            </aside>
+          </div>
+        )}
+      </div>
+      <div hidden={tab === "payments" && !!participant}>
+        <JobDetailLayout comparing={comparing} progress={activeWork}>
           {comparing && (
             <JobBriefSummary
               job={job}
               files={detail.files.filter((f) => !f.quote_id && !f.update_id)}
             />
           )}
-          <section className="jobs-detail-main">
+          <section
+            className={`jobs-detail-main ${activeWork ? "job-progress-main" : ""}`}
+            hidden={activeWork && progressView === "details"}
+          >
             {hirer && job.status === "open" && detail.quotes.length > 0 && (
               <div className="jobs-panel job-compare" id="received-quotes">
                 <div className="jobs-section-title">
@@ -3118,6 +3470,87 @@ export function JobDetailPage() {
                 </ul>
               </div>
             )}
+            {job.status === "review" && hirer && admin && (
+              <>
+                <div className="jobs-panel job-review-actions">
+                  <h2>Review the work</h2>
+                  <p>Check the final update before closing this job.</p>
+                  <button
+                    className="jobs-button jobs-primary"
+                    disabled={working || checklistSaving || !checklistComplete}
+                    onClick={() =>
+                      decision(
+                        "Accept the finished work?",
+                        "This closes the job and lets both companies leave a review. Confirm that the agreed scope is complete.",
+                        "Accept and finish",
+                        "review-work",
+                        {
+                          decision: "accept",
+                          note: "",
+                          updateId: completion?.id,
+                        },
+                        "Job finished",
+                      )
+                    }
+                  >
+                    Accept and finish job
+                  </button>
+                  {showReviewNote ? (
+                    <>
+                      <label className="job-review-note">
+                        What needs to change?
+                        <textarea
+                          value={reviewNote}
+                          disabled={working}
+                          onChange={(e) => setReviewNote(e.target.value)}
+                          rows={3}
+                          placeholder="Tell the company what remains"
+                          autoFocus
+                        />
+                      </label>
+                      <button
+                        className="jobs-button jobs-secondary"
+                        disabled={working || !reviewNote.trim()}
+                        onClick={async () => {
+                          if (
+                            await mutate(
+                              "review-work",
+                              {
+                                decision: "changes",
+                                note: reviewNote,
+                                updateId: completion?.id,
+                              },
+                              "Changes requested",
+                            )
+                          ) {
+                            setReviewNote("");
+                            setShowReviewNote(false);
+                          }
+                        }}
+                      >
+                        Send request for changes
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className="jobs-button jobs-secondary"
+                      onClick={() => setShowReviewNote(true)}
+                    >
+                      Request changes
+                    </button>
+                  )}
+                  <button className="job-report-link" onClick={reportProblem}>
+                    Report a problem
+                  </button>
+                </div>
+                <div className="jobs-panel job-review-info">
+                  <Info size={20} />
+                  <span>
+                    After you accept, both companies can leave a review.
+                  </span>
+                </div>
+              </>
+            )}
             {job.status === "awarded" && chosen && admin && (
               <div className="jobs-panel job-accept">
                 <h2>Your quote was chosen</h2>
@@ -3145,13 +3578,94 @@ export function JobDetailPage() {
                 </button>
               </div>
             )}
+            {activeWork && !!job.work_checklist?.length && (
+              <div
+                className="jobs-panel work-checklist-panel"
+                id="work-checklist"
+                hidden={progressView !== "overview"}
+              >
+                <WorkChecklist
+                  layout="workspace"
+                  key={`${job.id}:${company?.id}`}
+                  jobId={job.id}
+                  items={job.work_checklist}
+                  version={job.checklist_version}
+                  progress
+                  editable={
+                    !!chosen &&
+                    admin &&
+                    job.status === "in_progress" &&
+                    !working &&
+                    !pendingUpdate
+                  }
+                  hint={
+                    job.status === "in_progress"
+                      ? chosen && admin
+                        ? "Add photos or documents for each item, then send it for the hiring company’s approval."
+                        : hirer && admin
+                          ? "Review each item’s proof. Approve completed work or ask for changes."
+                          : "The selected company submits proof. The hiring company approves each completed item."
+                      : job.status === "awarded"
+                        ? "Once the job is confirmed, the selected company can submit proof for each item."
+                        : job.status === "review"
+                          ? "Check these items alongside the final update before accepting the work."
+                          : undefined
+                  }
+                  onBusyChange={setChecklistSaving}
+                  onDraftChange={setChecklistDirty}
+                  reviewable={
+                    !!hirer && admin && job.status === "in_progress" && !working
+                  }
+                  onChange={(items, version) => {
+                    setDetail((current) =>
+                      current?.job.id === job.id
+                        ? {
+                            ...current,
+                            job: {
+                              ...current.job,
+                              work_checklist: items,
+                              checklist_version: version,
+                            },
+                          }
+                        : current,
+                    );
+                    refresh();
+                  }}
+                />
+                {job.status === "in_progress" && checklistComplete && (
+                  <div className="job-progress-ready">
+                    <CheckCircle2 size={20} />
+                    <div>
+                      <strong>All tasks approved</strong>
+                      <p>
+                        {chosen
+                          ? "Send a final update to let the hiring company finish the job."
+                          : "The company can now send its final update for you to finish the job."}
+                      </p>
+                    </div>
+                    {chosen && admin && (
+                      <button
+                        type="button"
+                        className="jobs-button jobs-primary"
+                        onClick={() => setTab("updates")}
+                      >
+                        Send final update <ArrowRight size={17} />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             {participant &&
               ["awarded", "in_progress", "review", "completed"].includes(
                 job.status,
               ) && (
-                <div className="jobs-panel job-progress-panel">
+                <div
+                  className="jobs-panel job-progress-panel job-progress-activity"
+                  hidden={progressView !== "updates"}
+                >
                   <h2>
-                    {job.status === "review" ? "Earlier updates" : "Progress"}
+                    {job.status === "review" ? "Earlier updates" : "Updates"}
                   </h2>
                   {detail.updates.length ? (
                     detail.updates
@@ -3201,7 +3715,7 @@ export function JobDetailPage() {
                       </span>
                     </div>
                   )}
-                  {job.status === "in_progress" && chosen && (
+                  {job.status === "in_progress" && chosen && admin && (
                     <div className="job-update-form">
                       {pendingUpdate && (
                         <p role="status" className="quote-decision-note">
@@ -3247,6 +3761,8 @@ export function JobDetailPage() {
                             disabled={
                               !update.trim() ||
                               working ||
+                              checklistSaving ||
+                              !checklistComplete ||
                               (!!pendingUpdate &&
                                 pendingUpdate.kind !== "completion")
                             }
@@ -3258,6 +3774,20 @@ export function JobDetailPage() {
                           </button>
                         )}
                       </div>
+                      {!checklistComplete && (
+                        <p className="job-deliverables-hint">
+                          Every item on the{" "}
+                          <button
+                            type="button"
+                            className="job-progress-text-link"
+                            onClick={() => setTab("overview")}
+                          >
+                            work checklist
+                          </button>{" "}
+                          needs the hiring company’s approval before final
+                          review. You can still post progress updates.
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -3266,6 +3796,7 @@ export function JobDetailPage() {
               <form
                 className="jobs-panel workspace-quick-message"
                 onSubmit={sendMessage}
+                hidden={progressView !== "updates"}
               >
                 <MessageCircle size={19} />
                 <input
@@ -3301,6 +3832,7 @@ export function JobDetailPage() {
                       {[1, 2, 3, 4, 5].map((n) => (
                         <button
                           key={n}
+                          disabled={working}
                           onClick={() => setRating(n)}
                           aria-label={`${n} stars`}
                           aria-pressed={rating === n}
@@ -3314,6 +3846,7 @@ export function JobDetailPage() {
                     </div>
                     <textarea
                       value={reviewText}
+                      disabled={working}
                       onChange={(e) => setReviewText(e.target.value)}
                       placeholder="How did the work together go?"
                       rows={3}
@@ -3321,13 +3854,18 @@ export function JobDetailPage() {
                     <button
                       className="jobs-button jobs-primary"
                       disabled={working}
-                      onClick={() =>
-                        void mutate(
-                          "reviews",
-                          { rating, text: reviewText },
-                          "Review submitted",
-                        )
-                      }
+                      onClick={async () => {
+                        if (
+                          await mutate(
+                            "reviews",
+                            { rating, text: reviewText },
+                            "Review submitted",
+                          )
+                        ) {
+                          setReviewText("");
+                          setRating(5);
+                        }
+                      }}
                     >
                       Leave review
                     </button>
@@ -3335,73 +3873,27 @@ export function JobDetailPage() {
                 )}
               </div>
             )}
-            {!comparing && !activeWork && (
-              <div className="jobs-panel job-brief" id="job-brief">
-                <h2 id="job-brief-heading">About this job</h2>
-                <div
-                  className="job-brief-content"
-                  role="region"
-                  aria-labelledby="job-brief-heading"
-                  tabIndex={0}
-                >
-                  <p className="job-description">
-                    {job.description ||
-                      "Add the scope before publishing this draft."}
-                  </p>
-                  {job.requirements && (
-                    <div className="job-requirements">
-                      <h3>What your team needs</h3>
-                      <p className="job-description">{job.requirements}</p>
-                    </div>
-                  )}
-                  <JobQuestions questions={job.proposal_questions || []} />
-                  <div className="job-facts">
-                    {job.project_type && (
-                      <span>
-                        <Building2 size={17} />
-                        {projectLabel(job.project_type)}
-                      </span>
-                    )}
-                    {job.system_size_kw && (
-                      <span>
-                        <Wrench size={17} />
-                        {job.system_size_kw} kW system
-                      </span>
-                    )}
-                    {job.site_count && (
-                      <span>
-                        <MapPin size={17} />
-                        {job.site_count}{" "}
-                        {job.site_count === 1 ? "site" : "sites"}
-                      </span>
-                    )}
-                    {job.materials_by && job.materials_by !== "to_agree" && (
-                      <span>
-                        <Wrench size={17} />
-                        {materialsLabels[job.materials_by]}
-                      </span>
-                    )}
-                    {job.exact_address && (
-                      <span>
-                        <LockKeyhole size={17} />
-                        {job.exact_address}
-                      </span>
-                    )}
-                  </div>
-                  {detail.files.some(
-                    (file) => !file.quote_id && !file.update_id,
-                  ) && (
-                    <div className="job-brief-attachments">
-                      <h3>Plans & attachments</h3>{" "}
-                      <FileList
-                        files={detail.files.filter(
-                          (f) => !f.quote_id && !f.update_id,
-                        )}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
+            {documentView && !quoteEditing && (
+              <JobDocumentBody
+                key={job.id}
+                job={job}
+                files={detail.files.filter(
+                  (file) =>
+                    !file.quote_id && !file.update_id && !file.message_id,
+                )}
+              />
+            )}
+            {documentView && quoteEditing && (
+              <button
+                type="button"
+                className="job-document-return job-text-button"
+                onClick={() => {
+                  setQuoteEditing(false);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              >
+                <ArrowLeft size={16} /> Back to the job brief
+              </button>
             )}
             {detail.ownQuote && !quoteEditing && !activeWork && (
               <div className="jobs-panel job-own-quote">
@@ -3468,13 +3960,27 @@ export function JobDetailPage() {
             )}
             {canQuote && quoteEditing && (
               <div className="jobs-panel" id="quote-form">
-                <h2>{detail.ownQuote ? "Your quote" : "Send a quote"}</h2>
-                <p className="job-muted">
-                  Share your approach, answer any job questions, and add your
-                  price and files. Your proposal is private between your company
-                  and {detail.hiringCompany.name}.
-                </p>
-                <form className="job-quote-form" onSubmit={sendQuote}>
+                <div className="quote-editor-header">
+                  <h2>
+                    {detail.ownQuote
+                      ? "Revise your proposal"
+                      : "Send a proposal"}
+                  </h2>
+                  <p className="job-muted">
+                    Show {detail.hiringCompany.name} how you’ll handle the work.
+                    Your proposal is private between your two companies.
+                  </p>
+                </div>
+                <form
+                  className="job-quote-form"
+                  onSubmit={sendQuote}
+                  onInvalidCapture={(event) => {
+                    const disclosure = (event.target as HTMLElement).closest(
+                      "details",
+                    );
+                    if (disclosure) disclosure.open = true;
+                  }}
+                >
                   {proposalNeedsReview && (
                     <div className="proposal-review-notice" role="alert">
                       <strong>
@@ -3508,292 +4014,324 @@ export function JobDetailPage() {
                     className="quote-form-fields"
                     disabled={working || !!pendingQuote || proposalNeedsReview}
                   >
-                    <div className="jobs-fields-three">
-                      <label>
-                        Your price (USD)
-                        <input
+                    <section className="quote-section quote-proposal-section">
+                      <label htmlFor="quote-proposal-text">
+                        Your proposal
+                        <textarea
+                          id="quote-proposal-text"
                           required
-                          type="number"
-                          min="1"
-                          step="1"
-                          value={amount}
-                          onChange={(e) => setAmount(e.target.value)}
-                          placeholder="e.g. 275000"
+                          minLength={10}
+                          rows={7}
+                          value={quoteNote}
+                          onChange={(e) => setQuoteNote(e.target.value)}
+                          placeholder="Tell the company how you would approach this work, what your team brings, and what they can expect."
+                          aria-describedby="quote-proposal-hint"
                         />
                       </label>
-                      <label>
-                        Earliest start
-                        <input
-                          required
-                          maxLength={120}
-                          value={quoteStart}
-                          onChange={(e) => setQuoteStart(e.target.value)}
-                          placeholder="e.g. In 2 weeks"
-                        />
-                      </label>
-                      <label>
-                        Estimated duration
-                        <input
-                          required
-                          maxLength={120}
-                          value={duration}
-                          onChange={(e) => setDuration(e.target.value)}
-                          placeholder="e.g. 3 weeks"
-                        />
-                      </label>
-                    </div>
-                    <label>
-                      Your approach
-                      <textarea
-                        required
-                        minLength={10}
-                        rows={4}
-                        value={quoteNote}
-                        onChange={(e) => setQuoteNote(e.target.value)}
-                        placeholder="Explain the work you’ll do and why your team is a fit."
-                      />
-                    </label>
-                    <ProposalAnswerFields
-                      questions={
-                        proposalDraft?.questions || job.proposal_questions || []
-                      }
-                      answers={quoteAnswers}
-                      onChange={setQuoteAnswers}
-                      disabled={
-                        working || !!pendingQuote || proposalNeedsReview
-                      }
-                    />
-                    <details>
-                      <summary>Add a price breakdown (optional)</summary>
-                      <div className="price-breakdown">
-                        {breakdown.map((item, i) => (
-                          <div className="price-breakdown-row" key={i}>
-                            <input
-                              aria-label={`Cost item ${i + 1}`}
-                              maxLength={160}
-                              required
-                              placeholder="e.g. Installation labor"
-                              value={item.label}
-                              onChange={(e) =>
-                                setBreakdown((v) =>
-                                  v.map((x, n) =>
-                                    n === i
-                                      ? { ...x, label: e.target.value }
-                                      : x,
-                                  ),
-                                )
-                              }
-                            />
-                            <input
-                              aria-label={`Cost item ${i + 1} amount in USD`}
-                              required
-                              type="number"
-                              min="0.01"
-                              step="0.01"
-                              placeholder="USD"
-                              value={item.amount}
-                              onChange={(e) =>
-                                setBreakdown((v) =>
-                                  v.map((x, n) =>
-                                    n === i
-                                      ? { ...x, amount: e.target.value }
-                                      : x,
-                                  ),
-                                )
-                              }
-                            />
-                            <button
-                              type="button"
-                              aria-label={`Remove cost item ${i + 1}`}
-                              onClick={() =>
-                                setBreakdown((v) => v.filter((_, n) => n !== i))
-                              }
-                            >
-                              <X size={16} />
-                            </button>
-                          </div>
-                        ))}
-                        <button
-                          type="button"
-                          className="job-text-button"
-                          disabled={breakdown.length >= 20}
-                          onClick={() =>
-                            setBreakdown((v) => [
-                              ...v,
-                              { label: "", amount: "" },
-                            ])
-                          }
-                        >
-                          Add cost item
-                        </button>
-                        {breakdown.length > 0 && (
-                          <small>
-                            Breakdown total:{" "}
-                            {money(
-                              breakdown.reduce(
-                                (sum, x) =>
-                                  sum + Math.round(Number(x.amount || 0) * 100),
-                                0,
-                              ),
-                            )}
-                            . This must match your quote price.
-                          </small>
-                        )}
+                      <p
+                        id="quote-proposal-hint"
+                        className="quote-section-hint"
+                      >
+                        A clear approach and one relevant example help the
+                        company understand your fit.
+                      </p>
+                      {detail.ownQuote && (
+                        <label>
+                          What changed?
+                          <textarea
+                            rows={2}
+                            maxLength={2000}
+                            required={[
+                              "declined",
+                              "not_chosen",
+                              "award_declined",
+                            ].includes(detail.ownQuote.status)}
+                            placeholder="Summarize the changes to your proposal, price, or timing."
+                            value={revisionNote}
+                            onChange={(e) => setRevisionNote(e.target.value)}
+                          />
+                        </label>
+                      )}
+                    </section>
+                    <section
+                      className="quote-section quote-files-section"
+                      aria-labelledby="quote-files-heading"
+                    >
+                      <div className="quote-section-heading">
+                        <h3 id="quote-files-heading">
+                          Supporting files{" "}
+                          <span className="field-optional">(optional)</span>
+                        </h3>
+                        <p>
+                          Add relevant plans, past work, or documents that
+                          support your proposal.
+                        </p>
                       </div>
-                    </details>
-                    <details>
-                      <summary>Add scope and payment details</summary>
-                      <label>
-                        Included
-                        <textarea
-                          value={included}
-                          onChange={(e) => setIncluded(e.target.value)}
-                          rows={2}
-                        />
-                      </label>
-                      <label>
-                        Not included
-                        <textarea
-                          value={excluded}
-                          onChange={(e) => setExcluded(e.target.value)}
-                          rows={2}
-                        />
-                      </label>
-                      <label>
-                        Payment terms
-                        <textarea
-                          value={terms}
-                          onChange={(e) => setTerms(e.target.value)}
-                          rows={2}
-                        />
-                      </label>
-                    </details>
-                    <AttachmentPicker
-                      files={quoteFiles}
-                      onChange={setQuoteFiles}
-                      label="Add proposal files or photos"
-                      disabled={working}
-                    />
-                    {detail.ownQuote && (
-                      <label>
-                        What changed?
-                        <textarea
-                          rows={2}
-                          maxLength={2000}
-                          required={[
-                            "declined",
-                            "not_chosen",
-                            "award_declined",
-                          ].includes(detail.ownQuote.status)}
-                          placeholder="Summarize the changes to price, scope, or timing."
-                          value={revisionNote}
-                          onChange={(e) => setRevisionNote(e.target.value)}
-                        />
-                      </label>
-                    )}
-                    {detail.ownQuote && (
-                      <FileList
-                        files={detail.files.filter(
-                          (f) => f.quote_id === detail.ownQuote!.id,
-                        )}
+                      <AttachmentPicker
+                        files={quoteFiles}
+                        onChange={setQuoteFiles}
+                        label="Add proposal files or photos"
+                        disabled={
+                          working || !!pendingQuote || proposalNeedsReview
+                        }
                       />
+                      {detail.ownQuote && (
+                        <FileList
+                          files={detail.files.filter(
+                            (f) => f.quote_id === detail.ownQuote!.id,
+                          )}
+                        />
+                      )}
+                    </section>
+                    {!!(
+                      proposalDraft?.questions ||
+                      job.proposal_questions ||
+                      []
+                    ).length && (
+                      <div className="quote-section quote-questions-section">
+                        <ProposalAnswerFields
+                          questions={
+                            proposalDraft?.questions ||
+                            job.proposal_questions ||
+                            []
+                          }
+                          answers={quoteAnswers}
+                          onChange={setQuoteAnswers}
+                          disabled={
+                            working || !!pendingQuote || proposalNeedsReview
+                          }
+                        />
+                      </div>
                     )}
+                    <section
+                      className="quote-section quote-work-details"
+                      aria-labelledby="quote-work-details-heading"
+                    >
+                      <div className="quote-section-heading">
+                        <h3 id="quote-work-details-heading">Work details</h3>
+                        <p>
+                          Let the company know when you can start and how long
+                          the work will take.
+                        </p>
+                      </div>
+                      <div className="quote-timing-fields">
+                        <label>
+                          Earliest start
+                          <input
+                            required
+                            maxLength={120}
+                            value={quoteStart}
+                            onChange={(e) => setQuoteStart(e.target.value)}
+                            placeholder="e.g. In 2 weeks"
+                          />
+                        </label>
+                        <label>
+                          Estimated duration
+                          <input
+                            required
+                            maxLength={120}
+                            value={duration}
+                            onChange={(e) => setDuration(e.target.value)}
+                            placeholder="e.g. 3 weeks"
+                          />
+                        </label>
+                      </div>
+                      <details className="quote-additional-details">
+                        <summary>
+                          Add scope and payment details{" "}
+                          <span className="field-optional">(optional)</span>
+                        </summary>
+                        <label>
+                          Included
+                          <textarea
+                            value={included}
+                            onChange={(e) => setIncluded(e.target.value)}
+                            rows={2}
+                            placeholder="What does your quote cover?"
+                          />
+                        </label>
+                        <label>
+                          Not included
+                          <textarea
+                            value={excluded}
+                            onChange={(e) => setExcluded(e.target.value)}
+                            rows={2}
+                            placeholder="Anything the hiring company should arrange separately."
+                          />
+                        </label>
+                        <label>
+                          Payment terms
+                          <textarea
+                            value={terms}
+                            onChange={(e) => setTerms(e.target.value)}
+                            rows={2}
+                            placeholder="e.g. 30% at the start, balance on completion."
+                          />
+                        </label>
+                      </details>
+                    </section>
+                    <section
+                      className="quote-section quote-price-section"
+                      aria-labelledby="quote-price-heading"
+                    >
+                      <div className="quote-section-heading">
+                        <h3 id="quote-price-heading">Your price</h3>
+                        <p>
+                          Give one total for the work described in your
+                          proposal.
+                        </p>
+                      </div>
+                      <label htmlFor="quote-total-price">
+                        Total quote{" "}
+                        <span className="field-optional">(USD)</span>
+                        <span className="quote-price-money">
+                          <span aria-hidden="true">$</span>
+                          <input
+                            id="quote-total-price"
+                            aria-label="Total quote in USD"
+                            required
+                            type="text"
+                            inputMode="decimal"
+                            autoComplete="off"
+                            maxLength={20}
+                            pattern="(?=[0-9,]*[1-9])[0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?"
+                            title="Enter a total quote of at least $1, with up to two decimal places."
+                            value={
+                              quoteAmountFocused ||
+                              !amount ||
+                              !Number.isFinite(Number(amount))
+                                ? amount
+                                : new Intl.NumberFormat("en-US", {
+                                    minimumFractionDigits:
+                                      amount.split(".")[1]?.length || 0,
+                                    maximumFractionDigits: 2,
+                                  }).format(Number(amount))
+                            }
+                            onFocus={() => setQuoteAmountFocused(true)}
+                            onBlur={() => setQuoteAmountFocused(false)}
+                            onChange={(event) => {
+                              const value = event.target.value.replace(
+                                /[$,\s]/g,
+                                "",
+                              );
+                              if (!/^\d*(?:\.\d{0,2})?$/.test(value)) return;
+                              setAmount(value);
+                            }}
+                            placeholder="75,000"
+                          />
+                        </span>
+                      </label>
+                      <details className="quote-price-breakdown">
+                        <summary>
+                          Add a price breakdown{" "}
+                          <span className="field-optional">(optional)</span>
+                        </summary>
+                        <div className="price-breakdown">
+                          {breakdown.map((item, i) => (
+                            <div className="price-breakdown-row" key={i}>
+                              <input
+                                aria-label={`Cost item ${i + 1}`}
+                                maxLength={160}
+                                required
+                                placeholder="e.g. Installation labor"
+                                value={item.label}
+                                onChange={(e) =>
+                                  setBreakdown((v) =>
+                                    v.map((x, n) =>
+                                      n === i
+                                        ? { ...x, label: e.target.value }
+                                        : x,
+                                    ),
+                                  )
+                                }
+                              />
+                              <input
+                                aria-label={`Cost item ${i + 1} amount in USD`}
+                                required
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                placeholder="USD"
+                                value={item.amount}
+                                onChange={(e) =>
+                                  setBreakdown((v) =>
+                                    v.map((x, n) =>
+                                      n === i
+                                        ? { ...x, amount: e.target.value }
+                                        : x,
+                                    ),
+                                  )
+                                }
+                              />
+                              <button
+                                type="button"
+                                aria-label={`Remove cost item ${i + 1}`}
+                                onClick={() =>
+                                  setBreakdown((v) =>
+                                    v.filter((_, n) => n !== i),
+                                  )
+                                }
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            className="job-text-button"
+                            disabled={breakdown.length >= 20}
+                            onClick={() =>
+                              setBreakdown((v) => [
+                                ...v,
+                                { label: "", amount: "" },
+                              ])
+                            }
+                          >
+                            Add cost item
+                          </button>
+                          {breakdown.length > 0 && (
+                            <small>
+                              Breakdown total:{" "}
+                              {money(
+                                breakdown.reduce(
+                                  (sum, x) =>
+                                    sum +
+                                    Math.round(Number(x.amount || 0) * 100),
+                                  0,
+                                ),
+                              )}
+                              . This must match your quote price.
+                            </small>
+                          )}
+                        </div>
+                      </details>
+                    </section>
                   </fieldset>
-                  <button
-                    className="jobs-button jobs-primary"
-                    disabled={working || proposalNeedsReview}
-                    type="submit"
-                  >
-                    {working
-                      ? "Sending…"
-                      : pendingQuote
-                        ? "Retry attachments"
-                        : detail.ownQuote
-                          ? "Send revised quote"
-                          : "Send quote"}{" "}
-                    <ArrowRight size={16} />
-                  </button>
+                  <div className="quote-submit-actions">
+                    <button
+                      className="jobs-button jobs-primary"
+                      disabled={working || proposalNeedsReview}
+                      type="submit"
+                    >
+                      {working
+                        ? "Sending…"
+                        : pendingQuote
+                          ? "Retry attachments"
+                          : detail.ownQuote
+                            ? "Send revised quote"
+                            : "Send quote"}{" "}
+                      <ArrowRight size={16} />
+                    </button>
+                  </div>
                 </form>
               </div>
             )}
           </section>
-          {!comparing && (
-            <aside className="jobs-aside">
-              {job.status === "review" && hirer && admin && (
-                <>
-                  <div className="jobs-panel job-review-actions">
-                    <h2>Review the work</h2>
-                    <p>Check the final update before closing this job.</p>
-                    <button
-                      className="jobs-button jobs-primary"
-                      disabled={working}
-                      onClick={() =>
-                        decision(
-                          "Accept the finished work?",
-                          "This closes the job and lets both companies leave a review. Confirm that the agreed scope is complete.",
-                          "Accept and finish",
-                          "review-work",
-                          {
-                            decision: "accept",
-                            note: "",
-                            updateId: completion?.id,
-                          },
-                          "Job finished",
-                        )
-                      }
-                    >
-                      Accept and finish job
-                    </button>
-                    {showReviewNote ? (
-                      <>
-                        <label className="job-review-note">
-                          What needs to change?
-                          <textarea
-                            value={reviewNote}
-                            onChange={(e) => setReviewNote(e.target.value)}
-                            rows={3}
-                            placeholder="Tell the company what remains"
-                            autoFocus
-                          />
-                        </label>
-                        <button
-                          className="jobs-button jobs-secondary"
-                          disabled={working || !reviewNote.trim()}
-                          onClick={() =>
-                            void mutate(
-                              "review-work",
-                              {
-                                decision: "changes",
-                                note: reviewNote,
-                                updateId: completion?.id,
-                              },
-                              "Changes requested",
-                            )
-                          }
-                        >
-                          Send request for changes
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        className="jobs-button jobs-secondary"
-                        onClick={() => setShowReviewNote(true)}
-                      >
-                        Request changes
-                      </button>
-                    )}
-                    <button className="job-report-link" onClick={reportProblem}>
-                      Report a problem
-                    </button>
-                  </div>
-                  <div className="jobs-panel job-review-info">
-                    <Info size={20} />
-                    <span>
-                      After you accept, both companies can leave a review.
-                    </span>
-                  </div>
-                </>
-              )}
+          {!comparing && !documentView && (
+            <aside
+              className="jobs-aside job-progress-details"
+              hidden={activeWork && progressView !== "details"}
+            >
               {activeWork &&
                 (job.status === "review" ? (
                   <details className="workspace-review-details">
@@ -3807,81 +4345,100 @@ export function JobDetailPage() {
                 ) : (
                   <WorkFacts job={job} detail={detail} />
                 ))}
-              {!activeWork && (
-                <section className="jobs-panel job-details-side">
-                  <h2 id="job-details-heading">Job details</h2>
-                  <div
-                    className="job-details-content"
-                    role="region"
-                    aria-labelledby="job-details-heading"
-                    tabIndex={0}
-                  >
-                    <div className="job-budget-summary">
-                      <span>
-                        {job.budget_cents != null ? "Total budget" : "Budget"}
-                      </span>
-                      <strong>
-                        {job.budget_cents != null
-                          ? money(job.budget_cents)
-                          : "Open to quotes"}
-                      </strong>
-                    </div>
-                    <div className="job-side-fact">
-                      <b>
-                        <CalendarDays size={16} />
-                        Start
-                      </b>
-                      <span>{job.start_window || "Flexible"}</span>
-                    </div>
-                    {job.expected_duration && (
-                      <div className="job-side-fact">
-                        <b>
-                          <Clock3 size={16} />
-                          Duration
-                        </b>
-                        <span>{job.expected_duration}</span>
-                      </div>
-                    )}
-                    {job.quote_deadline && (
-                      <div className="job-side-fact">
-                        <b>
-                          <CalendarDays size={16} />
-                          Quote deadline
-                        </b>
-                        <span>{date(job.quote_deadline)}</span>
-                      </div>
-                    )}
-                    <div className="job-company-side">
-                      <JobLogo company={detail.hiringCompany} />
-                      <div>
-                        <strong>{detail.hiringCompany.name}</strong>
-                        <small>
-                          Hiring company · {detail.hiringCompany.location}
-                        </small>
-                        <Link
-                          to={`/jobs/companies/${detail.hiringCompany.slug}?back=${id}`}
-                        >
-                          View company profile <ArrowRight size={14} />
-                        </Link>
-                      </div>
-                    </div>
-                    {canMessage && (
-                      <button
-                        className="jobs-button jobs-secondary"
-                        onClick={() => navigate(inboxPath())}
-                      >
-                        <MessageCircle size={16} />
-                        Job messages
-                      </button>
-                    )}
-                  </div>
-                </section>
-              )}
             </aside>
           )}
         </JobDetailLayout>
+      </div>
+      {documentView && !quoteEditing && (
+        <div
+          className="job-document-dock"
+          role="region"
+          aria-label="Respond to this job"
+        >
+          <div className="job-document-dock-inner">
+            <div className="job-document-budget">
+              <strong>
+                {job.budget_cents != null
+                  ? money(job.budget_cents)
+                  : "Open to quotes"}
+              </strong>
+              <small>
+                {job.budget_cents != null
+                  ? "Total budget"
+                  : "Share your price and availability"}
+              </small>
+            </div>
+            <div className="job-document-actions">
+              {canMessage && (
+                <Link className="jobs-button jobs-secondary" to={inboxPath()}>
+                  <MessageCircle size={17} />{" "}
+                  {hirer || detail.ownQuote
+                    ? "Job conversation"
+                    : "Ask a question"}
+                </Link>
+              )}
+              {canQuote ? (
+                <button
+                  className="jobs-button jobs-primary"
+                  onClick={editQuote}
+                >
+                  {detail.ownQuote?.upload_pending
+                    ? "Finish your quote"
+                    : detail.ownQuote
+                      ? "Revise your quote"
+                      : quoteDraftHeld.current
+                        ? "Continue your quote"
+                        : "Send a quote"}{" "}
+                  <ArrowRight size={17} />
+                </button>
+              ) : hirer && admin && ["draft", "open"].includes(job.status) ? (
+                <Link
+                  className="jobs-button jobs-primary"
+                  to={
+                    job.status === "draft"
+                      ? `/jobs/${id}/edit`
+                      : `/jobs/${id}/matches`
+                  }
+                >
+                  {job.status === "draft"
+                    ? "Continue editing"
+                    : "Find companies"}{" "}
+                  <ArrowRight size={17} />
+                </Link>
+              ) : !company && job.status === "open" && !quoteDeadlinePassed ? (
+                <button
+                  className="jobs-button jobs-primary"
+                  onClick={
+                    session.user && session.user.account_type !== "individual"
+                      ? createCompany
+                      : signIn
+                  }
+                >
+                  {session.user?.account_type === "individual"
+                    ? "Use a company account"
+                    : session.user
+                      ? "Create company profile"
+                      : "Sign in to quote"}{" "}
+                  <ArrowRight size={17} />
+                </button>
+              ) : (
+                <span className="job-document-action-note">
+                  {job.status !== "open"
+                    ? statusText[job.status]
+                    : quoteDeadlinePassed
+                      ? "The quote deadline has passed"
+                      : hirer
+                        ? "Your company posted this job"
+                        : !admin
+                          ? "A company admin can send a quote"
+                          : "View your quote below"}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
       )}
-      {canQuote && !quoteEditing && (
+      {!documentView && canQuote && !quoteEditing && (
         <div className="job-mobile-action">
           <span>
             {job.budget_cents != null
@@ -3902,41 +4459,231 @@ export function JobDetailPage() {
   );
 }
 
-function JobDetailLayout({
-  comparing,
-  bounded,
+function JobDocumentHeader({
+  job,
+  company,
+  status,
+  compact,
   children,
 }: {
-  comparing: boolean;
-  bounded: boolean;
+  job: Job;
+  company: Company;
+  status: string;
+  compact: boolean;
   children: ReactNode;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const element = ref.current;
-    if (!bounded || !element) return;
+  return (
+    <header className="job-document-header">
+      <span className={`job-status ${cls(job.status)}`}>{status}</span>
+      <h1>{job.title || "Untitled draft"}</h1>
+      <div className="job-document-identity">
+        <Link
+          className="job-document-company"
+          to={`/jobs/companies/${company.slug}?back=${job.id}`}
+        >
+          <JobLogo company={company} />
+          <span>
+            <strong>{company.name}</strong>
+            <small>
+              View company <ArrowUpRight size={13} />
+            </small>
+          </span>
+        </Link>
+        <div className="job-document-location">
+          <MapPin size={20} aria-hidden="true" />
+          <span>
+            <strong>{job.location || "Location to be added"}</strong>
+            <small>{workLabel(job.trade)}</small>
+          </span>
+        </div>
+      </div>
+      {!compact && (
+        <div className="job-document-facts">
+          <span>
+            <CalendarDays size={18} aria-hidden="true" />
+            <span>
+              <small>Start</small>
+              {job.start_window || "Flexible"}
+            </span>
+          </span>
+          {job.expected_duration && (
+            <span>
+              <Clock3 size={18} aria-hidden="true" />
+              <span>
+                <small>Duration</small>
+                {job.expected_duration}
+              </span>
+            </span>
+          )}
+          {job.quote_deadline && (
+            <span>
+              <CalendarDays size={18} aria-hidden="true" />
+              <span>
+                <small>Quotes close</small>
+                {date(job.quote_deadline)}
+              </span>
+            </span>
+          )}
+        </div>
+      )}
+      {children}
+    </header>
+  );
+}
+
+function JobDocumentBody({ job, files }: { job: Job; files: JobFile[] }) {
+  const questions = job.proposal_questions || [];
+  const [active, setActive] = useState("job-work");
+  const sectionIds = [
+    "job-work",
+    ...(files.length ? ["job-files"] : []),
+    ...(questions.length ? ["job-questions"] : []),
+  ];
+  const sectionKey = sectionIds.join(",");
+  useEffect(() => {
+    let frame = 0;
     const measure = () => {
-      // Use the document position so scrolling never changes the reading area.
-      const top = element.getBoundingClientRect().top + window.scrollY;
-      const height = `${Math.max(320, Math.floor(window.innerHeight - top - 24))}px`;
-      if (element.style.getPropertyValue("--job-overview-height") !== height)
-        element.style.setProperty("--job-overview-height", height);
+      const headerHeight =
+        document.querySelector(".jobs-site-header")?.getBoundingClientRect()
+          .height || 88;
+      let current = "job-work";
+      for (const section of sectionKey.split(",")) {
+        if (
+          (document.getElementById(section)?.getBoundingClientRect().top ??
+            Infinity) <=
+          headerHeight + 100
+        )
+          current = section;
+      }
+      setActive(current);
+    };
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
     };
     measure();
-    const observer = new ResizeObserver(measure);
-    if (element.parentElement) observer.observe(element.parentElement);
-    const header = document.querySelector(".jobs-site-header");
-    if (header) observer.observe(header);
-    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
     return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", measure);
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
     };
-  }, [bounded]);
+  }, [sectionKey]);
+  const facts: [string, string][] = [
+    ...(job.project_type
+      ? [["Project type", projectLabel(job.project_type)] as [string, string]]
+      : []),
+    ...(job.system_size_kw
+      ? [["System size", `${job.system_size_kw} kW`] as [string, string]]
+      : []),
+    ...(job.site_count
+      ? [["Sites", String(job.site_count)] as [string, string]]
+      : []),
+    ...(job.people_needed
+      ? [["Team needed", `${job.people_needed} people`] as [string, string]]
+      : []),
+    ...(job.materials_by && job.materials_by !== "to_agree"
+      ? [
+          [
+            "Materials",
+            materialsLabels[job.materials_by] || job.materials_by,
+          ] as [string, string],
+        ]
+      : []),
+    ...(job.exact_address
+      ? [["Site address (private)", job.exact_address] as [string, string]]
+      : []),
+  ];
+  return (
+    <div className="job-document-content" id="job-brief">
+      <nav className="job-document-nav" aria-label="Job sections">
+        <a
+          href="#job-work"
+          aria-current={active === "job-work" ? "location" : undefined}
+        >
+          The work
+        </a>
+        {!!files.length && (
+          <a
+            href="#job-files"
+            aria-current={active === "job-files" ? "location" : undefined}
+          >
+            Plans &amp; photos <span>· {files.length}</span>
+          </a>
+        )}
+        {!!questions.length && (
+          <a
+            href="#job-questions"
+            aria-current={active === "job-questions" ? "location" : undefined}
+          >
+            Questions <span>· {questions.length}</span>
+          </a>
+        )}
+      </nav>
+      <section id="job-work" tabIndex={-1} aria-labelledby="job-work-heading">
+        <h2 id="job-work-heading">What needs to be done</h2>
+        <p className="job-description">
+          {job.description || "Add the scope before publishing this draft."}
+        </p>
+        <WorkChecklist items={job.work_checklist || []} />
+        {!!facts.length && (
+          <dl className="job-document-specs">
+            {facts.map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        {job.requirements && (
+          <div className="job-requirements">
+            <h3>What your team needs</h3>
+            <p className="job-description">{job.requirements}</p>
+          </div>
+        )}
+      </section>
+      {!!files.length && (
+        <section
+          id="job-files"
+          tabIndex={-1}
+          aria-labelledby="job-files-heading"
+        >
+          <h2 id="job-files-heading">
+            Plans &amp; photos{" "}
+            <small>
+              {files.length} attachment{files.length === 1 ? "" : "s"}
+            </small>
+          </h2>
+          <FileList files={files} />
+        </section>
+      )}
+      {!!questions.length && (
+        <section
+          id="job-questions"
+          tabIndex={-1}
+          aria-label="Proposal questions"
+        >
+          <JobQuestions questions={questions} />
+        </section>
+      )}
+    </div>
+  );
+}
+
+function JobDetailLayout({
+  comparing,
+  children,
+  progress = false,
+}: {
+  comparing: boolean;
+  children: ReactNode;
+  progress?: boolean;
+}) {
   return (
     <div
-      ref={ref}
-      className={`jobs-detail-layout workspace-detail-layout ${comparing ? "quote-comparison-layout" : ""} ${bounded ? "job-overview-layout" : ""}`}
+      className={`jobs-detail-layout workspace-detail-layout ${comparing ? "quote-comparison-layout" : ""} ${progress ? "job-progress-layout" : ""}`}
     >
       {children}
     </div>

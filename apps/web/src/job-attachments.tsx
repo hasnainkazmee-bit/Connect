@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -65,18 +65,20 @@ export function attachmentError(files: File[]) {
     return "Use a file name shorter than 200 characters.";
   return "";
 }
-function useFileUrl(item: ViewFile) {
-  const [url, setUrl] = useState(item.src || "");
+function useFileUrl(item?: ViewFile) {
+  const [local, setLocal] = useState<{ file: File; url: string } | null>(null);
   useEffect(() => {
-    if (!item.file) {
-      setUrl(item.src || "");
-      return;
-    }
+    if (!item?.file) return;
     const value = URL.createObjectURL(item.file);
-    setUrl(value);
+    setLocal({ file: item.file, url: value });
     return () => URL.revokeObjectURL(value);
-  }, [item.file, item.src]);
-  return url;
+  }, [item?.file]);
+  // Never render the previous attachment's URL while the next file loads.
+  return item?.file
+    ? local?.file === item.file
+      ? local.url
+      : ""
+    : item?.src || "";
 }
 function AttachmentThumbnail({ item }: { item: ViewFile }) {
   const src = useFileUrl(item);
@@ -100,27 +102,118 @@ export function AttachmentViewer({
   files: ViewFile[];
   initial?: number;
 }) {
-  const [index, setIndex] = useState(initial),
+  const { close } = useApp();
+  const root = useRef<HTMLElement>(null);
+  const [index, setIndex] = useState(
+      Math.max(0, Math.min(initial, files.length - 1)),
+    ),
     [zoom, setZoom] = useState(1);
-  const item = files[index];
+  const [imageFailed, setImageFailed] = useState(false);
+  const item = files[index] || files[0];
   const src = useFileUrl(item);
-  const isImage = item.type.startsWith("image/");
+  const isImage = !!item?.type.startsWith("image/");
+  const isPdf = item?.type === "application/pdf";
   useEffect(() => setZoom(1), [index]);
+  useEffect(() => setImageFailed(false), [src]);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      if (root.current && !root.current.closest("[hidden]"))
+        root.current
+          .querySelector<HTMLElement>("h2")
+          ?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  useEffect(() => {
+    const keydown = (event: KeyboardEvent) => {
+      // Older action pages stay mounted to keep their source drafts. Only the
+      // visible viewer may respond to shortcuts.
+      if (
+        !root.current ||
+        root.current.closest("[hidden]") ||
+        event.defaultPrevented
+      )
+        return;
+      if (
+        event.target instanceof HTMLElement &&
+        event.target.closest("input, textarea, select, [contenteditable=true]")
+      )
+        return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close();
+      } else if (event.key === "ArrowLeft" && zoom === 1) {
+        event.preventDefault();
+        setIndex((i) => Math.max(0, i - 1));
+      } else if (event.key === "ArrowRight" && zoom === 1) {
+        event.preventDefault();
+        setIndex((i) => Math.min(files.length - 1, i + 1));
+      }
+    };
+    window.addEventListener("keydown", keydown);
+    return () => window.removeEventListener("keydown", keydown);
+  }, [close, files.length, zoom]);
+  if (!item)
+    return (
+      <section className="job-file-viewer" ref={root}>
+        <header className="job-file-toolbar">
+          <button
+            type="button"
+            className="jobs-button jobs-secondary viewer-back"
+            onClick={() => close()}
+          >
+            <ArrowLeft size={18} />
+            Back
+          </button>
+          <h2 tabIndex={-1}>Attachment unavailable</h2>
+        </header>
+        <div className="job-file-canvas">
+          <p className="file-viewer-fallback">
+            Return to the job and choose another attachment.
+          </p>
+        </div>
+      </section>
+    );
   return (
-    <section className="job-file-viewer">
-      <header>
-        <h2>{item.name}</h2>
-        <span>
-          {sizeLabel(item.size)} · {index + 1} of {files.length}
-        </span>
+    <section
+      className="job-file-viewer"
+      ref={root}
+      aria-label="Attachment preview"
+    >
+      <header className="job-file-toolbar">
+        <button
+          type="button"
+          className="jobs-button jobs-secondary viewer-back"
+          onClick={() => close()}
+        >
+          <ArrowLeft size={18} />
+          Back
+        </button>
+        <div className="job-file-heading">
+          <h2 tabIndex={-1}>{item.name}</h2>
+          <span aria-live="polite">
+            {sizeLabel(item.size)} · {index + 1} of {files.length}
+          </span>
+        </div>
+        <button
+          type="button"
+          className="viewer-close"
+          aria-label="Close preview"
+          onClick={() => close()}
+        >
+          <X size={22} />
+        </button>
       </header>
-      <div className={`job-file-canvas ${isImage ? "image" : "pdf"}`}>
+      <div
+        className={`job-file-canvas ${isImage ? "image" : isPdf ? "pdf" : "document"}`}
+      >
         {src &&
-          (isImage ? (
+          (isImage && !imageFailed ? (
             <div className="job-file-image-scroll">
               <img
                 src={src}
                 alt={item.name}
+                onError={() => setImageFailed(true)}
                 style={{
                   width: zoom > 1 ? `${zoom * 100}%` : undefined,
                   maxWidth: zoom > 1 ? "none" : undefined,
@@ -128,16 +221,34 @@ export function AttachmentViewer({
                 }}
               />
             </div>
-          ) : (
+          ) : isPdf ? (
             <iframe
               src={src + "#view=FitH"}
               title={`PDF preview: ${item.name}`}
             />
+          ) : (
+            <div className="file-viewer-fallback">
+              <FileText size={36} />
+              <p>
+                {imageFailed
+                  ? "This image could not be displayed."
+                  : "Download this attachment to open it."}
+              </p>
+              <a
+                href={item.download || src}
+                download={item.name}
+                className="jobs-button jobs-secondary"
+              >
+                <Download size={18} />
+                Download file
+              </a>
+            </div>
           ))}
       </div>
       <footer>
-        <div className="viewer-navigation">
+        <div className="viewer-navigation" aria-label="Attachments">
           <button
+            type="button"
             className="jobs-button jobs-secondary"
             aria-label="Previous attachment"
             disabled={index === 0}
@@ -145,7 +256,11 @@ export function AttachmentViewer({
           >
             <ArrowLeft size={18} />
           </button>
+          <span>
+            {index + 1} / {files.length}
+          </span>
           <button
+            type="button"
             className="jobs-button jobs-secondary"
             aria-label="Next attachment"
             disabled={index === files.length - 1}
@@ -157,14 +272,23 @@ export function AttachmentViewer({
         {isImage && (
           <div className="viewer-zoom">
             <button
+              type="button"
               aria-label="Zoom out"
               disabled={zoom <= 1}
               onClick={() => setZoom((z) => Math.max(1, z - 0.5))}
             >
               <ZoomOut size={18} />
             </button>
-            <span>{Math.round(zoom * 100)}%</span>
             <button
+              type="button"
+              className="viewer-fit"
+              aria-label="Fit image to screen"
+              onClick={() => setZoom(1)}
+            >
+              {zoom === 1 ? "Fit" : `${Math.round(zoom * 100)}%`}
+            </button>
+            <button
+              type="button"
               aria-label="Zoom in"
               disabled={zoom >= 3}
               onClick={() => setZoom((z) => Math.min(3, z + 0.5))}
@@ -182,7 +306,7 @@ export function AttachmentViewer({
           Download
         </a>
       </footer>
-      {!isImage && (
+      {isPdf && (
         <p className="file-viewer-help">
           Use the document toolbar to move between pages or zoom.{" "}
           <a href={item.download || src} download={item.name}>

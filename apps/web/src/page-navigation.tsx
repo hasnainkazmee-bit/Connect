@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { flushSync } from "react-dom";
 import {
   useBlocker,
   useLocation,
@@ -48,6 +49,16 @@ export function usePageNavigation() {
   const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
   const guards = useRef(new Map<string, Guard>());
   const bypass = useRef(false);
+  const returnPositions = useRef(
+    new Map<
+      string,
+      {
+        x: number;
+        y: number;
+        focus: HTMLElement | null;
+      }
+    >(),
+  );
   const register = useCallback((key: string, guard: Guard | null) => {
     if (guard) guards.current.set(key, guard);
     else guards.current.delete(key);
@@ -63,6 +74,23 @@ export function usePageNavigation() {
     bypass.current = false;
   }, [location.key]);
   useEffect(() => {
+    const position = returnPositions.current.get(location.key);
+    if (!position) return;
+    returnPositions.current.delete(location.key);
+    // Restore after the app's route-change scroll reset and after the source
+    // becomes visible again. The source remains mounted, including its draft.
+    const frame = requestAnimationFrame(() => {
+      if (position.focus?.isConnected && !position.focus.closest("[hidden]"))
+        position.focus.focus({ preventScroll: true });
+      window.scrollTo({
+        left: position.x,
+        top: position.y,
+        behavior: "instant",
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [location.key]);
+  useEffect(() => {
     if (!location.pathname.startsWith("/actions/"))
       setPages((p) => (p.length ? [] : p));
     else
@@ -75,14 +103,32 @@ export function usePageNavigation() {
   }, [location.pathname]);
   const open = (content: ReactNode) => {
     const id = crypto.randomUUID();
-    setPages((p) => [
-      ...p,
-      { id, content, background: active?.background || location },
-    ]);
-    // The source page stays mounted with its draft intact.
-    bypass.current = true;
-    navigate("/actions/" + id, {
-      state: { returnTo: location.pathname + location.search + location.hash },
+    if (!active) returnPositions.current.clear();
+    returnPositions.current.set(location.key, {
+      x: window.scrollX,
+      y: window.scrollY,
+      focus:
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null,
+    });
+    // The data router can commit before an ordinary local-state update. Register
+    // the page first so /actions/:id never briefly renders its fallback redirect.
+    // The microtask also makes this safe for callers opening a page from an effect.
+    queueMicrotask(() => {
+      flushSync(() =>
+        setPages((p) => [
+          ...p,
+          { id, content, background: active?.background || location },
+        ]),
+      );
+      // The source page stays mounted with its draft intact.
+      bypass.current = true;
+      navigate("/actions/" + id, {
+        state: {
+          returnTo: location.pathname + location.search + location.hash,
+        },
+      });
     });
   };
   const close = (saved: unknown = false) => {
