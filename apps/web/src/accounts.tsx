@@ -95,9 +95,15 @@ function Password({
     </label>
   );
 }
-export function AccountLayout({ children }: { children: ReactNode }) {
+export function AccountLayout({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="account-experience">
+    <div className={`account-experience ${className}`}>
       <section className="account-panel">
         <div className="account-brand">
           <img
@@ -160,7 +166,7 @@ export function AuthExperience({
     setSunhubError("");
   };
   return (
-    <AccountLayout>
+    <AccountLayout className="account-authentication">
       <div className="account-heading">
         <span className="account-eyebrow">
           {mode === "register"

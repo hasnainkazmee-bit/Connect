@@ -168,6 +168,63 @@
 }
 .full-page-content:has(.account-experience) {
   max-width: 820px;
+  margin-inline: auto;
+}
+
+/* Authentication remains a full page, with a comfortable reading width. */
+html:not(.connect-desktop) .full-page-flow:has(.account-authentication) {
+  width: 100%;
+  max-width: 520px;
+  padding-top: 16px;
+}
+.full-page-flow:has(.account-authentication) > .page-back {
+  margin-bottom: 12px;
+}
+.full-page-flow .full-page-content .account-authentication {
+  min-height: 0;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  background: transparent;
+}
+.full-page-flow .full-page-content .account-authentication .account-panel {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--surface, #fff);
+  box-shadow: 0 3px 12px #203c4d06;
+}
+.full-page-flow .account-authentication .account-brand {
+  margin-bottom: 24px;
+}
+.full-page-flow .account-authentication .account-heading {
+  margin-bottom: 24px;
+}
+.full-page-flow .account-authentication .account-heading h1 {
+  font-size: 28px;
+}
+.full-page-flow .account-authentication .account-form label {
+  font-size: 14px;
+}
+.full-page-flow .account-authentication .password-field input {
+  padding-right: 48px;
+}
+.full-page-flow .account-authentication .account-footnote {
+  margin-top: 20px;
+  padding-top: 0;
+  line-height: 1.5;
+}
+@media (max-width: 600px) {
+  .full-page-flow .full-page-content .account-authentication .account-panel {
+    padding: 24px 20px;
+    border-radius: 20px;
+  }
+  .full-page-flow .account-authentication .account-type > div {
+    grid-template-columns: 1fr;
+  }
 }
 .full-page-content .photo-adjuster-page {
   width: 100%;

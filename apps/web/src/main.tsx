@@ -347,10 +347,18 @@ function App() {
     session.user?.id,
     navigate,
   ]);
-  const auth = (after?: () => void, returnTo?: string) =>
-    sessionExpired
-      ? setReauthenticate(true)
-      : setModal(<AuthModal after={after} returnTo={returnTo} />);
+  const auth = (after?: () => void, returnTo?: string) => {
+    if (sessionExpired) {
+      setReauthenticate(true);
+      return;
+    }
+    const source = pageNavigation.active?.background || location;
+    // Capture the real destination before opening the temporary action page.
+    const destination = sunhubReturnTo(
+      returnTo ?? source.pathname + source.search + source.hash,
+    );
+    setModal(<AuthModal after={after} returnTo={destination} />);
+  };
   const incompleteAccount =
     session.user &&
     session.verificationRequired !== false &&
