@@ -1678,6 +1678,22 @@ body:has(:is(.workspace-posting, .job-workspace, .workspace-inbox)) {
   line-height: 1.5;
 }
 
+/* A filled surface separates editable fields from the white job brief. */
+.jobs-page.workspace-posting
+  form.posting-form
+  :where(
+    input:not([type="radio"]):not([type="checkbox"]):not([type="file"]),
+    select,
+    textarea,
+    .posting-budget-money
+  ) {
+  background-color: #edf0f2;
+}
+
+.jobs-page.workspace-posting .posting-form .posting-budget-money input {
+  background-color: transparent;
+}
+
 .workspace-posting .posting-section-scope textarea {
   min-height: 11rem;
 }
