@@ -1,0 +1,482 @@
+/* The opportunity is the focal point; search and filters support the decision. */
+body:has(.work-discovery) {
+  background: #eff5fa;
+}
+.work-discovery.jobs-page {
+  padding-top: 28px;
+}
+.work-discovery .market-page-heading {
+  padding: 0 0 26px;
+}
+.work-discovery .market-page-heading > div {
+  display: block;
+}
+.work-discovery .market-page-heading h1 {
+  font-size: clamp(28px, 2.4vw, 38px);
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+}
+.work-discovery .market-page-heading p {
+  max-width: none;
+  margin: 8px 0 0;
+  font-size: 15px;
+  color: #526b7b;
+}
+.work-discovery .work-discovery-layout {
+  gap: 28px;
+  grid-template-columns: 212px minmax(0, 1fr);
+}
+.work-discovery .jobs-list {
+  min-width: 0;
+}
+.work-discovery .jobs-search {
+  background: white;
+  border-color: #ccdae4;
+  box-shadow: 0 2px 4px #233d4c04;
+  margin-bottom: 22px;
+}
+.work-discovery .jobs-search .jobs-secondary {
+  background: #edf3f7;
+  border-color: #d3e0e9;
+  color: #263f4f;
+}
+.work-discovery .jobs-search .jobs-secondary:hover {
+  background: #e2ecf3;
+}
+.work-discovery .work-discovery-sidebar {
+  gap: 24px;
+  padding: 0;
+}
+.work-discovery .work-type-nav {
+  padding: 16px 0;
+  gap: 3px;
+}
+.work-discovery .work-type-nav h2 {
+  margin: 0 12px 10px;
+  font-size: 14px;
+}
+.work-discovery .work-type-nav button {
+  border-radius: 12px;
+  color: #506879;
+  font-size: 13px;
+  min-height: 42px;
+}
+.work-discovery .work-type-nav button[aria-pressed="true"] {
+  background: #dfeaf2;
+  color: #203b4c;
+  box-shadow: inset 3px 0 var(--market-orange);
+}
+.work-discovery .work-type-nav button[aria-pressed="true"] > span {
+  background: var(--market-orange);
+}
+.work-discovery .work-summary {
+  border-color: #d2dfe8;
+}
+.work-discovery .jobs-section-title {
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 15px;
+  min-height: 30px;
+}
+.work-discovery .job-results-title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.work-discovery .job-results-title h2 {
+  margin: 0;
+  font-size: 19px;
+  letter-spacing: -0.025em;
+}
+.work-discovery .job-results-title > span {
+  font-size: 13px;
+  color: #536d7e;
+}
+.work-discovery .job-results-title > small {
+  font-size: 12px;
+  color: #647c8d;
+  border-left: 1px solid #bdcdd9;
+  padding-left: 12px;
+}
+.work-discovery .sample-toggle {
+  font-size: 12px;
+  color: #61798a;
+}
+.job-applied-filters {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  color: #526b7b;
+  font-size: 13px;
+  margin: -6px 0 16px;
+}
+.job-applied-filters > span {
+  overflow-wrap: anywhere;
+}
+.job-applied-filters > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  background: none;
+  color: #35576e;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.work-discovery .job-results {
+  gap: 18px;
+  background: transparent;
+}
+.work-discovery .job-results .job-card {
+  display: flex;
+  flex-direction: column;
+  padding: 23px 26px 20px;
+  gap: 17px;
+  border: 1px solid #cddce6;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 3px 8px #203c4d06;
+}
+.work-discovery .job-results .job-card:hover {
+  border-color: #8ba5b6;
+  box-shadow: 0 5px 16px #203c4d0d;
+}
+.work-discovery .job-results .job-card:focus-visible {
+  outline: 3px solid #4c718a;
+  outline-offset: 3px;
+}
+.work-discovery .job-card-overline {
+  font-size: 12px;
+  gap: 8px;
+}
+.work-discovery .job-card-overline > span:nth-child(2) {
+  margin-left: 0;
+}
+.work-discovery .job-card-overline > span + span::before {
+  content: none;
+}
+.work-discovery
+  .job-card-overline
+  > span:not(.job-card-category):not(.job-status):not(.job-card-demo) {
+  margin-left: auto;
+  color: #647b8a;
+}
+.work-discovery .job-card-overline > .job-card-category {
+  padding: 5px 10px;
+  border-radius: 7px;
+  background: #edf4f8;
+  color: #37566b;
+  font-size: 12px;
+  font-weight: 600;
+}
+.work-discovery .job-card-overline > .job-status {
+  margin: 0;
+  font-size: 12px;
+}
+.work-discovery .job-card-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 190px);
+  align-items: start;
+  gap: 24px;
+}
+.work-discovery .job-card-main h2 {
+  font-size: clamp(21px, 1.6vw, 27px);
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.035em;
+  margin: 0 0 9px;
+  overflow-wrap: anywhere;
+}
+.work-discovery .job-card-main .job-location {
+  color: #4c6577;
+  font-size: 14px;
+  gap: 6px;
+  line-height: 1.5;
+}
+.work-discovery .job-card-main .job-location svg {
+  flex-shrink: 0;
+}
+.work-discovery .job-results .job-card-description {
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 12px 0 0 !important;
+  color: #506879;
+  -webkit-line-clamp: 2;
+}
+.work-discovery .job-card-budget {
+  padding: 14px 17px;
+  border: 1px solid #e0eaf1;
+  border-radius: 13px;
+  background: #f3f7fa;
+  text-align: left;
+  min-width: 0;
+  max-width: none;
+}
+.work-discovery .job-card-budget small {
+  margin: 0 0 6px;
+  color: #5b7384;
+  font-size: 12px;
+}
+.work-discovery .job-card-budget strong {
+  font-size: clamp(20px, 1.6vw, 26px);
+  letter-spacing: -0.035em;
+  color: #203747;
+}
+.work-discovery .job-card-budget > span {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  color: #5b7384;
+}
+.job-card-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 28px;
+  margin: 0;
+}
+.job-card-facts > div {
+  max-width: min(100%, 330px);
+}
+.job-card-facts dt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #61798a;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.job-card-facts dd {
+  color: #2b485b;
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 550;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.work-discovery .job-results .job-card-footer {
+  padding-top: 16px;
+  margin: 0;
+  border-top: 1px solid #e0e9ef;
+  gap: 16px;
+}
+.work-discovery .job-card-company {
+  min-width: 0;
+  gap: 10px;
+}
+.work-discovery .job-results .job-logo {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+.work-discovery .job-results .job-card-company b {
+  color: #304d61;
+  font-size: 13px;
+  font-weight: 600;
+}
+.work-discovery .job-card-company small {
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 3px;
+  color: #5a7283;
+}
+.work-discovery .job-results .job-card-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 9px;
+  min-height: 44px;
+  padding: 11px 18px;
+  background: var(--market-orange);
+  border: 1px solid var(--market-orange);
+  border-radius: 999px;
+  color: #192e3b;
+  font-size: 14px;
+  font-weight: 650;
+}
+.work-discovery .job-results .job-card:hover .job-card-cta {
+  color: #192e3b;
+  background: #f87517;
+}
+.my-work-page .job-results .job-card:not(.has-next-step) .job-card-cta {
+  background: #f3f7fa;
+  border-color: #cbdbe6;
+  color: #34546a;
+}
+.work-discovery .job-results .job-card.has-next-step {
+  border-left: 3px solid var(--market-orange);
+}
+.job-next-up {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: #fff;
+  border: 1px solid #c8d9e5;
+  border-left: 4px solid var(--market-orange);
+  border-radius: 16px;
+  padding: 22px 24px;
+  margin-bottom: 24px;
+}
+.job-next-up-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #28465a;
+  font-weight: 650;
+  font-size: 15px;
+}
+.job-next-up-label svg {
+  color: #b94b00;
+  flex: none;
+}
+.job-next-up-label small {
+  display: block;
+  margin-top: 5px;
+  color: #607889;
+  font-size: 12px;
+  font-weight: 400;
+}
+.job-next-up-title {
+  border-left: 1px solid #d4e0e9;
+  padding-left: 24px;
+  flex: 1;
+  min-width: 0;
+}
+.job-next-up-title h2 {
+  font-size: 18px;
+  line-height: 1.4;
+  letter-spacing: -0.025em;
+  margin: 0;
+}
+.job-next-up-title p {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #587082;
+  margin-top: 4px;
+}
+.job-next-up > .jobs-button {
+  flex-shrink: 0;
+}
+@media (min-width: 1700px) {
+  .work-discovery .work-discovery-layout {
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 36px;
+  }
+}
+@media (max-width: 1000px) {
+  .work-discovery .work-discovery-layout {
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 20px;
+  }
+  .work-discovery .job-card-top {
+    grid-template-columns: minmax(0, 1fr) 150px;
+    gap: 18px;
+  }
+  .work-discovery .job-results .job-card {
+    padding: 20px;
+  }
+  .job-next-up {
+    flex-wrap: wrap;
+  }
+  .job-next-up-label {
+    flex-basis: 100%;
+  }
+  .job-next-up-title {
+    border: 0;
+    padding: 0;
+  }
+}
+@media (max-width: 760px) {
+  .work-discovery .job-work-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    white-space: nowrap;
+    gap: 8px;
+    padding-bottom: 12px;
+    scrollbar-width: thin;
+  }
+  .work-discovery .job-work-tabs a {
+    flex-shrink: 0;
+  }
+  .work-discovery.jobs-page {
+    padding-top: 22px;
+  }
+  .work-discovery .work-discovery-layout {
+    display: block;
+  }
+  .work-discovery .work-discovery-sidebar {
+    display: none;
+  }
+  .work-discovery .jobs-search {
+    gap: 8px;
+  }
+  .work-discovery .jobs-search .work-mobile-category {
+    display: block;
+  }
+  .work-discovery .jobs-section-title {
+    align-items: flex-start;
+  }
+  .work-discovery .job-results-title > small {
+    display: none;
+  }
+  .work-discovery .job-card-main h2 {
+    font-size: 22px;
+  }
+  .work-discovery .job-card-budget {
+    padding: 12px 14px;
+  }
+  .job-next-up {
+    padding: 20px;
+    gap: 16px;
+  }
+}
+@media (max-width: 520px) {
+  .work-discovery .job-results .job-card {
+    padding: 19px;
+    gap: 16px;
+  }
+  .work-discovery .job-card-top {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .work-discovery .job-card-budget {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+  }
+  .work-discovery .job-card-budget small,
+  .work-discovery .job-card-budget > span {
+    margin: 0;
+  }
+  .work-discovery .job-card-budget strong {
+    margin-left: auto;
+    font-size: 22px;
+  }
+  .work-discovery .job-card-budget > span {
+    width: 100%;
+  }
+  .work-discovery .job-card-overline {
+    font-size: 11px;
+  }
+  .work-discovery .job-results .job-card-footer {
+    flex-wrap: wrap;
+  }
+  .work-discovery .job-card-company {
+    flex: 1;
+    min-width: 120px;
+  }
+  .work-discovery .job-results .job-card-cta {
+    padding-inline: 14px;
+    font-size: 13px;
+  }
+  .job-next-up-title {
+    flex-basis: 100%;
+  }
+  .job-next-up > .jobs-button {
+    width: 100%;
+  }
+}

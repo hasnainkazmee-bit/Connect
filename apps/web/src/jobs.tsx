@@ -59,6 +59,7 @@ import {
 } from "./job-matches";
 import { usePageGuard } from "./page-navigation";
 import type { Company } from "./types";
+import { jobNextStep, sortAttentionJobs } from "./job-list-focus";
 
 export type JobStatus =
   | "draft"
@@ -250,36 +251,36 @@ function JobCard({
   job,
   mine = false,
   companyId,
+  canManage = false,
 }: {
   job: Job;
   mine?: boolean;
   companyId?: string;
+  canManage?: boolean;
 }) {
   const own = job.hiring_company_id === companyId;
-  const selected = job.my_quote_status === "chosen";
-  const action = !mine
-    ? "View job"
-    : job.status === "draft"
-      ? "Finish draft"
-      : job.status === "open" && own && (job.quote_count || 0) > 0
-        ? "Review quotes"
-        : job.status === "awarded" && selected
-          ? "Confirm job"
-          : job.status === "review" && own
-            ? "Review work"
-            : job.status === "in_progress"
-              ? "View progress"
-              : "View job";
+  const nextStep = mine && canManage ? jobNextStep(job, companyId) : null;
+  const action =
+    nextStep?.label ||
+    (mine && job.status === "in_progress" ? "View progress" : "View job");
   return (
-    <Link className="job-card" to={`/jobs/${job.id}`}>
+    <Link
+      className={`job-card${nextStep ? " has-next-step" : ""}`}
+      to={`/jobs/${job.id}${nextStep && job.status === "draft" ? "/edit" : ""}`}
+    >
       <div className="job-card-overline">
-        <span>{workLabel(job.trade)}</span>
+        <span className="job-card-category">{workLabel(job.trade)}</span>
+        {mine && (
+          <span className={`job-status ${cls(job.status)}`}>
+            {statusLabel[job.status]}
+          </span>
+        )}
         <span>Posted {date(job.created_at)}</span>
-        {job.company?.is_demo && <span>Demo</span>}
+        {job.company?.is_demo && <span className="job-card-demo">Demo</span>}
       </div>
       <div className="job-card-top">
         <div className="job-card-main">
-          <strong>{job.title || "Untitled draft"}</strong>
+          <h2>{job.title || "Untitled draft"}</h2>
           <span className="job-location">
             <MapPin size={14} />
             {job.work_arrangement === "remote"
@@ -292,54 +293,76 @@ function JobCard({
           )}
         </div>
         <div className="job-card-budget">
+          <small>
+            {job.budget_cents != null ? "Budget" : "Budget not set"}
+          </small>
           <strong>
             {job.budget_cents != null
               ? money(job.budget_cents)
               : "Open to quotes"}
           </strong>
-          <small>
-            {job.budget_cents != null ? "Total budget" : "Propose your price"}
-          </small>
+          {job.budget_cents == null && <span>Propose your price</span>}
         </div>
       </div>
-      <div className="job-chips">
+      <dl className="job-card-facts">
+        <div>
+          <dt>
+            <CalendarDays size={15} />
+            Start
+          </dt>
+          <dd>{job.start_window || "To be agreed"}</dd>
+        </div>
         {job.people_needed && (
-          <span>
-            <Users size={14} />
-            {job.people_needed} people
-          </span>
+          <div>
+            <dt>
+              <Users size={15} />
+              People needed
+            </dt>
+            <dd>{job.people_needed}</dd>
+          </div>
         )}
         {job.expected_duration && (
-          <span>
-            <Clock3 size={14} />
-            {job.expected_duration}
-          </span>
+          <div>
+            <dt>
+              <Clock3 size={15} />
+              Duration
+            </dt>
+            <dd>{job.expected_duration}</dd>
+          </div>
         )}
-        {job.start_window && (
-          <span>
-            <CalendarDays size={13} />
-            {job.start_window}
-          </span>
+        {(job.project_type || job.system_size_kw) && (
+          <div>
+            <dt>
+              <Layers3 size={15} />
+              Project
+            </dt>
+            <dd>
+              {[
+                job.project_type && projectLabel(job.project_type),
+                job.system_size_kw && `${job.system_size_kw} kW`,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </dd>
+          </div>
         )}
-        {mine && (
-          <span className={`job-status ${cls(job.status)}`}>
-            {statusLabel[job.status]}
-          </span>
-        )}
-        {job.invited && <span>Invited to quote</span>}
-      </div>
+      </dl>
       <div className="job-card-footer">
         <span className="job-card-company">
           <JobLogo company={job.company} />
           <span>
             <b>{job.company?.name}</b>
-            {mine && (
+            {(mine || job.invited) && (
               <small>
-                {mine && own
-                  ? `${job.quote_count || 0} quotes received`
-                  : mine && job.my_quote_status
-                    ? `Your quote: ${job.my_quote_status.replaceAll("_", " ")}`
-                    : ""}
+                {nextStep
+                  ? nextStep.detail
+                  : mine && own && job.status === "open"
+                    ? `${job.quote_count || 0} quotes received`
+                    : mine && job.my_quote_status
+                      ? `Your quote: ${job.my_quote_status.replaceAll("_", " ")}`
+                      : job.invited
+                        ? "Invited to quote"
+                        : ""}
               </small>
             )}
           </span>
@@ -375,7 +398,7 @@ export function JobsPage({ mine = false }: { mine?: boolean }) {
     setLocation(params.get("location") || "");
     setTrade(params.get("trade") || "");
   }, [params]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (mine && !company) {
       setLoading(false);
       setJobs([]);
@@ -403,6 +426,7 @@ export function JobsPage({ mine = false }: { mine?: boolean }) {
     return () => controller.abort();
   }, [mine, params, sample, revision, company?.id, retry]);
   useEffect(() => {
+    setMyWork([]);
     if (!company || mine) return;
     const c = new AbortController();
     api<{ jobs: Job[] }>("/jobs/mine", { signal: c.signal })
@@ -427,7 +451,24 @@ export function JobsPage({ mine = false }: { mine?: boolean }) {
         (j.hiring_company_id === company?.id || j.my_quote_status === "chosen"),
     ),
   };
-  const visible = mine ? groups[view] || jobs : jobs;
+  const canManage = company?.role === "owner" || company?.role === "admin";
+  const actionCompanyId = canManage ? company?.id : undefined;
+  const attention = sortAttentionJobs(jobs, actionCompanyId);
+  const nextJob = mine && view === "all" ? attention[0] : undefined;
+  const nextAction = nextJob ? jobNextStep(nextJob, company?.id) : null;
+  const visible = mine
+    ? view === "all"
+      ? [
+          ...attention,
+          ...jobs.filter((job) => !jobNextStep(job, actionCompanyId)),
+        ]
+      : groups[view] || jobs
+    : jobs;
+  const appliedFilters = [
+    params.get("q"),
+    params.get("location"),
+    params.get("trade") && workLabel(params.get("trade")!),
+  ].filter(Boolean);
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const next = new URLSearchParams({ sample: String(sample) });
@@ -477,17 +518,40 @@ export function JobsPage({ mine = false }: { mine?: boolean }) {
     <div className={`jobs-page work-discovery ${mine ? "my-work-page" : ""}`}>
       <div className="jobs-heading market-page-heading">
         <div>
-          <span className="editorial-label">
-            {mine ? "YOUR COMPANY WORKSPACE" : "THE SOLAR WORK MARKETPLACE"}
-          </span>
-          <h1>{mine ? "My jobs." : "Find work."}</h1>
+          <h1>{mine ? "My jobs" : "Find your next job"}</h1>
           <p>
             {mine
-              ? "Track the work you hire for and the work you take on."
-              : "Crews, specialist work, and everything solar businesses need."}
+              ? "Your hiring, quotes and work in progress."
+              : "Open jobs from solar companies. Find the work your team can take on."}
           </p>
         </div>
       </div>
+      {nextJob && nextAction && !loading && !error && (
+        <section className="job-next-up" aria-label="Your next step">
+          <div className="job-next-up-label">
+            <Clock3 size={20} />
+            <span>
+              Next up
+              <small>
+                {attention.length}{" "}
+                {attention.length === 1 ? "job needs" : "jobs need"} your
+                attention
+              </small>
+            </span>
+          </div>
+          <div className="job-next-up-title">
+            <h2>{nextJob.title || "Untitled draft"}</h2>
+            <p>{nextAction.detail}</p>
+          </div>
+          <Link
+            className="jobs-button jobs-primary"
+            to={`/jobs/${nextJob.id}${nextJob.status === "draft" ? "/edit" : ""}`}
+          >
+            {nextAction.label}
+            <ArrowRight size={17} />
+          </Link>
+        </section>
+      )}
       {mine && (
         <nav className="job-work-tabs" aria-label="Your job filters">
           {[
@@ -545,18 +609,48 @@ export function JobsPage({ mine = false }: { mine?: boolean }) {
                   </option>
                 ))}
               </select>
-              <button className="jobs-button jobs-primary" type="submit">
+              <button className="jobs-button jobs-secondary" type="submit">
                 Search
                 <ArrowRight size={16} />
               </button>
             </form>
           )}
+          {!mine && appliedFilters.length > 0 && (
+            <div className="job-applied-filters">
+              <span>Showing: {appliedFilters.join(" · ")}</span>
+              <button
+                type="button"
+                onClick={() => setParams({ sample: String(sample) })}
+              >
+                Clear filters
+                <X size={14} />
+              </button>
+            </div>
+          )}
           <div className="jobs-section-title">
-            <span aria-live="polite">
-              {loading
-                ? "Loading…"
-                : `${visible.length} ${mine ? "jobs" : "available jobs"}${page > 1 ? ` · Page ${page}` : ""}`}
-            </span>
+            <div className="job-results-title">
+              <h2>
+                {mine
+                  ? {
+                      posted: "Jobs you posted",
+                      quotes: "Quotes you sent",
+                      invitations: "Invitations to quote",
+                      active: "Work in progress",
+                      completed: "Completed jobs",
+                    }[view] || "Your jobs"
+                  : appliedFilters.length
+                    ? "Matching your search"
+                    : "Latest jobs"}
+              </h2>
+              <span aria-live="polite">
+                {loading
+                  ? "Loading…"
+                  : `${visible.length} ${visible.length === 1 ? "job" : "jobs"}${hasMore ? " on this page" : ""}${page > 1 ? ` · Page ${page}` : ""}`}
+              </span>
+              {!mine && !loading && !!visible.length && (
+                <small>Newest first</small>
+              )}
+            </div>
             {!mine && (
               <label className="sample-toggle">
                 <input
@@ -593,6 +687,7 @@ export function JobsPage({ mine = false }: { mine?: boolean }) {
                   job={j}
                   mine={mine}
                   companyId={company?.id}
+                  canManage={canManage}
                 />
               ))}
             </div>
