@@ -9,6 +9,7 @@ import {
 } from "react";
 import {
   Link,
+  useLocation,
   useNavigate,
   useParams,
   useSearchParams,
@@ -69,6 +70,7 @@ import {
 } from "./proposal-questions";
 import "./job-quote-workflow.css";
 import { WorkChecklist, type WorkChecklistItem } from "./work-checklist";
+import { JobOverview } from "./job-overview";
 
 export type JobStatus =
   | "draft"
@@ -1811,6 +1813,7 @@ async function upload(
 
 export function JobDetailPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { id } = useParams(),
     {
@@ -1832,8 +1835,14 @@ export function JobDetailPage() {
     [selectedQuote, setSelectedQuote] = useState<string>(""),
     [quoteSort, setQuoteSort] = useState("best"),
     [expandedQuote, setExpandedQuote] = useState(""),
-    [tab, setTab] = useState<"overview" | "updates" | "details" | "payments">(
-      searchParams.get("tab") === "payments" ? "payments" : "overview",
+    [tab, setTab] = useState<
+      "overview" | "tasks" | "updates" | "details" | "payments"
+    >(
+      searchParams.get("tab") === "payments"
+        ? "payments"
+        : location.hash === "#work-checklist"
+          ? "tasks"
+          : "overview",
     );
   const messageCompany = searchParams.get("provider") || "";
   const [messageBusy, setMessageBusy] = useState(false);
@@ -1965,7 +1974,13 @@ export function JobDetailPage() {
           setQuoteFiles([]);
           setRevisionNote("");
           setTab(
-            searchParams.get("tab") === "payments" ? "payments" : "overview",
+            searchParams.get("tab") === "payments"
+              ? "payments"
+              : location.hash === "#work-checklist"
+                ? v.job.work_checklist?.length
+                  ? "tasks"
+                  : "updates"
+                : "overview",
           );
           setUpdate("");
           setUpdateFiles([]);
@@ -2042,6 +2057,11 @@ export function JobDetailPage() {
       null,
     participant = !!(hirer || chosen),
     selectedProvider = detail?.selected?.provider_company_id;
+  useEffect(() => {
+    if (location.hash === "#work-checklist") {
+      setTab(detail?.job.work_checklist?.length ? "tasks" : "updates");
+    }
+  }, [location.hash, id, detail?.job.work_checklist?.length]);
   useEffect(() => {
     if (
       searchParams.get("action") !== "quote" ||
@@ -2321,6 +2341,7 @@ export function JobDetailPage() {
           if (path === "review-work") {
             setReviewNote("");
             setShowReviewNote(false);
+            setTab("overview");
           }
           refresh();
           toast(done);
@@ -2473,7 +2494,7 @@ export function JobDetailPage() {
     !!hirer && job.status === "open" && detail.quotes.length > 0;
   const documentView = !comparing && !activeWork;
   const hasChecklist = !!job.work_checklist?.length;
-  const progressView = tab === "overview" && !hasChecklist ? "updates" : tab;
+  const progressView = tab;
   const quoteDeadlinePassed =
     !!job.quote_deadline && new Date(job.quote_deadline).getTime() < Date.now();
   const completion = detail.updates.find((u) => u.kind === "completion");
@@ -2786,15 +2807,24 @@ export function JobDetailPage() {
       <JobError text={error} />
       {activeWork ? (
         <nav className="job-progress-tabs" aria-label="Project sections">
+          <button
+            type="button"
+            className={progressView === "overview" ? "active" : ""}
+            aria-current={progressView === "overview" ? "page" : undefined}
+            onClick={() => setTab("overview")}
+          >
+            <Layers3 size={17} />
+            Overview
+          </button>
           {hasChecklist && (
             <button
               type="button"
-              className={progressView === "overview" ? "active" : ""}
-              aria-current={progressView === "overview" ? "page" : undefined}
-              onClick={() => setTab("overview")}
+              className={progressView === "tasks" ? "active" : ""}
+              aria-current={progressView === "tasks" ? "page" : undefined}
+              onClick={() => setTab("tasks")}
             >
               <CheckCircle2 size={17} />
-              Work checklist
+              Tasks & proof
             </button>
           )}
           <button
@@ -3282,173 +3312,193 @@ export function JobDetailPage() {
                 </div>
               </div>
             )}
-            {job.status === "review" && participant && (
-              <div className="jobs-panel job-submitted">
-                <h2>Work submitted</h2>
-                {detail.updates
-                  .filter((u) => u.kind === "completion")
-                  .slice(0, 1)
-                  .map((u) => (
-                    <div className="job-completion" key={u.id}>
-                      {u.body}
-                    </div>
-                  ))}
-                <ReviewFileList files={completionFiles} />
-                <ul className="completion-checklist">
-                  <li>
-                    <CheckCircle2 size={20} />
-                    Final update submitted
-                  </li>
-                  {completionFiles.some((f) =>
-                    f.mime_type.startsWith("image/"),
-                  ) && (
+            {job.status === "review" &&
+              participant &&
+              (progressView === "tasks" ||
+                (!hasChecklist && progressView === "updates")) && (
+                <div className="jobs-panel job-submitted">
+                  <h2>Work submitted</h2>
+                  {detail.updates
+                    .filter((u) => u.kind === "completion")
+                    .slice(0, 1)
+                    .map((u) => (
+                      <div className="job-completion" key={u.id}>
+                        {u.body}
+                      </div>
+                    ))}
+                  <ReviewFileList files={completionFiles} />
+                  <ul className="completion-checklist">
                     <li>
                       <CheckCircle2 size={20} />
-                      {
-                        completionFiles.filter((f) =>
+                      Final update submitted
+                    </li>
+                    {completionFiles.some((f) =>
+                      f.mime_type.startsWith("image/"),
+                    ) && (
+                      <li>
+                        <CheckCircle2 size={20} />
+                        {
+                          completionFiles.filter((f) =>
+                            f.mime_type.startsWith("image/"),
+                          ).length
+                        }{" "}
+                        {completionFiles.filter((f) =>
                           f.mime_type.startsWith("image/"),
-                        ).length
-                      }{" "}
-                      {completionFiles.filter((f) =>
-                        f.mime_type.startsWith("image/"),
-                      ).length === 1
-                        ? "final photo attached"
-                        : "final photos attached"}
-                    </li>
-                  )}
-                  {completionFiles.some(
-                    (f) => f.mime_type === "application/pdf",
-                  ) && (
-                    <li>
-                      <CheckCircle2 size={20} />
-                      {
-                        completionFiles.filter(
+                        ).length === 1
+                          ? "final photo attached"
+                          : "final photos attached"}
+                      </li>
+                    )}
+                    {completionFiles.some(
+                      (f) => f.mime_type === "application/pdf",
+                    ) && (
+                      <li>
+                        <CheckCircle2 size={20} />
+                        {
+                          completionFiles.filter(
+                            (f) => f.mime_type === "application/pdf",
+                          ).length
+                        }{" "}
+                        {completionFiles.filter(
                           (f) => f.mime_type === "application/pdf",
-                        ).length
-                      }{" "}
-                      {completionFiles.filter(
-                        (f) => f.mime_type === "application/pdf",
-                      ).length === 1
-                        ? "document attached"
-                        : "documents attached"}
-                    </li>
-                  )}
-                </ul>
-              </div>
+                        ).length === 1
+                          ? "document attached"
+                          : "documents attached"}
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+            {job.status === "review" &&
+              hirer &&
+              admin &&
+              (progressView === "tasks" ||
+                (!hasChecklist && progressView === "updates")) && (
+                <>
+                  <div className="jobs-panel job-review-actions">
+                    <h2>Review the work</h2>
+                    <p>Check the final update before closing this job.</p>
+                    <button
+                      className="jobs-button jobs-primary"
+                      disabled={
+                        working || checklistSaving || !checklistComplete
+                      }
+                      onClick={() =>
+                        decision(
+                          "Accept the finished work?",
+                          "This closes the job and lets both companies leave a review. Confirm that the agreed scope is complete.",
+                          "Accept and finish",
+                          "review-work",
+                          {
+                            decision: "accept",
+                            note: "",
+                            updateId: completion?.id,
+                          },
+                          "Job finished",
+                        )
+                      }
+                    >
+                      Accept and finish job
+                    </button>
+                    {showReviewNote ? (
+                      <>
+                        <label className="job-review-note">
+                          What needs to change?
+                          <textarea
+                            value={reviewNote}
+                            disabled={working}
+                            onChange={(e) => setReviewNote(e.target.value)}
+                            rows={3}
+                            placeholder="Tell the company what remains"
+                            autoFocus
+                          />
+                        </label>
+                        <button
+                          className="jobs-button jobs-secondary"
+                          disabled={working || !reviewNote.trim()}
+                          onClick={async () => {
+                            if (
+                              await mutate(
+                                "review-work",
+                                {
+                                  decision: "changes",
+                                  note: reviewNote,
+                                  updateId: completion?.id,
+                                },
+                                "Changes requested",
+                              )
+                            ) {
+                              setReviewNote("");
+                              setShowReviewNote(false);
+                            }
+                          }}
+                        >
+                          Send request for changes
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="jobs-button jobs-secondary"
+                        onClick={() => setShowReviewNote(true)}
+                      >
+                        Request changes
+                      </button>
+                    )}
+                    <button className="job-report-link" onClick={reportProblem}>
+                      Report a problem
+                    </button>
+                  </div>
+                  <div className="jobs-panel job-review-info">
+                    <Info size={20} />
+                    <span>
+                      After you accept, both companies can leave a review.
+                    </span>
+                  </div>
+                </>
+              )}
+            {activeWork && progressView === "overview" && (
+              <JobOverview
+                detail={detail}
+                onTasks={() => setTab(hasChecklist ? "tasks" : "updates")}
+                onUpdates={() => setTab("updates")}
+                onDetails={() => setTab("details")}
+              />
             )}
-            {job.status === "review" && hirer && admin && (
-              <>
-                <div className="jobs-panel job-review-actions">
-                  <h2>Review the work</h2>
-                  <p>Check the final update before closing this job.</p>
+            {job.status === "awarded" &&
+              chosen &&
+              admin &&
+              progressView === "overview" && (
+                <div className="jobs-panel job-accept">
+                  <h2>Your quote was chosen</h2>
+                  <p>
+                    Confirm that your company is ready to take on this job. Then
+                    you can share updates and files here.
+                  </p>
                   <button
                     className="jobs-button jobs-primary"
-                    disabled={working || checklistSaving || !checklistComplete}
+                    disabled={working}
                     onClick={() =>
-                      decision(
-                        "Accept the finished work?",
-                        "This closes the job and lets both companies leave a review. Confirm that the agreed scope is complete.",
-                        "Accept and finish",
-                        "review-work",
+                      void mutate(
+                        "confirm",
                         {
-                          decision: "accept",
-                          note: "",
-                          updateId: completion?.id,
+                          quoteId: detail.selected?.id,
+                          version:
+                            detail.selected?.accepted_version ||
+                            detail.selected?.current_version,
                         },
-                        "Job finished",
+                        "Job confirmed",
                       )
                     }
                   >
-                    Accept and finish job
-                  </button>
-                  {showReviewNote ? (
-                    <>
-                      <label className="job-review-note">
-                        What needs to change?
-                        <textarea
-                          value={reviewNote}
-                          disabled={working}
-                          onChange={(e) => setReviewNote(e.target.value)}
-                          rows={3}
-                          placeholder="Tell the company what remains"
-                          autoFocus
-                        />
-                      </label>
-                      <button
-                        className="jobs-button jobs-secondary"
-                        disabled={working || !reviewNote.trim()}
-                        onClick={async () => {
-                          if (
-                            await mutate(
-                              "review-work",
-                              {
-                                decision: "changes",
-                                note: reviewNote,
-                                updateId: completion?.id,
-                              },
-                              "Changes requested",
-                            )
-                          ) {
-                            setReviewNote("");
-                            setShowReviewNote(false);
-                          }
-                        }}
-                      >
-                        Send request for changes
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      className="jobs-button jobs-secondary"
-                      onClick={() => setShowReviewNote(true)}
-                    >
-                      Request changes
-                    </button>
-                  )}
-                  <button className="job-report-link" onClick={reportProblem}>
-                    Report a problem
+                    Confirm job <Check size={17} />
                   </button>
                 </div>
-                <div className="jobs-panel job-review-info">
-                  <Info size={20} />
-                  <span>
-                    After you accept, both companies can leave a review.
-                  </span>
-                </div>
-              </>
-            )}
-            {job.status === "awarded" && chosen && admin && (
-              <div className="jobs-panel job-accept">
-                <h2>Your quote was chosen</h2>
-                <p>
-                  Confirm that your company is ready to take on this job. Then
-                  you can share updates and files here.
-                </p>
-                <button
-                  className="jobs-button jobs-primary"
-                  disabled={working}
-                  onClick={() =>
-                    void mutate(
-                      "confirm",
-                      {
-                        quoteId: detail.selected?.id,
-                        version:
-                          detail.selected?.accepted_version ||
-                          detail.selected?.current_version,
-                      },
-                      "Job confirmed",
-                    )
-                  }
-                >
-                  Confirm job <Check size={17} />
-                </button>
-              </div>
-            )}
+              )}
             {activeWork && !!job.work_checklist?.length && (
               <div
                 className="jobs-panel work-checklist-panel"
                 id="work-checklist"
-                hidden={progressView !== "overview"}
+                hidden={progressView !== "tasks"}
               >
                 <WorkChecklist
                   layout="workspace"
@@ -3646,7 +3696,7 @@ export function JobDetailPage() {
                           <button
                             type="button"
                             className="job-progress-text-link"
-                            onClick={() => setTab("overview")}
+                            onClick={() => setTab("tasks")}
                           >
                             work checklist
                           </button>{" "}
@@ -3682,63 +3732,72 @@ export function JobDetailPage() {
                 </button>
               </form>
             )}
-            {job.status === "completed" && participant && admin && (
-              <div className="jobs-panel">
-                <h2>Job finished</h2>
-                <p>The work was accepted. Both companies can leave a review.</p>
-                {detail.reviews.some(
-                  (r) => r.reviewer_company_id === company?.id,
-                ) ? (
-                  <div className="job-next">
-                    <CheckCircle2 size={19} /> Your review was submitted.
-                  </div>
-                ) : (
-                  <div className="job-review-form" id="job-review">
-                    <div className="job-stars" role="group" aria-label="Rating">
-                      {[1, 2, 3, 4, 5].map((n) => (
-                        <button
-                          key={n}
-                          disabled={working}
-                          onClick={() => setRating(n)}
-                          aria-label={`${n} stars`}
-                          aria-pressed={rating === n}
-                        >
-                          <Star
-                            size={27}
-                            fill={n <= rating ? "currentColor" : "none"}
-                          />
-                        </button>
-                      ))}
+            {job.status === "completed" &&
+              participant &&
+              admin &&
+              progressView === "overview" && (
+                <details className="job-finished-feedback">
+                  <summary>Leave a review of your experience</summary>
+                  <p>
+                    The work was accepted. Both companies can leave a review.
+                  </p>
+                  {detail.reviews.some(
+                    (r) => r.reviewer_company_id === company?.id,
+                  ) ? (
+                    <div className="job-next">
+                      <CheckCircle2 size={19} /> Your review was submitted.
                     </div>
-                    <textarea
-                      value={reviewText}
-                      disabled={working}
-                      onChange={(e) => setReviewText(e.target.value)}
-                      placeholder="How did the work together go?"
-                      rows={3}
-                    />
-                    <button
-                      className="jobs-button jobs-primary"
-                      disabled={working}
-                      onClick={async () => {
-                        if (
-                          await mutate(
-                            "reviews",
-                            { rating, text: reviewText },
-                            "Review submitted",
-                          )
-                        ) {
-                          setReviewText("");
-                          setRating(5);
-                        }
-                      }}
-                    >
-                      Leave review
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+                  ) : (
+                    <div className="job-review-form" id="job-review">
+                      <div
+                        className="job-stars"
+                        role="group"
+                        aria-label="Rating"
+                      >
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <button
+                            key={n}
+                            disabled={working}
+                            onClick={() => setRating(n)}
+                            aria-label={`${n} stars`}
+                            aria-pressed={rating === n}
+                          >
+                            <Star
+                              size={27}
+                              fill={n <= rating ? "currentColor" : "none"}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                      <textarea
+                        value={reviewText}
+                        disabled={working}
+                        onChange={(e) => setReviewText(e.target.value)}
+                        placeholder="How did the work together go?"
+                        rows={3}
+                      />
+                      <button
+                        className="jobs-button jobs-primary"
+                        disabled={working}
+                        onClick={async () => {
+                          if (
+                            await mutate(
+                              "reviews",
+                              { rating, text: reviewText },
+                              "Review submitted",
+                            )
+                          ) {
+                            setReviewText("");
+                            setRating(5);
+                          }
+                        }}
+                      >
+                        Leave review
+                      </button>
+                    </div>
+                  )}
+                </details>
+              )}
             {documentView && !quoteEditing && (
               <JobDocumentBody
                 key={job.id}

@@ -24,6 +24,7 @@ jobs:
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm run build
+      - run: node --test tests/job-history-model.test.mjs
       - run: npx playwright install --with-deps chrome
       - run: npm run test:ui
       - uses: actions/upload-artifact@v4
