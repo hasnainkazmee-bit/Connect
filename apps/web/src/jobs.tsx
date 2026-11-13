@@ -59,7 +59,7 @@ import {
 } from "./job-matches";
 import { usePageGuard } from "./page-navigation";
 import type { Company } from "./types";
-import { jobNextStep, sortAttentionJobs } from "./job-list-focus";
+import { MyJobsWorkspace } from "./my-jobs";
 import {
   QuestionBuilder,
   ProposalAnswerFields,
@@ -214,15 +214,6 @@ const materialsLabels: Record<string, string> = {
   provider: "Include materials in quote",
   to_agree: "Materials to be agreed",
 };
-const statusLabel: Record<JobStatus, string> = {
-  draft: "Draft",
-  open: "Receiving quotes",
-  awarded: "Awaiting confirmation",
-  in_progress: "In progress",
-  review: "Ready for review",
-  completed: "Completed",
-  cancelled: "Cancelled",
-};
 const workLabel = (key: string) =>
   workTypes.find(([k]) => k === key)?.[1] || key;
 const money = (cents?: number | null) =>
@@ -276,34 +267,11 @@ function JobEmpty({ title, detail }: { title: string; detail: string }) {
     </div>
   );
 }
-function JobCard({
-  job,
-  mine = false,
-  companyId,
-  canManage = false,
-}: {
-  job: Job;
-  mine?: boolean;
-  companyId?: string;
-  canManage?: boolean;
-}) {
-  const own = job.hiring_company_id === companyId;
-  const nextStep = mine && canManage ? jobNextStep(job, companyId) : null;
-  const action =
-    nextStep?.label ||
-    (mine && job.status === "in_progress" ? "View progress" : "View job");
+function JobCard({ job }: { job: Job }) {
   return (
-    <Link
-      className={`job-card${nextStep ? " has-next-step" : ""}`}
-      to={`/jobs/${job.id}${nextStep && job.status === "draft" ? "/edit" : ""}`}
-    >
+    <Link className="job-card" to={`/jobs/${job.id}`}>
       <div className="job-card-overline">
         <span className="job-card-category">{workLabel(job.trade)}</span>
-        {mine && (
-          <span className={`job-status ${cls(job.status)}`}>
-            {statusLabel[job.status]}
-          </span>
-        )}
         <span>Posted {date(job.created_at)}</span>
         {job.company?.is_demo && <span className="job-card-demo">Demo</span>}
       </div>
@@ -381,23 +349,11 @@ function JobCard({
           <JobLogo company={job.company} />
           <span>
             <b>{job.company?.name}</b>
-            {(mine || job.invited) && (
-              <small>
-                {nextStep
-                  ? nextStep.detail
-                  : mine && own && job.status === "open"
-                    ? `${job.quote_count || 0} quotes received`
-                    : mine && job.my_quote_status
-                      ? `Your quote: ${job.my_quote_status.replaceAll("_", " ")}`
-                      : job.invited
-                        ? "Invited to quote"
-                        : ""}
-              </small>
-            )}
+            {job.invited && <small>Invited to quote</small>}
           </span>
         </span>
         <span className="job-card-cta">
-          {action}
+          View job
           <ArrowRight size={16} />
         </span>
       </div>
@@ -421,7 +377,7 @@ export function JobsPage({ mine = false }: { mine?: boolean }) {
     ? params.get("sample") === "true"
     : !!company?.is_demo;
   const page = Math.max(1, Number(params.get("page")) || 1);
-  const view = params.get("view") || "all";
+  const requestQuery = mine ? "" : params.toString();
   useEffect(() => {
     setQ(params.get("q") || "");
     setLocation(params.get("location") || "");
@@ -436,7 +392,7 @@ export function JobsPage({ mine = false }: { mine?: boolean }) {
     const controller = new AbortController();
     setLoading(true);
     setError("");
-    const query = new URLSearchParams(params);
+    const query = new URLSearchParams(requestQuery);
     query.set("sample", String(sample));
     api<{ jobs: Job[]; hasMore?: boolean }>(
       mine ? "/jobs/mine" : "/jobs?" + query,
@@ -453,7 +409,7 @@ export function JobsPage({ mine = false }: { mine?: boolean }) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [mine, params, sample, revision, company?.id, retry]);
+  }, [mine, requestQuery, sample, revision, company?.id, retry]);
   useEffect(() => {
     setMyWork([]);
     if (!company || mine) return;
@@ -463,36 +419,19 @@ export function JobsPage({ mine = false }: { mine?: boolean }) {
       .catch(() => {});
     return () => c.abort();
   }, [company?.id, mine, revision]);
-  const sideJobs = mine ? jobs : myWork;
   const groups: Record<string, Job[]> = {
-    all: sideJobs,
-    posted: sideJobs.filter((j) => j.hiring_company_id === company?.id),
-    quotes: sideJobs.filter((j) => j.my_quote_status),
-    invitations: sideJobs.filter((j) => j.invited && j.status === "open"),
-    active: sideJobs.filter(
+    quotes: myWork.filter((j) => j.my_quote_status),
+    invitations: myWork.filter(
+      (j) => j.invited && j.status === "open" && !j.my_quote_status,
+    ),
+    active: myWork.filter(
       (j) =>
         ["awarded", "in_progress", "review"].includes(j.status) &&
         (j.hiring_company_id === company?.id || j.my_quote_status === "chosen"),
     ),
-    completed: sideJobs.filter(
-      (j) =>
-        j.status === "completed" &&
-        (j.hiring_company_id === company?.id || j.my_quote_status === "chosen"),
-    ),
   };
   const canManage = company?.role === "owner" || company?.role === "admin";
-  const actionCompanyId = canManage ? company?.id : undefined;
-  const attention = sortAttentionJobs(jobs, actionCompanyId);
-  const nextJob = mine && view === "all" ? attention[0] : undefined;
-  const nextAction = nextJob ? jobNextStep(nextJob, company?.id) : null;
-  const visible = mine
-    ? view === "all"
-      ? [
-          ...attention,
-          ...jobs.filter((job) => !jobNextStep(job, actionCompanyId)),
-        ]
-      : groups[view] || jobs
-    : jobs;
+  const visible = jobs;
   const appliedFilters = [
     params.get("q"),
     params.get("location"),
@@ -543,108 +482,67 @@ export function JobsPage({ mine = false }: { mine?: boolean }) {
         </div>
       </div>
     );
+  if (mine && company)
+    return (
+      <MyJobsWorkspace
+        jobs={jobs}
+        companyId={company.id}
+        canManage={canManage}
+        loading={loading}
+        error={error}
+        onRetry={() => setRetry((n) => n + 1)}
+      />
+    );
   return (
-    <div className={`jobs-page work-discovery ${mine ? "my-work-page" : ""}`}>
+    <div className="jobs-page work-discovery">
       <div className="jobs-heading market-page-heading">
         <div>
-          <h1>{mine ? "My jobs" : "Find your next job"}</h1>
+          <h1>Find your next job</h1>
           <p>
-            {mine
-              ? "Your hiring, quotes and work in progress."
-              : "Open jobs from solar companies. Find the work your team can take on."}
+            Open jobs from solar companies. Find the work your team can take on.
           </p>
         </div>
       </div>
-      {nextJob && nextAction && !loading && !error && (
-        <section className="job-next-up" aria-label="Your next step">
-          <div className="job-next-up-label">
-            <Clock3 size={20} />
-            <span>
-              Next up
-              <small>
-                {attention.length}{" "}
-                {attention.length === 1 ? "job needs" : "jobs need"} your
-                attention
-              </small>
-            </span>
-          </div>
-          <div className="job-next-up-title">
-            <h2>{nextJob.title || "Untitled draft"}</h2>
-            <p>{nextAction.detail}</p>
-          </div>
-          <Link
-            className="jobs-button jobs-primary"
-            to={`/jobs/${nextJob.id}${nextJob.status === "draft" ? "/edit" : ""}`}
-          >
-            {nextAction.label}
-            <ArrowRight size={17} />
-          </Link>
-        </section>
-      )}
-      {mine && (
-        <nav className="job-work-tabs" aria-label="Your job filters">
-          {[
-            ["all", "All work"],
-            ["posted", "Posted by you"],
-            ["quotes", "Quotes sent"],
-            ["invitations", "Invitations"],
-            ["active", "Active"],
-            ["completed", "Completed"],
-          ].map(([key, label]) => (
-            <Link
-              key={key}
-              className={view === key ? "active" : ""}
-              aria-current={view === key ? "page" : undefined}
-              to={`/jobs/mine?view=${key}`}
-            >
-              {label}
-              <b>{groups[key].length}</b>
-            </Link>
-          ))}
-        </nav>
-      )}
       <div className="jobs-layout work-discovery-layout">
         <section className="jobs-list">
-          {!mine && (
-            <form className="jobs-search" onSubmit={submit}>
-              <label>
-                <Search size={18} />
-                <input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Job title or keyword"
-                  aria-label="Job title or keyword"
-                />
-              </label>
-              <label>
-                <MapPin size={18} />
-                <input
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="City or state"
-                  aria-label="Job location"
-                />
-              </label>
-              <select
-                className="work-mobile-category"
-                value={trade}
-                onChange={(e) => setTrade(e.target.value)}
-                aria-label="Type of work"
-              >
-                <option value="">All work</option>
-                {workTypes.map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-              <button className="jobs-button jobs-secondary" type="submit">
-                Search
-                <ArrowRight size={16} />
-              </button>
-            </form>
-          )}
-          {!mine && appliedFilters.length > 0 && (
+          <form className="jobs-search" onSubmit={submit}>
+            <label>
+              <Search size={18} />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Job title or keyword"
+                aria-label="Job title or keyword"
+              />
+            </label>
+            <label>
+              <MapPin size={18} />
+              <input
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="City or state"
+                aria-label="Job location"
+              />
+            </label>
+            <select
+              className="work-mobile-category"
+              value={trade}
+              onChange={(e) => setTrade(e.target.value)}
+              aria-label="Type of work"
+            >
+              <option value="">All work</option>
+              {workTypes.map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+            <button className="jobs-button jobs-secondary" type="submit">
+              Search
+              <ArrowRight size={16} />
+            </button>
+          </form>
+          {appliedFilters.length > 0 && (
             <div className="job-applied-filters">
               <span>Showing: {appliedFilters.join(" · ")}</span>
               <button
@@ -659,42 +557,28 @@ export function JobsPage({ mine = false }: { mine?: boolean }) {
           <div className="jobs-section-title">
             <div className="job-results-title">
               <h2>
-                {mine
-                  ? {
-                      posted: "Jobs you posted",
-                      quotes: "Quotes you sent",
-                      invitations: "Invitations to quote",
-                      active: "Work in progress",
-                      completed: "Completed jobs",
-                    }[view] || "Your jobs"
-                  : appliedFilters.length
-                    ? "Matching your search"
-                    : "Latest jobs"}
+                {appliedFilters.length ? "Matching your search" : "Latest jobs"}
               </h2>
               <span aria-live="polite">
                 {loading
                   ? "Loading…"
                   : `${visible.length} ${visible.length === 1 ? "job" : "jobs"}${hasMore ? " on this page" : ""}${page > 1 ? ` · Page ${page}` : ""}`}
               </span>
-              {!mine && !loading && !!visible.length && (
-                <small>Newest first</small>
-              )}
+              {!loading && !!visible.length && <small>Newest first</small>}
             </div>
-            {!mine && (
-              <label className="sample-toggle">
-                <input
-                  type="checkbox"
-                  checked={sample}
-                  onChange={(e) => {
-                    const next = new URLSearchParams(params);
-                    next.set("sample", String(e.target.checked));
-                    next.delete("page");
-                    setParams(next);
-                  }}
-                />
-                Show demo jobs
-              </label>
-            )}
+            <label className="sample-toggle">
+              <input
+                type="checkbox"
+                checked={sample}
+                onChange={(e) => {
+                  const next = new URLSearchParams(params);
+                  next.set("sample", String(e.target.checked));
+                  next.delete("page");
+                  setParams(next);
+                }}
+              />
+              Show demo jobs
+            </label>
           </div>
           {loading ? (
             <div className="job-loading">Finding your work…</div>
@@ -711,32 +595,19 @@ export function JobsPage({ mine = false }: { mine?: boolean }) {
           ) : visible.length ? (
             <div className="job-results">
               {visible.map((j) => (
-                <JobCard
-                  key={j.id}
-                  job={j}
-                  mine={mine}
-                  companyId={company?.id}
-                  canManage={canManage}
-                />
+                <JobCard key={j.id} job={j} />
               ))}
             </div>
           ) : (
             <div className="job-empty">
               <BriefcaseBusiness size={28} />
-              <h2>
-                {mine ? "Nothing here yet" : "No matching jobs right now"}
-              </h2>
+              <h2>No matching jobs right now</h2>
               <p>
-                {mine
-                  ? view === "quotes"
-                    ? "When you send a quote, you can track it here."
-                    : view === "invitations"
-                      ? "Invitations to quote will appear here."
-                      : "Post a job or explore work your company can take on."
-                  : "Try a wider area or a different type of work. New jobs will appear here as companies post them."}
+                Try a wider area or a different type of work. New jobs will
+                appear here as companies post them.
               </p>
               <div className="job-empty-actions">
-                {!mine && (q || location || trade) ? (
+                {q || location || trade ? (
                   <button
                     className="jobs-button jobs-secondary"
                     onClick={() => setParams({ sample: String(sample) })}
@@ -744,18 +615,15 @@ export function JobsPage({ mine = false }: { mine?: boolean }) {
                     Clear search
                   </button>
                 ) : (
-                  <Link
-                    className="jobs-button jobs-primary"
-                    to={mine ? "/jobs" : "/jobs/new"}
-                  >
-                    {mine ? "Find work" : "Post a job"}
+                  <Link className="jobs-button jobs-primary" to="/jobs/new">
+                    Post a job
                     <ArrowRight size={16} />
                   </Link>
                 )}
               </div>
             </div>
           )}
-          {!mine && (hasMore || page > 1) && (
+          {(hasMore || page > 1) && (
             <nav className="market-pagination" aria-label="Job pages">
               <button
                 className="jobs-button jobs-secondary"
@@ -777,62 +645,60 @@ export function JobsPage({ mine = false }: { mine?: boolean }) {
             </nav>
           )}
         </section>
-        {!mine && (
-          <aside className="jobs-aside work-discovery-sidebar">
-            <nav className="work-type-nav" aria-label="Filter by work type">
-              <h2>Type of work</h2>
-              {[["", "All work"], ...workTypes].map(([key, label]) => (
-                <button
-                  type="button"
-                  key={key}
-                  aria-pressed={(params.get("trade") || "") === key}
-                  onClick={() => {
-                    const next = new URLSearchParams(params);
-                    key ? next.set("trade", key) : next.delete("trade");
-                    next.delete("page");
-                    next.set("sample", String(sample));
-                    setParams(next);
-                  }}
-                >
-                  {label}
-                  {(params.get("trade") || "") === key && <span />}
+        <aside className="jobs-aside work-discovery-sidebar">
+          <nav className="work-type-nav" aria-label="Filter by work type">
+            <h2>Type of work</h2>
+            {[["", "All work"], ...workTypes].map(([key, label]) => (
+              <button
+                type="button"
+                key={key}
+                aria-pressed={(params.get("trade") || "") === key}
+                onClick={() => {
+                  const next = new URLSearchParams(params);
+                  key ? next.set("trade", key) : next.delete("trade");
+                  next.delete("page");
+                  next.set("sample", String(sample));
+                  setParams(next);
+                }}
+              >
+                {label}
+                {(params.get("trade") || "") === key && <span />}
+              </button>
+            ))}
+          </nav>
+          <div className="jobs-panel work-summary">
+            <h2>Your work</h2>
+            {company ? (
+              <>
+                {[
+                  ["quotes", "Quotes sent", Send],
+                  ["invitations", "Invitations", Users],
+                  ["active", "Active jobs", BriefcaseBusiness],
+                ].map(([key, label, Icon]) => {
+                  const IconComponent = Icon as typeof Send;
+                  return (
+                    <Link key={String(key)} to={`/jobs/mine?view=${key}`}>
+                      <IconComponent size={18} />
+                      {String(label)}
+                      <b>{groups[String(key)].length}</b>
+                      <ArrowRight size={15} />
+                    </Link>
+                  );
+                })}
+              </>
+            ) : (
+              <>
+                <p className="job-muted">
+                  Keep your quotes and work in one place.
+                </p>
+                <button onClick={signIn}>
+                  Sign in
+                  <ArrowRight size={16} />
                 </button>
-              ))}
-            </nav>
-            <div className="jobs-panel work-summary">
-              <h2>Your work</h2>
-              {company ? (
-                <>
-                  {[
-                    ["quotes", "Quotes sent", Send],
-                    ["invitations", "Invitations", Users],
-                    ["active", "Active jobs", BriefcaseBusiness],
-                  ].map(([key, label, Icon]) => {
-                    const IconComponent = Icon as typeof Send;
-                    return (
-                      <Link key={String(key)} to={`/jobs/mine?view=${key}`}>
-                        <IconComponent size={18} />
-                        {String(label)}
-                        <b>{groups[String(key)].length}</b>
-                        <ArrowRight size={15} />
-                      </Link>
-                    );
-                  })}
-                </>
-              ) : (
-                <>
-                  <p className="job-muted">
-                    Keep your quotes and work in one place.
-                  </p>
-                  <button onClick={signIn}>
-                    Sign in
-                    <ArrowRight size={16} />
-                  </button>
-                </>
-              )}
-            </div>
-          </aside>
-        )}
+              </>
+            )}
+          </div>
+        </aside>
       </div>
     </div>
   );

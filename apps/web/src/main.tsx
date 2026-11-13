@@ -140,6 +140,7 @@ import "./profile-workspace.css";
 import "./job-discovery.css";
 import "./job-document.css";
 import "./job-progress.css";
+import "./my-jobs.css";
 import "./job-attachment-viewer.css";
 
 const date = (s: string) =>
