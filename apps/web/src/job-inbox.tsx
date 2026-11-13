@@ -1637,13 +1637,16 @@ function Conversation({
                         </span>
                       )}
                       <h2>
-                        {other
-                          ? `Say hello to ${other.name}`
-                          : "Start the conversation"}
+                        {!canSend
+                          ? "No messages in this conversation"
+                          : other
+                            ? `Say hello to ${other.name}`
+                            : "Start the conversation"}
                       </h2>
                       <p>
-                        Discuss the work, ask a question, or check when they can
-                        start.
+                        {canSend
+                          ? "Discuss the work, ask a question, or check when they can start."
+                          : "Use Activity for job updates or Files for shared documents."}
                       </p>
                       {canSend && (
                         <div
