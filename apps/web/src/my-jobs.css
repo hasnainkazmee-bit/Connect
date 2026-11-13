@@ -1,6 +1,6 @@
 /* My jobs is a management list, using the same shared chrome as the job workspace. */
 body:has(.my-jobs-workspace) {
-  background: #eef5fb;
+  background: var(--job-canvas);
 }
 .my-jobs-workspace.jobs-page {
   padding-block: 30px 64px;
@@ -34,15 +34,16 @@ body:has(.my-jobs-workspace) {
   color: #c45300;
 }
 .my-jobs-panel {
-  border: 1px solid #d1dfe9;
-  background: white;
+  border: 1px solid var(--job-divider);
+  background: var(--job-paper);
   border-radius: 16px;
   box-shadow: 0 2px 4px #29415b04;
   overflow: hidden;
 }
 .my-jobs-controls {
   padding: 20px 24px;
-  border-bottom: 1px solid #dce6ee;
+  border-bottom: 1px solid var(--job-divider);
+  background: var(--job-structure);
 }
 .my-jobs-views {
   display: flex;
@@ -69,8 +70,9 @@ body:has(.my-jobs-workspace) {
 }
 .my-jobs-views a[aria-current="page"] {
   color: #192e3b;
-  background: #eaf1f7;
-  border-color: #d6e2ec;
+  background: #fff;
+  border-color: #bdcedc;
+  box-shadow: 0 1px 3px #2037460a;
 }
 .my-jobs-views a > span {
   min-width: 22px;
@@ -82,7 +84,7 @@ body:has(.my-jobs-workspace) {
   color: #587184;
 }
 .my-jobs-views a[aria-current="page"] > span {
-  background: white;
+  background: var(--job-surface);
   color: #203746;
 }
 .my-jobs-filters {
@@ -99,7 +101,7 @@ body:has(.my-jobs-workspace) {
   padding-inline: 14px 6px;
   min-width: 0;
   flex: 1;
-  background: #f2f5f7;
+  background: var(--job-paper);
   color: #627d91;
 }
 .my-jobs-workspace .my-jobs-search:focus-within {
@@ -141,6 +143,7 @@ body:has(.my-jobs-workspace) {
 }
 .jobs-page.my-jobs-workspace .my-jobs-activity select {
   border-radius: 999px;
+  background-color: var(--job-paper);
 }
 .my-jobs-columns,
 .my-job-link {
@@ -150,9 +153,10 @@ body:has(.my-jobs-workspace) {
 }
 .my-jobs-columns {
   padding: 14px 24px;
-  color: #6b8193;
+  color: #526c80;
   font-size: 12px;
-  border-bottom: 1px solid #e8eef3;
+  background: var(--job-surface);
+  border-bottom: 1px solid var(--job-divider);
 }
 .my-jobs-columns > :last-child {
   text-align: right;
@@ -166,12 +170,12 @@ body:has(.my-jobs-workspace) {
   font-size: 13px;
   line-height: 1.5;
   letter-spacing: 0;
-  background: #f7fafc;
-  border-block: 1px solid #e5edf3;
+  background: var(--job-structure);
+  border-block: 1px solid var(--job-divider);
 }
 .my-jobs-group h2 > span:last-child {
   font-size: 12px;
-  color: #71879a;
+  color: #526c80;
   font-weight: 400;
 }
 .my-jobs-attention-dot {
@@ -185,6 +189,9 @@ body:has(.my-jobs-workspace) {
   padding: 0;
   margin: 0;
 }
+.my-job-row.needs-attention {
+  background: #fff;
+}
 .my-job-row + .my-job-row {
   border-top: 1px solid #e5edf3;
 }
@@ -197,7 +204,7 @@ body:has(.my-jobs-workspace) {
   transition: background 0.15s;
 }
 .my-job-link:hover {
-  background: #f8fbfd;
+  background: #eaf1f6;
 }
 .jobs-page .my-job-link:focus-visible {
   outline-offset: -3px;
@@ -311,6 +318,7 @@ body:has(.my-jobs-workspace) {
   background: #edf4f9;
 }
 .my-jobs-count {
+  background: var(--job-surface);
   padding: 14px 24px;
   border-top: 1px solid #e2eaf1;
   display: flex;

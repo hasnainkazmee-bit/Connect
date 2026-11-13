@@ -10,7 +10,7 @@ html:has(.is-job-document) {
 }
 
 body:has(.is-job-document) {
-  background: #eef5fb;
+  background: var(--job-canvas);
 }
 
 html:not(.connect-desktop) .app-main:has(.is-job-document),
@@ -26,9 +26,9 @@ html.connect-desktop .app-main:has(.is-job-document) {
   margin-block: 24px
     calc(var(--job-document-dock-space) + env(safe-area-inset-bottom));
   padding: 16px var(--job-document-inset) 32px;
-  border: 1px solid #d6e2ec;
+  border: 1px solid var(--job-divider);
   border-radius: 22px;
-  background: #fff;
+  background: var(--job-paper);
   color: var(--market-ink);
   box-shadow: 0 3px 12px #26476008;
   font-size: 16px;
@@ -59,13 +59,15 @@ html.connect-desktop .app-main:has(.is-job-document) {
 
 .is-job-document .job-document-header {
   position: relative;
-  padding-bottom: 22px;
+  margin-inline: calc(-1 * var(--job-document-inset));
+  padding: 24px var(--job-document-inset);
+  background: var(--job-structure);
 }
 
 .is-job-document .job-document-header > .job-status {
   padding: 4px 12px;
   border: 0;
-  background: #e3effa;
+  background: #fff;
   color: #284b67;
   border-radius: 999px;
   font-size: 13px;
@@ -209,6 +211,9 @@ html.connect-desktop .app-main:has(.is-job-document) {
 }
 
 .is-job-document .job-document-nav {
+  margin-inline: calc(-1 * var(--job-document-inset));
+  padding-inline: var(--job-document-inset);
+  background: var(--job-surface);
   display: flex;
   gap: clamp(16px, 2vw, 28px);
   border-block: 1px solid #d5dfe8;
@@ -507,7 +512,7 @@ html.connect-desktop .app-main:has(.is-job-document) {
   border: 1px solid #d4e0ea;
   border-bottom: 0;
   border-radius: 18px 18px 0 0;
-  background: #fffffff7;
+  background: #e2ebf3f7;
   box-shadow: 0 -3px 18px #29496309;
   backdrop-filter: blur(12px);
   pointer-events: auto;
@@ -688,6 +693,12 @@ html.connect-desktop:has(.is-job-document) {
     padding: 0;
     border: 0;
     box-shadow: none;
+    background: #fff;
+  }
+  .is-job-document .job-document-header {
+    margin-inline: 0;
+    padding-inline: 0;
+    background: #fff;
   }
   .is-job-document :is(.job-document-dock, .job-document-nav, .job-back) {
     display: none;

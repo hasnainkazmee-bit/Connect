@@ -3809,19 +3809,24 @@ export function JobDetailPage() {
                     (f) => f.quote_id === detail.ownQuote!.id,
                   )}
                 />
-                {canQuote && (
-                  <button
+                <div className="job-own-quote-actions">
+                  {canQuote && (
+                    <button
+                      className="jobs-button jobs-secondary"
+                      onClick={editQuote}
+                    >
+                      {detail.ownQuote.upload_pending
+                        ? "Finish quote"
+                        : "Revise quote"}
+                    </button>
+                  )}
+                  <Link
                     className="jobs-button jobs-secondary"
-                    onClick={editQuote}
+                    to={inboxPath(company?.id)}
                   >
-                    {detail.ownQuote.upload_pending
-                      ? "Finish quote"
-                      : "Revise quote"}
-                  </button>
-                )}
-                <Link className="job-text-button" to={inboxPath(company?.id)}>
-                  Conversation &amp; quote history <ArrowRight size={15} />
-                </Link>
+                    <MessageCircle size={16} /> Conversation &amp; quote history
+                  </Link>
+                </div>
               </div>
             )}
             {canQuote && quoteEditing && (

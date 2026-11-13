@@ -3,6 +3,15 @@
 body:has(:is(.workspace-posting, .job-workspace, .workspace-inbox)) {
   background: #eef5fb;
 }
+/* Shared surface hierarchy for managing jobs: structure, reading, and actions. */
+body:has(:is(.my-jobs-workspace, .job-workspace)) {
+  --job-canvas: #e8eff5;
+  --job-structure: #dfe8f0;
+  --job-surface: #eef3f7;
+  --job-paper: #f8fafc;
+  --job-divider: #c6d5e1;
+  background: var(--job-canvas);
+}
 .jobs-site-header {
   border-top: 0;
   border-bottom: 1px solid #dbe5ee;
@@ -560,8 +569,12 @@ body:has(:is(.workspace-posting, .job-workspace, .workspace-inbox)) {
   grid-template-columns: minmax(230px, 0.85fr) minmax(0, 2.25fr);
   align-items: start;
 }
+.job-workspace .workspace-brief-summary {
+  background: var(--job-structure);
+  border-color: var(--job-divider);
+}
 .workspace-brief-summary section {
-  border-top: 1px solid #dfe7ef;
+  border-top: 1px solid var(--job-divider);
   padding-top: 20px;
   margin-top: 20px;
 }
@@ -626,10 +639,22 @@ body:has(:is(.workspace-posting, .job-workspace, .workspace-inbox)) {
 }
 .job-workspace .job-compare {
   padding: 24px;
+  background: var(--job-surface);
+  border-color: var(--job-divider);
 }
 .job-workspace .job-compare > .job-muted {
   font-size: 12px;
   margin: -5px 0 20px;
+}
+.job-own-quote-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+.job-own-quote-actions .jobs-button {
+  min-height: 44px;
 }
 .job-workspace .jobs-section-title {
   gap: 14px;
