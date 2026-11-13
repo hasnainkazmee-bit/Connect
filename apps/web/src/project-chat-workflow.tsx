@@ -17,6 +17,7 @@ import {
   type JobFile,
 } from "./job-attachments";
 import type { JobDetail } from "./jobs";
+import { ProposalAnswers, type ProposalAnswer } from "./proposal-questions";
 
 export type QuoteVersion = {
   version: number;
@@ -32,6 +33,7 @@ export type QuoteVersion = {
   created_at: string;
   author_name: string;
   files: JobFile[];
+  proposal_answers?: ProposalAnswer[];
 };
 export type ChatEvent = {
   id: string;
@@ -204,7 +206,13 @@ export function ProjectEvent({
     </article>
   );
 }
-function QuoteTerms({ version }: { version: QuoteVersion }) {
+function QuoteTerms({
+  version,
+  showAnswers = true,
+}: {
+  version: QuoteVersion;
+  showAnswers?: boolean;
+}) {
   return (
     <div className="project-quote-terms">
       {!!version.price_breakdown?.length && (
@@ -231,6 +239,9 @@ function QuoteTerms({ version }: { version: QuoteVersion }) {
         ) : null,
       )}
       {!!version.files?.length && <JobAttachments files={version.files} />}
+      {showAnswers && (
+        <ProposalAnswers answers={version.proposal_answers || []} />
+      )}
     </div>
   );
 }
@@ -624,8 +635,9 @@ export function ProjectNextAction({
                 </div>
                 <details>
                   <summary>Scope, payment terms & files</summary>
-                  <QuoteTerms version={latest} />
+                  <QuoteTerms version={latest} showAnswers={false} />
                 </details>
+                <ProposalAnswers answers={latest.proposal_answers || []} />
               </>
             )}
           {action === "quote" && (

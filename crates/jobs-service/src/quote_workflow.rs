@@ -64,7 +64,7 @@ pub(super) async fn send(
     let breakdown = parse_breakdown(&body, amount)?;
     let attachment_count = project_publication::attachment_count(&body)?;
     let mut tx = app.db.begin().await?;
-    let job = sqlx::query("SELECT hiring_company_id::text AS hirer,title,status,visibility,COALESCE(quote_deadline<now(),false) AS expired FROM jobs WHERE id=$1::uuid FOR UPDATE")
+    let job = sqlx::query("SELECT hiring_company_id::text AS hirer,title,status,visibility,proposal_questions::text AS proposal_questions,questions_version,COALESCE(quote_deadline<now(),false) AS expired FROM jobs WHERE id=$1::uuid FOR UPDATE")
         .bind(&id).fetch_optional(&mut *tx).await?.ok_or_else(not_found)?;
     let hirer: String = job.get("hirer");
     if hirer == company {
@@ -80,6 +80,9 @@ pub(super) async fn send(
             return Err(forbidden());
         }
     }
+    let questions_version: i32 = job.get("questions_version");
+    let questions = parse_json(job.get("proposal_questions"))?;
+    let proposal_answers = proposal_questions::snapshot(&body, &questions, questions_version)?;
     let previous = sqlx::query("SELECT id::text,current_version,status FROM job_quotes WHERE job_id=$1::uuid AND provider_company_id=$2::uuid FOR UPDATE")
         .bind(&id).bind(company).fetch_optional(&mut *tx).await?;
     let current_version = if let Some(ref previous) = previous {
@@ -110,9 +113,9 @@ pub(super) async fn send(
     } else {
         1
     };
-    let quote_id: String = sqlx::query_scalar("INSERT INTO job_quotes(job_id,provider_company_id,author_id,amount_cents,start_window,duration,note,included,excluded,payment_terms,price_breakdown,current_version,upload_pending,expected_files) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14) ON CONFLICT(job_id,provider_company_id) DO UPDATE SET author_id=$3::uuid,amount_cents=$4,start_window=$5,duration=$6,note=$7,included=$8,excluded=$9,payment_terms=$10,price_breakdown=$11::jsonb,current_version=$12,upload_pending=$13,expected_files=$14,status='submitted',decision_note='',accepted_version=NULL,updated_at=now() RETURNING id::text")
-        .bind(&id).bind(company).bind(&actor.user).bind(amount).bind(start).bind(duration).bind(note).bind(included).bind(excluded).bind(payment).bind(breakdown.to_string()).bind(current_version).bind(attachment_count>0).bind(attachment_count).fetch_one(&mut *tx).await?;
-    let terms = json!({"amount_cents":amount,"start_window":start,"duration":duration,"note":note,"included":included,"excluded":excluded,"payment_terms":payment,"price_breakdown":breakdown});
+    let quote_id: String = sqlx::query_scalar("INSERT INTO job_quotes(job_id,provider_company_id,author_id,amount_cents,start_window,duration,note,included,excluded,payment_terms,price_breakdown,current_version,upload_pending,expected_files,proposal_answers,questions_version) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15::jsonb,$16) ON CONFLICT(job_id,provider_company_id) DO UPDATE SET author_id=$3::uuid,amount_cents=$4,start_window=$5,duration=$6,note=$7,included=$8,excluded=$9,payment_terms=$10,price_breakdown=$11::jsonb,current_version=$12,upload_pending=$13,expected_files=$14,proposal_answers=$15::jsonb,questions_version=$16,status='submitted',decision_note='',accepted_version=NULL,updated_at=now() RETURNING id::text")
+        .bind(&id).bind(company).bind(&actor.user).bind(amount).bind(start).bind(duration).bind(note).bind(included).bind(excluded).bind(payment).bind(breakdown.to_string()).bind(current_version).bind(attachment_count>0).bind(attachment_count).bind(proposal_answers.to_string()).bind(questions_version).fetch_one(&mut *tx).await?;
+    let terms = json!({"amount_cents":amount,"start_window":start,"duration":duration,"note":note,"included":included,"excluded":excluded,"payment_terms":payment,"price_breakdown":breakdown,"proposal_answers":proposal_answers,"questions_version":questions_version});
     sqlx::query("INSERT INTO job_quote_versions(quote_id,version,terms,author_id,revision_note) VALUES($1::uuid,$2,$3::jsonb,$4::uuid,$5)")
         .bind(&quote_id).bind(current_version).bind(terms.to_string()).bind(&actor.user).bind(revision_note).execute(&mut *tx).await?;
     if current_version > 1 {
@@ -503,7 +506,7 @@ pub(super) async fn history(
     if a.hirer && quote.as_ref().is_some_and(|q| q["upload_pending"] == true) {
         quote = None;
     }
-    let versions: Vec<String> = sqlx::query_scalar("SELECT (v.terms||jsonb_build_object('version',v.version,'revision_note',v.revision_note,'created_at',v.created_at,'author_name',u.name,'files',COALESCE((SELECT jsonb_agg(to_jsonb(f)-'storage_key' ORDER BY f.created_at) FROM job_quote_version_files vf JOIN job_files f ON f.id=vf.file_id WHERE vf.quote_id=v.quote_id AND vf.version=v.version),'[]'::jsonb)))::text FROM job_quote_versions v JOIN job_quotes q ON q.id=v.quote_id JOIN users u ON u.id=v.author_id WHERE q.job_id=$1::uuid AND q.provider_company_id=$2::uuid AND ($3::boolean OR EXISTS(SELECT 1 FROM job_quote_publications p WHERE p.quote_id=v.quote_id AND p.version=v.version)) ORDER BY v.version DESC")
+    let versions: Vec<String> = sqlx::query_scalar("SELECT (v.terms||jsonb_build_object('proposal_answers',COALESCE(v.terms->'proposal_answers','[]'::jsonb),'questions_version',COALESCE(v.terms->'questions_version','1'::jsonb),'version',v.version,'revision_note',v.revision_note,'created_at',v.created_at,'author_name',u.name,'files',COALESCE((SELECT jsonb_agg(to_jsonb(f)-'storage_key' ORDER BY f.created_at) FROM job_quote_version_files vf JOIN job_files f ON f.id=vf.file_id WHERE vf.quote_id=v.quote_id AND vf.version=v.version),'[]'::jsonb)))::text FROM job_quote_versions v JOIN job_quotes q ON q.id=v.quote_id JOIN users u ON u.id=v.author_id WHERE q.job_id=$1::uuid AND q.provider_company_id=$2::uuid AND ($3::boolean OR EXISTS(SELECT 1 FROM job_quote_publications p WHERE p.quote_id=v.quote_id AND p.version=v.version)) ORDER BY v.version DESC")
         .bind(&id).bind(provider).bind(!a.hirer).fetch_all(&app.db).await?;
     let events: Vec<String> = sqlx::query_scalar("SELECT (to_jsonb(e)||jsonb_build_object('actor_name',u.name,'company_name',c.name))::text FROM job_conversation_events e JOIN users u ON u.id=e.actor_id JOIN companies c ON c.id=e.company_id WHERE e.job_id=$1::uuid AND e.provider_company_id=$2::uuid ORDER BY e.created_at,e.id")
         .bind(&id).bind(provider).fetch_all(&app.db).await?;

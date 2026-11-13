@@ -60,6 +60,13 @@ import {
 import { usePageGuard } from "./page-navigation";
 import type { Company } from "./types";
 import { jobNextStep, sortAttentionJobs } from "./job-list-focus";
+import {
+  QuestionBuilder,
+  ProposalAnswerFields,
+  ProposalAnswers,
+  type ProposalQuestion,
+  type ProposalAnswer,
+} from "./proposal-questions";
 import "./job-quote-workflow.css";
 
 export type JobStatus =
@@ -77,6 +84,8 @@ type PostingDetails = {
   durationUnit: string;
 };
 type Job = {
+  proposal_questions?: ProposalQuestion[];
+  questions_version?: number;
   matching_preferences?: MatchingPreferences | null;
   posting_details?: PostingDetails | null;
   id: string;
@@ -108,6 +117,8 @@ type Job = {
   chosen_quote_id?: string | null;
 };
 export type Quote = {
+  proposal_answers?: ProposalAnswer[];
+  questions_version?: number;
   job_rating?: number | null;
   job_review_count?: number;
   id: string;
@@ -875,6 +886,7 @@ export function NewJobPage() {
     { company, admin, session, createCompany, signIn, toast } = useApp(),
     navigate = useNavigate();
   const [editReady, setEditReady] = useState(!id);
+  const [jobIsDraft, setJobIsDraft] = useState(!id);
   const [savedId, setSavedId] = useState(id);
   const [startMode, setStartMode] = useState("flexible"),
     [startDate, setStartDate] = useState("");
@@ -888,8 +900,10 @@ export function NewJobPage() {
   const [siteCount, setSiteCount] = useState("");
   const [materials, setMaterials] = useState("to_agree");
   const [requirements, setRequirements] = useState("");
+  const [questions, setQuestions] = useState<ProposalQuestion[]>([]);
   const [savingDraft, setSavingDraft] = useState(false);
   const [budgetMode, setBudgetMode] = useState("quotes");
+  const [budgetFocused, setBudgetFocused] = useState(false);
   const [people, setPeople] = useState("");
   const [expectedDuration, setExpectedDuration] = useState("");
   const [arrangement, setArrangement] = useState("onsite");
@@ -931,6 +945,7 @@ export function NewJobPage() {
         setSiteCount(job.site_count ? String(job.site_count) : "");
         setMaterials(job.materials_by || "to_agree");
         setRequirements(job.requirements || "");
+        setQuestions(job.proposal_questions || []);
         setExistingFiles(
           storedFiles.filter((f) => !f.quote_id && !f.update_id),
         );
@@ -958,6 +973,7 @@ export function NewJobPage() {
           job.budget_cents != null ? String(job.budget_cents / 100) : "",
         );
         setBudgetMode(job.budget_cents ? "fixed" : "quotes");
+        setJobIsDraft(job.status === "draft");
         setDeadline(
           job.quote_deadline
             ? new Date(job.quote_deadline).toLocaleDateString("en-CA")
@@ -1028,6 +1044,18 @@ export function NewJobPage() {
     return true;
   };
   const publish = async (status: "open" | "draft") => {
+    const emptyQuestion = questions.findIndex(
+      (question) => !question.prompt.trim(),
+    );
+    if (emptyQuestion !== -1) {
+      setError(
+        `Write question ${emptyQuestion + 1}, or remove it before saving.`,
+      );
+      document
+        .getElementById("proposal-question-" + questions[emptyQuestion].id)
+        ?.focus();
+      return;
+    }
     if (status === "open" && !review()) return;
     if (
       startMode === "date" &&
@@ -1054,6 +1082,7 @@ export function NewJobPage() {
     setError("");
     try {
       const body = {
+        proposalQuestions: questions,
         matchingPreferences:
           matching.categoryId && matching.stateCode
             ? {
@@ -1132,7 +1161,7 @@ export function NewJobPage() {
       toast(
         status === "draft"
           ? "Draft saved"
-          : id
+          : id && !jobIsDraft
             ? "Job updated"
             : "Job published",
       );
@@ -1355,46 +1384,93 @@ export function NewJobPage() {
             disabled={busy}
           />
           <FileList files={existingFiles} />
-          <div className="jobs-fields-two">
-            <label>
-              Budget <span className="field-optional">(USD)</span>
-              <select
-                aria-label="Budget preference"
-                value={budgetMode}
-                onChange={(e) => setBudgetMode(e.target.value)}
+          <QuestionBuilder
+            value={questions}
+            onChange={setQuestions}
+            disabled={busy}
+          />
+          <section
+            className="posting-budget-section"
+            aria-label="Budget and quote deadline"
+          >
+            <div
+              className={`posting-budget-fields ${budgetMode === "fixed" ? "has-total" : ""}`}
+            >
+              <label
+                className="posting-budget-preference"
+                htmlFor="job-budget-preference"
               >
-                <option value="quotes">I’d like to receive quotes</option>
-                <option value="fixed">I have a total budget</option>
-              </select>
+                Budget
+                <select
+                  id="job-budget-preference"
+                  aria-label="Budget preference"
+                  value={budgetMode}
+                  onChange={(e) => setBudgetMode(e.target.value)}
+                >
+                  <option value="quotes">I’d like to receive quotes</option>
+                  <option value="fixed">I have a total budget</option>
+                </select>
+              </label>
               {budgetMode === "fixed" && (
-                <div className="posting-money">
-                  <span aria-hidden="true">$</span>
-                  <input
-                    aria-label="Total budget in USD"
-                    type="number"
-                    inputMode="decimal"
-                    required
-                    min="1"
-                    step="0.01"
-                    max="1000000000"
-                    value={budget}
-                    onChange={(e) => setBudget(e.target.value)}
-                    placeholder="e.g. 75000"
-                  />
-                </div>
+                <label
+                  className="posting-budget-amount"
+                  htmlFor="job-total-budget"
+                >
+                  Total budget <span className="field-optional">(USD)</span>
+                  <span className="posting-budget-money">
+                    <span aria-hidden="true">$</span>
+                    <input
+                      id="job-total-budget"
+                      aria-label="Total budget in USD"
+                      type="text"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      required
+                      maxLength={20}
+                      value={
+                        budgetFocused ||
+                        !budget ||
+                        !Number.isFinite(Number(budget))
+                          ? budget
+                          : new Intl.NumberFormat("en-US", {
+                              minimumFractionDigits:
+                                budget.split(".")[1]?.length || 0,
+                              maximumFractionDigits: 2,
+                            }).format(Number(budget))
+                      }
+                      onFocus={() => setBudgetFocused(true)}
+                      onBlur={() => {
+                        setBudgetFocused(false);
+                        if (budget && !Number.isFinite(Number(budget)))
+                          setBudget("");
+                      }}
+                      onChange={(e) => {
+                        const amount = e.target.value.replace(/[$,\s]/g, "");
+                        if (/^\d*(?:\.\d{0,2})?$/.test(amount))
+                          setBudget(amount);
+                      }}
+                      placeholder="75,000"
+                    />
+                  </span>
+                </label>
               )}
-            </label>
-            <label>
-              Quote deadline <span className="field-optional">(optional)</span>
-              <input
-                aria-label="Quote deadline"
-                type="date"
-                min={today}
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-              />
-            </label>
-          </div>
+              <label
+                className="posting-quote-deadline"
+                htmlFor="job-quote-deadline"
+              >
+                Quote deadline{" "}
+                <span className="field-optional">(optional)</span>
+                <input
+                  id="job-quote-deadline"
+                  aria-label="Quote deadline"
+                  type="date"
+                  min={today}
+                  value={deadline}
+                  onChange={(e) => setDeadline(e.target.value)}
+                />
+              </label>
+            </div>
+          </section>
           {trade === "crew" && (
             <div className="jobs-fields-two">
               <label>
@@ -1574,7 +1650,7 @@ export function NewJobPage() {
             >
               {busy && !savingDraft
                 ? "Publishing…"
-                : id
+                : id && !jobIsDraft
                   ? "Update job"
                   : "Publish job"}
               <ArrowRight size={17} />
@@ -1616,16 +1692,22 @@ export function NewJobPage() {
                 {description.trim() ||
                   "Describe the work so the right companies can send you a useful quote."}
               </p>
-              {budget && (
-                <div className="preview-budget">
-                  <span>Budget</span>
-                  <b>{money(Math.round(Number(budget) * 100))}</b>
-                </div>
-              )}
+              {budgetMode === "fixed" &&
+                budget &&
+                Number.isFinite(Number(budget)) &&
+                Number(budget) > 0 && (
+                  <div className="preview-budget">
+                    <span>Budget</span>
+                    <b>{money(Math.round(Number(budget) * 100))}</b>
+                  </div>
+                )}
               {!!files.length && (
                 <AttachmentPicker files={files} onChange={setFiles} readOnly />
               )}
               <FileList files={existingFiles} />
+              <JobQuestions
+                questions={questions.filter((q) => q.prompt.trim())}
+              />
               <div className="preview-company">
                 <JobLogo company={company} />
                 <b>{company.name}</b>
@@ -1681,7 +1763,7 @@ async function upload(
 
 export function JobDetailPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { id } = useParams(),
     {
       company,
@@ -1709,10 +1791,19 @@ export function JobDetailPage() {
   const [messageBusy, setMessageBusy] = useState(false);
   const [quoteEditing, setQuoteEditing] = useState(false);
   const [revisionNote, setRevisionNote] = useState("");
+  const [quoteAnswers, setQuoteAnswers] = useState<Record<string, string>>({});
+  const answerContext = useRef("");
+  const [proposalDraft, setProposalDraft] = useState<{
+    questions: ProposalQuestion[];
+    questionsVersion: number;
+    quoteVersion?: number;
+  } | null>(null);
   const [pendingQuote, setPendingQuote] = useState<{
     id: string;
     version: number;
   } | null>(null);
+  const proposalFormOpen = useRef(false);
+  proposalFormOpen.current = quoteEditing || !!pendingQuote;
   const [breakdown, setBreakdown] = useState<
     { label: string; amount: string }[]
   >([]);
@@ -1746,7 +1837,17 @@ export function JobDetailPage() {
       "Final payment",
     ]),
     [stageAmounts, setStageAmounts] = useState<string[]>(["", ""]);
-  usePageGuard(!!pendingQuote || !!pendingUpdate, working);
+  const answersDirty = proposalDraft?.questions.some(
+    (question) =>
+      (quoteAnswers[question.id] || "") !==
+      (detail?.ownQuote?.proposal_answers?.find(
+        (answer) => answer.questionId === question.id,
+      )?.answer || ""),
+  );
+  usePageGuard(
+    !!pendingQuote || !!pendingUpdate || (quoteEditing && !!answersDirty),
+    working,
+  );
   useEffect(() => {
     setInviteSample(!!company?.is_demo);
     setSelectedInvite([]);
@@ -1759,13 +1860,33 @@ export function JobDetailPage() {
     setError("");
     api<JobDetail>(`/jobs/${id}`, { signal: controller.signal })
       .then((v) => {
+        if (controller.signal.aborted) return;
         setDetail(v);
+        const context = `${v.job.id}:${company?.id || "guest"}`;
+        const hydrateProposal =
+          answerContext.current !== context || !proposalFormOpen.current;
+        if (hydrateProposal) {
+          answerContext.current = context;
+          setQuoteAnswers(
+            Object.fromEntries(
+              (v.ownQuote?.proposal_answers || []).map((a) => [
+                a.questionId,
+                a.answer,
+              ]),
+            ),
+          );
+          setProposalDraft({
+            questions: v.job.proposal_questions || [],
+            questionsVersion: v.job.questions_version || 1,
+            quoteVersion: v.ownQuote?.current_version,
+          });
+        }
         setSelectedQuote((current) =>
           v.quotes.some((q) => q.id === current)
             ? current
             : v.selected?.id || v.quotes[0]?.id || "",
         );
-        if (v.ownQuote) {
+        if (v.ownQuote && hydrateProposal) {
           setAmount(String(v.ownQuote.amount_cents / 100));
           setQuoteNote(v.ownQuote.note);
           setQuoteStart(v.ownQuote.start_window);
@@ -1921,13 +2042,39 @@ export function JobDetailPage() {
   const sendQuote = async (e: FormEvent) => {
     e.preventDefault();
     if (!id) return;
+    if (!pendingQuote) {
+      if (
+        !proposalDraft ||
+        proposalDraft.questionsVersion !==
+          (detail?.job.questions_version || 1) ||
+        proposalDraft.quoteVersion !== detail?.ownQuote?.current_version
+      ) {
+        setError(
+          "Review the latest questions or quote before sending your proposal.",
+        );
+        return;
+      }
+      const missing = proposalDraft.questions.find(
+        (q) => q.required && !quoteAnswers[q.id]?.trim(),
+      );
+      if (missing) {
+        setError(`Please answer: ${missing.prompt}`);
+        document.getElementById(`proposal-answer-${missing.id}`)?.focus();
+        return;
+      }
+    }
     setWorking(true);
     setError("");
     try {
       const r =
         pendingQuote ||
         (await post<{ id: string; version: number }>(`/jobs/${id}/quote`, {
-          version: detail?.ownQuote?.current_version,
+          version: proposalDraft?.quoteVersion,
+          questionsVersion: proposalDraft?.questionsVersion,
+          answers: (proposalDraft?.questions || []).map((q) => ({
+            questionId: q.id,
+            answer: quoteAnswers[q.id] || "",
+          })),
           attachmentCount: quoteFiles.length,
           revisionNote,
           amountCents: Math.round(Number(amount) * 100),
@@ -1955,9 +2102,23 @@ export function JobDetailPage() {
       setRevisionNote("");
       toast(detail?.ownQuote ? "Quote updated" : "Quote sent");
       setQuoteEditing(false);
+      if (searchParams.get("action") === "quote") {
+        const params = new URLSearchParams(searchParams);
+        params.delete("action");
+        setSearchParams(params, { replace: true });
+      }
       refresh();
     } catch (e) {
       setError((e as Error).message);
+      // Preserve the form's reviewed versions and typed answers on conflicts.
+      // Updated requirements are shown only after an explicit review below.
+      if (!pendingQuote) {
+        try {
+          setDetail(await api<JobDetail>(`/jobs/${id}`));
+        } catch {
+          /* Keep the original send error. */
+        }
+      }
     } finally {
       setWorking(false);
     }
@@ -2097,6 +2258,59 @@ export function JobDetailPage() {
       </div>
     );
   if (!detail || !job) return null;
+  const proposalQuestionsChanged =
+    !!proposalDraft &&
+    proposalDraft.questionsVersion !== (job.questions_version || 1);
+  const proposalQuoteChanged =
+    !!proposalDraft &&
+    proposalDraft.quoteVersion !== detail.ownQuote?.current_version;
+  const proposalNeedsReview =
+    !pendingQuote && (proposalQuestionsChanged || proposalQuoteChanged);
+  const reviewLatestProposal = () => {
+    if (proposalQuoteChanged) {
+      const latest = detail.ownQuote;
+      setAmount(latest ? String(latest.amount_cents / 100) : "");
+      setQuoteNote(latest?.note || "");
+      setQuoteStart(latest?.start_window || "");
+      setDuration(latest?.duration || "");
+      setIncluded(latest?.included || "");
+      setExcluded(latest?.excluded || "");
+      setTerms(latest?.payment_terms || "");
+      setBreakdown(
+        (latest?.price_breakdown || []).map((x) => ({
+          label: x.label,
+          amount: String(x.amountCents / 100),
+        })),
+      );
+      setQuoteAnswers(
+        Object.fromEntries(
+          (latest?.proposal_answers || []).map((answer) => [
+            answer.questionId,
+            answer.answer,
+          ]),
+        ),
+      );
+      setRevisionNote("");
+    } else {
+      setQuoteAnswers((answers) =>
+        Object.fromEntries(
+          (job.proposal_questions || [])
+            .filter((q) =>
+              proposalDraft?.questions.some(
+                (old) => old.id === q.id && old.prompt === q.prompt,
+              ),
+            )
+            .map((q) => [q.id, answers[q.id] || ""]),
+        ),
+      );
+    }
+    setProposalDraft({
+      questions: job.proposal_questions || [],
+      questionsVersion: job.questions_version || 1,
+      quoteVersion: detail.ownQuote?.current_version,
+    });
+    setError("");
+  };
   const canQuote =
     !!company &&
     admin &&
@@ -2650,7 +2864,8 @@ export function JobDetailPage() {
                   </label>
                 </div>
                 <p className="job-muted">
-                  Compare the scope, price, and timing. Then choose a company.
+                  Compare each company’s proposal, answers, and price. Then
+                  choose a company.
                 </p>
                 <div className="job-quote-list">
                   {sortedQuotes.map((q) => (
@@ -2726,6 +2941,21 @@ export function JobDetailPage() {
                         <div className="quote-proposal">
                           <b>Proposal</b>
                           <p>{q.note}</p>
+                          {!!q.proposal_answers?.length && (
+                            <small className="proposal-answer-count">
+                              {
+                                q.proposal_answers.filter((answer) =>
+                                  answer.answer.trim(),
+                                ).length
+                              }{" "}
+                              {q.proposal_answers.filter((answer) =>
+                                answer.answer.trim(),
+                              ).length === 1
+                                ? "answer"
+                                : "answers"}{" "}
+                              to job questions
+                            </small>
+                          )}
                         </div>
                         <div className="quote-card-actions">
                           <button
@@ -2786,6 +3016,7 @@ export function JobDetailPage() {
                       </div>
                       {expandedQuote === q.id && (
                         <div className="quote-expanded-details">
+                          <ProposalAnswers answers={q.proposal_answers || []} />
                           <div className="quote-scope-details">
                             {q.included && (
                               <div>
@@ -3123,6 +3354,7 @@ export function JobDetailPage() {
                       <p className="job-description">{job.requirements}</p>
                     </div>
                   )}
+                  <JobQuestions questions={job.proposal_questions || []} />
                   <div className="job-facts">
                     {job.project_type && (
                       <span>
@@ -3186,6 +3418,9 @@ export function JobDetailPage() {
                   {money(detail.ownQuote.amount_cents)}
                 </strong>
                 <p>{detail.ownQuote.note}</p>
+                <ProposalAnswers
+                  answers={detail.ownQuote.proposal_answers || []}
+                />
                 {detail.ownQuote.upload_pending && (
                   <p className="quote-decision-note">
                     This quote has unfinished attachments. Open it to check the
@@ -3235,10 +3470,34 @@ export function JobDetailPage() {
               <div className="jobs-panel" id="quote-form">
                 <h2>{detail.ownQuote ? "Your quote" : "Send a quote"}</h2>
                 <p className="job-muted">
-                  Tell {detail.hiringCompany.name} what your company can
-                  deliver. Only they can see this quote.
+                  Share your approach, answer any job questions, and add your
+                  price and files. Your proposal is private between your company
+                  and {detail.hiringCompany.name}.
                 </p>
                 <form className="job-quote-form" onSubmit={sendQuote}>
+                  {proposalNeedsReview && (
+                    <div className="proposal-review-notice" role="alert">
+                      <strong>
+                        {proposalQuoteChanged
+                          ? "Your company’s quote has changed"
+                          : "The hiring company updated its questions"}
+                      </strong>
+                      <p>
+                        {proposalQuoteChanged
+                          ? "Load the latest quote before editing. This replaces your unsent text and answers; any files you selected will stay attached to your draft."
+                          : "Review the updated questions before sending. Your other proposal details and answers to unchanged questions will be kept."}
+                      </p>
+                      <button
+                        className="jobs-button jobs-secondary"
+                        type="button"
+                        onClick={reviewLatestProposal}
+                      >
+                        {proposalQuoteChanged
+                          ? "Load latest quote"
+                          : "Review updated questions"}
+                      </button>
+                    </div>
+                  )}
                   {pendingQuote && (
                     <p role="status" className="quote-decision-note">
                       Your quote is saved. Retry to finish uploading the
@@ -3247,7 +3506,7 @@ export function JobDetailPage() {
                   )}
                   <fieldset
                     className="quote-form-fields"
-                    disabled={working || !!pendingQuote}
+                    disabled={working || !!pendingQuote || proposalNeedsReview}
                   >
                     <div className="jobs-fields-three">
                       <label>
@@ -3294,6 +3553,16 @@ export function JobDetailPage() {
                         placeholder="Explain the work you’ll do and why your team is a fit."
                       />
                     </label>
+                    <ProposalAnswerFields
+                      questions={
+                        proposalDraft?.questions || job.proposal_questions || []
+                      }
+                      answers={quoteAnswers}
+                      onChange={setQuoteAnswers}
+                      disabled={
+                        working || !!pendingQuote || proposalNeedsReview
+                      }
+                    />
                     <details>
                       <summary>Add a price breakdown (optional)</summary>
                       <div className="price-breakdown">
@@ -3432,7 +3701,7 @@ export function JobDetailPage() {
                   </fieldset>
                   <button
                     className="jobs-button jobs-primary"
-                    disabled={working}
+                    disabled={working || proposalNeedsReview}
                     type="submit"
                   >
                     {working
@@ -3674,6 +3943,26 @@ function JobDetailLayout({
   );
 }
 
+function JobQuestions({ questions }: { questions: ProposalQuestion[] }) {
+  if (!questions.length) return null;
+  return (
+    <section
+      className="job-proposal-questions"
+      aria-label="Questions for your proposal"
+    >
+      <h3>Questions for your proposal</h3>
+      <ol>
+        {questions.map((question) => (
+          <li key={question.id}>
+            <span>{question.prompt}</span>
+            <small>{question.required ? "Required" : "Optional"}</small>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
 function JobBriefSummary({ job, files }: { job: Job; files: JobFile[] }) {
   return (
     <aside className="jobs-panel workspace-brief-summary" id="job-brief">
@@ -3682,6 +3971,7 @@ function JobBriefSummary({ job, files }: { job: Job; files: JobFile[] }) {
         <h3>Scope</h3>
         <p>{job.description}</p>
       </section>
+      <JobQuestions questions={job.proposal_questions || []} />
       {!!files.length && (
         <section>
           <h3>
@@ -3874,6 +4164,12 @@ function WorkFacts({ job, detail }: { job: Job; detail: JobDetail }) {
               <details>
                 <summary>Not included</summary>
                 <p>{detail.selected.excluded}</p>
+              </details>
+            )}
+            {!!detail.selected?.proposal_answers?.length && (
+              <details>
+                <summary>Answers to job questions</summary>
+                <ProposalAnswers answers={detail.selected.proposal_answers} />
               </details>
             )}
           </dd>
