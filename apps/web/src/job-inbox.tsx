@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -18,12 +19,11 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
-  Info,
   LoaderCircle,
-  MapPin,
   MessageCircle,
   Search,
-  Send,
+  ArrowUp,
+  Layers,
   Reply,
   Pin,
   SmilePlus,
@@ -36,15 +36,15 @@ import { useApp } from "./context";
 import { JobLogo, type JobDetail, type JobStatus } from "./jobs";
 import { JobAttachments, type JobFile } from "./job-attachments";
 import { ChatAttachmentUpload } from "./project-chat-attachments";
-import {
-  ProjectEvent,
-  ProjectNextAction,
-  type QuoteHistory,
-  type ChatEvent,
-} from "./project-chat-workflow";
+import { type QuoteHistory } from "./project-chat-workflow";
 import "./project-chat.css";
 import type { Company } from "./types";
-import { confirmedNotificationsRead } from "./web-push";
+import {
+  confirmedNotificationsRead,
+  useNotificationConversation,
+} from "./web-push";
+import { ProjectActivity, pendingActivityCount } from "./project-activity";
+import { ChatEmojiPicker } from "./chat-emoji-picker";
 
 type Thread = {
   job_id: string;
@@ -113,14 +113,6 @@ const statusLabels: Record<JobStatus, string> = {
 };
 const threadKey = (thread: Pick<Thread, "job_id" | "provider_id">) =>
   `${thread.job_id}:${thread.provider_id}`;
-const money = (cents?: number | null) =>
-  cents == null
-    ? "Open to quotes"
-    : new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: "USD",
-        maximumFractionDigits: cents % 100 ? 2 : 0,
-      }).format(cents / 100);
 function stamp(value: string, full = false) {
   const date = new Date(value);
   if (full)
@@ -231,7 +223,9 @@ function InboxWorkspace({ company }: { company: Company }) {
   const [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
     [retry, setRetry] = useState(0);
-  const [showDetails, setShowDetails] = useState(false);
+  const [showDetails, setShowDetails] = useState(
+    () => window.matchMedia("(min-width: 901px)").matches,
+  );
   const jobId = params.get("job") || "",
     providerId = params.get("provider") || "";
   const selected = jobId && providerId ? `${jobId}:${providerId}` : "";
@@ -255,7 +249,7 @@ function InboxWorkspace({ company }: { company: Company }) {
       const top = el.getBoundingClientRect().top + window.scrollY;
       el.style.setProperty(
         "--inbox-height",
-        `${Math.max(320, Math.floor((window.visualViewport?.height || window.innerHeight) - top - 20))}px`,
+        `${Math.max(240, Math.floor((window.visualViewport?.height || window.innerHeight) - top))}px`,
       );
     };
     size();
@@ -324,7 +318,7 @@ function InboxWorkspace({ company }: { company: Company }) {
     refresh();
   }, [refresh]);
   const openThread = (thread: Thread) => {
-    setShowDetails(false);
+    setShowDetails(window.matchMedia("(min-width: 901px)").matches);
     setParams({ job: thread.job_id, provider: thread.provider_id });
   };
   return (
@@ -597,6 +591,17 @@ function Conversation({
   fromMatches: boolean;
 }) {
   const { admin } = useApp();
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [readingLatest, setReadingLatest] = useState(false);
+  const [compactScreen, setCompactScreen] = useState(
+    () => window.matchMedia("(max-width: 900px)").matches,
+  );
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 900px)");
+    const update = () => setCompactScreen(media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
   const [detail, setDetail] = useState<JobDetail | null>(null),
     [messages, setMessages] = useState<ChatMessage[]>([]);
   const [history, setHistory] = useState<QuoteHistory | null>(null);
@@ -623,6 +628,17 @@ function Conversation({
     [olderBusy, setOlderBusy] = useState(false),
     [historyError, setHistoryError] = useState(""),
     [newMessages, setNewMessages] = useState(false);
+  useNotificationConversation(
+    !loading &&
+      !error &&
+      tab === "messages" &&
+      !messageQuery.trim() &&
+      !showPinned &&
+      readingLatest &&
+      !(showDetails && compactScreen)
+      ? `/jobs/inbox?job=${jobId}&provider=${providerId}`
+      : null,
+  );
   const draftKey = `connect-job-draft:${userId}:${company.id}:${jobId}:${providerId}`;
   const [draft, setDraft] = useState<Draft>(() => readDraft(draftKey));
   const [sending, setSending] = useState<ChatMessage | null>(null),
@@ -631,6 +647,7 @@ function Conversation({
     [invitedHere, setInvitedHere] = useState(false),
     [inviteError, setInviteError] = useState("");
   const inviteLock = useRef(false);
+  const activityRoot = useRef<HTMLDivElement>(null);
   const feed = useRef<HTMLDivElement>(null),
     input = useRef<HTMLTextAreaElement>(null),
     latest = useRef<ChatMessage[]>([]),
@@ -638,22 +655,40 @@ function Conversation({
     marked = useRef(""),
     readBusy = useRef(false),
     markedEvent = useRef(""),
-    eventReadBusy = useRef(false),
-    eventIds = useRef(new Set<string>());
+    eventReadBusy = useRef(false);
+  const messagePosition = useRef({ top: 0, atBottom: true });
   const scrollIntent = useRef<
     { kind: "bottom" } | { kind: "prepend"; height: number; top: number } | null
   >(null);
   const live = useRef(true),
     sendLock = useRef(false);
-  const nearBottom = () =>
-    !feed.current ||
-    feed.current.scrollHeight -
-      feed.current.clientHeight -
-      feed.current.scrollTop <
-      90;
+  const nearBottom = () => {
+    const element = feed.current;
+    if (!element || !element.getClientRects().length)
+      return messagePosition.current.atBottom;
+    return element.scrollHeight - element.clientHeight - element.scrollTop < 90;
+  };
+  useLayoutEffect(() => {
+    if (
+      tab !== "messages" ||
+      !feed.current?.getClientRects().length ||
+      (showDetails && compactScreen)
+    )
+      return;
+    feed.current.scrollTop = messagePosition.current.atBottom
+      ? feed.current.scrollHeight
+      : messagePosition.current.top;
+    setReadingLatest(messagePosition.current.atBottom);
+    if (messagePosition.current.atBottom) setNewMessages(false);
+  }, [tab, showDetails, compactScreen]);
   const bottom = () => {
     if (feed.current) feed.current.scrollTop = feed.current.scrollHeight;
     setNewMessages(false);
+    setReadingLatest(true);
+    messagePosition.current = {
+      top: feed.current?.scrollTop || 0,
+      atBottom: true,
+    };
   };
   const merge = (incoming: ChatMessage[], forceBottom = false) => {
     const wasNear = nearBottom(),
@@ -675,9 +710,9 @@ function Conversation({
   useLayoutEffect(() => {
     const intent = scrollIntent.current,
       el = feed.current;
-    if (!intent || !el) return;
+    if (!intent || !el?.getClientRects().length) return;
     scrollIntent.current = null;
-    if (!messages.length && !sending && !history?.events.length) {
+    if (!messages.length && !sending) {
       el.scrollTop = 0;
       return;
     }
@@ -685,7 +720,10 @@ function Conversation({
       intent.kind === "bottom"
         ? el.scrollHeight
         : el.scrollHeight - intent.height + intent.top;
-    if (intent.kind === "bottom") setNewMessages(false);
+    if (intent.kind === "bottom") {
+      setNewMessages(false);
+      setReadingLatest(true);
+    }
   }, [messages, sending, loading]);
   useEffect(() => {
     live.current = true;
@@ -728,12 +766,6 @@ function Conversation({
         ]);
         if (!controller.signal.aborted) {
           merge([...(recent?.messages || []), ...r.messages]);
-          if (
-            !nearBottom() &&
-            h.events.some((event) => !eventIds.current.has(event.id))
-          )
-            setNewMessages(true);
-          eventIds.current = new Set(h.events.map((event) => event.id));
           setHistory(h);
           setDetail(d);
           setPinnedMessages(recent?.pinnedMessages || r.pinnedMessages || []);
@@ -769,7 +801,6 @@ function Conversation({
         if (controller.signal.aborted) return;
         setDetail(d);
         setHistory(h);
-        eventIds.current = new Set(h.events.map((event) => event.id));
         setPinnedMessages(m.pinnedMessages || []);
         setConversation(m.conversation);
         latest.current = m.messages;
@@ -807,13 +838,13 @@ function Conversation({
   useEffect(() => {
     if (!showDetails) return;
     const close = document.querySelector<HTMLButtonElement>(
-      '[aria-label="Close job details"]',
+      '[aria-label="Close activity"]',
     );
     close?.focus({ preventScroll: true });
     return () =>
       document
         .querySelector<HTMLButtonElement>(
-          'button[aria-controls="inbox-job-details"]',
+          'button[aria-controls="inbox-project-activity"]',
         )
         ?.focus({ preventScroll: true });
   }, [showDetails]);
@@ -845,13 +876,20 @@ function Conversation({
         marked.current === last.id ||
         document.visibilityState !== "visible" ||
         !document.hasFocus() ||
-        (showDetails && window.matchMedia("(max-width: 1439px)").matches) ||
+        (showDetails && window.matchMedia("(max-width: 900px)").matches) ||
         document.querySelector('[role="dialog"][aria-modal="true"]')
       )
         return;
       const bounds = root.getBoundingClientRect(),
         item = node.getBoundingClientRect();
-      if (item.bottom > bounds.bottom + 1 || item.bottom <= bounds.top) return;
+      if (
+        !root.getClientRects().length ||
+        bounds.height <= 0 ||
+        !node.getClientRects().length ||
+        item.bottom > bounds.bottom + 1 ||
+        item.bottom <= bounds.top
+      )
+        return;
       readBusy.current = true;
       try {
         const result = await post<{ notificationIds: string[] }>(
@@ -896,38 +934,46 @@ function Conversation({
   ]);
   useEffect(() => {
     const event = [...(history?.events || [])]
-        .sort(
-          (a, b) =>
-            a.created_at.localeCompare(b.created_at) ||
-            a.id.localeCompare(b.id),
-        )
-        .at(-1),
-      root = feed.current;
-    if (
-      !event ||
-      !root ||
-      tab !== "messages" ||
-      messageQuery.trim() ||
-      showPinned
-    )
-      return;
-    const node = root.querySelector<HTMLElement>(
-      `[data-event-id="${event.id}"]`,
+      .sort(
+        (a, b) =>
+          a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id),
+      )
+      .at(-1);
+    if (!event) return;
+    const roots: HTMLElement[] = [];
+    const activityScroll = activityRoot.current?.querySelector<HTMLElement>(
+      ".project-activity-scroll",
     );
-    if (!node) return;
+    if (showDetails && activityScroll) roots.push(activityScroll);
+    if (!roots.length) return;
     const mark = async () => {
       if (
         eventReadBusy.current ||
         markedEvent.current === event.id ||
         document.visibilityState !== "visible" ||
         !document.hasFocus() ||
-        (showDetails && window.matchMedia("(max-width:1439px)").matches) ||
         document.querySelector('[role="dialog"][aria-modal="true"]')
       )
         return;
-      const bounds = root.getBoundingClientRect(),
-        item = node.getBoundingClientRect();
-      if (item.bottom > bounds.bottom + 1 || item.bottom <= bounds.top) return;
+      const visible = roots.some((root) => {
+        if (!root.getClientRects().length) return false;
+        const bounds = root.getBoundingClientRect();
+        // Current proof and its history can both exist, with one tab hidden.
+        // Read the visible heading; a long proof card need not fit onscreen.
+        return Array.from(
+          root.querySelectorAll<HTMLElement>(`[data-event-id="${event.id}"]`),
+        ).some((node) => {
+          if (!node.getClientRects().length) return false;
+          const item = node.getBoundingClientRect();
+          return (
+            bounds.height > 0 &&
+            item.height > 0 &&
+            item.top >= bounds.top - 1 &&
+            item.top + Math.min(item.height, 48) <= bounds.bottom + 1
+          );
+        });
+      });
+      if (!visible) return;
       eventReadBusy.current = true;
       try {
         const result = await post<{ notificationIds: string[] }>(
@@ -943,17 +989,31 @@ function Conversation({
         eventReadBusy.current = false;
       }
     };
-    const observer = new IntersectionObserver(() => void mark(), {
-      root,
-      threshold: [0, 0.5, 1],
+    const observers = roots.map((root) => {
+      const observer = new IntersectionObserver(() => void mark(), {
+        root,
+        threshold: [0, 0.5, 1],
+      });
+      const observe = () => {
+        observer.disconnect();
+        root
+          .querySelectorAll(`[data-event-id="${event.id}"]`)
+          .forEach((node) => observer.observe(node));
+      };
+      observe();
+      const changes = new MutationObserver(observe);
+      changes.observe(root, { childList: true, subtree: true });
+      root.addEventListener("scroll", mark, { passive: true });
+      return () => {
+        observer.disconnect();
+        changes.disconnect();
+        root.removeEventListener("scroll", mark);
+      };
     });
-    observer.observe(node);
-    root.addEventListener("scroll", mark, { passive: true });
     window.addEventListener("focus", mark);
     document.addEventListener("visibilitychange", mark);
     return () => {
-      observer.disconnect();
-      root.removeEventListener("scroll", mark);
+      observers.forEach((dispose) => dispose());
       window.removeEventListener("focus", mark);
       document.removeEventListener("visibilitychange", mark);
     };
@@ -967,6 +1027,7 @@ function Conversation({
     showPinned,
     showDetails,
     onRead,
+    compactScreen,
   ]);
   useEffect(() => {
     if (!sendError || !draft.clientId || sending) return;
@@ -995,7 +1056,7 @@ function Conversation({
     setSendError("");
   }, [messages, sendError, draft, sending, draftKey]);
   const changeDraft = (body: string) => {
-    const next = { ...draft, body };
+    const next = { ...draft, body: body.slice(0, 5000) };
     setDraft(next);
     saveDraft(draftKey, next);
     setSendError("");
@@ -1268,56 +1329,12 @@ function Conversation({
     : showPinned
       ? pinnedMessages
       : visibleMessages;
-  const events: ChatEvent[] = [...(history?.events || [])];
-  if (
-    detail &&
-    (detail.permissions.hirer || detail.permissions.chosen) &&
-    detail.selected?.provider_company_id === providerId
-  ) {
-    for (const update of detail.updates) {
-      if (
-        update.provider_company_id &&
-        update.provider_company_id !== providerId
-      )
-        continue;
-      if (
-        !events.some(
-          (event) =>
-            event.id === update.id ||
-            event.update_id === update.id ||
-            (event.body === update.body &&
-              Math.abs(
-                new Date(event.created_at).getTime() -
-                  new Date(update.created_at).getTime(),
-              ) < 1500),
-        )
-      )
-        events.push({
-          id: `update:${update.id}`,
-          kind: update.kind,
-          body: update.body,
-          actor_name: "",
-          company_name: update.company_name,
-          created_at: update.created_at,
-        });
-    }
-  }
-  const timeline = [
-    ...displayedMessages.map((message) => ({
-      type: "message" as const,
-      id: message.id,
-      created_at: message.created_at,
-      message,
-    })),
-    ...(!messageQuery.trim() && !showPinned
-      ? events.map((event) => ({
-          type: "event" as const,
-          id: `event:${event.id}`,
-          created_at: event.created_at,
-          event,
-        }))
-      : []),
-  ].sort(
+  const activityCount = useMemo(
+    () =>
+      detail ? pendingActivityCount(detail, history, providerId, admin) : 0,
+    [detail, history, providerId, admin],
+  );
+  const timeline = [...displayedMessages].sort(
     (a, b) =>
       a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id),
   );
@@ -1346,15 +1363,14 @@ function Conversation({
         aria-label={`Conversation with ${other?.name || "company"}`}
       >
         <header className="inbox-conversation-header">
-          {!fromMatches && (
-            <button
-              className="inbox-mobile-back inbox-icon-button"
-              onClick={onBack}
-              aria-label="Back to conversations"
-            >
-              <ArrowLeft size={20} />
-            </button>
-          )}
+          <button
+            className="inbox-back-button"
+            onClick={onBack}
+            aria-label="Back to conversations"
+          >
+            <ArrowLeft size={19} />
+            <span>Inbox</span>
+          </button>
           <div className="inbox-conversation-title">
             <Link to={`/jobs/${jobId}`} title={title}>
               {title}
@@ -1367,79 +1383,101 @@ function Conversation({
                 "Company conversation"
               )}
               <span className="project-company-separator">·</span>
-              {detail ? statusLabels[detail.job.status] : "Loading…"}
+              <span
+                className={`inbox-job-status status-${detail?.job.status || "loading"}`}
+              >
+                {detail ? statusLabels[detail.job.status] : "Loading…"}
+              </span>
             </span>
           </div>
-          <button
-            className={`inbox-icon-button ${searchOpen ? "is-active" : ""}`}
-            aria-label="Search this conversation"
-            aria-expanded={searchOpen}
-            onClick={() => {
-              setSearchOpen((v) => !v);
-              setMessageQuery("");
-              setTab("messages");
-            }}
-          >
-            <Search size={19} />
-          </button>
-          <button
-            className={`inbox-icon-button ${showDetails ? "is-active" : ""}`}
-            aria-label="Job details"
-            title="Job details"
-            aria-expanded={showDetails}
-            aria-controls="inbox-job-details"
-            onClick={onToggleDetails}
-          >
-            <Info size={20} />
-          </button>
-        </header>
-        <div className="project-conversation-toolbar">
-          <div role="tablist" aria-label="Conversation views">
+          <div className="inbox-header-actions">
             <button
-              role="tab"
-              aria-selected={tab === "messages"}
-              onClick={() => setTab("messages")}
-            >
-              <MessageCircle size={16} />
-              Messages
-            </button>
-            <button
-              role="tab"
-              aria-selected={tab === "files"}
-              onClick={() => setTab("files")}
-            >
-              <FolderOpen size={16} />
-              Files
-            </button>
-          </div>
-          {(pinnedMessages.length > 0 || showPinned) && tab === "messages" && (
-            <button
-              className={`project-pinned-toggle ${showPinned ? "is-active" : ""}`}
-              aria-pressed={showPinned}
+              className={`inbox-header-action ${searchOpen ? "is-active" : ""}`}
+              aria-label="Search this conversation"
+              aria-expanded={searchOpen}
               onClick={() => {
-                setShowPinned((v) => !v);
+                setSearchOpen((v) => !v);
+                setMessageQuery("");
+                setTab("messages");
+              }}
+            >
+              <Search size={19} />
+              <span>Search</span>
+            </button>
+            <button
+              className={`inbox-header-action ${tab === "files" ? "is-active" : ""}`}
+              aria-label={
+                tab === "files"
+                  ? "Back to messages"
+                  : "Files for this conversation"
+              }
+              aria-pressed={tab === "files"}
+              onClick={() => {
+                setTab(tab === "files" ? "messages" : "files");
+                setSearchOpen(false);
                 setMessageQuery("");
               }}
             >
-              <Pin size={14} />
-              {pinnedMessages.length} pinned
+              {tab === "files" ? (
+                <MessageCircle size={19} />
+              ) : (
+                <FileText size={19} />
+              )}
+              <span>{tab === "files" ? "Messages" : "Files"}</span>
             </button>
-          )}
-          {invited && !history?.quote ? (
-            <span className="project-invited">
-              <Check size={14} />
-              Invited to quote
-            </span>
-          ) : canInvite && !invited ? (
             <button
-              className="project-text-button"
-              disabled={inviting}
-              onClick={() => void invite()}
+              className={`inbox-header-action ${showDetails ? "is-active" : ""}`}
+              aria-label="Activity"
+              aria-expanded={showDetails}
+              aria-controls="inbox-project-activity"
+              onClick={() => {
+                onToggleDetails();
+              }}
             >
-              {inviting ? "Inviting…" : "Invite to quote"}
+              <Layers size={19} />
+              <span>Activity</span>
+              {activityCount > 0 && (
+                <b className="inbox-activity-count">{activityCount}</b>
+              )}
             </button>
-          ) : null}
-        </div>
+          </div>
+        </header>
+        {(((pinnedMessages.length > 0 || showPinned) && tab === "messages") ||
+          (invited && !history?.quote) ||
+          (canInvite && !invited)) && (
+          <div className="project-conversation-toolbar">
+            {(pinnedMessages.length > 0 || showPinned) &&
+              tab === "messages" && (
+                <button
+                  className={`project-pinned-toggle ${showPinned ? "is-active" : ""}`}
+                  aria-pressed={showPinned}
+                  onClick={() => {
+                    setShowPinned((v) => !v);
+                    setMessageQuery("");
+                  }}
+                >
+                  <Pin size={14} />
+                  {showPinned
+                    ? "Show all messages"
+                    : `${pinnedMessages.length} pinned`}
+                </button>
+              )}
+            {invited && !history?.quote ? (
+              <span className="project-invited">
+                <Check size={14} />
+                Invited to quote
+              </span>
+            ) : canInvite && !invited ? (
+              <button
+                className="project-text-button"
+                disabled={inviting}
+                onClick={() => void invite()}
+              >
+                {inviting ? "Inviting…" : "Invite to quote"}
+              </button>
+            ) : null}
+          </div>
+        )}
         {searchOpen && tab === "messages" && (
           <div className="project-message-search">
             <Search size={17} />
@@ -1463,17 +1501,6 @@ function Conversation({
             >
               <X size={17} />
             </button>
-          </div>
-        )}
-        {!loading && detail && (
-          <div className="project-workflow-host" hidden={tab !== "messages"}>
-            <ProjectNextAction
-              detail={detail}
-              history={history}
-              admin={admin}
-              providerId={providerId}
-              onChanged={workflowChanged}
-            />
           </div>
         )}
         {inviteError && (
@@ -1527,6 +1554,16 @@ function Conversation({
               aria-live="polite"
               aria-relevant="additions"
               onScroll={() => {
+                if (
+                  !feed.current?.getClientRects().length ||
+                  (showDetails && compactScreen)
+                )
+                  return;
+                messagePosition.current = {
+                  top: feed.current?.scrollTop || 0,
+                  atBottom: nearBottom(),
+                };
+                setReadingLatest(nearBottom());
                 if (nearBottom()) setNewMessages(false);
               }}
             >
@@ -1649,6 +1686,25 @@ function Conversation({
                         !previous ||
                         new Date(previous.created_at).toDateString() !==
                           new Date(entry.created_at).toDateString();
+                    const grouped =
+                      !!previous &&
+                      !newDay &&
+                      entry.author_id === previous.author_id &&
+                      entry.sender_company_id === previous.sender_company_id &&
+                      Date.parse(entry.created_at) -
+                        Date.parse(previous.created_at) <
+                        5 * 60_000;
+                    const next = timeline[index + 1];
+                    const groupEnd = !(
+                      next &&
+                      next.author_id === entry.author_id &&
+                      next.sender_company_id === entry.sender_company_id &&
+                      Date.parse(next.created_at) -
+                        Date.parse(entry.created_at) <
+                        5 * 60_000 &&
+                      new Date(next.created_at).toDateString() ===
+                        new Date(entry.created_at).toDateString()
+                    );
                     return (
                       <Fragment key={entry.id}>
                         {newDay && (
@@ -1656,44 +1712,27 @@ function Conversation({
                             <span>{dayLabel(entry.created_at)}</span>
                           </div>
                         )}
-                        {entry.type === "event" ? (
-                          <ProjectEvent
-                            event={entry.event}
-                            version={history?.versions.find(
-                              (v) => v.version === entry.event.quote_version,
-                            )}
-                            files={
-                              entry.event.update_id ||
-                              entry.event.id.startsWith("update:")
-                                ? detail?.files.filter(
-                                    (f) =>
-                                      f.update_id ===
-                                      (entry.event.update_id ||
-                                        entry.event.id.slice(7)),
-                                  )
-                                : []
-                            }
-                          />
-                        ) : (
-                          <ProjectMessage
-                            message={entry.message}
-                            companyId={company.id}
-                            userId={userId}
-                            sending={sending?.id === entry.message.id}
-                            canSend={canSend}
-                            onReply={() => reply(entry.message)}
-                            onReact={(emoji) =>
-                              void messageAction(entry.message, "react", {
-                                emoji,
-                              })
-                            }
-                            onPin={() =>
-                              void messageAction(entry.message, "pin", {
-                                pinned: !entry.message.pinned,
-                              })
-                            }
-                          />
-                        )}
+                        <ProjectMessage
+                          message={entry}
+                          grouped={grouped}
+                          groupEnd={groupEnd}
+                          otherCompany={other?.name}
+                          companyId={company.id}
+                          userId={userId}
+                          sending={sending?.id === entry.id}
+                          canSend={canSend}
+                          onReply={() => reply(entry)}
+                          onReact={(emoji) =>
+                            void messageAction(entry, "react", {
+                              emoji,
+                            })
+                          }
+                          onPin={() =>
+                            void messageAction(entry, "pin", {
+                              pinned: !entry.pinned,
+                            })
+                          }
+                        />
                       </Fragment>
                     );
                   })}
@@ -1702,7 +1741,7 @@ function Conversation({
             </div>
             {newMessages && (
               <button className="inbox-new-messages" onClick={bottom}>
-                <ArrowDown size={14} /> New activity
+                <ArrowDown size={14} /> New messages
               </button>
             )}
           </div>
@@ -1711,7 +1750,13 @@ function Conversation({
           !error &&
           tab === "messages" &&
           (canSend ? (
-            <form className="inbox-composer" onSubmit={send}>
+            <form
+              className="inbox-composer"
+              onSubmit={(event) => {
+                if (emojiOpen) event.preventDefault();
+                else void send(event);
+              }}
+            >
               {starting && (
                 <p className="inbox-first-message-note">
                   Your job details will be shared with{" "}
@@ -1765,57 +1810,95 @@ function Conversation({
                   </button>
                 </div>
               )}
-              <ChatAttachmentUpload
-                key={draft.clientId}
-                jobId={jobId}
-                providerId={providerId}
-                clientId={draft.clientId!}
-                files={draft.attachments || []}
-                onChange={attachmentChange}
-                onBusy={setUploading}
-                disabled={!!sending || !!sendError}
-              />
-              <div className="inbox-compose-field">
-                <textarea
-                  ref={input}
-                  aria-label="Job message"
-                  placeholder={`Message ${other?.name || "this company"}…`}
-                  rows={1}
-                  maxLength={5000}
-                  value={draft.body}
+              <div className="inbox-compose-row">
+                <ChatAttachmentUpload
+                  key={draft.clientId}
+                  jobId={jobId}
+                  providerId={providerId}
+                  clientId={draft.clientId!}
+                  files={draft.attachments || []}
+                  onChange={attachmentChange}
+                  onBusy={setUploading}
                   disabled={!!sending || !!sendError}
-                  onChange={(e) => changeDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (
-                      e.key === "Enter" &&
-                      !e.shiftKey &&
-                      !e.nativeEvent.isComposing
-                    ) {
-                      e.preventDefault();
-                      void send();
+                />
+                <div className="inbox-compose-field">
+                  <textarea
+                    ref={input}
+                    aria-label="Job message"
+                    placeholder={`Message ${other?.name || "this company"}…`}
+                    rows={1}
+                    maxLength={5000}
+                    value={draft.body}
+                    disabled={!!sending || !!sendError}
+                    onChange={(e) => changeDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (
+                        e.key === "Enter" &&
+                        !e.shiftKey &&
+                        !e.nativeEvent.isComposing
+                      ) {
+                        e.preventDefault();
+                        void send();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="inbox-emoji-button"
+                    aria-label="Add emoji"
+                    aria-expanded={emojiOpen}
+                    disabled={!!sending || !!sendError}
+                    onClick={() => setEmojiOpen((value) => !value)}
+                  >
+                    <SmilePlus size={21} />
+                  </button>
+                  <button
+                    type="submit"
+                    aria-label="Send"
+                    title="Send message"
+                    disabled={
+                      !!sending ||
+                      uploading ||
+                      (!draft.body.trim() && !draft.attachments?.length)
                     }
+                  >
+                    {sending ? (
+                      <LoaderCircle className="inbox-spinner" size={18} />
+                    ) : (
+                      <ArrowUp size={20} />
+                    )}
+                    <span>
+                      {sending ? "Sending" : sendError ? "Retry" : "Send"}
+                    </span>
+                  </button>
+                </div>
+              </div>
+              {emojiOpen && (
+                <ChatEmojiPicker
+                  onClose={() => {
+                    setEmojiOpen(false);
+                    input.current?.focus();
+                  }}
+                  onSelect={(emoji) => {
+                    const start =
+                      input.current?.selectionStart ?? draft.body.length;
+                    const end = input.current?.selectionEnd ?? start;
+                    changeDraft(
+                      draft.body.slice(0, start) +
+                        emoji +
+                        draft.body.slice(end),
+                    );
+                    setEmojiOpen(false);
+                    requestAnimationFrame(() => {
+                      input.current?.focus();
+                      input.current?.setSelectionRange(
+                        start + emoji.length,
+                        start + emoji.length,
+                      );
+                    });
                   }}
                 />
-                <button
-                  type="submit"
-                  aria-label="Send"
-                  title="Send message"
-                  disabled={
-                    !!sending ||
-                    uploading ||
-                    (!draft.body.trim() && !draft.attachments?.length)
-                  }
-                >
-                  {sending ? (
-                    <LoaderCircle className="inbox-spinner" size={18} />
-                  ) : (
-                    <Send size={18} />
-                  )}
-                  <span>
-                    {sending ? "Sending" : sendError ? "Retry" : "Send"}
-                  </span>
-                </button>
-              </div>
+              )}
               <div className="inbox-composer-hint">
                 <span>
                   Sending as <strong>{company.name}</strong>
@@ -1830,44 +1913,31 @@ function Conversation({
             </div>
           ))}
       </section>
-      {showDetails && (
-        <aside
-          className="inbox-job-details"
-          id="inbox-job-details"
-          aria-label="Job details"
-          onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              e.stopPropagation();
-              onToggleDetails();
-            }
-          }}
+      {detail && (
+        <div
+          className="inbox-activity-host"
+          ref={activityRoot}
+          id="inbox-project-activity"
+          hidden={!showDetails}
         >
-          <header>
-            <h2>Job details</h2>
-            <button
-              className="inbox-icon-button"
-              aria-label="Close job details"
-              onClick={onToggleDetails}
-            >
-              <X size={19} />
-            </button>
-          </header>
-          {detail ? (
-            <JobContext
-              detail={detail}
-              providerId={providerId}
-              history={history}
-            />
-          ) : (
-            <div className="inbox-loading">Loading job…</div>
-          )}
-        </aside>
+          <ProjectActivity
+            detail={detail}
+            history={history}
+            providerId={providerId}
+            admin={admin}
+            onChanged={workflowChanged}
+            onClose={onToggleDetails}
+          />
+        </div>
       )}
     </>
   );
 }
 function ProjectMessage({
   message,
+  grouped,
+  groupEnd,
+  otherCompany,
   companyId,
   userId,
   sending,
@@ -1877,6 +1947,9 @@ function ProjectMessage({
   onPin,
 }: {
   message: ChatMessage;
+  grouped: boolean;
+  groupEnd: boolean;
+  otherCompany?: string;
   companyId: string;
   userId: string;
   sending: boolean;
@@ -1891,7 +1964,7 @@ function ProjectMessage({
   return (
     <article
       data-message-id={message.id}
-      className={`inbox-message ${own ? "is-own" : ""} ${sending ? "is-sending" : ""}`}
+      className={`inbox-message ${own ? "is-own" : ""} ${sending ? "is-sending" : ""} ${grouped ? "is-grouped" : ""} ${groupEnd ? "is-group-end" : ""}`}
     >
       <div className="inbox-message-author">
         {message.author_id === userId
@@ -1899,6 +1972,15 @@ function ProjectMessage({
           : message.author_name || message.sender_name}
         <span> · {message.sender_name}</span>
         {message.pinned && <Pin size={12} />}
+        <time
+          dateTime={message.created_at}
+          title={stamp(message.created_at, true)}
+        >
+          {new Date(message.created_at).toLocaleTimeString(undefined, {
+            hour: "numeric",
+            minute: "2-digit",
+          })}
+        </time>
       </div>
       <div className="inbox-message-body">
         {message.reply && (
@@ -1947,16 +2029,8 @@ function ProjectMessage({
         </div>
       )}
       <div className="inbox-message-meta">
-        <time
-          dateTime={message.created_at}
-          title={stamp(message.created_at, true)}
-        >
-          {new Date(message.created_at).toLocaleTimeString(undefined, {
-            hour: "numeric",
-            minute: "2-digit",
-          })}
-        </time>
         {own &&
+          groupEnd &&
           (sending ? (
             <span>Sending…</span>
           ) : (
@@ -1966,7 +2040,9 @@ function ProjectMessage({
               ) : (
                 <Check size={12} />
               )}{" "}
-              {message.readByOtherCompany ? "Seen" : "Sent"}
+              {message.readByOtherCompany
+                ? `Seen by ${otherCompany || "the other company"}`
+                : "Sent"}
             </span>
           ))}
         {!sending && canSend && (
@@ -2047,83 +2123,5 @@ function ProjectMessage({
         </div>
       )}
     </article>
-  );
-}
-function JobContext({
-  detail,
-  providerId,
-  history,
-}: {
-  detail: JobDetail;
-  providerId: string;
-  history: QuoteHistory | null;
-}) {
-  const { job } = detail,
-    quote = detail.permissions.hirer
-      ? detail.quotes.find((q) => q.provider_company_id === providerId)
-      : detail.ownQuote;
-  const files = detail.files.filter(
-    (f) =>
-      (!f.provider_company_id || f.provider_company_id === providerId) &&
-      (!f.update_id || detail.selected?.provider_company_id === providerId) &&
-      (!f.quote_id ||
-        !detail.permissions.hirer ||
-        detail.quotes.find((q) => q.id === f.quote_id)?.provider_company_id ===
-          providerId),
-  );
-  return (
-    <div className="inbox-context-content">
-      <span className={`job-status ${job.status.replaceAll("_", "-")}`}>
-        {statusLabels[job.status]}
-      </span>
-      <h3>{job.title}</h3>
-      <p className="inbox-context-location">
-        <MapPin size={15} /> {job.location}
-      </p>
-      <Link className="jobs-button jobs-secondary" to={`/jobs/${job.id}`}>
-        View job <ArrowRight size={16} />
-      </Link>
-      <dl>
-        <div>
-          <dt>{history?.agreement ? "Agreed price" : "Total budget"}</dt>
-          <dd>{money(history?.agreement?.amount_cents ?? job.budget_cents)}</dd>
-        </div>
-        <div>
-          <dt>
-            <CalendarDays size={14} /> Start
-          </dt>
-          <dd>
-            {history?.agreement?.start_window || job.start_window || "Flexible"}
-          </dd>
-        </div>
-        {quote && !history?.agreement && (
-          <>
-            <div>
-              <dt>{detail.permissions.hirer ? "Their quote" : "Your quote"}</dt>
-              <dd>{money(quote.amount_cents)}</dd>
-            </div>
-            <div>
-              <dt>Proposed start</dt>
-              <dd>{quote.start_window || "To be agreed"}</dd>
-            </div>
-          </>
-        )}
-      </dl>
-      <details className="inbox-scope">
-        <summary>Scope of work</summary>
-        <p>{history?.agreement?.scope || job.description}</p>
-      </details>
-      <section className="inbox-context-files">
-        <h3>
-          <FileText size={17} /> Job files{" "}
-          {files.length ? `(${files.length})` : ""}
-        </h3>
-        {files.length ? (
-          <JobAttachments files={files} />
-        ) : (
-          <p>No files shared with this job yet.</p>
-        )}
-      </section>
-    </div>
   );
 }

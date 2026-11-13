@@ -35,6 +35,17 @@ function safeDestination(value, companyId) {
   }
   if (companyId && UUID.test(companyId))
     cleaned.searchParams.set("notificationCompany", companyId);
+  if (
+    url.pathname.startsWith("/jobs/") &&
+    UUID.test(url.pathname.slice("/jobs/".length)) &&
+    [
+      "#work-checklist",
+      "#job-review",
+      "#received-quotes",
+      "#quote-form",
+    ].includes(url.hash)
+  )
+    cleaned.hash = url.hash;
   return cleaned.href;
 }
 async function database() {

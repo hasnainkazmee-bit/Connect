@@ -2,32 +2,70 @@
 body:has(.workspace-inbox) {
   padding-bottom: 0;
 }
-html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
+html:not(.connect-desktop) .app-main:has(.workspace-inbox),
+html.connect-desktop .app-main:has(.workspace-inbox) {
+  width: 100%;
+  max-width: none;
   min-height: 0;
+  margin: 0;
+  padding: 0;
+}
+.app-main:has(.workspace-inbox) + .site-footer {
+  display: none;
 }
 .jobs-page.workspace-inbox {
-  padding: 20px 0;
+  --chat-surface: var(--surface);
+  --chat-canvas: var(--surface-muted);
+  --chat-incoming: var(--surface-muted);
+  --chat-outgoing: var(--market-ink);
+  --chat-ink: var(--ink);
+  --chat-muted: var(--muted);
+  --chat-line: var(--line);
+  padding: 0;
 }
 .inbox-layout {
-  --inbox-height: calc(100dvh - 126px);
+  --inbox-height: calc(100dvh - 86px);
   position: relative;
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
   height: var(--inbox-height);
-  min-height: 320px;
+  min-height: 240px;
   overflow: hidden;
-  border: 1px solid #d1dfe9;
-  border-radius: 18px;
-  background: #fff;
-  box-shadow: 0 3px 18px #23394e04;
+  border: 0;
+  border-radius: 0;
+  background: var(--chat-surface);
+  color: var(--chat-ink);
 }
+
+.workspace-inbox.has-conversation .inbox-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+.workspace-inbox.has-conversation .inbox-layout.details-open {
+  grid-template-columns: minmax(0, 7fr) minmax(330px, 3fr);
+}
+.workspace-inbox.has-conversation .inbox-sidebar {
+  display: none;
+}
+.inbox-activity-host {
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--chat-line);
+  background: var(--surface-muted);
+}
+.inbox-activity-host[hidden] {
+  display: none !important;
+}
+
 .inbox-sidebar {
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  background: #f7fafd;
-  border-right: 1px solid #dce5ee;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
 }
 .inbox-list-heading {
   display: flex;
@@ -48,28 +86,28 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
 .inbox-list-heading span {
   display: block;
   font-size: 11px;
-  color: #6a8092;
+  color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .inbox-list-heading > svg {
-  color: #71889a;
+  color: var(--muted);
   flex-shrink: 0;
 }
 .inbox-list-tools {
   padding: 0 14px 10px;
-  border-bottom: 1px solid #e3eaf1;
+  border-bottom: 1px solid var(--line);
 }
 .workspace-inbox .inbox-search {
   display: flex;
   align-items: center;
   gap: 9px;
-  border: 1px solid #d8e3ed;
-  background: white;
+  border: 1px solid var(--line);
+  background: var(--surface);
   border-radius: 999px;
   padding: 0 12px;
-  color: #71889a;
+  color: var(--muted);
 }
 .jobs-page.workspace-inbox .inbox-search input {
   width: 100%;
@@ -88,15 +126,15 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   flex-shrink: 0;
 }
 .inbox-search:focus-within {
-  border-color: #9eb6ca;
-  box-shadow: 0 0 0 2px #edf4fa;
+  border-color: var(--focus);
+  box-shadow: none;
 }
 .inbox-search > button {
   display: grid;
   place-items: center;
   border: 0;
   background: transparent;
-  color: #6a8092;
+  color: var(--muted);
   padding: 5px;
 }
 .inbox-filters {
@@ -111,20 +149,20 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   min-height: 36px;
   border: 1px solid transparent;
   background: transparent;
-  color: #667d91;
+  color: var(--muted);
   border-radius: 999px;
   padding: 6px 13px;
   font-size: 12px;
   font-weight: 550;
 }
 .inbox-filters button[aria-pressed="true"] {
-  color: #243d50;
-  background: #e7eff6;
-  border-color: #d8e3ed;
+  color: var(--ink);
+  background: var(--surface-muted);
+  border-color: var(--line);
 }
 .inbox-filters > svg {
   margin-left: auto;
-  color: #8096a8;
+  color: var(--muted);
 }
 .inbox-thread-list {
   flex: 1;
@@ -133,7 +171,7 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   overscroll-behavior: contain;
   padding: 8px;
   scrollbar-width: thin;
-  scrollbar-color: #bdcdd9 transparent;
+  scrollbar-color: var(--line) transparent;
 }
 .workspace-inbox .workspace-inbox-thread {
   position: relative;
@@ -150,18 +188,18 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   text-align: left;
 }
 .workspace-inbox .workspace-inbox-thread:hover {
-  background: #edf3f8;
+  background: var(--surface-muted);
 }
 .workspace-inbox .workspace-inbox-thread.is-selected {
-  background: #e6f0f8;
-  border-color: #cddfeb;
+  background: var(--surface-muted);
+  border-color: var(--line);
 }
 .workspace-inbox .workspace-inbox-thread .job-logo {
   width: 36px;
   height: 36px;
   flex: 0 0 36px;
   border-radius: 9px;
-  background: #fff;
+  background: var(--surface);
 }
 .inbox-thread-copy {
   display: block;
@@ -188,7 +226,7 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
 .inbox-thread-heading time {
   flex: none;
   font-size: 9px;
-  color: #758a9c;
+  color: var(--muted);
   white-space: nowrap;
 }
 .inbox-thread-job {
@@ -196,7 +234,7 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #5b7387;
+  color: var(--muted);
   font-size: 11px;
   line-height: 1.5;
   margin-bottom: 5px;
@@ -206,7 +244,7 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #7b8d9c;
+  color: var(--muted);
   font-size: 11px;
   line-height: 1.5;
   padding-right: 20px;
@@ -215,7 +253,7 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   font-weight: 750;
 }
 .workspace-inbox-thread.is-unread .inbox-thread-preview {
-  color: #344f64;
+  color: var(--muted);
   font-weight: 550;
 }
 .inbox-unread-count {
@@ -226,8 +264,8 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   height: 17px;
   padding: 0 4px;
   border-radius: 999px;
-  background: #ff6800;
-  color: #172c3a;
+  background: var(--brand);
+  color: var(--on-brand);
   display: grid;
   place-items: center;
   font-size: 9px;
@@ -238,18 +276,18 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   justify-content: space-between;
   align-items: center;
   padding: 9px 15px;
-  border-top: 1px solid #dfe7ef;
-  color: #758b9d;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
   font-size: 11px;
 }
 .inbox-pagination button {
   display: grid;
   place-items: center;
   padding: 8px;
-  border: 1px solid #d6e1eb;
+  border: 1px solid var(--line);
   border-radius: 50%;
-  background: #fff;
-  color: #476278;
+  background: var(--surface);
+  color: var(--muted);
 }
 .inbox-pagination button:disabled {
   opacity: 0.4;
@@ -262,11 +300,11 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   text-align: center;
   gap: 12px;
   padding: 42px 16px;
-  color: #7a90a2;
+  color: var(--muted);
 }
 .inbox-list-empty strong {
   font-size: 14px;
-  color: #385166;
+  color: var(--muted);
 }
 .workspace-inbox .inbox-list-empty p {
   margin: 0;
@@ -277,15 +315,15 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #3b5d75;
+  color: var(--muted);
   font-size: 12px;
   text-decoration: none;
 }
 .inbox-list-error {
   padding: 12px 16px;
   font-size: 12px;
-  color: #a13a31;
-  border-top: 1px solid #e5ecf2;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
 }
 .inbox-list-error button,
 .inbox-connection-status button {
@@ -312,8 +350,8 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   width: 70px;
   height: 70px;
   border-radius: 24px;
-  background: #eef5fb;
-  color: #668197;
+  background: var(--surface-muted);
+  color: var(--muted);
   margin-bottom: 23px;
 }
 .workspace-inbox .inbox-welcome h2 {
@@ -321,7 +359,7 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   margin: 0 0 10px;
 }
 .workspace-inbox .inbox-welcome p {
-  color: #6d8294;
+  color: var(--muted);
   max-width: 360px;
   font-size: 13px;
   line-height: 1.8;
@@ -331,11 +369,11 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   display: flex;
   align-items: center;
   gap: 8px;
-  border-top: 1px solid #e4ebf1;
+  border-top: 1px solid var(--line);
   padding-top: 22px;
   margin-top: 28px;
   font-size: 11px;
-  color: #7c91a2;
+  color: var(--muted);
 }
 .inbox-conversation {
   display: flex;
@@ -343,46 +381,105 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   position: relative;
   min-height: 0;
   min-width: 0;
-  background: #fff;
+  background: var(--chat-surface);
 }
 .inbox-conversation-header {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 78px;
-  padding: 16px 22px;
-  border-bottom: 1px solid #e3eaf1;
+  gap: 20px;
+  min-height: 88px;
+  padding: 14px clamp(18px, 2.2vw, 36px);
+  border-bottom: 1px solid var(--chat-line);
+  background: var(--chat-canvas);
 }
-.inbox-conversation-header .job-logo {
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
-  border-radius: 10px;
+.inbox-back-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  gap: 7px;
+  min-height: 42px;
+  padding: 9px 13px;
+  border: 1px solid transparent;
+  border-radius: 13px;
+  background: var(--surface-muted);
+  color: var(--chat-ink);
+  font-size: 14px;
+  text-decoration: none;
+}
+.inbox-back-button:hover {
+  background: var(--surface-muted);
 }
 .inbox-conversation-title {
   flex: 1;
   min-width: 0;
 }
-.inbox-conversation-title > :first-child {
+.workspace-inbox .inbox-conversation-title > :first-child {
   display: block;
-  font-size: 15px;
+  font-size: clamp(17px, 1.4vw, 22px);
   font-weight: 650;
-  line-height: 1.4;
+  letter-spacing: -0.45px;
+  line-height: 1.35;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--market-ink);
+  color: var(--chat-ink);
   text-decoration: none;
 }
 .inbox-conversation-title a:hover {
   text-decoration: underline;
+  text-underline-offset: 3px;
 }
-.inbox-conversation-title span {
-  display: block;
-  color: #7b90a2;
+.inbox-header-actions {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 8px;
+}
+.inbox-header-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 9px 13px;
+  border: 1px solid var(--chat-line);
+  border-radius: 12px;
+  background: var(--chat-surface);
+  color: var(--chat-ink);
+  font-size: 14px;
+  white-space: nowrap;
+}
+.inbox-header-action:hover,
+.inbox-header-action[aria-pressed="true"],
+.inbox-header-action[aria-expanded="true"],
+.inbox-header-action.is-active {
+  border-color: var(--line);
+  background: var(--surface-muted);
+}
+.inbox-job-status {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding: 3px 9px;
+  border-radius: 999px;
   font-size: 11px;
-  margin-top: 4px;
+  line-height: 1.35;
+  color: var(--muted);
+  background: var(--surface-muted);
+}
+.inbox-activity-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: var(--on-brand);
+  font-size: 11px;
+  font-weight: 650;
 }
 .inbox-icon-button {
   display: grid;
@@ -392,14 +489,14 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   height: 36px;
   border: 1px solid transparent;
   background: transparent;
-  color: #687f92;
+  color: var(--muted);
   border-radius: 50%;
 }
 .inbox-icon-button:hover,
 .inbox-icon-button.is-active {
-  background: #edf4fa;
-  border-color: #d8e4ee;
-  color: #2f506a;
+  background: var(--surface-muted);
+  border-color: var(--line);
+  color: var(--muted);
 }
 .inbox-mobile-back {
   display: none;
@@ -410,9 +507,9 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   align-items: center;
   gap: 9px;
   padding: 12px 22px;
-  background: #f6f9fc;
-  border-bottom: 1px solid #e4ebf1;
-  color: #526f86;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
   text-decoration: none;
   min-width: 0;
 }
@@ -429,11 +526,11 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
 }
 .inbox-job-strip small {
   font-size: 10px;
-  color: #7c91a2;
+  color: var(--muted);
   flex: none;
 }
 .inbox-job-strip:hover {
-  background: #eef4f9;
+  background: var(--surface-muted);
 }
 .inbox-message-area {
   position: relative;
@@ -448,8 +545,8 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
-  scrollbar-color: #bdcdd9 transparent;
-  padding: 18px 24px 24px;
+  scrollbar-color: var(--line) transparent;
+  padding: 20px clamp(22px, 3vw, 48px) 24px;
 }
 .inbox-loading {
   display: flex;
@@ -458,7 +555,7 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   gap: 10px;
   padding: 36px 20px;
   font-size: 12px;
-  color: #7890a2;
+  color: var(--muted);
 }
 .inbox-spinner {
   animation: inbox-spin 1s linear infinite;
@@ -484,7 +581,7 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
 .workspace-inbox .inbox-chat-empty p {
   max-width: 300px;
   font-size: 13px;
-  color: #7a8fa0;
+  color: var(--muted);
   margin: 0;
 }
 .inbox-chat-empty > button {
@@ -492,18 +589,18 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   gap: 8px;
   align-items: center;
   margin-top: 20px;
-  border: 1px solid #d7e3ed;
-  background: #f8fbfd;
+  border: 1px solid var(--line);
+  background: var(--surface);
   border-radius: 999px;
   padding: 10px 16px;
-  color: #3f617a;
+  color: var(--muted);
   font-size: 12px;
 }
 .inbox-date-divider {
   display: flex;
   align-items: center;
   gap: 16px;
-  color: #91a1ae;
+  color: var(--muted);
   font-size: 10px;
   margin: 12px 0 24px;
 }
@@ -512,59 +609,131 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   content: "";
   flex: 1;
   height: 1px;
-  background: #edf1f5;
+  background: var(--surface-muted);
 }
-.inbox-message {
+.workspace-inbox .inbox-message {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  max-width: 82%;
+  max-width: min(86%, 690px);
   width: fit-content;
-  margin: 0 0 18px;
+  margin: 16px 0 0;
 }
-.inbox-message.is-own {
+.workspace-inbox .inbox-message.is-own {
   margin-left: auto;
   align-items: flex-end;
 }
-.inbox-message-author {
-  font-size: 11px;
-  color: #6e8597;
-  padding: 0 3px 6px;
+.workspace-inbox .inbox-message.is-grouped {
+  margin-top: 5px;
 }
-.inbox-message-body {
-  font-size: 14px;
-  line-height: 1.65;
-  color: #294356;
+.inbox-message.is-grouped .inbox-message-author {
+  display: none;
+}
+.inbox-message:not(.is-group-end) .inbox-message-meta > time,
+.inbox-message:not(.is-group-end)
+  .inbox-message-meta
+  > span:not(.project-message-tools) {
+  display: none;
+}
+.inbox-message-author time {
+  margin-left: 5px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--chat-muted);
+  white-space: nowrap;
+}
+.inbox-message-author {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--chat-ink);
+  padding: 0 10px 5px;
+  font-weight: 550;
+}
+.workspace-inbox .inbox-message-body {
+  position: relative;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--chat-ink);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  background: #f4f7fa;
-  border: 1px solid #e6edf3;
-  border-radius: 3px 16px 16px 16px;
-  padding: 11px 14px;
+  background: var(--chat-incoming);
+  border: 0;
+  border-radius: 20px;
+  padding: 10px 15px;
   max-width: 100%;
+  min-width: 0;
 }
-.inbox-message.is-own .inbox-message-body {
-  background: #eaf3fb;
-  border-color: #d9e7f2;
-  border-radius: 16px 3px 16px 16px;
+.workspace-inbox .inbox-message.is-own .inbox-message-body {
+  color: #fff;
+  background: var(--chat-outgoing);
+}
+.workspace-inbox .inbox-message.is-group-end .inbox-message-body {
+  border-bottom-left-radius: 6px;
+}
+.workspace-inbox .inbox-message.is-own.is-group-end .inbox-message-body {
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 6px;
 }
 .inbox-message-body a {
-  color: #315e83;
+  color: var(--muted);
   text-decoration: underline;
-  text-underline-offset: 2px;
+  text-underline-offset: 3px;
+}
+.inbox-message.is-own .inbox-message-body a {
+  color: #fff;
 }
 .inbox-message-meta {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  padding: 6px 2px 0;
-  color: #90a1af;
+  padding: 0 7px;
+  color: var(--chat-muted);
   font-size: 11px;
+  min-height: 0;
 }
 .inbox-message-meta > span {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
+}
+.inbox-message-meta > span:not(.project-message-tools) {
+  padding-top: 5px;
+}
+/* Desktop tools reveal beside the bubble without adding a row to every message.
+   They remain in keyboard order; focus reveals the whole control group. */
+@media (min-width: 701px) and (hover: hover) and (pointer: fine) {
+  .workspace-inbox .inbox-message {
+    max-width: min(calc(100% - 108px), 690px);
+  }
+  .inbox-message-meta .project-message-tools {
+    position: absolute;
+    z-index: 2;
+    left: calc(100% + 7px);
+    bottom: 0;
+    padding: 3px;
+    margin: 0;
+    gap: 1px;
+    border: 1px solid var(--chat-line);
+    border-radius: 999px;
+    background: var(--chat-surface);
+    box-shadow: none;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .inbox-message.is-own .project-message-tools {
+    left: auto;
+    right: calc(100% + 7px);
+  }
+  .inbox-message.is-own.is-group-end .project-message-tools {
+    bottom: 21px;
+  }
+  .inbox-message:is(:hover, :focus-within, :has(.project-reaction-picker))
+    .project-message-tools {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 .inbox-new-messages {
   position: absolute;
@@ -575,64 +744,132 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   align-items: center;
   gap: 7px;
   padding: 9px 14px;
-  border: 1px solid #cbdce9;
+  border: 1px solid var(--line);
   border-radius: 999px;
-  background: white;
-  color: #385c78;
-  box-shadow: 0 3px 12px #243b5020;
+  background: var(--surface);
+  color: var(--muted);
+  box-shadow: none;
   white-space: nowrap;
   font-size: 12px;
 }
 .inbox-composer {
+  position: relative;
   flex: none;
-  padding: 16px 20px 12px;
-  border-top: 1px solid #e4ebf1;
-  background: #fff;
+  padding: 14px clamp(18px, 2.2vw, 36px) max(10px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--chat-line);
+  background: var(--chat-surface);
+}
+.inbox-compose-row {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 0 10px;
+  align-items: end;
+}
+.inbox-compose-row .project-chat-uploads {
+  display: contents;
+}
+.inbox-compose-row .project-attach-button {
+  grid-column: 1;
+  grid-row: 2;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 48px;
+  border: 1px solid var(--chat-line);
+  border-radius: 14px;
+  background: var(--chat-canvas);
+  color: var(--chat-muted);
+}
+.inbox-compose-row .project-attach-button > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.inbox-compose-row .project-attach-button:hover {
+  background: var(--chat-incoming);
+  color: var(--chat-ink);
+}
+.inbox-compose-row .project-upload-list {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  margin: 0 0 12px;
 }
 .inbox-compose-field {
+  grid-column: 2;
+  grid-row: 2;
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: flex-end;
-  padding: 7px 8px 7px 14px;
-  background: #fff;
-  border: 1px solid #ccdce8;
-  border-radius: 18px;
+  padding: 4px 5px 4px 15px;
+  background: var(--chat-canvas);
+  border: 1px solid var(--line);
+  border-radius: 24px;
 }
 .inbox-compose-field:focus-within {
-  border-color: #9db8cd;
-  box-shadow: 0 0 0 2px #edf4fa;
+  border-color: var(--focus);
+  box-shadow: none;
 }
 .jobs-page.workspace-inbox .inbox-compose-field textarea {
   flex: 1;
   min-width: 0;
-  padding: 10px 0;
-  min-height: 42px;
-  max-height: 140px;
+  padding: 9px 0;
+  min-height: 38px;
+  max-height: 120px;
   border: 0;
   outline: none;
   border-radius: 0;
   background: transparent;
-  font-size: 14px;
+  color: var(--chat-ink);
+  font-size: 15px;
   line-height: 22px;
   resize: none;
   box-shadow: none;
   font-family: inherit;
 }
-.inbox-compose-field > button {
+.inbox-compose-field > .inbox-emoji-button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 40px;
+  min-height: 40px;
+  min-width: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--chat-muted);
+}
+.inbox-compose-field > .inbox-emoji-button:hover:not(:disabled) {
+  background: var(--chat-incoming);
+  color: var(--chat-ink);
+}
+.inbox-compose-field > .inbox-emoji-button:disabled {
+  opacity: 0.5;
+}
+.inbox-compose-field > button[type="submit"] {
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  gap: 7px;
-  flex: none;
-  min-width: 86px;
-  min-height: 44px;
-  padding: 10px 15px;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
   border: 0;
-  border-radius: 999px;
-  background: #ff6800;
-  color: #192f3d;
-  font-size: 13px;
-  font-weight: 650;
+  border-radius: 50%;
+  background: var(--brand);
+  color: var(--on-brand);
+}
+.inbox-compose-field > button[type="submit"] > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
 
 /* Matching opens one conversation, with the job already attached. */
@@ -648,39 +885,21 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   align-items: center;
   gap: 8px;
   min-height: 36px;
-  color: #4b657a;
+  color: var(--muted);
   font-size: 14px;
   text-decoration: none;
 }
 .inbox-match-navigation a:hover {
-  color: #203e54;
+  color: var(--ink);
   text-decoration: underline;
   text-underline-offset: 4px;
-}
-.inbox-from-matches .inbox-layout {
-  grid-template-columns: minmax(0, 1fr);
-}
-.inbox-from-matches .inbox-sidebar {
-  display: none;
-}
-.inbox-from-matches .inbox-conversation-header {
-  min-height: 88px;
-  padding-inline: 28px;
-}
-.inbox-from-matches .inbox-conversation-title > :first-child {
-  font-size: 18px;
-}
-.inbox-from-matches .inbox-conversation-header .job-logo {
-  width: 48px;
-  height: 48px;
-  flex-basis: 48px;
 }
 .inbox-attached-job {
   display: flex;
   align-items: center;
   min-width: 0;
-  background: #f6f9fc;
-  border-bottom: 1px solid #e4ebf1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
 }
 .inbox-attached-job .inbox-job-strip {
   flex: 1;
@@ -696,16 +915,16 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   min-height: 40px;
   margin: 5px 20px 5px 0;
   padding: 9px 14px;
-  border: 1px solid #d1dee8;
+  border: 1px solid var(--line);
   border-radius: 999px;
-  background: #fff;
-  color: #34536b;
+  background: var(--surface);
+  color: var(--muted);
   font-size: 13px;
   font-weight: 550;
 }
 .inbox-invite-button:hover:not(:disabled) {
-  background: #edf4fa;
-  border-color: #b6ccde;
+  background: var(--surface-muted);
+  border-color: var(--line);
 }
 .inbox-invite-button:disabled {
   opacity: 0.65;
@@ -717,14 +936,14 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   gap: 6px;
   flex: none;
   padding: 8px 20px 8px 0;
-  color: #426455;
+  color: var(--muted);
   font-size: 12px;
 }
 .workspace-inbox .inbox-invite-error {
   margin: 0;
   padding: 10px 22px;
-  color: #ae4036;
-  background: #fff;
+  color: var(--muted);
+  background: var(--surface);
   font-size: 13px;
 }
 .inbox-conversation-starters {
@@ -741,15 +960,15 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   gap: 7px;
   min-height: 44px;
   padding: 10px 16px;
-  border: 1px solid #d4e1eb;
+  border: 1px solid var(--line);
   border-radius: 999px;
-  background: #fff;
-  color: #385c76;
+  background: var(--surface);
+  color: var(--muted);
   font-size: 13px;
 }
 .inbox-conversation-starters button:hover:not(:disabled) {
-  border-color: #9fbad0;
-  background: #f5f9fc;
+  border-color: var(--line);
+  background: var(--surface);
 }
 .inbox-conversation-starters button:disabled {
   opacity: 0.5;
@@ -759,7 +978,7 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   margin: 0 3px 10px;
   font-size: 12px;
   line-height: 1.5;
-  color: #667e91;
+  color: var(--muted);
 }
 .inbox-from-matches .inbox-chat-empty {
   padding: 18px 0;
@@ -775,87 +994,12 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   font-size: 14px;
   line-height: 1.7;
 }
-.inbox-from-matches .inbox-layout.details-open {
-  grid-template-columns: minmax(0, 1fr) 300px;
+.inbox-compose-field > button[type="submit"]:hover:not(:disabled) {
+  background: var(--brand-hover);
 }
-.inbox-from-matches .inbox-job-details {
-  position: static;
-  width: auto;
-  box-shadow: none;
-}
-@media (max-width: 900px) {
-  .inbox-from-matches .inbox-layout.details-open {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .inbox-from-matches .details-open .inbox-conversation {
-    display: none;
-  }
-  .inbox-from-matches .inbox-job-details {
-    border-left: 0;
-  }
-}
-@media (max-width: 700px) {
-  .inbox-match-navigation {
-    margin-bottom: 10px;
-  }
-  .inbox-match-navigation a {
-    font-size: 12px;
-    gap: 5px;
-  }
-  .inbox-from-matches .inbox-conversation-header {
-    padding: 14px;
-    min-height: 78px;
-  }
-  .inbox-from-matches .inbox-conversation-header .job-logo {
-    width: 38px;
-    height: 38px;
-    flex-basis: 38px;
-  }
-  .inbox-from-matches .inbox-conversation-title > :first-child {
-    font-size: 16px;
-  }
-  .inbox-from-matches .inbox-attached-job {
-    flex-wrap: wrap;
-    padding-bottom: 7px;
-  }
-  .inbox-from-matches .inbox-attached-job .inbox-job-strip {
-    flex-basis: 100%;
-  }
-  .inbox-invite-button {
-    min-height: 36px;
-    font-size: 12px;
-    margin: 0 14px;
-    padding: 7px 12px;
-  }
-  .inbox-quote-invited {
-    padding: 0 14px 4px;
-  }
-  .inbox-from-matches .inbox-chat-empty {
-    padding: 18px 0;
-  }
-  .inbox-from-matches .inbox-chat-empty h2 {
-    font-size: 20px;
-  }
-  .inbox-conversation-starters {
-    gap: 7px;
-    margin-top: 16px;
-  }
-  .inbox-conversation-starters button {
-    font-size: 12px;
-    padding-inline: 12px;
-  }
-  .inbox-compose-field > button {
-    min-width: 75px;
-    padding-inline: 12px;
-    gap: 5px;
-  }
-}
-.inbox-compose-field > button:hover:not(:disabled) {
-  background: #ed6100;
-}
-.inbox-compose-field > button:disabled {
-  background: #edf2f6;
-  color: #a4b4c1;
+.inbox-compose-field > button[type="submit"]:disabled {
+  background: var(--surface-muted);
+  color: var(--muted);
   cursor: default;
 }
 .inbox-composer-hint {
@@ -864,23 +1008,23 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   gap: 12px;
   margin: 9px 3px 0;
   font-size: 11px;
-  color: #8c9dab;
+  color: var(--muted);
 }
 .inbox-composer-hint strong {
   font-weight: 500;
-  color: #72889a;
+  color: var(--muted);
 }
 .inbox-connection-status,
 .inbox-closed-note {
   padding: 11px 20px;
   font-size: 12px;
-  background: #f5f8fb;
-  color: #688093;
+  background: var(--surface);
+  color: var(--muted);
 }
 .workspace-inbox .inbox-send-error {
   font-size: 12px;
   line-height: 1.5;
-  color: #ae4036;
+  color: var(--muted);
   margin: 0 0 10px;
 }
 .inbox-job-details {
@@ -888,8 +1032,8 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  border-left: 1px solid #dce5ee;
-  background: #fafcfe;
+  border-left: 1px solid var(--line);
+  background: var(--surface);
 }
 .inbox-job-details > header {
   display: flex;
@@ -897,7 +1041,7 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   justify-content: space-between;
   padding: 16px 18px;
   min-height: 78px;
-  border-bottom: 1px solid #e3eaf1;
+  border-bottom: 1px solid var(--line);
 }
 .workspace-inbox .inbox-job-details > header h2 {
   font-size: 15px;
@@ -919,7 +1063,7 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
 .inbox-context-location {
   display: flex;
   gap: 6px;
-  color: #738a9e;
+  color: var(--muted);
 }
 .workspace-inbox .inbox-context-location {
   font-size: 12px;
@@ -934,7 +1078,7 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   margin: 12px 0 20px;
 }
 .inbox-context-content dl > div {
-  border-bottom: 1px solid #e3eaf1;
+  border-bottom: 1px solid var(--line);
   padding: 14px 0;
 }
 .inbox-context-content dt {
@@ -942,30 +1086,30 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   align-items: center;
   gap: 6px;
   font-size: 10px;
-  color: #8094a4;
+  color: var(--muted);
   margin-bottom: 6px;
 }
 .inbox-context-content dd {
   margin: 0;
   font-size: 13px;
-  color: #345066;
+  color: var(--muted);
 }
 .inbox-scope {
-  border-bottom: 1px solid #e1e9f0;
+  border-bottom: 1px solid var(--line);
   padding-bottom: 16px;
   margin-bottom: 20px;
 }
 .inbox-scope summary {
   font-size: 12px;
   font-weight: 600;
-  color: #49677e;
+  color: var(--muted);
   cursor: pointer;
 }
 .workspace-inbox .inbox-scope p {
   font-size: 12px;
   line-height: 1.7;
   white-space: pre-wrap;
-  color: #657d91;
+  color: var(--muted);
   margin: 12px 0 0;
 }
 .inbox-context-files h3 {
@@ -976,7 +1120,7 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
 }
 .workspace-inbox .inbox-context-files p {
   font-size: 12px;
-  color: #8194a5;
+  color: var(--muted);
 }
 .inbox-context-files .job-attachment-grid {
   grid-template-columns: 1fr;
@@ -1012,121 +1156,123 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
   padding: 60px 24px !important;
 }
 .inbox-access > svg {
-  color: #718b9f;
+  color: var(--muted);
 }
 .inbox-access h1 {
   font-size: 28px;
   margin: 0;
 }
 .inbox-access p {
-  color: #708799;
+  color: var(--muted);
 }
 .inbox-layout :is(button, a):focus-visible {
-  outline: 2px solid #7195b2;
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
-@media (min-width: 1281px) {
-  .inbox-layout.details-open {
-    grid-template-columns: 285px minmax(0, 1fr) 280px;
+@media (max-width: 1150px) {
+  .inbox-conversation-header {
+    gap: 12px;
+    padding-inline: 20px;
   }
-}
-@media (max-width: 1280px) {
-  .inbox-layout {
-    grid-template-columns: 280px minmax(0, 1fr);
+  .inbox-header-action {
+    padding-inline: 10px;
   }
-  .inbox-job-details {
-    position: absolute;
-    z-index: 5;
-    inset: 0 0 0 auto;
-    width: min(320px, 100%);
-    box-shadow: -8px 0 30px #23394e14;
-  }
-  .inbox-job-strip small {
-    display: none;
-  }
-  .inbox-composer-hint > span:last-child {
+  .inbox-header-action > span:not(.inbox-activity-count) {
     display: none;
   }
 }
 @media (max-width: 900px) {
-  .inbox-layout {
-    grid-template-columns: 260px minmax(0, 1fr);
+  .workspace-inbox.has-conversation .inbox-layout.details-open {
+    grid-template-columns: minmax(0, 1fr);
   }
-  .inbox-conversation-header {
-    padding-inline: 16px;
-    gap: 10px;
+  .workspace-inbox.has-conversation .details-open .inbox-conversation {
+    display: none;
+  }
+  .inbox-activity-host {
+    border-left: 0;
+  }
+  .inbox-layout {
+    grid-template-columns: 280px minmax(0, 1fr);
   }
   .inbox-message-scroll {
-    padding-inline: 16px;
-  }
-  .inbox-message {
-    max-width: 90%;
+    padding-inline: 24px;
   }
 }
 @media (max-width: 700px) {
   .jobs-page.workspace-inbox {
-    padding: 12px 0 16px;
+    padding: 0;
   }
   .inbox-layout {
     grid-template-columns: minmax(0, 1fr);
-    border-radius: 14px;
   }
   .workspace-inbox:not(.has-conversation) .inbox-welcome {
-    display: none;
-  }
-  .workspace-inbox.has-conversation .inbox-sidebar {
     display: none;
   }
   .inbox-sidebar {
     border-right: 0;
   }
-  .inbox-mobile-back {
-    display: grid;
-    width: 30px;
-    flex-basis: 30px;
-    margin-left: -7px;
-  }
   .inbox-conversation-header {
-    min-height: 70px;
+    min-height: 80px;
+    gap: 10px;
     padding: 12px;
-    gap: 8px;
   }
-  .inbox-conversation-header .job-logo {
-    width: 32px;
-    height: 32px;
-    flex-basis: 32px;
+  .inbox-back-button {
+    min-width: 36px;
+    padding: 8px;
+    border-radius: 12px;
   }
-  .inbox-conversation-title > :first-child {
-    font-size: 13px;
+  .inbox-back-button > span {
+    display: none;
   }
-  .inbox-conversation-title span {
-    font-size: 10px;
+  .workspace-inbox .inbox-conversation-title > :first-child {
+    font-size: 15px;
+    letter-spacing: -0.15px;
   }
-  .inbox-conversation-header > .inbox-icon-button:last-child {
-    width: 30px;
-    flex-basis: 30px;
+  .inbox-header-actions {
+    gap: 3px;
   }
-  .inbox-job-strip {
-    padding: 11px 14px;
-    gap: 7px;
+  .inbox-header-action {
+    position: relative;
+    min-height: 38px;
+    padding: 8px;
+    border-color: transparent;
+    background: transparent;
   }
-  .inbox-job-strip > span {
-    font-size: 11px;
+  .inbox-header-action .inbox-activity-count {
+    position: absolute;
+    right: -2px;
+    top: -3px;
+    min-width: 15px;
+    height: 15px;
+    font-size: 9px;
+    padding: 0 3px;
   }
   .inbox-message-scroll {
-    padding: 12px 14px 20px;
+    padding: 12px 16px 20px;
   }
-  .inbox-message-body {
-    font-size: 13px;
-    padding: 10px 12px;
+  .workspace-inbox .inbox-message {
+    max-width: 92%;
+  }
+  .workspace-inbox .inbox-message-body {
+    font-size: 15px;
+    padding: 9px 13px;
+  }
+  .inbox-message-author {
+    font-size: 11px;
   }
   .inbox-composer {
-    padding: 12px;
+    padding: 10px 12px max(8px, env(safe-area-inset-bottom));
+  }
+  .inbox-compose-row {
+    grid-template-columns: 40px minmax(0, 1fr);
+    column-gap: 7px;
+  }
+  .inbox-compose-row .project-attach-button {
+    width: 40px;
   }
   .inbox-compose-field {
-    padding-left: 10px;
-    border-radius: 16px;
-    gap: 6px;
+    padding-left: 12px;
+    gap: 5px;
   }
   .jobs-page.workspace-inbox .inbox-compose-field textarea {
     font-size: 16px;
@@ -1135,23 +1281,19 @@ html:not(.connect-desktop) .app-main:has(.workspace-inbox) {
     font-size: 10px;
     margin-top: 6px;
   }
-  .workspace-inbox .inbox-list-heading h1 {
-    font-size: 22px;
-  }
-  .inbox-thread-heading strong {
-    font-size: 13px;
-  }
-  .inbox-thread-heading time {
-    font-size: 10px;
-  }
-  .inbox-thread-job,
-  .inbox-thread-preview {
-    font-size: 12px;
+  .inbox-composer-hint > span:last-child {
+    display: none;
   }
   .jobs-page.workspace-inbox .inbox-search input {
     font-size: 16px;
   }
-  .inbox-job-details {
-    width: 100%;
+}
+@media (max-width: 390px) {
+  .inbox-conversation-header {
+    gap: 6px;
+    padding-inline: 8px;
+  }
+  .inbox-header-action {
+    padding-inline: 6px;
   }
 }

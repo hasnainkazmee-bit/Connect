@@ -136,6 +136,7 @@ try {
   await h
     .getByLabel("Job message", { exact: true })
     .fill("A saved draft for the installation crew.");
+  await h.getByRole("button", { name: "Back to conversations" }).click();
   await h
     .locator(".workspace-inbox-thread")
     .filter({ hasText: "Electrical inspection" })
@@ -144,6 +145,7 @@ try {
   await h
     .getByLabel("Job message", { exact: true })
     .fill("Separate inspection draft.");
+  await h.getByRole("button", { name: "Back to conversations" }).click();
   await h
     .locator(".workspace-inbox-thread")
     .filter({ hasText: "Commercial rooftop" })
@@ -209,20 +211,29 @@ try {
   );
   await h.unroute(sendUrl);
 
-  await h.getByRole("button", { name: "Job details", exact: true }).click();
+  if (
+    !(await h.getByRole("complementary", { name: "Job activity" }).isVisible())
+  )
+    await h.getByRole("button", { name: "Activity", exact: true }).click();
   await expect(
-    h.getByRole("complementary", { name: "Job details" }),
+    h.getByRole("complementary", { name: "Job activity" }),
   ).toBeVisible();
-  await h.screenshot({ path: out + "/desktop-job-details.png" });
+  await h.screenshot({ path: out + "/desktop-job-activity.png" });
+  await h
+    .getByRole("button", { name: "Files for this conversation", exact: true })
+    .click();
   await h
     .getByRole("button", { name: "Preview rooftop-photo.jpg", exact: true })
     .click();
   await expect(h.locator(".job-file-viewer img")).toBeVisible();
-  await h.locator(".modal-close").click();
-  await h.getByRole("button", { name: "Close job details" }).focus();
+  await h.getByRole("button", { name: "Close preview", exact: true }).click();
+  await h
+    .getByRole("button", { name: "Back to messages", exact: true })
+    .click();
+  await h.getByRole("button", { name: "Close activity" }).focus();
   await h.keyboard.press("Escape");
   await expect(
-    h.getByRole("button", { name: "Job details", exact: true }),
+    h.getByRole("button", { name: "Activity", exact: true }),
   ).toBeFocused();
 
   await h.locator(".inbox-message-scroll").evaluate((el) => {
@@ -290,7 +301,7 @@ try {
       bounds.composerBottom <= bounds.height,
       `Composer visible at ${width}`,
     );
-    await h.getByRole("button", { name: "Job details", exact: true }).click();
+    await h.getByRole("button", { name: "Activity", exact: true }).click();
     assert.equal(
       await h.evaluate(
         () => document.documentElement.scrollWidth > innerWidth + 1,
@@ -298,8 +309,8 @@ try {
       false,
     );
     if (width === 390)
-      await h.screenshot({ path: out + "/mobile-job-details.png" });
-    await h.getByRole("button", { name: "Close job details" }).click();
+      await h.screenshot({ path: out + "/mobile-job-activity.png" });
+    await h.getByRole("button", { name: "Close activity" }).click();
     if (width === 390) await h.screenshot({ path: out + "/mobile-chat.png" });
   }
   await h.setViewportSize({ width: 390, height: 740 });

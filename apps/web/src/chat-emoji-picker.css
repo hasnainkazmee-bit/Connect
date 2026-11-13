@@ -1,0 +1,43 @@
+.chat-emoji-picker {
+  position: absolute;
+  z-index: 20;
+  right: 24px;
+  bottom: calc(100% - 10px);
+  width: min(340px, calc(100vw - 32px));
+  max-height: min(460px, 65dvh);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: 0 12px 48px color-mix(in srgb, var(--ink) 17%, transparent);
+}
+.chat-emoji-picker > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 4px 16px;
+  color: var(--ink);
+  font-size: 13px;
+}
+.chat-emoji-picker > header button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  border-radius: 50%;
+  color: inherit;
+}
+.chat-emoji-picker > p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  font-size: 13px;
+}
+.chat-emoji-picker em-emoji-picker {
+  width: 100%;
+  --border-radius: 0;
+  --rgb-accent: 255, 104, 0;
+}

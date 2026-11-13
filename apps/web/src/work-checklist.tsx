@@ -63,6 +63,7 @@ const dateLabel = (value?: string | null) =>
 export function WorkChecklist({
   items,
   jobId,
+  requestedItemId,
   version = 1,
   progress = false,
   editable = false,
@@ -75,6 +76,7 @@ export function WorkChecklist({
 }: {
   items: WorkChecklistItem[];
   jobId?: string;
+  requestedItemId?: string | null;
   version?: number;
   progress?: boolean;
   editable?: boolean;
@@ -171,6 +173,22 @@ export function WorkChecklist({
         : { contextKey, id };
     });
   }, [contextKey, items, editable, reviewable]);
+
+  const appliedRequest = useRef("");
+  useEffect(() => {
+    const requestKey = `${contextKey}:${requestedItemId || ""}`;
+    if (!requestedItemId) {
+      appliedRequest.current = "";
+      return;
+    }
+    if (
+      appliedRequest.current === requestKey ||
+      !items.some((item) => item.id === requestedItemId)
+    )
+      return;
+    appliedRequest.current = requestKey;
+    setSelection({ contextKey, id: requestedItemId });
+  }, [contextKey, requestedItemId, items]);
 
   const updateDraft = (itemId: string, changes: Partial<ProofDraft>) => {
     const next = {

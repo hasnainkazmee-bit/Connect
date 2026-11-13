@@ -1,0 +1,494 @@
+.project-activity-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  background: var(--chat-canvas);
+  color: var(--chat-ink);
+}
+.project-activity-heading {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px 12px;
+  gap: 12px;
+}
+.project-activity-heading > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.workspace-inbox .project-activity-heading h2 {
+  margin: 0;
+  font-size: 17px;
+  letter-spacing: -0.3px;
+}
+.project-activity-heading svg {
+  color: var(--muted);
+}
+.project-activity-tabs {
+  display: flex;
+  flex: none;
+  gap: 4px;
+  padding: 0 16px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.project-activity-tabs > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  justify-content: center;
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+}
+.project-activity-tabs > button[aria-pressed="true"] {
+  border-color: var(--line);
+  background: var(--chat-surface);
+  color: var(--ink);
+  box-shadow: none;
+}
+.project-activity-tabs > button > span {
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: 99px;
+  background: var(--brand);
+  color: var(--on-brand);
+  font-size: 10px;
+}
+.project-activity-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+  padding: 16px;
+}
+.project-activity-panel [hidden] {
+  display: none !important;
+}
+.project-activity-panel :is(button, a, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.project-activity-current {
+  display: grid;
+  gap: 14px;
+}
+.project-activity-panel .project-next-action {
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  overflow: hidden;
+}
+.project-activity-panel .project-next-summary {
+  padding: 0 0 14px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.project-activity-panel .project-next-icon {
+  display: none;
+}
+.project-activity-panel .project-next-summary > div {
+  flex-basis: 100%;
+}
+.project-activity-panel .project-next-summary strong {
+  font-size: 14px;
+  line-height: 1.45;
+}
+.workspace-inbox .project-activity-panel .project-next-summary p {
+  display: block;
+  -webkit-line-clamp: unset;
+  font-size: 12px;
+  line-height: 1.55;
+  margin-top: 5px;
+  color: var(--chat-muted);
+}
+.project-activity-panel .project-next-summary > .jobs-button {
+  max-width: none;
+  min-height: 40px;
+  font-size: 12px;
+  padding: 9px 14px;
+}
+/* Proof review is the primary decision; routine update requests stay secondary. */
+.project-activity-panel.has-pending-proof
+  .project-next-summary
+  > .jobs-primary {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+}
+.project-activity-panel.has-pending-proof
+  .project-next-summary
+  > .jobs-primary:hover:not(:disabled) {
+  background: var(--surface-muted);
+  border-color: var(--line);
+  color: var(--ink);
+}
+.project-activity-panel .project-next-summary > .inbox-icon-button {
+  margin-left: auto;
+}
+.project-activity-panel .project-action-body {
+  max-height: none;
+  overflow: visible;
+  padding: 0 0 16px;
+}
+.project-activity-panel .project-action-body h3 {
+  font-size: 15px;
+  line-height: 1.45;
+}
+.project-activity-panel .project-action-body .project-quote-summary b {
+  font-size: 23px;
+}
+.project-activity-panel .project-action-body .project-quote-facts {
+  gap: 12px;
+}
+.project-activity-panel .project-action-body .project-change-fields {
+  grid-template-columns: minmax(0, 1fr);
+}
+.project-activity-panel .project-action-buttons {
+  gap: 8px;
+}
+.project-activity-panel .project-action-buttons .jobs-button {
+  font-size: 12px;
+  min-height: 40px;
+  padding: 9px 12px;
+}
+.project-activity-panel .project-secondary-action {
+  margin-top: 0;
+  padding: 0 0 14px;
+}
+.project-activity-panel .project-secondary-action .project-text-button {
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+}
+.project-activity-panel .project-payment-review {
+  padding: 0 15px 13px !important;
+}
+.project-activity-panel .project-action-notice {
+  margin: 0;
+  padding: 12px 15px;
+}
+.project-activity-proof-list {
+  display: grid;
+  gap: 12px;
+}
+.project-activity-proof {
+  padding: 15px;
+  border: 1px solid var(--chat-line);
+  border-radius: 14px;
+  background: var(--chat-surface);
+}
+.project-activity-proof-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 550;
+}
+.workspace-inbox .project-activity-proof h3 {
+  font-size: 14px;
+  line-height: 1.45;
+  margin: 9px 0 6px;
+  letter-spacing: -0.15px;
+}
+.workspace-inbox .project-activity-actor {
+  margin: 4px 0 0;
+  color: var(--chat-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.project-activity-panel time {
+  display: block;
+  font-size: 10px;
+  line-height: 1.5;
+  margin-top: 4px;
+  color: var(--muted);
+}
+.workspace-inbox .project-activity-proof-note {
+  margin: 12px 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.project-activity-proof > .jobs-button {
+  margin-top: 13px;
+  min-height: 40px;
+  padding: 9px 14px;
+  font-size: 12px;
+}
+.workspace-inbox .project-activity-caught-up {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.project-activity-caught-up > svg {
+  flex: none;
+}
+.project-activity-history {
+  margin-top: 22px;
+}
+.project-activity-history:first-child {
+  margin-top: 0;
+}
+.project-activity-history > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.workspace-inbox .project-activity-history > header h3 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: 0;
+}
+.project-activity-history > header > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.project-activity-history ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.project-activity-record {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.project-activity-record:last-child {
+  border-bottom: 0;
+}
+.project-activity-record-icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  color: var(--muted);
+  background: transparent;
+}
+.project-activity-record > div {
+  min-width: 0;
+  padding-top: 3px;
+}
+.workspace-inbox .project-activity-record h3 {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 550;
+  letter-spacing: 0;
+}
+.workspace-inbox .project-activity-task-name {
+  margin: 3px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.project-activity-disclosure {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  border: 0;
+  padding: 6px 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+.project-activity-disclosure[aria-expanded="true"] > svg:last-child {
+  transform: rotate(180deg);
+}
+.project-activity-record-details {
+  margin-top: 4px;
+  border: 0;
+  padding: 8px 0 0;
+  background: transparent;
+}
+.workspace-inbox .project-activity-record-body {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.project-activity-record-details .project-event {
+  padding: 0;
+  border: 0;
+  margin: 0;
+  max-width: none;
+  background: transparent;
+}
+.project-activity-record-details .project-event-heading {
+  display: none;
+}
+.project-activity-record-details .project-quote-summary b {
+  font-size: 21px;
+}
+.project-activity-record-details .project-quote-facts {
+  gap: 12px;
+}
+.project-activity-record-details .project-quote-facts > span {
+  min-width: 0;
+}
+.project-activity-record-details .project-event > p {
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.project-activity-panel .job-attachment-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+.project-activity-panel .attachment-preview {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 53px;
+  padding: 9px;
+  text-align: left;
+}
+.project-activity-panel .attachment-thumbnail {
+  width: 30px;
+  height: 36px;
+  flex: 0 0 30px;
+  aspect-ratio: auto;
+  border-radius: 4px;
+}
+.project-activity-panel .attachment-thumbnail svg {
+  width: 18px;
+  height: 18px;
+}
+.project-activity-panel .attachment-thumbnail b {
+  display: none;
+}
+.project-activity-panel .attachment-preview > span:last-child {
+  min-width: 0;
+  padding: 0;
+}
+.project-activity-panel .attachment-preview > span:last-child b {
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.project-activity-panel .attachment-preview small {
+  font-size: 10px;
+}
+.workspace-inbox .project-activity-empty {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0;
+}
+.project-activity-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  padding: 8px 0;
+  min-height: 38px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.project-activity-footer {
+  flex: none;
+  padding: 15px 18px;
+  border-top: 1px solid var(--line);
+  background: var(--chat-canvas);
+}
+.project-activity-progress > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.project-activity-progress strong {
+  color: var(--muted);
+  font-weight: 600;
+}
+.project-activity-progress progress {
+  width: 100%;
+  height: 4px;
+  display: block;
+  margin: 10px 0 13px;
+  border: 0;
+  border-radius: 9px;
+  overflow: hidden;
+  appearance: none;
+  background: var(--surface-muted);
+}
+.project-activity-progress progress::-webkit-progress-bar {
+  background: var(--line);
+}
+.project-activity-progress progress::-webkit-progress-value {
+  background: var(--brand);
+  border-radius: 9px;
+}
+.project-activity-progress progress::-moz-progress-bar {
+  background: var(--brand);
+  border-radius: 9px;
+}
+.project-activity-open-job {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 38px;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: none;
+  font-weight: 550;
+}
+@media (max-width: 700px) {
+  .project-activity-tabs > button {
+    min-height: 42px;
+    font-size: 13px;
+  }
+  .project-activity-panel .project-next-summary > .jobs-button,
+  .project-activity-panel .project-action-buttons .jobs-button,
+  .project-activity-proof > .jobs-button {
+    min-height: 44px;
+    font-size: 13px;
+  }
+  .project-activity-disclosure {
+    min-height: 44px;
+  }
+}

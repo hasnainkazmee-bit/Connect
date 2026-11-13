@@ -2060,6 +2060,8 @@ export function JobDetailPage() {
   useEffect(() => {
     if (location.hash === "#work-checklist") {
       setTab(detail?.job.work_checklist?.length ? "tasks" : "updates");
+    } else if (location.hash === "#job-review") {
+      setTab("overview");
     }
   }, [location.hash, id, detail?.job.work_checklist?.length]);
   useEffect(() => {
@@ -3505,6 +3507,7 @@ export function JobDetailPage() {
                   key={`${job.id}:${company?.id}`}
                   jobId={job.id}
                   items={job.work_checklist}
+                  requestedItemId={searchParams.get("task")}
                   version={job.checklist_version}
                   progress
                   editable={
@@ -3736,7 +3739,10 @@ export function JobDetailPage() {
               participant &&
               admin &&
               progressView === "overview" && (
-                <details className="job-finished-feedback">
+                <details
+                  className="job-finished-feedback"
+                  open={location.hash === "#job-review" || undefined}
+                >
                   <summary>Leave a review of your experience</summary>
                   <p>
                     The work was accepted. Both companies can leave a review.

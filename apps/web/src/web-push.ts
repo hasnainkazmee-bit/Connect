@@ -266,10 +266,23 @@ export function notificationDestination(
     const comment = url.searchParams.get("comment");
     if (comment && UUID.test(comment)) query.set("comment", comment);
     const company = companyId || url.searchParams.get("notificationCompany");
+    // Job notifications can point directly at the review they require. Keep
+    // only known section anchors; arbitrary fragments and queries stay removed.
+    const jobHash =
+      url.pathname.startsWith("/jobs/") &&
+      UUID.test(url.pathname.slice("/jobs/".length)) &&
+      [
+        "#work-checklist",
+        "#job-review",
+        "#received-quotes",
+        "#quote-form",
+      ].includes(url.hash)
+        ? url.hash
+        : "";
     const path =
       url.pathname === "/account/updates"
         ? "/account#updates"
-        : url.pathname + (query.size ? "?" + query : "");
+        : url.pathname + (query.size ? "?" + query : "") + jobHash;
     return { path, companyId: company && UUID.test(company) ? company : null };
   } catch {
     return null;
