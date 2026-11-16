@@ -27,7 +27,7 @@ html.connect-desktop .app-main:has(.workspace-inbox) {
   --inbox-height: calc(100dvh - 86px);
   position: relative;
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: clamp(360px, 29vw, 440px) minmax(0, 1fr);
   height: var(--inbox-height);
   min-height: 240px;
   overflow: hidden;
@@ -72,7 +72,7 @@ html.connect-desktop .app-main:has(.workspace-inbox) {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 22px 20px 18px;
+  padding: 22px 20px 16px;
 }
 .workspace-inbox .inbox-list-heading h1 {
   font-size: 23px;
@@ -91,12 +91,8 @@ html.connect-desktop .app-main:has(.workspace-inbox) {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.inbox-list-heading > svg {
-  color: var(--muted);
-  flex-shrink: 0;
-}
 .inbox-list-tools {
-  padding: 0 14px 10px;
+  padding: 0 20px 12px;
   border-bottom: 1px solid var(--line);
 }
 .workspace-inbox .inbox-search {
@@ -169,7 +165,7 @@ html.connect-desktop .app-main:has(.workspace-inbox) {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 8px;
+  padding: 4px 12px 16px;
   scrollbar-width: thin;
   scrollbar-color: var(--line) transparent;
 }
@@ -247,7 +243,9 @@ html.connect-desktop .app-main:has(.workspace-inbox) {
   color: var(--muted);
   font-size: 11px;
   line-height: 1.5;
-  padding-right: 20px;
+}
+.workspace-inbox-thread.is-unread .inbox-thread-preview {
+  padding-right: 28px;
 }
 .workspace-inbox-thread.is-unread .inbox-thread-heading strong {
   font-weight: 750;
@@ -355,8 +353,8 @@ html.connect-desktop .app-main:has(.workspace-inbox) {
   margin-bottom: 23px;
 }
 .workspace-inbox .inbox-welcome h2 {
-  font-size: 24px;
-  margin: 0 0 10px;
+  font-size: 22px;
+  margin: 0 0 8px;
 }
 .workspace-inbox .inbox-welcome p {
   color: var(--muted);
@@ -364,16 +362,6 @@ html.connect-desktop .app-main:has(.workspace-inbox) {
   font-size: 13px;
   line-height: 1.8;
   margin: 0;
-}
-.inbox-welcome > div {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border-top: 1px solid var(--line);
-  padding-top: 22px;
-  margin-top: 28px;
-  font-size: 11px;
-  color: var(--muted);
 }
 .inbox-conversation {
   display: flex;
@@ -1190,9 +1178,6 @@ html.connect-desktop .app-main:has(.workspace-inbox) {
   }
   .inbox-activity-host {
     border-left: 0;
-  }
-  .inbox-layout {
-    grid-template-columns: 280px minmax(0, 1fr);
   }
   .inbox-message-scroll {
     padding-inline: 24px;

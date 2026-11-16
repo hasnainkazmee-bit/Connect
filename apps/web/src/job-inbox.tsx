@@ -345,7 +345,6 @@ function InboxWorkspace({ company }: { company: Company }) {
               <h1>Inbox</h1>
               <span>{company.name}</span>
             </div>
-            <MessageCircle size={21} />
           </header>
           <div className="inbox-list-tools">
             <label className="inbox-search">
@@ -418,12 +417,11 @@ function InboxWorkspace({ company }: { company: Company }) {
                   aria-label={jobThread.title}
                 >
                   <div className="project-thread-group-heading">
-                    <BriefcaseBusiness size={15} />
                     <strong title={jobThread.title}>{jobThread.title}</strong>
+                    <span className="project-thread-group-status">
+                      {statusLabels[jobThread.status]}
+                    </span>
                   </div>
-                  <span className="project-thread-group-status">
-                    {statusLabels[jobThread.status]}
-                  </span>
                   {result.threads
                     .filter((thread) => thread.job_id === jobThread.job_id)
                     .map((thread) => (
@@ -548,15 +546,8 @@ function InboxWorkspace({ company }: { company: Company }) {
             <span>
               <MessageCircle size={32} />
             </span>
-            <h2>Keep the conversation moving.</h2>
-            <p>
-              Choose a job conversation to compare quotes, discuss the work, and
-              agree on the next step.
-            </p>
-            <div>
-              <BriefcaseBusiness size={17} /> Every conversation stays with its
-              job.
-            </div>
+            <h2>Choose a conversation</h2>
+            <p>Your messages, grouped by job.</p>
           </section>
         )}
       </div>
