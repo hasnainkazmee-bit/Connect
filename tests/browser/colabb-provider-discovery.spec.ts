@@ -66,6 +66,9 @@ for (const viewport of windows) {
     await page.goto("/directory");
     await expect(page).toHaveURL(/\/providers$/);
     await expect(page.getByRole("heading", { name: "Find a company for the work." })).toBeVisible();
+    // Text can already exist behind the startup cover. Wait for its real
+    // interactive handoff before fill(), which can write to an inert input.
+    await expect(page.locator("#root")).not.toHaveAttribute("inert", "");
     await page.getByRole("searchbox", { name: "Company or service" }).fill(query);
     await page.getByRole("search").getByRole("button", { name: /Search/ }).click();
     await expect(page.getByRole("heading", { name: "2 companies", exact: true })).toBeVisible();
