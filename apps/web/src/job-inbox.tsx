@@ -188,7 +188,7 @@ export function JobInboxPage() {
     return (
       <div className="jobs-page workspace-inbox">
         <section className="jobs-panel inbox-access">
-          <MessageCircle size={32} />
+          <MessageCircle size={26} />
           <h1>Your conversations, together.</h1>
           <p>
             {session.user
@@ -406,68 +406,53 @@ function InboxWorkspace({ company }: { company: Company }) {
                 <span>Loading conversations…</span>
               </div>
             ) : result?.threads.length ? (
-              [
-                ...new Map(
-                  result.threads.map((thread) => [thread.job_id, thread]),
-                ).values(),
-              ].map((jobThread) => (
-                <section
-                  className="project-thread-group"
-                  key={jobThread.job_id}
-                  aria-label={jobThread.title}
+              result.threads.map((thread) => (
+                <button
+                  type="button"
+                  className={`workspace-inbox-thread ${selected === threadKey(thread) ? "is-selected" : ""} ${thread.unread_count ? "is-unread" : ""}`}
+                  key={threadKey(thread)}
+                  aria-current={
+                    selected === threadKey(thread) ? "true" : undefined
+                  }
+                  onClick={() => openThread(thread)}
                 >
-                  <div className="project-thread-group-heading">
-                    <strong title={jobThread.title}>{jobThread.title}</strong>
-                    <span className="project-thread-group-status">
-                      {statusLabels[jobThread.status]}
-                    </span>
-                  </div>
-                  {result.threads
-                    .filter((thread) => thread.job_id === jobThread.job_id)
-                    .map((thread) => (
-                      <button
-                        type="button"
-                        className={`workspace-inbox-thread ${selected === threadKey(thread) ? "is-selected" : ""} ${thread.unread_count ? "is-unread" : ""}`}
-                        key={threadKey(thread)}
-                        aria-current={
-                          selected === threadKey(thread) ? "true" : undefined
-                        }
-                        onClick={() => openThread(thread)}
+                  <JobLogo company={thread.company} />
+                  <span className="inbox-thread-copy">
+                    <span className="inbox-thread-heading">
+                      <strong title={thread.company.name}>
+                        {thread.company.name}
+                      </strong>
+                      <time
+                        dateTime={thread.updated_at}
+                        title={stamp(thread.updated_at, true)}
                       >
-                        <JobLogo company={thread.company} />
-                        <span className="inbox-thread-copy">
-                          <span className="inbox-thread-heading">
-                            <strong title={thread.company.name}>
-                              {thread.company.name}
-                            </strong>
-                            <time
-                              dateTime={thread.updated_at}
-                              title={stamp(thread.updated_at, true)}
-                            >
-                              {stamp(thread.updated_at)}
-                            </time>
-                          </span>
-                          <span className="inbox-thread-preview">
-                            {thread.sender_company_id === company.id &&
-                            thread.body
-                              ? "You: "
-                              : ""}
-                            {thread.body || "Discuss this job"}
-                          </span>
+                        {stamp(thread.updated_at)}
+                      </time>
+                    </span>
+                    <span className="inbox-thread-job" title={thread.title}>
+                      <BriefcaseBusiness size={13} aria-hidden="true" />
+                      <span>{thread.title}</span>
+                    </span>
+                    <span className="inbox-thread-last-message">
+                      <span className="inbox-thread-preview">
+                        {thread.sender_company_id === company.id && thread.body
+                          ? "You: "
+                          : ""}
+                        {thread.body || "Discuss this job"}
+                      </span>
+                      {thread.unread_count > 0 && (
+                        <span
+                          className="inbox-unread-count"
+                          aria-label={`${thread.unread_count} unread messages`}
+                        >
+                          {thread.unread_count > 99
+                            ? "99+"
+                            : thread.unread_count}
                         </span>
-                        {thread.unread_count > 0 && (
-                          <span
-                            className="inbox-unread-count"
-                            aria-label={`${thread.unread_count} unread messages`}
-                          >
-                            {thread.unread_count > 99
-                              ? "99+"
-                              : thread.unread_count}
-                          </span>
-                        )}
-                      </button>
-                    ))}
-                </section>
+                      )}
+                    </span>
+                  </span>
+                </button>
               ))
             ) : (
               !error && (
@@ -547,7 +532,7 @@ function InboxWorkspace({ company }: { company: Company }) {
               <MessageCircle size={32} />
             </span>
             <h2>Choose a conversation</h2>
-            <p>Your messages, grouped by job.</p>
+            <p>Select a conversation to view messages and files.</p>
           </section>
         )}
       </div>

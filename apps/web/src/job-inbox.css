@@ -27,7 +27,7 @@ html.connect-desktop .app-main:has(.workspace-inbox) {
   --inbox-height: calc(100dvh - 86px);
   position: relative;
   display: grid;
-  grid-template-columns: clamp(360px, 29vw, 440px) minmax(0, 1fr);
+  grid-template-columns: clamp(360px, 28vw, 420px) minmax(0, 1fr);
   height: var(--inbox-height);
   min-height: 240px;
   overflow: hidden;
@@ -165,7 +165,7 @@ html.connect-desktop .app-main:has(.workspace-inbox) {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 4px 12px 16px;
+  padding: 8px;
   scrollbar-width: thin;
   scrollbar-color: var(--line) transparent;
 }
@@ -173,10 +173,10 @@ html.connect-desktop .app-main:has(.workspace-inbox) {
   position: relative;
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
-  padding: 15px 10px;
-  margin-bottom: 3px;
+  padding: 16px 12px;
+  margin-bottom: 0;
   border: 1px solid transparent;
   border-radius: 12px;
   background: transparent;
@@ -191,10 +191,12 @@ html.connect-desktop .app-main:has(.workspace-inbox) {
   border-color: var(--line);
 }
 .workspace-inbox .workspace-inbox-thread .job-logo {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
-  border-radius: 9px;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 10px;
+  padding: 3px;
+  object-fit: contain;
   background: var(--surface);
 }
 .inbox-thread-copy {
@@ -216,36 +218,49 @@ html.connect-desktop .app-main:has(.workspace-inbox) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
 }
 .inbox-thread-heading time {
   flex: none;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--muted);
   white-space: nowrap;
 }
 .inbox-thread-job {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+.inbox-thread-job > svg {
+  flex: none;
+}
+.inbox-thread-job > span {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.5;
-  margin-bottom: 5px;
+}
+.inbox-thread-last-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .inbox-thread-preview {
   display: block;
+  min-width: 0;
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.5;
-}
-.workspace-inbox-thread.is-unread .inbox-thread-preview {
-  padding-right: 28px;
 }
 .workspace-inbox-thread.is-unread .inbox-thread-heading strong {
   font-weight: 750;
@@ -255,9 +270,7 @@ html.connect-desktop .app-main:has(.workspace-inbox) {
   font-weight: 550;
 }
 .inbox-unread-count {
-  position: absolute;
-  right: 11px;
-  bottom: 14px;
+  flex: none;
   min-width: 17px;
   height: 17px;
   padding: 0 4px;
@@ -341,6 +354,9 @@ html.connect-desktop .app-main:has(.workspace-inbox) {
   padding: 36px;
   min-width: 0;
 }
+.inbox-welcome {
+  background: var(--chat-canvas);
+}
 .inbox-welcome > span,
 .inbox-chat-empty > span {
   display: grid;
@@ -353,8 +369,15 @@ html.connect-desktop .app-main:has(.workspace-inbox) {
   margin-bottom: 23px;
 }
 .workspace-inbox .inbox-welcome h2 {
-  font-size: 22px;
+  font-size: 20px;
   margin: 0 0 8px;
+}
+.inbox-welcome > span {
+  width: 52px;
+  height: 52px;
+  margin-bottom: 16px;
+  background: var(--surface);
+  border-radius: 18px;
 }
 .workspace-inbox .inbox-welcome p {
   color: var(--muted);
