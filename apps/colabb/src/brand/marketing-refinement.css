@@ -2,7 +2,7 @@
 .mk-site .mx-headline h1{line-height:.84}
 .mx-hero{padding-bottom:44px}
 .mx-hero-display{position:relative}
-.mx-hero-actions{position:absolute;left:0;bottom:14px;display:flex;align-items:center}
+.mx-hero-actions{position:absolute;left:0;bottom:clamp(4px,.4vw,8px);display:flex;align-items:center}
 .mx-hero .mx-hero-actions .mx-hero-post{width:100%;min-height:68px;padding:18px 30px;font-size:20px;gap:20px;justify-content:space-between;text-decoration:none}
 .mx-hero-post>svg{width:24px;height:24px;flex:none}
 
@@ -34,7 +34,6 @@
 .mx-fit-caption{font-size:10px!important;margin:19px 0 0!important;line-height:1.5!important;color:var(--muted)}
 
 @media(min-width:1800px){
- .mx-hero-actions{bottom:21px}
  .mx-hero .mx-hero-actions .mx-hero-post{min-height:84px;padding:24px 38px;font-size:24px}
  .mx-hero-post>svg{width:28px;height:28px}
  .mx-fit-need,.mx-fit-company{padding:45px 55px;min-height:320px}
@@ -141,8 +140,6 @@
 @media(max-width:1000px){.mx-real-company{gap:24px;grid-template-columns:1.05fr 1fr auto}.mx-real-identity{gap:14px}.mx-real-mark{height:52px;width:52px}.mk-site .mx-real-identity h3{font-size:25px}.mx-real-kind,.mx-real-membership{font-size:9px}.mx-real-identity p{font-size:11px}.mx-real-services ul{display:block}.mx-real-services li{font-size:13px}.mx-real-services li:after{display:none}.mx-real-action .mk-btn{font-size:11px;padding-inline:18px;gap:12px}.mx-real-bottom .mk-link{font-size:13px}}
 @media(max-width:700px){.mx-real-network{padding:38px 0 25px}.mx-real-network .mx-section-intro p{font-size:14px;margin-top:17px;max-width:100%}.mx-real-network .mx-section-intro p br{display:none}.mx-real-list{margin-top:25px}.mx-real-company{grid-template-columns:1fr;gap:23px;padding:25px 0}.mx-real-identity{gap:17px}.mx-real-mark{height:54px;width:54px}.mx-real-kind{font-size:10px}.mk-site .mx-real-identity h3{font-size:27px;margin:6px 0 8px}.mx-real-identity p{font-size:12px}.mx-real-services{padding-left:71px}.mx-real-label{font-size:8px;margin-bottom:8px}.mx-real-services ul{display:flex;gap:3px 12px}.mx-real-services li{font-size:13px}.mx-real-services li:after{display:none}.mx-real-action{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:15px}.mx-real-membership{font-size:9px;gap:5px}.mx-real-action .mk-btn{font-size:11px;min-height:46px;padding-inline:17px}.mx-real-bottom{display:block;padding-top:17px}.mx-real-bottom .mk-link{font-size:13px}.mx-real-bottom>p{font-size:9px;margin-top:9px}}
 @media(max-width:380px){.mx-real-action{gap:10px}.mx-real-membership{max-width:135px;align-items:flex-start;font-size:9px}.mx-real-membership>svg{flex:none;margin-top:1px}.mx-real-action .mk-btn{padding-inline:14px;gap:10px}.mx-real-services{padding-left:0}.mx-real-services ul{column-gap:16px}}
-
-@media(min-width:1201px){.mx-hero-actions{bottom:22px}}
 
 
 /* An installation scene anchors the origin story; one continuous lineage follows it. */
