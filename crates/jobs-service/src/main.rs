@@ -1,3 +1,4 @@
+mod job_library;
 mod project_chat;
 mod project_publication;
 mod proposal_questions;
@@ -246,17 +247,38 @@ fn company_json() -> &'static str {
     "json_build_object('id',c.id,'name',c.name,'slug',c.slug,'username',c.username,\
      'logo_url',c.logo_url,'logo_style',c.logo_style,'location',c.location,'type',c.type,\
      'tagline',c.tagline,'description',c.description,'services',c.services,'service_areas',c.service_areas,
-     'is_demo',c.is_demo)"
+     'is_demo',c.is_demo,'listing_status',c.listing_status,'on_colabb',(c.listing_status='managed' AND EXISTS(SELECT 1 FROM memberships m WHERE m.company_id=c.id)))"
 }
 
 #[derive(Deserialize)]
 struct ProviderSearch {
+    credentials: Option<String>,
+    participation: Option<String>,
     q: Option<String>,
     trade: Option<String>,
     location: Option<String>,
     kind: Option<String>,
     sample: Option<bool>,
     page: Option<i64>,
+}
+fn provider_credentials(input: &str) -> Result<Vec<String>> {
+    if input.len() > 4000 {
+        return Err(bad("Choose up to 20 certifications."));
+    }
+    let mut values = Vec::new();
+    for item in input.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+        if item.len() > 180 || item.chars().any(char::is_control) {
+            return Err(bad("Check the certification filter."));
+        }
+        let value = item.to_lowercase();
+        if !values.contains(&value) {
+            values.push(value);
+        }
+    }
+    if values.len() > 20 {
+        return Err(bad("Choose up to 20 certifications."));
+    }
+    Ok(values)
 }
 async fn list_providers(
     State(app): State<Arc<App>>,
@@ -268,12 +290,23 @@ async fn list_providers(
     let trade = search.trade.unwrap_or_default();
     let location = search.location.unwrap_or_default();
     let kind = search.kind.unwrap_or_default();
+    let credentials = provider_credentials(search.credentials.as_deref().unwrap_or(""))?;
+    let participation = search.participation.unwrap_or_default();
+    if !matches!(participation.as_str(), "" | "managed" | "unclaimed") {
+        return Err(bad("Choose On Colabb, public listings, or all companies."));
+    }
     let rows: Vec<String> = sqlx::query_scalar(
         "SELECT (to_jsonb(c)||jsonb_build_object(
           'trades',COALESCE(p.trades,'{}'::text[]),'project_types',COALESCE(p.project_types,'{}'::text[]),
           'availability',COALESCE(p.availability,''),'crew_size',COALESCE(p.crew_size,''),
           'capacity',COALESCE(p.capacity,''),'project_count',(SELECT count(*) FROM projects pr WHERE pr.company_id=c.id),
-          'completed_jobs',(SELECT count(*) FROM job_reviews jr WHERE jr.reviewed_company_id=c.id)))::text
+          'completed_jobs',(SELECT count(*) FROM jobs j JOIN job_quotes q ON q.id=j.chosen_quote_id WHERE j.status='completed' AND q.provider_company_id=c.id),
+          'on_colabb',(c.listing_status='managed' AND EXISTS(SELECT 1 FROM memberships m WHERE m.company_id=c.id)),
+          'certification_count',(SELECT count(*) FROM company_credentials cc WHERE cc.company_id=c.id AND cc.category IN ('certification','qualification') AND (cc.valid_until IS NULL OR cc.valid_until>=CURRENT_DATE)),
+          'certifications',(SELECT COALESCE(jsonb_agg(jsonb_build_object('id',cc.id,'catalog_key',cc.catalog_key,'title',cc.title,'category',cc.category,'scope',cc.scope,'scope_detail',cc.scope_detail,'organization',cc.organization,'evidence_basis',cc.evidence_basis,'source_url',cc.source_url) ORDER BY cc.title,cc.scope),'[]') FROM company_credentials cc WHERE cc.company_id=c.id AND cc.category IN ('certification','qualification') AND (cc.valid_until IS NULL OR cc.valid_until>=CURRENT_DATE)),
+          'job_rating',(SELECT ROUND(AVG(r.rating)::numeric,1) FROM job_reviews r WHERE r.reviewed_company_id=c.id),
+          'job_review_count',(SELECT count(*) FROM job_reviews r WHERE r.reviewed_company_id=c.id),
+          'latestProject',(SELECT jsonb_build_object('id',pr.id,'name',pr.name,'description',pr.description,'location',pr.location,'image_url',NULLIF(pr.image_url,'/assets/solar.jpg'),'completed_year',pr.completed_year) FROM projects pr WHERE pr.company_id=c.id ORDER BY pr.completed_year DESC NULLS LAST,pr.id LIMIT 1)))::text
          FROM companies c LEFT JOIN provider_profiles p ON p.company_id=c.id
          LEFT JOIN provider_directory_pins pin ON pin.company_id=c.id
          LEFT JOIN provider_directory_completeness completeness ON completeness.company_id=c.id
@@ -285,12 +318,14 @@ async fn list_providers(
            AND ($4='' OR c.location ILIKE '%'||$4||'%' OR
              EXISTS(SELECT 1 FROM unnest(c.service_areas) a WHERE a ILIKE '%'||$4||'%'))
            AND ($6='' OR c.type=$6)
+           AND ($7='' OR (c.listing_status='managed' AND EXISTS(SELECT 1 FROM memberships m WHERE m.company_id=c.id))=($7='managed'))
+           AND (cardinality($8::text[])=0 OR EXISTS(SELECT 1 FROM company_credentials cc WHERE cc.company_id=c.id AND cc.category IN ('certification','qualification') AND (cc.valid_until IS NULL OR cc.valid_until>=CURRENT_DATE) AND (lower(cc.catalog_key)=ANY($8::text[]) OR lower(trim(cc.title))=ANY($8::text[]) OR ('title:'||md5(lower(trim(cc.title)))||':'||cc.scope)=ANY($8::text[]))))
          ORDER BY pin.position ASC NULLS LAST,
            (c.listing_status='managed' AND EXISTS(SELECT 1 FROM memberships m WHERE m.company_id=c.id)) DESC,
            completeness.score DESC,c.name,c.id
          LIMIT 24 OFFSET $5"
     ).bind(sample).bind(&q).bind(&trade)
-     .bind(&location).bind((page-1)*24).bind(&kind).fetch_all(&app.db).await?;
+     .bind(&location).bind((page-1)*24).bind(&kind).bind(&participation).bind(&credentials).fetch_all(&app.db).await?;
     let count: i64 = sqlx::query_scalar(
         "SELECT count(*) FROM companies c LEFT JOIN provider_profiles p ON p.company_id=c.id
          WHERE c.is_demo=$1
@@ -300,13 +335,17 @@ async fn list_providers(
              EXISTS(SELECT 1 FROM unnest(c.services) s WHERE s ILIKE '%'||$3||'%'))
            AND ($4='' OR c.location ILIKE '%'||$4||'%' OR
              EXISTS(SELECT 1 FROM unnest(c.service_areas) a WHERE a ILIKE '%'||$4||'%'))
-           AND ($5='' OR c.type=$5)",
+           AND ($5='' OR c.type=$5)
+           AND ($6='' OR (c.listing_status='managed' AND EXISTS(SELECT 1 FROM memberships m WHERE m.company_id=c.id))=($6='managed'))
+           AND (cardinality($7::text[])=0 OR EXISTS(SELECT 1 FROM company_credentials cc WHERE cc.company_id=c.id AND cc.category IN ('certification','qualification') AND (cc.valid_until IS NULL OR cc.valid_until>=CURRENT_DATE) AND (lower(cc.catalog_key)=ANY($7::text[]) OR lower(trim(cc.title))=ANY($7::text[]) OR ('title:'||md5(lower(trim(cc.title)))||':'||cc.scope)=ANY($7::text[]))))",
     )
     .bind(sample)
     .bind(&q)
     .bind(&trade)
     .bind(&location)
     .bind(&kind)
+    .bind(&participation)
+    .bind(&credentials)
     .fetch_one(&app.db)
     .await?;
     Ok(Json(
@@ -319,7 +358,7 @@ async fn provider_detail(
     Path(slug): Path<String>,
 ) -> Result<Json<Value>> {
     let raw: Option<String> = sqlx::query_scalar(
-        "SELECT (to_jsonb(c)||jsonb_build_object('trades',COALESCE(p.trades,'{}'::text[]),
+        "SELECT (to_jsonb(c)||jsonb_build_object('on_colabb',(c.listing_status='managed' AND EXISTS(SELECT 1 FROM memberships m WHERE m.company_id=c.id)),'trades',COALESCE(p.trades,'{}'::text[]),
          'project_types',COALESCE(p.project_types,'{}'::text[]),'availability',COALESCE(p.availability,''),
          'crew_size',COALESCE(p.crew_size,''),'capacity',COALESCE(p.capacity,''),
          'license_details',COALESCE(p.license_details,''),'insurance_details',COALESCE(p.insurance_details,''),'work_settings',p.work_settings,
@@ -394,6 +433,20 @@ struct Search {
     location: Option<String>,
     page: Option<i64>,
     sample: Option<bool>,
+    arrangement: Option<String>,
+    start: Option<String>,
+    sort: Option<String>,
+}
+fn discovery_order(value: &str) -> Result<&'static str> {
+    match value {
+        "" | "newest" => Ok("j.created_at DESC,j.id"),
+        "closing" => Ok("j.quote_deadline ASC NULLS LAST,j.created_at DESC,j.id"),
+        "budget" => Ok("j.budget_cents DESC NULLS LAST,j.created_at DESC,j.id"),
+        "start" => {
+            Ok("NULLIF(j.posting_details->>'startDate','') ASC NULLS LAST,j.created_at DESC,j.id")
+        }
+        _ => Err(bad("Choose a supported job sort order.")),
+    }
 }
 async fn list_jobs(
     State(app): State<Arc<App>>,
@@ -403,18 +456,30 @@ async fn list_jobs(
     let a = actor(&app, &headers).await?;
     let company = a.as_ref().and_then(|a| a.company.as_deref());
     let page = search.page.unwrap_or(1).clamp(1, 1000);
+    let arrangement = search.arrangement.unwrap_or_default();
+    if !["", "onsite", "remote", "hybrid"].contains(&arrangement.as_str()) {
+        return Err(bad("Choose a supported work location."));
+    }
+    let start = search.start.unwrap_or_default();
+    if !start.is_empty() && !provider_matching::date_valid(&start) {
+        return Err(bad("Choose a valid target start date."));
+    }
+    let order = discovery_order(search.sort.as_deref().unwrap_or("newest"))?;
     let sql = format!(
         "SELECT json_build_object('id',j.id,'title',j.title,'description',j.description,'trade',j.trade,\
          'people_needed',j.people_needed,'expected_duration',j.expected_duration,'work_arrangement',j.work_arrangement,'project_type',j.project_type,'system_size_kw',j.system_size_kw,'site_count',j.site_count,'location',j.location,'postal_code',j.postal_code,'start_window',j.start_window,'budget_cents',j.budget_cents,\
-         'quote_deadline',j.quote_deadline,'visibility',j.visibility,'status',j.status,'created_at',j.created_at,\
+         'quote_deadline',j.quote_deadline,'visibility',j.visibility,'status',j.status,'created_at',j.created_at,'posting_details',j.posting_details,\
          'company',{},'quote_count',(SELECT count(*) FROM job_quotes q WHERE q.job_id=j.id AND q.status='submitted' AND NOT q.upload_pending),\
-         'invited',EXISTS(SELECT 1 FROM job_invitations i WHERE i.job_id=j.id AND i.provider_company_id=$1::uuid))::text \
+         'invited',EXISTS(SELECT 1 FROM job_invitations i WHERE i.job_id=j.id AND i.provider_company_id=$1::uuid),'saved',EXISTS(SELECT 1 FROM job_saved s WHERE s.job_id=j.id AND s.company_id=$1::uuid),'draftVersion',(SELECT version FROM job_proposal_drafts d WHERE d.job_id=j.id AND d.company_id=$1::uuid))::text \
          FROM jobs j JOIN companies c ON c.id=j.hiring_company_id WHERE j.status='open' \
          AND (j.visibility='open' OR EXISTS(SELECT 1 FROM job_invitations i WHERE i.job_id=j.id AND i.provider_company_id=$1::uuid AND i.status='pending')) \
          AND ($1::uuid IS NULL OR j.hiring_company_id<>$1::uuid) \
          AND ($2='' OR j.title ILIKE '%'||$2||'%' OR j.description ILIKE '%'||$2||'%') \
          AND ($3='' OR j.trade=$3) AND ($4='' OR j.location ILIKE '%'||$4||'%') \
-         AND c.is_demo=$6 AND (j.quote_deadline IS NULL OR j.quote_deadline>=now()) ORDER BY j.created_at DESC,j.id LIMIT 25 OFFSET $5", company_json()
+         AND c.is_demo=$6 AND (j.quote_deadline IS NULL OR j.quote_deadline>=now()) \
+         AND ($7='' OR j.work_arrangement=$7) \
+         AND ($8='' OR (j.posting_details->>'startMode'='date' AND j.posting_details->>'startDate'<=$8)) \
+         ORDER BY {order} LIMIT 25 OFFSET $5", company_json()
     );
     let rows: Vec<String> = sqlx::query_scalar(&sql)
         .bind(company)
@@ -423,6 +488,8 @@ async fn list_jobs(
         .bind(search.location.unwrap_or_default())
         .bind((page - 1) * 24)
         .bind(search.sample.unwrap_or(false))
+        .bind(arrangement)
+        .bind(start)
         .fetch_all(&app.db)
         .await?;
     Ok(Json(
@@ -2082,20 +2149,35 @@ async fn work_profile(
     if slug.len() > 100 || slug.is_empty() {
         return Err(not_found());
     }
-    let id: String =
-        sqlx::query_scalar("SELECT id::text FROM companies WHERE slug=$1 OR username=$1 LIMIT 1")
-            .bind(&slug)
-            .fetch_optional(&app.db)
-            .await?
-            .ok_or_else(not_found)?;
+    let id: String = sqlx::query_scalar(
+        "SELECT id::text FROM companies WHERE slug=$1 OR username=$1 OR id::text=$1 LIMIT 1",
+    )
+    .bind(&slug)
+    .fetch_optional(&app.db)
+    .await?
+    .ok_or_else(not_found)?;
     let row = sqlx::query("SELECT COUNT(*)::bigint AS review_count,COALESCE(ROUND(AVG(rating)::numeric,1),0)::float8 AS rating FROM job_reviews WHERE reviewed_company_id=$1::uuid")
         .bind(&id).fetch_one(&app.db).await?;
-    let completed: i64 = sqlx::query_scalar("SELECT count(*) FROM jobs j JOIN job_quotes q ON q.id=j.chosen_quote_id WHERE j.status='completed' AND q.provider_company_id=$1::uuid")
+    let record = sqlx::query("WITH completed AS (SELECT j.id,j.hiring_company_id,(SELECT max(e.created_at) FROM job_conversation_events e WHERE e.job_id=j.id AND e.kind='work_accepted') AS accepted_at FROM jobs j JOIN job_quotes q ON q.id=j.chosen_quote_id WHERE j.status='completed' AND q.provider_company_id=$1::uuid), hirers AS (SELECT hiring_company_id,count(*) AS jobs,(array_agg(accepted_at ORDER BY accepted_at))[2] AS returned_at FROM completed GROUP BY hiring_company_id) SELECT count(*)::bigint AS completed,count(DISTINCT hiring_company_id)::bigint AS distinct_hirers,(SELECT count(*) FROM hirers WHERE jobs>=2)::bigint AS returning_hirers,count(*) FILTER(WHERE accepted_at IS NULL)::bigint AS unknown_dates,min(accepted_at)::text AS first_at,(SELECT accepted_at::text FROM completed ORDER BY accepted_at LIMIT 1 OFFSET 4) AS fifth_at,(SELECT accepted_at::text FROM completed ORDER BY accepted_at LIMIT 1 OFFSET 9) AS tenth_at,(SELECT returned_at::text FROM hirers WHERE jobs>=2 ORDER BY returned_at LIMIT 1 OFFSET 4) AS fifth_return_at FROM completed")
         .bind(&id).fetch_one(&app.db).await?;
-    let rows: Vec<String> = sqlx::query_scalar("SELECT json_build_object('id',r.id,'rating',r.rating,'text',r.text,'created_at',r.created_at,'reviewer',c.name)::text FROM job_reviews r JOIN companies c ON c.id=r.reviewer_company_id WHERE r.reviewed_company_id=$1::uuid ORDER BY r.created_at DESC LIMIT 5")
+    let completed = record.get::<i64, _>("completed");
+    let returning = record.get::<i64, _>("returning_hirers");
+    let known_dates = record.get::<i64, _>("unknown_dates") == 0;
+    let first = if known_dates {
+        record.get::<Option<String>, _>("first_at")
+    } else {
+        None
+    };
+    let milestones = [
+        ("first-job", "First job completed", 1, completed, "first_at"),
+        ("five-jobs", "5 jobs completed", 5, completed, "fifth_at"),
+        ("ten-jobs", "10 jobs completed", 10, completed, "tenth_at"),
+        ("five-returning-hirers", "5 returning hirers", 5, returning, "fifth_return_at"),
+    ].into_iter().map(|(id,title,target,count,date)|json!({"id":id,"title":title,"target":target,"count":count,"earned":count>=target,"earnedAt":if known_dates&&count>=target {record.get::<Option<String>,_>(date)}else{None}})).collect::<Vec<_>>();
+    let rows: Vec<String> = sqlx::query_scalar("SELECT json_build_object('id',r.id,'rating',r.rating,'text',r.text,'created_at',r.created_at,'reviewer',c.name,'reviewerLogo',c.logo_url,'reviewerUsername',COALESCE(c.username,c.slug),'reviewerRole',CASE WHEN r.reviewer_company_id=j.hiring_company_id THEN 'hiring_company' ELSE 'provider' END,'jobTitle',CASE WHEN j.visibility='open' THEN j.title ELSE NULL END)::text FROM job_reviews r JOIN companies c ON c.id=r.reviewer_company_id JOIN jobs j ON j.id=r.job_id WHERE r.reviewed_company_id=$1::uuid ORDER BY r.created_at DESC LIMIT 5")
         .bind(&id).fetch_all(&app.db).await?;
     Ok(Json(
-        json!({"rating":row.get::<f64,_>("rating"),"reviewCount":row.get::<i64,_>("review_count"),"completedJobs":completed,"reviews":rows.into_iter().map(parse_json).collect::<Result<Vec<_>>>()?}),
+        json!({"rating":row.get::<f64,_>("rating"),"reviewCount":row.get::<i64,_>("review_count"),"completedJobs":completed,"distinctHirers":record.get::<i64,_>("distinct_hirers"),"returningHirers":returning,"firstCompletedAt":first,"milestones":milestones,"reviews":rows.into_iter().map(parse_json).collect::<Result<Vec<_>>>()?}),
     ))
 }
 
@@ -2109,6 +2191,18 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let routes = Router::new()
         .route("/health", get(health))
         .route("/jobs", get(list_jobs).post(create_job))
+        .route("/jobs/saved", get(job_library::saved))
+        .route("/jobs/proposal-drafts", get(job_library::drafts))
+        .route(
+            "/jobs/{id}/saved",
+            axum::routing::put(job_library::set_saved),
+        )
+        .route(
+            "/jobs/{id}/proposal-draft",
+            get(job_library::draft)
+                .put(job_library::save_draft)
+                .delete(job_library::delete_draft),
+        )
         .route("/jobs/provider-taxonomy", get(provider_matching::taxonomy))
         .route("/jobs/provider-matches", post(provider_matching::preview))
         .route(

@@ -81,6 +81,8 @@ pub(super) async fn send(
         }
     }
     let questions_version: i32 = job.get("questions_version");
+    let proposal_draft_version =
+        job_library::submission_version(&mut tx, &id, company, &body).await?;
     let questions = parse_json(job.get("proposal_questions"))?;
     let proposal_answers = proposal_questions::snapshot(&body, &questions, questions_version)?;
     let previous = sqlx::query("SELECT id::text,current_version,status FROM job_quotes WHERE job_id=$1::uuid AND provider_company_id=$2::uuid FOR UPDATE")
@@ -116,8 +118,8 @@ pub(super) async fn send(
     let quote_id: String = sqlx::query_scalar("INSERT INTO job_quotes(job_id,provider_company_id,author_id,amount_cents,start_window,duration,note,included,excluded,payment_terms,price_breakdown,current_version,upload_pending,expected_files,proposal_answers,questions_version) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15::jsonb,$16) ON CONFLICT(job_id,provider_company_id) DO UPDATE SET author_id=$3::uuid,amount_cents=$4,start_window=$5,duration=$6,note=$7,included=$8,excluded=$9,payment_terms=$10,price_breakdown=$11::jsonb,current_version=$12,upload_pending=$13,expected_files=$14,proposal_answers=$15::jsonb,questions_version=$16,status='submitted',decision_note='',accepted_version=NULL,updated_at=now() RETURNING id::text")
         .bind(&id).bind(company).bind(&actor.user).bind(amount).bind(start).bind(duration).bind(note).bind(included).bind(excluded).bind(payment).bind(breakdown.to_string()).bind(current_version).bind(attachment_count>0).bind(attachment_count).bind(proposal_answers.to_string()).bind(questions_version).fetch_one(&mut *tx).await?;
     let terms = json!({"amount_cents":amount,"start_window":start,"duration":duration,"note":note,"included":included,"excluded":excluded,"payment_terms":payment,"price_breakdown":breakdown,"proposal_answers":proposal_answers,"questions_version":questions_version});
-    sqlx::query("INSERT INTO job_quote_versions(quote_id,version,terms,author_id,revision_note) VALUES($1::uuid,$2,$3::jsonb,$4::uuid,$5)")
-        .bind(&quote_id).bind(current_version).bind(terms.to_string()).bind(&actor.user).bind(revision_note).execute(&mut *tx).await?;
+    sqlx::query("INSERT INTO job_quote_versions(quote_id,version,terms,author_id,revision_note,proposal_draft_version) VALUES($1::uuid,$2,$3::jsonb,$4::uuid,$5,$6)")
+        .bind(&quote_id).bind(current_version).bind(terms.to_string()).bind(&actor.user).bind(revision_note).bind(proposal_draft_version).execute(&mut *tx).await?;
     if current_version > 1 {
         sqlx::query("INSERT INTO job_quote_version_files(quote_id,version,file_id) SELECT quote_id,$2,file_id FROM job_quote_version_files WHERE quote_id=$1::uuid AND version=$2-1")
             .bind(&quote_id).bind(current_version).execute(&mut *tx).await?;
@@ -127,6 +129,7 @@ pub(super) async fn send(
         .execute(&mut *tx)
         .await?;
     if attachment_count == 0 {
+        job_library::clear_published(&mut tx, &id, company, proposal_draft_version).await?;
         sqlx::query("INSERT INTO job_quote_publications(quote_id,version) VALUES($1::uuid,$2)")
             .bind(&quote_id)
             .bind(current_version)

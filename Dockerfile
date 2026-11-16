@@ -3,6 +3,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
+COPY apps/colabb/package.json apps/colabb/package.json
 RUN npm ci
 COPY . .
 ARG CONNECT_RELEASE=development
@@ -24,6 +25,7 @@ COPY --from=build --chown=node:node /app/apps/api/dist apps/api/dist
 COPY --from=build --chown=node:node /app/apps/api/data apps/api/data
 COPY --from=build --chown=node:node /app/apps/api/migrations apps/api/migrations
 COPY --from=build --chown=node:node /app/apps/web/dist apps/web/dist
+COPY --from=build --chown=node:node /app/apps/colabb/dist apps/colabb/dist
 RUN mkdir -p /app/uploads && chown node:node /app/uploads
 USER node
 EXPOSE 4100

@@ -4,11 +4,12 @@
   "private": true,
   "workspaces": [
     "apps/api",
-    "apps/web"
+    "apps/web",
+    "apps/colabb"
   ],
   "scripts": {
     "dev": "concurrently -k -n api,web \"npm run dev -w apps/api\" \"npm run dev -w apps/web\"",
-    "build": "npm run build -w apps/web && npm run build -w apps/api",
+    "build": "npm run build -w apps/web && npm run build -w apps/colabb && npm run build -w apps/api",
     "typecheck": "npm run typecheck --workspaces",
     "start": "npm run start -w apps/api",
     "migrate": "npm run migrate -w apps/api",
@@ -38,7 +39,8 @@
     "test:provider-matching-api": "node tests/provider-matching-api.mjs",
     "providers:publish-batches": "node apps/api/dist/publish-provider-batches.js",
     "providers:prepare-publication": "python3 tools/build-provider-publication.py",
-    "test:provider-publication": "python3 tests/provider-publication.test.py"
+    "test:provider-publication": "python3 tests/provider-publication.test.py",
+    "dev:colabb": "npm run dev -w apps/colabb"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0",

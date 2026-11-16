@@ -1,0 +1,719 @@
+import { useEffect, useRef, useState } from "react";
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Building2,
+  Check,
+  ChevronDown,
+  Factory,
+  ExternalLink,
+  FileText,
+  Globe,
+  Hammer,
+  HardHat,
+  LoaderCircle,
+  MapPinned,
+  MapPin,
+  Search,
+  Star,
+  Truck,
+  Wrench,
+  X,
+} from "lucide-react";
+import { api } from "./api";
+import { useApp } from "./context";
+import { Logo } from "./identity";
+import type { Company } from "./types";
+
+type Results = {
+  companies: Company[];
+  total: number;
+  services: string[];
+  areas: string[];
+  types: Record<string, number>;
+  certifications: {
+    value: string;
+    label: string;
+    organization: string;
+    count: number;
+  }[];
+  page: number;
+  pageSize: number;
+  places: { slug: string; name: string; region: string }[];
+};
+const categories = [
+  { label: "All companies", value: "", icon: Building2 },
+  { label: "Installers", value: "Installer", icon: HardHat },
+  { label: "EPCs", value: "EPC", icon: Building2 },
+  { label: "Manufacturers", value: "Manufacturer", icon: Factory },
+  { label: "Contractors", value: "Contractor", icon: Hammer },
+  { label: "Developers", value: "Developer", icon: MapPinned },
+  { label: "Distributors", value: "Distributor", icon: Truck },
+  { label: "Service providers", value: "Service provider", icon: Wrench },
+];
+function cardClass(company: Company) {
+  const hasEvidence = !!(
+    company.certifications?.length || company.directory_profiles?.length
+  );
+  const isSparse = !(
+    company.tagline ||
+    company.description ||
+    company.location ||
+    company.service_areas.length ||
+    company.services.length ||
+    hasEvidence
+  );
+  return [
+    "discovery-card",
+    hasEvidence && "has-evidence",
+    isSparse && "is-sparse",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+export function Directory({ home = false }: { home?: boolean }) {
+  const { session, revision, createCompany, signIn } = useApp();
+  const navigate = useNavigate();
+  const { place } = useParams();
+  const [params, setParams] = useSearchParams();
+  const query = new URLSearchParams(params);
+  if (place) {
+    query.set("type", "Installer");
+    query.set("area", place);
+  }
+  const queryKey = query.toString();
+  const [data, setData] = useState<Results | null>(null),
+    [error, setError] = useState(""),
+    [loading, setLoading] = useState(true);
+  const [certificationOpen, setCertificationOpen] = useState(false);
+  const [certificationSearch, setCertificationSearch] = useState("");
+  const certificationRef = useRef<HTMLDivElement>(null);
+  const type = query.get("type") || "",
+    area = query.get("area") || "",
+    q = query.get("q") || "";
+  useEffect(() => {
+    const abort = new AbortController();
+    setLoading(true);
+    setError("");
+    api<Results>("/companies?" + queryKey, { signal: abort.signal })
+      .then((r) => {
+        if (!abort.signal.aborted) setData(r);
+      })
+      .catch((e) => {
+        if (!abort.signal.aborted) setError(e.message);
+      })
+      .finally(() => {
+        if (!abort.signal.aborted) setLoading(false);
+      });
+    return () => abort.abort();
+  }, [queryKey, revision]);
+  const placeName = data?.places.find((p) => p.slug === place)?.name;
+  useEffect(() => {
+    document.title = placeName
+      ? `Solar installers serving ${placeName} | Connect`
+      : "Find solar companies | Connect";
+  }, [placeName]);
+  useEffect(() => {
+    if (!certificationOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!certificationRef.current?.contains(event.target as Node))
+        setCertificationOpen(false);
+    };
+    const closeEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCertificationOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeEscape);
+    };
+  }, [certificationOpen]);
+  const change = (key: string, value: string) => {
+    const next = new URLSearchParams(query);
+    next.delete("page");
+    value ? next.set(key, value) : next.delete(key);
+    if (place) navigate("/directory?" + next.toString());
+    else setParams(next);
+  };
+  const selectedCertifications = query.getAll("certification");
+  const changeCertifications = (values: string[]) => {
+    const next = new URLSearchParams(query);
+    next.delete("page");
+    next.delete("certification");
+    values.forEach((value) => next.append("certification", value));
+    if (place) navigate("/directory?" + next.toString());
+    else setParams(next);
+  };
+  const availableCertifications = (data?.certifications || []).filter((item) =>
+    `${item.label} ${item.organization}`
+      .toLowerCase()
+      .includes(certificationSearch.trim().toLowerCase()),
+  );
+  const filtered = !!(
+    q ||
+    type ||
+    area ||
+    query.get("service") ||
+    selectedCertifications.length ||
+    query.get("audience") ||
+    query.get("office")
+  );
+  const clear = () => (place ? navigate("/directory") : setParams({}));
+  return (
+    <div className={"discovery " + (home ? "discovery-home" : "")}>
+      <section className="discovery-intro">
+        <div>
+          <span className="discovery-eyebrow">
+            <span /> THE SOLAR DIRECTORY
+          </span>
+          <h1>
+            {placeName ? (
+              <>
+                Solar installers
+                <br />
+                serving {placeName}.
+              </>
+            ) : home ? (
+              <>
+                Find the right company.
+                <br />
+                Bring your next project to life.
+              </>
+            ) : (
+              "Discover companies"
+            )}
+          </h1>
+          <p>
+            Explore solar installers, manufacturers and partners. Get to know
+            their work, then get in touch.
+          </p>
+        </div>
+        <div className="discovery-intro-note">
+          <img src="/assets/connect-icon.png" alt="" />
+          <span>
+            Connect.
+            <br />
+            Talk.
+            <br />
+            Celebrate.
+          </span>
+        </div>
+      </section>
+      <form
+        className="discovery-search"
+        key={q + area}
+        onSubmit={(e) => {
+          e.preventDefault();
+          const form = new FormData(e.currentTarget);
+          const next = new URLSearchParams(query);
+          next.delete("page");
+          for (const field of ["q", "area"]) {
+            const value = String(form.get(field) || "").trim();
+            value ? next.set(field, value) : next.delete(field);
+          }
+          navigate("/directory" + (next.size ? "?" + next.toString() : ""));
+        }}
+      >
+        <label>
+          <Search size={21} />
+          <span>
+            <b>What are you looking for?</b>
+            <input
+              name="q"
+              aria-label="Search directory"
+              defaultValue={q}
+              placeholder="Company name or service"
+              maxLength={100}
+            />
+          </span>
+        </label>
+        <label>
+          <MapPin size={21} />
+          <span>
+            <b>Where do you need them?</b>
+            <input
+              name="area"
+              aria-label="Service area"
+              defaultValue={placeName || area}
+              placeholder="City or state"
+              list="directory-areas"
+              maxLength={60}
+            />
+          </span>
+        </label>
+        <datalist id="directory-areas">
+          {[
+            ...new Set([
+              ...(data?.places.map((p) => p.name) || []),
+              ...(data?.areas || []),
+            ]),
+          ].map((a) => (
+            <option key={a} value={a} />
+          ))}
+        </datalist>
+        <button className="button primary" aria-label="Search">
+          <Search size={17} />
+          <span>Find companies</span>
+        </button>
+      </form>
+      <div className="discovery-filters">
+        <nav className="discovery-categories" aria-label="Business categories">
+          {categories.map(({ label, value, icon: Icon }) => (
+            <button
+              key={label}
+              aria-pressed={type === value}
+              onClick={() => change("type", value)}
+            >
+              <Icon size={17} />
+              {label}
+            </button>
+          ))}
+        </nav>
+        <div className="discovery-selects">
+          <select
+            aria-label="Company type"
+            value={type}
+            onChange={(e) => change("type", e.target.value)}
+          >
+            <option value="">All business types</option>
+            {[
+              "Installer",
+              "Manufacturer",
+              "EPC",
+              "Contractor",
+              "Developer",
+              "Distributor",
+              "Service provider",
+            ].map((x) => (
+              <option key={x}>{x}</option>
+            ))}
+          </select>
+          <select
+            aria-label="Services"
+            value={query.get("service") || ""}
+            onChange={(e) => change("service", e.target.value)}
+          >
+            <option value="">All services</option>
+            {(data?.services || []).map((x) => (
+              <option key={x}>{x}</option>
+            ))}
+          </select>
+          <select
+            aria-label="Project type"
+            value={query.get("audience") || ""}
+            onChange={(e) => change("audience", e.target.value)}
+          >
+            <option value="">Any project</option>
+            <option value="Residential">For my home</option>
+            <option value="Commercial">For my business</option>
+            <option value="Utility-scale">Utility-scale</option>
+          </select>
+          <div
+            className="discovery-certification-filter"
+            ref={certificationRef}
+          >
+            <button
+              type="button"
+              className="discovery-certification-trigger"
+              aria-label="Certifications and qualifications"
+              aria-expanded={certificationOpen}
+              aria-controls="discovery-certification-options"
+              onClick={() => setCertificationOpen((open) => !open)}
+            >
+              <span>
+                {selectedCertifications.length === 0
+                  ? "Any certification"
+                  : selectedCertifications.length === 1
+                    ? data?.certifications.find(
+                        (item) => item.value === selectedCertifications[0],
+                      )?.label || selectedCertifications[0]
+                    : `${selectedCertifications.length} certifications`}
+              </span>
+              <ChevronDown size={15} />
+            </button>
+            {certificationOpen && (
+              <div
+                className="discovery-certification-menu"
+                id="discovery-certification-options"
+              >
+                <div className="discovery-certification-menu-header">
+                  <strong>Certifications</strong>
+                  {selectedCertifications.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => changeCertifications([])}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <p>Show companies with any selected credential.</p>
+                <label className="discovery-certification-search">
+                  <Search size={15} />
+                  <input
+                    aria-label="Search certifications"
+                    value={certificationSearch}
+                    onChange={(event) =>
+                      setCertificationSearch(event.target.value)
+                    }
+                    placeholder="Search certifications"
+                  />
+                </label>
+                <div className="discovery-certification-options">
+                  {Object.entries(
+                    availableCertifications.reduce<
+                      Record<string, Results["certifications"]>
+                    >((groups, item) => {
+                      const organization =
+                        item.organization || "Other credentials";
+                      (groups[organization] ||= []).push(item);
+                      return groups;
+                    }, {}),
+                  ).map(([organization, certifications]) => (
+                    <div
+                      key={organization}
+                      className="discovery-certification-group"
+                    >
+                      <h3>{organization}</h3>
+                      {certifications.map((item) => (
+                        <label
+                          key={item.value}
+                          className="discovery-certification-option"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedCertifications.includes(
+                              item.value,
+                            )}
+                            onChange={(event) =>
+                              changeCertifications(
+                                event.target.checked
+                                  ? [...selectedCertifications, item.value]
+                                  : selectedCertifications.filter(
+                                      (value) => value !== item.value,
+                                    ),
+                              )
+                            }
+                          />
+                          <span>{item.label}</span>
+                          <small>{item.count}</small>
+                        </label>
+                      ))}
+                    </div>
+                  ))}
+                  {!availableCertifications.length && (
+                    <div className="discovery-certification-none">
+                      No matching certifications
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          {filtered && (
+            <button className="text-button" onClick={clear}>
+              <X size={14} />
+              Clear filters
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="discovery-results-heading" aria-live="polite">
+        <span>
+          {loading ? (
+            "Finding companies…"
+          ) : (
+            <>
+              <strong>{data?.total || 0}</strong>{" "}
+              {data?.total === 1 ? "company" : "companies"}
+              {area ? ` serving ${placeName || area}` : " to explore"}
+            </>
+          )}
+        </span>
+        <span>Public profiles. Open to everyone.</span>
+      </div>
+      {error ? (
+        <div role="alert" className="discovery-empty">
+          <h2>We couldn’t load the directory.</h2>
+          <p>{error}</p>
+          <button className="button" onClick={() => window.location.reload()}>
+            Try again
+          </button>
+        </div>
+      ) : loading && !data ? (
+        <div className="discovery-loading">
+          <LoaderCircle className="spin" />
+          Loading companies…
+        </div>
+      ) : (
+        <>
+          <section
+            className="discovery-grid"
+            aria-label="Company listings"
+            aria-busy={loading}
+          >
+            {data?.companies.map((c) => (
+              <article className={cardClass(c)} key={c.id}>
+                <Link
+                  className="discovery-card-link"
+                  to={"/" + (c.username || c.slug)}
+                >
+                  <div className="discovery-card-top">
+                    {c.logo_url && <Logo company={c} />}
+                    <span className="discovery-type">{c.type}</span>
+                  </div>
+                  <h2>
+                    <span>{c.name}</span>
+                    <ArrowUpRight size={17} />
+                  </h2>
+                  {(c.tagline || c.description) && (
+                    <p className="discovery-tagline">
+                      {c.tagline || c.description}
+                    </p>
+                  )}
+                  {(!!c.location || !!c.service_areas.length) && (
+                    <div className="discovery-facts">
+                      {c.location && (
+                        <span>
+                          <MapPin size={14} />
+                          {c.location}
+                        </span>
+                      )}
+                      {!!c.service_areas.length && (
+                        <span>
+                          <Globe size={14} />
+                          <span>
+                            {(c.type === "Manufacturer"
+                              ? "Supplies "
+                              : "Serves ") +
+                              c.service_areas.slice(0, 2).join(" · ") +
+                              (c.service_areas.length > 2
+                                ? ` +${c.service_areas.length - 2}`
+                                : "")}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {!!c.services.length && (
+                    <div className="discovery-tags">
+                      {c.services.slice(0, 3).map((s) => (
+                        <span key={s}>{s}</span>
+                      ))}
+                    </div>
+                  )}
+                  {(!!c.certifications?.length ||
+                    !!c.directory_profiles?.length) && (
+                    <div className="discovery-evidence">
+                      {!!c.certifications?.length && (
+                        <div
+                          className="discovery-evidence-row discovery-certifications"
+                          aria-label="Certifications and qualifications"
+                        >
+                          <FileText size={15} aria-hidden="true" />
+                          <div className="discovery-evidence-content">
+                            <span className="discovery-evidence-label">
+                              Credentials
+                            </span>
+                            <span className="discovery-evidence-values">
+                              {c.certifications
+                                .slice(0, 1)
+                                .map((certificate) => (
+                                  <span
+                                    className="discovery-certificate"
+                                    key={certificate.id}
+                                    title={certificate.title}
+                                  >
+                                    {certificate.title}
+                                  </span>
+                                ))}
+                              {(c.certification_count || 0) > 1 && (
+                                <span
+                                  className="discovery-certificate-more"
+                                  aria-label={`${c.certification_count! - 1} more certifications and qualifications`}
+                                >
+                                  +{c.certification_count! - 1}
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      {!!c.directory_profiles?.length && (
+                        <div
+                          className="discovery-evidence-row discovery-directory-profiles"
+                          aria-label="External directory profiles"
+                        >
+                          <ExternalLink size={15} aria-hidden="true" />
+                          <div className="discovery-evidence-content">
+                            <span className="discovery-evidence-label">
+                              Listed on
+                            </span>
+                            <span className="discovery-evidence-values">
+                              {c.directory_profiles
+                                .slice(0, 1)
+                                .map((listing) => (
+                                  <span
+                                    className="discovery-directory-name"
+                                    key={listing.id}
+                                    title={`${listing.title} · ${listing.scope_detail}`}
+                                  >
+                                    {listing.organization || listing.title}
+                                  </span>
+                                ))}
+                              {(c.directory_profile_count || 0) > 1 && (
+                                <span
+                                  className="discovery-directory-more"
+                                  aria-label={`${c.directory_profile_count! - 1} more directory profiles`}
+                                >
+                                  +{c.directory_profile_count! - 1}
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div
+                    className={`discovery-card-footer${c.review_count || c.google_review_count ? " has-ratings" : ""}`}
+                  >
+                    {(!!c.review_count || !!c.google_review_count) && (
+                      <div className="discovery-rating-sources">
+                        {!!c.review_count && (
+                          <span
+                            aria-label={`Connect rating ${c.rating_average?.toFixed(1)} out of 5 from ${c.review_count} reviews`}
+                          >
+                            <Star
+                              size={13}
+                              fill="currentColor"
+                              aria-hidden="true"
+                            />
+                            <b>{c.rating_average?.toFixed(1)}</b>
+                            <small>Connect</small>
+                          </span>
+                        )}
+                        {!!c.google_review_count && c.google_rating != null && (
+                          <span
+                            aria-label={`Google rating ${c.google_rating.toFixed(1)} out of 5 from ${c.google_review_count} reviews for ${c.google_location_title || c.name}`}
+                          >
+                            <img
+                              src="/assets/google-maps-darkgray.svg"
+                              alt=""
+                              aria-hidden="true"
+                            />
+                            <b>{c.google_rating.toFixed(1)}</b>
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <span>
+                      {c.listing_status === "unclaimed" ? (
+                        "View company"
+                      ) : (
+                        <>
+                          <span className="discovery-online" />
+                          On Connect
+                        </>
+                      )}
+                      <ArrowRight size={15} />
+                    </span>
+                  </div>
+                </Link>
+              </article>
+            ))}
+          </section>
+          {!data?.companies.length && (
+            <div className="discovery-empty">
+              <Search size={28} />
+              <h2>No companies match just yet.</h2>
+              <p>
+                Try a nearby city, a state, or fewer filters. We’re adding more
+                companies.
+              </p>
+              <button className="button" onClick={clear}>
+                Explore all companies
+              </button>
+            </div>
+          )}
+          {data && data.total > data.pageSize && (
+            <div className="directory-pagination">
+              <button
+                className="button"
+                disabled={data.page === 1}
+                onClick={() => {
+                  const p = new URLSearchParams(query);
+                  p.set("page", String(data.page - 1));
+                  setParams(p);
+                }}
+              >
+                Previous
+              </button>
+              <span>
+                Page {data.page} of {Math.ceil(data.total / data.pageSize)}
+              </span>
+              <button
+                className="button"
+                disabled={data.page * data.pageSize >= data.total}
+                onClick={() => {
+                  const p = new URLSearchParams(query);
+                  p.set("page", String(data.page + 1));
+                  setParams(p);
+                }}
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
+      )}
+      <section className="discovery-bottom">
+        <div className="discovery-owner">
+          <Building2 size={25} />
+          <div>
+            <h2>Your company belongs here.</h2>
+            <p>
+              Claim an existing profile or add your business. Manage your
+              listing, share your work and meet your next partner in Connect.
+            </p>
+            <div>
+              <Link className="button" to="/claim">
+                Find my company <ArrowRight size={15} />
+              </Link>
+              {session.user?.account_type !== "individual" && (
+                <button
+                  className="text-button"
+                  onClick={() => (session.user ? createCompany() : signIn())}
+                >
+                  Add a company
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="discovery-places">
+          <h3>Find installers near you</h3>
+          {data?.places.map((p) => (
+            <Link key={p.slug} to={"/directory/installers/" + p.slug}>
+              {p.name}
+              <ArrowUpRight size={13} />
+            </Link>
+          ))}
+        </div>
+      </section>
+      <p className="discovery-source-note">
+        <Check size={14} />
+        Directory listings use company-provided information or cited official
+        websites. Listing a business does not mean it has joined Connect or been
+        endorsed.
+      </p>
+    </div>
+  );
+}

@@ -54,6 +54,7 @@ services:
       NODE_ENV: production
       TRUST_PROXY_HOPS: 1
       CONNECT_RELEASE: ${CONNECT_RELEASE:-local}
+      CONNECT_WEB_UI: ${CONNECT_WEB_UI:-colabb}
       UPLOAD_DIR: /app/uploads
       JOBS_SERVICE_URL: http://jobs:4201
       AUTH_TOKEN_SECRET: ${AUTH_TOKEN_SECRET:?Set account token secret}

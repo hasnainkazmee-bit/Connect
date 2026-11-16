@@ -166,12 +166,21 @@ fn validate(b: &MatchRequest) -> Result<()> {
     Ok(())
 }
 
-pub(super) async fn taxonomy(State(app): State<Arc<App>>) -> Result<Json<Value>> {
+#[derive(Deserialize)]
+pub(super) struct TaxonomyQuery {
+    sample: Option<bool>,
+}
+pub(super) async fn taxonomy(
+    State(app): State<Arc<App>>,
+    Query(query): Query<TaxonomyQuery>,
+) -> Result<Json<Value>> {
     let rows: Vec<String>=sqlx::query_scalar("SELECT json_build_object('kind',kind,'id',id,'label',label)::text FROM provider_taxonomy ORDER BY kind,label")
         .fetch_all(&app.db).await?;
     let credentials:Vec<String> = sqlx::query_scalar("SELECT jsonb_build_object('title',min(cc.title),'scope',cc.scope)::text FROM company_credentials cc JOIN companies c ON c.id=cc.company_id WHERE NOT c.is_demo AND cc.category IN ('certification','qualification') AND (cc.valid_until IS NULL OR cc.valid_until>=current_date) GROUP BY lower(trim(cc.title)),cc.scope ORDER BY min(cc.title),cc.scope").fetch_all(&app.db).await?;
+    let directory_credentials: Vec<String> = sqlx::query_scalar("SELECT jsonb_build_object('value','title:'||md5(lower(trim(cc.title)))||':'||cc.scope,'label',min(cc.title),'organization',min(cc.organization),'scope',cc.scope,'count',count(DISTINCT cc.company_id))::text FROM company_credentials cc JOIN companies c ON c.id=cc.company_id WHERE c.is_demo=$1 AND cc.category IN ('certification','qualification') AND (cc.valid_until IS NULL OR cc.valid_until>=current_date) GROUP BY lower(trim(cc.title)),cc.scope ORDER BY min(cc.organization),min(cc.title),cc.scope")
+        .bind(query.sample.unwrap_or(false)).fetch_all(&app.db).await?;
     Ok(Json(
-        json!({"credentials":credentials.into_iter().map(parse_json).collect::<Result<Vec<_>>>()?,"version":1,"categories":rows.into_iter().map(parse_json).collect::<Result<Vec<_>>>()?,"sectors":SECTORS,"systemTypes":SYSTEMS,"deliveryMethods":DELIVERIES}),
+        json!({"directoryCredentials":directory_credentials.into_iter().map(parse_json).collect::<Result<Vec<_>>>()?,"credentials":credentials.into_iter().map(parse_json).collect::<Result<Vec<_>>>()?,"version":1,"categories":rows.into_iter().map(parse_json).collect::<Result<Vec<_>>>()?,"sectors":SECTORS,"systemTypes":SYSTEMS,"deliveryMethods":DELIVERIES}),
     ))
 }
 

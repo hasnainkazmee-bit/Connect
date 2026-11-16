@@ -357,9 +357,15 @@ test("durable account-bound notification inbox and delivery", async (t) => {
     async () => {
       const before = (await inbox(a)).unread;
       const id = (await inbox(a)).notifications[0].id;
-      assert.deepEqual((await b("/notifications/read", { ids: [id] })).data.ids, []);
+      assert.deepEqual(
+        (await b("/notifications/read", { ids: [id] })).data.ids,
+        [],
+      );
       assert.equal((await inbox(a)).unread, before);
-      assert.deepEqual((await a("/notifications/read", { ids: [id] })).data.ids, [id]);
+      assert.deepEqual(
+        (await a("/notifications/read", { ids: [id] })).data.ids,
+        [id],
+      );
       assert.equal((await inbox(a)).unread, before - 1);
       await b("/notifications/devices/" + da, undefined, "DELETE");
       assert.equal((await a("/notifications/devices/" + da)).data.active, true);
@@ -698,41 +704,195 @@ test("durable account-bound notification inbox and delivery", async (t) => {
   ]);
 });
 test("viewing a context auto-reads only the reader's authorized related notifications", async () => {
-  const one = client(), two = client(), outsider = client(), customer = client();
-  const One = await account(one, "Read context one"), Two = await account(two, "Read context two");
+  const one = client(),
+    two = client(),
+    outsider = client(),
+    customer = client();
+  const One = await account(one, "Read context one"),
+    Two = await account(two, "Read context two");
   await account(outsider, "Read context outsider");
   await account(customer, "Read context customer", true);
-  const request = await two("/requests", { companyId: One.activeCompanyId, note: "Hello", kind: "message" });
-  const accepted = await one(`/requests/${request.data.id}/respond`, { action: "accept" });
+  const request = await two("/requests", {
+    companyId: One.activeCompanyId,
+    note: "Hello",
+    kind: "message",
+  });
+  const accepted = await one(`/requests/${request.data.id}/respond`, {
+    action: "accept",
+  });
   const connectionId = accepted.data.connectionId;
-  await db.query("INSERT INTO messages(connection_id,sender_company_id,author_id,body,client_id) VALUES($1,$2,$3,'Read this message',$4)",
-    [connectionId, Two.activeCompanyId, Two.user.id, randomUUID()]);
+  await db.query(
+    "INSERT INTO messages(connection_id,sender_company_id,author_id,body,client_id) VALUES($1,$2,$3,'Read this message',$4)",
+    [connectionId, Two.activeCompanyId, Two.user.id, randomUUID()],
+  );
   const postOne = await post(One.activeCompanyId, One.user.id);
   const postTwo = await post(One.activeCompanyId, One.user.id);
   await comment(postOne.id, Two.activeCompanyId, Two.user.id);
   await comment(postTwo.id, Two.activeCompanyId, Two.user.id);
   const before = await inbox(one);
-  assert.equal((await outsider("/notifications/read-context", {kind:"company_conversation",id:connectionId})).status,404);
-  assert.equal((await inbox(one)).unread,before.unread);
-  const chatRead = await one("/notifications/read-context", {kind:"company_conversation",id:connectionId});
-  assert.equal(chatRead.status,200);
-  assert.equal(chatRead.data.read,1);
-  assert.deepEqual(chatRead.data.ids, before.notifications.filter(n=>n.type === "message" && !n.read_at).map(n=>n.id));
-  assert.equal((await one("/notifications/read-context", {kind:"company_conversation",id:connectionId})).data.read,0);
+  assert.equal(
+    (
+      await outsider("/notifications/read-context", {
+        kind: "company_conversation",
+        id: connectionId,
+      })
+    ).status,
+    404,
+  );
+  assert.equal((await inbox(one)).unread, before.unread);
+  const chatRead = await one("/notifications/read-context", {
+    kind: "company_conversation",
+    id: connectionId,
+  });
+  assert.equal(chatRead.status, 200);
+  assert.equal(chatRead.data.read, 1);
+  assert.deepEqual(
+    chatRead.data.ids,
+    before.notifications
+      .filter((n) => n.type === "message" && !n.read_at)
+      .map((n) => n.id),
+  );
+  assert.equal(
+    (
+      await one("/notifications/read-context", {
+        kind: "company_conversation",
+        id: connectionId,
+      })
+    ).data.read,
+    0,
+  );
   const afterChat = await inbox(one);
-  assert.ok(afterChat.notifications.find(n=>n.url.includes(postOne.id))?.read_at === null);
-  assert.equal((await one("/notifications/read-context", {kind:"post",id:postOne.id})).data.read,1);
-  assert.equal((await inbox(one)).notifications.find(n=>n.url.includes(postTwo.id))?.read_at,null);
-  const thread = await customer("/personal-inbox", {companyId:One.activeCompanyId,body:"Customer question",clientId:randomUUID()});
-  await one(`/personal-inbox/${thread.data.id}/respond`,{accept:true});
-  await one(`/personal-inbox/${thread.data.id}/messages`,{body:"Customer answer",clientId:randomUUID()});
-  assert.equal((await outsider("/notifications/read-context",{kind:"personal_conversation",id:thread.data.id})).status,404);
-  const customerRead=await customer("/notifications/read-context",{kind:"personal_conversation",id:thread.data.id});
-  assert.equal(customerRead.status,200);
-  assert.equal(customerRead.data.read,2);
-  assert.equal(customerRead.data.ids.length,2);
-  assert.equal((await inbox(customer)).unread,0);
-  assert.equal((await client()("/notifications/read-context",{kind:"post",id:postOne.id})).status,401);
+  assert.ok(
+    afterChat.notifications.find((n) => n.url.includes(postOne.id))?.read_at ===
+      null,
+  );
+  assert.equal(
+    (await one("/notifications/read-context", { kind: "post", id: postOne.id }))
+      .data.read,
+    1,
+  );
+  assert.equal(
+    (await inbox(one)).notifications.find((n) => n.url.includes(postTwo.id))
+      ?.read_at,
+    null,
+  );
+  const thread = await customer("/personal-inbox", {
+    companyId: One.activeCompanyId,
+    body: "Customer question",
+    clientId: randomUUID(),
+  });
+  await one(`/personal-inbox/${thread.data.id}/respond`, { accept: true });
+  await one(`/personal-inbox/${thread.data.id}/messages`, {
+    body: "Customer answer",
+    clientId: randomUUID(),
+  });
+  assert.equal(
+    (
+      await outsider("/notifications/read-context", {
+        kind: "personal_conversation",
+        id: thread.data.id,
+      })
+    ).status,
+    404,
+  );
+  const customerRead = await customer("/notifications/read-context", {
+    kind: "personal_conversation",
+    id: thread.data.id,
+  });
+  assert.equal(customerRead.status, 200);
+  assert.equal(customerRead.data.read, 2);
+  assert.equal(customerRead.data.ids.length, 2);
+  assert.equal((await inbox(customer)).unread, 0);
+  assert.equal(
+    (
+      await client()("/notifications/read-context", {
+        kind: "post",
+        id: postOne.id,
+      })
+    ).status,
+    401,
+  );
+});
+test("Colabb notification scope keeps pagination, unread counts and reads separate from Connect", async () => {
+  const user = client();
+  const session = await account(user, "Scoped notification reader");
+  const hiddenTypes = [
+    "message",
+    "message_request",
+    "request",
+    "accepted",
+    "reply",
+    "comment",
+    "reaction",
+    "follow",
+    "publication",
+  ];
+  const visibleTypes = [
+    ...Array(32).fill("job"),
+    "team_invite",
+    "team_joined",
+    "release",
+  ];
+  const records = [];
+  for (const type of [...visibleTypes, ...hiddenTypes]) {
+    const result = await db.query(
+      `INSERT INTO user_notifications(user_id,company_id,event_key,type,category,title,text,url,source_kind,source_id)
+       VALUES($1,$2,$3,$4,'updates','Scope regression','Only visible in the correct app','/account','company',$2) RETURNING id,type`,
+      [
+        session.user.id,
+        session.activeCompanyId,
+        "scope-test:" + randomUUID(),
+        type,
+      ],
+    );
+    records.push(result.rows[0]);
+  }
+  const scoped = await user("/notifications?scope=colabb");
+  assert.equal(scoped.status, 200);
+  assert.equal(scoped.data.unread, visibleTypes.length);
+  assert.equal(scoped.data.notifications.length, 30);
+  assert.ok(scoped.data.nextCursor);
+  const earlier = await user(
+    "/notifications?scope=colabb&before=" + scoped.data.nextCursor,
+  );
+  assert.equal(earlier.data.unread, visibleTypes.length);
+  assert.equal(earlier.data.notifications.length, visibleTypes.length - 30);
+  assert.equal(earlier.data.nextCursor, null);
+  const displayed = [
+    ...scoped.data.notifications,
+    ...earlier.data.notifications,
+  ];
+  assert.equal(
+    new Set(displayed.map((item) => item.id)).size,
+    visibleTypes.length,
+  );
+  assert.ok(displayed.every((item) => !hiddenTypes.includes(item.type)));
+  assert.equal((await inbox(user)).unread, records.length);
+  const supported = records.find((item) => item.type === "job");
+  const hidden = records.find((item) => item.type === "message");
+  const read = await user("/notifications/read?scope=colabb", {
+    ids: [supported.id, hidden.id],
+  });
+  assert.deepEqual(read.data.ids, [supported.id]);
+  assert.equal(
+    (await user("/notifications?scope=colabb")).data.unread,
+    visibleTypes.length - 1,
+  );
+  assert.equal((await inbox(user)).unread, records.length - 1);
+  // A scoped bulk request must also preserve hidden records, even if an older
+  // Colabb client omits IDs. Connect's existing unscoped bulk action still works.
+  const bulk = await user("/notifications/read?scope=colabb", {});
+  assert.equal(bulk.data.ids.length, visibleTypes.length - 1);
+  assert.equal((await user("/notifications?scope=colabb")).data.unread, 0);
+  assert.equal((await inbox(user)).unread, hiddenTypes.length);
+  const legacy = await db.query(
+    "SELECT type,read_at FROM user_notifications WHERE user_id=$1 AND type=ANY($2::text[])",
+    [session.user.id, hiddenTypes],
+  );
+  assert.equal(legacy.rows.length, hiddenTypes.length);
+  assert.ok(legacy.rows.every((item) => item.read_at === null));
+  await user("/notifications/read", {});
+  assert.equal((await inbox(user)).unread, 0);
 });
 test.after(async () => {
   await db.end();

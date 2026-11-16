@@ -1,0 +1,22 @@
+{
+  "verifiedAt": "2026-11-17",
+  "context": "Real public companies used in a local Colabb marketing preview, not testimonials or endorsed providers. Managed status verified from the live unauthenticated company API. Links open existing Connect profiles.",
+  "companies": [
+    {
+      "id": "sunhub", "name": "Sunhub", "location": "Cleveland, Ohio", "managed": true,
+      "kind": "Equipment marketplace", "services": ["Solar equipment", "Equipment sourcing", "Freight & fulfillment"],
+      "logoFile": "sunhub.png", "logoMime": "image/png", "logoSource": "https://connect.sunhubapp.com/api/company-assets/5116438f-a765-4142-8fb2-d9a362e0a2c2",
+      "profile": "https://connect.sunhubapp.com/sunhub-solar",
+      "website": "https://www.sunhub.com/",
+      "sources": ["https://business.sunhub.com/", "https://business.sunhub.com/contact/marketplace", "https://connect.sunhubapp.com/api/companies/sunhub-company"]
+    },
+    {
+      "id": "yellowlite", "name": "YellowLite", "location": "Cleveland, Ohio", "managed": true,
+      "kind": "Solar installer", "services": ["Solar installation", "Battery storage", "Repair & maintenance"],
+      "logoFile": "yellowlite.webp", "logoMime": "image/webp", "logoSource": "https://connect.sunhubapp.com/api/company-assets/fc46fd40-f643-451c-8cbf-645678659414",
+      "profile": "https://connect.sunhubapp.com/yellowlite-inc",
+      "website": "https://www.yellowlite.com/",
+      "sources": ["https://www.yellowlite.com/solar-services/", "https://www.yellowlite.com/contact-us/", "https://connect.sunhubapp.com/api/companies/yellowlite-inc"]
+    }
+  ]
+}

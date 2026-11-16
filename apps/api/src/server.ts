@@ -5,6 +5,7 @@ import {
   requireManagedCompany,
 } from "./directory.js";
 import { publicPages } from "./public-pages.js";
+import { webUIRoutes } from "./web-ui.js";
 import { profileRecordRoutes } from "./profile-records.js";
 import { credentialRoutes } from "./credentials.js";
 import { googlePlacesRoutes } from "./google-places.js";
@@ -1083,23 +1084,7 @@ app.use("/api", publishingRoutes(uploadDir));
 app.use("/api", (_req, _res, next) =>
   next(new HttpError(404, "API endpoint not found.")),
 );
-// Worker updates must not inherit a CDN/browser minimum TTL for static JS.
-app.get("/push-sw.js", (_req, res, next) => {
-  res.set({
-    "Cache-Control": "no-store, max-age=0",
-    "CDN-Cache-Control": "no-store",
-    "Cloudflare-CDN-Cache-Control": "no-store",
-    "Service-Worker-Allowed": "/",
-  });
-  res.sendFile(
-    path.join(root, "apps/web/dist/push-sw.js"),
-    { cacheControl: false, lastModified: false },
-    (error) => {
-      if (error) next(error);
-    },
-  );
-});
-app.use(express.static(path.join(root, "apps/web/dist"), { index: false }));
+app.use(webUIRoutes());
 app.use(publicPages());
 app.use(
   (

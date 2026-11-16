@@ -1,0 +1,424 @@
+/* Colabb shared documents: real attachment cards and a full-page viewer. */
+.job-attachment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  min-width: 0;
+}
+.job-attachment-card {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #d4e0e7;
+  border-radius: 12px;
+  background: #fff;
+  color: #172c38;
+}
+.attachment-preview {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  text-align: left;
+  padding: 0;
+  border: 0;
+  background: #fff;
+  color: #172c38;
+  min-width: 0;
+}
+.attachment-preview:hover {
+  background: #f8f8f8;
+}
+.attachment-thumbnail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 150px;
+  background: #f1f3f4;
+  color: #536a78;
+  overflow: hidden;
+  flex: none;
+  font-size: 11px;
+}
+.attachment-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.attachment-thumbnail > b {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+.attachment-preview > span:last-child {
+  padding: 12px;
+  min-width: 0;
+  width: 100%;
+}
+.attachment-preview b {
+  display: block;
+  font-size: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+.attachment-preview small {
+  display: block;
+  font-size: 10px;
+  color: #536a78;
+  margin-top: 5px;
+  line-height: 1.5;
+}
+.job-attachment-card[data-kind="document"] .attachment-preview {
+  flex-direction: row;
+  align-items: center;
+  padding: 12px;
+  gap: 11px;
+}
+.job-attachment-card[data-kind="document"] .attachment-thumbnail {
+  width: 36px;
+  height: 44px;
+  flex: none;
+  background: #f8f8f8;
+  border-radius: 6px;
+}
+.job-attachment-card[data-kind="document"] .attachment-thumbnail > b {
+  display: none;
+}
+.job-attachment-card[data-kind="document"]
+  .attachment-preview
+  > span:last-child {
+  padding: 0;
+}
+.attachment-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid #d4e0e7;
+  background: #fff;
+  color: #172c38;
+}
+.attachment-add {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  border: 1px dashed #a9b9c2;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  margin-bottom: 15px;
+  min-width: 0;
+}
+.attachment-add > span {
+  min-width: 0;
+}
+.attachment-add b {
+  display: block;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.attachment-add small {
+  display: block;
+  color: #536a78;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.6;
+  margin-top: 4px;
+}
+.attachment-add input {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.attachment-add.dragging {
+  border-color: #ff6a00;
+  background: #fff5eb;
+}
+.attachment-add.disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+body:has(.app-action-container:not([hidden]) .job-file-viewer)
+  .jobs-site-header,
+body:has(.app-action-container:not([hidden]) .job-file-viewer)
+  .colabb-footer-compact {
+  display: none;
+}
+.app-main:has(.app-action-container:not([hidden]) .job-file-viewer) {
+  width: 100%;
+  max-width: none;
+  min-height: 100dvh;
+  padding: 0;
+  margin: 0;
+}
+.full-page-flow:has(.job-file-viewer) {
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  max-width: none;
+  background: #fff;
+  border: 0;
+  border-radius: 0;
+}
+.full-page-flow:has(.job-file-viewer) > .page-back {
+  display: none;
+}
+.full-page-flow:has(.job-file-viewer) > .full-page-content {
+  padding: 0;
+  margin: 0;
+  max-width: none;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+.job-file-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 350px;
+  background: #fff;
+  color: #172c38;
+  overflow: hidden;
+  font-family: Manrope, Arial, sans-serif;
+}
+.job-file-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 18px 30px;
+  border-bottom: 1px solid #d4e0e7;
+  min-height: 90px;
+  flex: none;
+  background: #fff;
+}
+.job-file-toolbar .viewer-back {
+  border: 0;
+  background: none;
+  padding: 10px 0;
+  min-height: 42px;
+  min-width: 60px;
+  font-size: 12px;
+  flex: none;
+}
+.job-file-heading {
+  flex: 1;
+  min-width: 0;
+}
+.job-file-heading h2 {
+  font-size: 17px;
+  letter-spacing: -0.3px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  margin: 0 0 3px;
+  font-weight: 750;
+}
+.job-file-heading > span {
+  display: block;
+  color: #536a78;
+  font-size: 10px;
+  line-height: 1.6;
+}
+.job-file-heading h2:focus {
+  outline: none;
+}
+.viewer-close {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border: 1px solid #d4e0e7;
+  border-radius: 50%;
+  background: #fff;
+}
+.job-file-canvas {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f8f8;
+  overflow: hidden;
+  position: relative;
+}
+.job-file-image-scroll {
+  height: 100%;
+  width: 100%;
+  overflow: auto;
+  display: flex;
+  align-items: safe center;
+  justify-content: safe center;
+  padding: 24px;
+  overscroll-behavior: contain;
+}
+.job-file-image-scroll img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  flex: none;
+}
+.job-file-canvas iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  background: #fff;
+}
+.file-viewer-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  padding: 30px;
+  color: #536a78;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.file-viewer-fallback p {
+  margin: 0;
+}
+.job-file-viewer > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex: none;
+  border-top: 1px solid #d4e0e7;
+  padding: 14px 30px;
+  background: #fff;
+}
+.viewer-navigation,
+.viewer-zoom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #536a78;
+  font-size: 11px;
+}
+.viewer-navigation button,
+.viewer-zoom button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 8px;
+  border: 1px solid #d4e0e7;
+  border-radius: 50%;
+  background: #fff;
+  color: #172c38;
+}
+.viewer-navigation > span {
+  min-width: 42px;
+  text-align: center;
+}
+.viewer-zoom .viewer-fit {
+  border: 0;
+  width: 50px;
+  border-radius: 0;
+  font-size: 12px;
+}
+.job-file-viewer > footer > .jobs-button {
+  min-height: 40px;
+  font-size: 12px;
+  padding: 9px 15px;
+}
+.file-viewer-help {
+  flex: none;
+  margin: 0;
+  padding: 0 30px 14px;
+  font-size: 11px;
+  color: #536a78;
+  text-align: center;
+  line-height: 1.6;
+}
+.file-viewer-help a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+@media (max-width: 700px) {
+  .job-file-toolbar {
+    padding: 14px 18px;
+    gap: 13px;
+    min-height: 84px;
+  }
+  .job-file-heading h2 {
+    font-size: 14px;
+  }
+  .job-file-toolbar .viewer-back {
+    min-width: 42px;
+    font-size: 0;
+    gap: 0;
+  }
+  .viewer-close {
+    width: 36px;
+    height: 36px;
+  }
+  .job-file-viewer > footer {
+    padding: 12px 16px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .viewer-navigation,
+  .viewer-zoom {
+    gap: 4px;
+  }
+  .viewer-navigation button,
+  .viewer-zoom button {
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+    padding: 7px;
+  }
+  .job-file-viewer > footer > .jobs-button {
+    font-size: 11px;
+    padding: 8px 12px;
+    min-height: 36px;
+  }
+  .job-file-image-scroll {
+    padding: 12px;
+  }
+  .file-viewer-help {
+    padding: 0 16px 12px;
+    font-size: 10px;
+  }
+  .job-attachment-grid {
+    grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  }
+  .attachment-thumbnail {
+    height: 125px;
+  }
+}
+@media (max-width: 370px) {
+  .job-file-viewer > footer {
+    justify-content: center;
+  }
+  .job-file-viewer > footer > .jobs-button {
+    flex-basis: 100%;
+  }
+  .job-file-toolbar {
+    padding-inline: 12px;
+  }
+  .attachment-add {
+    padding: 15px;
+  }
+  .attachment-add small {
+    font-size: 10px;
+  }
+}

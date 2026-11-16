@@ -2,7 +2,8 @@ import { Router } from "express";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
-import { pool, root } from "./db.js";
+import { pool } from "./db.js";
+import { selectedWebUI, webDist } from "./web-ui.js";
 
 const escape = (value: unknown) =>
   String(value ?? "").replace(
@@ -23,7 +24,9 @@ const noIndexPaths = new Set([
   "invite",
   "join",
 ]);
-let template: string;
+const templates: Record<string, string> = {};
+const marketingTemplates: Record<string, string> = {};
+const marketingPaths = new Map([["/hire", "Hire a company"], ["/find-work", "Find work"], ["/how-it-works", "How Colabb works"], ["/our-story", "Our story"]]);
 
 export function publicPages() {
   const router = Router();
@@ -60,11 +63,9 @@ export function publicPages() {
     // Asset requests must return real 404s, never the application shell.
     if (req.path.startsWith("/assets/") || /\.[a-z0-9]+$/i.test(req.path))
       return res.sendStatus(404);
-    if (!template)
-      template = await fs.readFile(
-        path.join(root, "apps/web/dist/index.html"),
-        "utf8",
-      );
+    const ui = selectedWebUI(req);
+    const colabb = ui === "colabb";
+    const template = (process.env.NODE_ENV === "production" ? templates[ui] : undefined) || (templates[ui] = await fs.readFile(path.join(webDist(ui), "index.html"), "utf8"));
     let title = "Connect by Sunhub | Solar work, crews and specialists",
       description =
         "Find crews, electricians, specialists, and solar business support. Post what you need and compare quotes on Connect by Sunhub.",
@@ -87,7 +88,11 @@ export function publicPages() {
         ? res.redirect(301, publicUrl(row.username || row.slug))
         : res.sendStatus(404);
     }
-    if (req.path === "/") {
+    if (marketingPaths.has(req.path) || segments[0] === "help") {
+      title = (marketingPaths.get(req.path) || "Help") + " | Colabb";
+      description = "The working network for solar. Find companies, agree the work and keep it moving.";
+      content = `<section class="colabb-help"><h1>${escape(marketingPaths.get(req.path) || "Help with Colabb")}</h1><p>${escape(description)}</p></section>`;
+    } else if (req.path === "/") {
       title = "Connect by Sunhub | Find solar work and service providers";
       description =
         "Find crews, specialist services, and support for your solar business on Connect by Sunhub.";
@@ -188,6 +193,19 @@ export function publicPages() {
       indexable = false;
       content = "<p class='manage-loading'>Opening Connect…</p>";
     }
+    if (colabb) {
+      title = title.replace(/Connect by Sunhub|Connect/g, "Colabb");
+      description = description.replace(/Connect by Sunhub|Connect/g, "Colabb");
+      if (req.path === "/") {
+        title = "Colabb | No one builds solar alone";
+        description = "Find the right solar company for your work. Share a brief, compare proposals and keep the work moving together on Colabb.";
+      }
+    }
+    const marketingPage = ({"/":"home","/hire":"hire","/find-work":"work","/how-it-works":"how","/our-story":"story"} as Record<string,string>)[req.path];
+    let colabbFirstPaint = `<main class="colabb-loading" aria-busy="true"><img src="/brand/marks/lockup-primary.svg" alt="Colabb" width="150" height="48"/><p>Opening Colabb…</p><noscript><section class="colabb-static"><h1>${escape(title.replace(/ \| Colabb$/, ""))}</h1><p>${escape(description)}</p><p>Enable JavaScript to use Colabb’s company profiles, proposals and job workspace.</p><a href="/">Back to Colabb</a></section></noscript></main>`;
+    if (colabb && marketingPage) {
+      colabbFirstPaint = (process.env.NODE_ENV === "production" ? marketingTemplates[marketingPage] : undefined) || (marketingTemplates[marketingPage] = await fs.readFile(path.join(webDist("colabb"), `marketing-${marketingPage}.html`), "utf8"));
+    }
     const nonce = randomBytes(16).toString("base64");
     const meta = `<title>${escape(title)}</title><meta name="description" content="${escape(description)}"/><link rel="canonical" href="${escape(origin + canonical)}"/><meta property="og:title" content="${escape(title)}"/><meta property="og:description" content="${escape(description)}"/><meta property="og:url" content="${escape(origin + canonical)}"/><meta property="og:type" content="website"/>${indexable ? "" : "<meta name='robots' content='noindex,follow'/>"}${structured ? `<script type="application/ld+json" nonce="${nonce}">${JSON.stringify(structured).replace(/</g, "\\u003c")}</script>` : ""}`;
     const html = template
@@ -196,13 +214,15 @@ export function publicPages() {
       .replace("</head>", meta + "</head>")
       .replace(
         '<div id="root"></div>',
-        `<div id="root"><header class="jobs-site-header"><div class="jobs-header-inner"><a class="jobs-brand" href="/"><img src="/assets/connect-icon.png" alt=""/><span><strong>connect</strong><small>by Sunhub</small></span></a><nav class="jobs-top-nav"><a href="/jobs">Jobs</a><a href="/providers">Companies</a><a href="/#how-it-works">How it works</a></nav><div class="jobs-header-actions"><a class="jobs-button jobs-primary" href="/jobs/new">Post a job</a><a class="jobs-button jobs-secondary" href="/account">Sign in</a></div></div></header><main class="app-main">${content}</main></div>`,
+        colabb ? `<div id="root">${colabbFirstPaint}</div>` : `<div id="root"><header class="jobs-site-header"><div class="jobs-header-inner"><a class="jobs-brand" href="/"><img src="/assets/connect-icon.png" alt=""/><span><strong>connect</strong><small>by Sunhub</small></span></a><nav class="jobs-top-nav"><a href="/jobs">Jobs</a><a href="/providers">Companies</a><a href="/#how-it-works">How it works</a></nav><div class="jobs-header-actions"><a class="jobs-button jobs-primary" href="/jobs/new">Post a job</a><a class="jobs-button jobs-secondary" href="/account">Sign in</a></div></div></header><main class="app-main">${content}</main></div>`,
       );
     const csp = String(res.getHeader("Content-Security-Policy") || "");
     res.set(
       "Content-Security-Policy",
       csp.replace("script-src 'self'", `script-src 'self' 'nonce-${nonce}'`),
     );
+    res.vary("Cookie");
+    res.vary("User-Agent");
     res.set("Cache-Control", "no-store").status(status).type("html").send(html);
   });
   return router;

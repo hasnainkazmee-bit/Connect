@@ -21,6 +21,14 @@ const companySizes = [
   "1,000+",
 ];
 const reserved = new Set([
+  "colabb",
+  "brand",
+  "jobs",
+  "providers",
+  "hire",
+  "find-work",
+  "how-it-works",
+  "our-story",
   "www",
   "app",
   "api",

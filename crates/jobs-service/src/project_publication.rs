@@ -72,6 +72,9 @@ pub(super) async fn publish_quote(
         .bind(&qid)
         .execute(&mut *tx)
         .await?;
+    let draft_version: Option<i32> = sqlx::query_scalar("SELECT proposal_draft_version FROM job_quote_versions WHERE quote_id=$1::uuid AND version=$2")
+        .bind(&qid).bind(v).fetch_one(&mut *tx).await?;
+    job_library::clear_published(&mut tx, &id, &provider, draft_version).await?;
     let eid = quote_workflow::event(
         &mut tx,
         &id,

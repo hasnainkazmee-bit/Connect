@@ -1,0 +1,601 @@
+/* Company access uses the approved onboarding rail and form system. */
+.profile-claim-page,
+.company-welcome {
+  width: 80%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 30px 0 70px;
+  color: var(--ink);
+  font-family: Manrope, Arial, sans-serif;
+}
+.profile-claim-page *,
+.company-welcome * {
+  box-sizing: border-box;
+}
+.claim-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  margin-bottom: 32px;
+}
+.claim-layout,
+.company-welcome {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 650px);
+  gap: 64px;
+  justify-content: center;
+  align-items: start;
+}
+.claim-context,
+.welcome-context {
+  padding-top: 8px;
+  min-width: 0;
+}
+.claim-company-summary,
+.welcome-company {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 24px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--line);
+}
+.claim-company-summary .company-logo,
+.welcome-company .company-logo {
+  width: 50px;
+  height: 50px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 5px;
+}
+.claim-company-summary .company-logo img,
+.welcome-company .company-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.claim-company-summary small {
+  display: block;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.claim-context h2 {
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
+}
+.claim-context p {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 0 0 18px;
+}
+.claim-company-summary p {
+  font-size: 12px;
+  margin: 0;
+}
+.claim-context > ul {
+  padding: 20px 0 0;
+  margin: 20px 0 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 20px;
+}
+.claim-context > ul li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.claim-context > ul svg {
+  flex: none;
+  margin-top: 2px;
+}
+.claim-context .discovery-eyebrow {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-bottom: 15px;
+}
+.claim-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+  display: grid;
+}
+.claim-steps li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 0 0 24px;
+  color: var(--muted);
+}
+.claim-steps li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 31px;
+  bottom: 5px;
+  left: 13px;
+  border-left: 1px solid var(--line);
+}
+.claim-steps li > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font-size: 12px;
+  background: #fff;
+}
+.claim-steps strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.claim-steps .current > span {
+  border-color: var(--orange);
+  box-shadow: inset 0 0 0 1px var(--orange);
+}
+.claim-steps .current strong {
+  font-weight: 750;
+  color: var(--ink);
+}
+.claim-context .claim-access-note {
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+  margin: 0 0 15px;
+}
+.claim-company-website {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.claim-content,
+.welcome-body {
+  padding: 34px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fff;
+  min-width: 0;
+}
+.claim-content h1,
+.welcome-body h1 {
+  margin: 0 0 14px;
+  font-size: 29px;
+  line-height: 1.22;
+  letter-spacing: -0.035em;
+  font-weight: 800;
+}
+.claim-content > p,
+.welcome-body > p {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.75;
+  margin: 0 0 22px;
+}
+.claim-content > svg {
+  margin-bottom: 22px;
+  color: var(--muted);
+}
+.claim-content .manage-form {
+  display: grid;
+  gap: 21px;
+  margin-top: 24px;
+}
+.claim-content .manage-form label {
+  display: grid;
+  gap: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+.claim-content input:not([type="checkbox"]),
+.claim-content textarea {
+  display: block;
+  width: 100%;
+  min-height: 50px;
+  border: 1px solid #ccd9e0;
+  border-radius: 10px;
+  background: var(--field);
+  color: var(--ink);
+  padding: 12px 14px;
+  font:
+    500 16px/1.6 Manrope,
+    Arial,
+    sans-serif;
+  outline: none;
+}
+.claim-content textarea {
+  resize: vertical;
+  min-height: 130px;
+}
+.claim-content input:focus,
+.claim-content textarea:focus {
+  border-color: #536a78;
+  box-shadow: 0 0 0 2px #d4e0e7;
+}
+.claim-content .claim-email {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  background: var(--field);
+  border-radius: 10px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.claim-email svg {
+  flex: none;
+  color: var(--muted);
+}
+.claim-email span {
+  flex: 1;
+  min-width: 0;
+}
+.claim-content .claim-email input {
+  border: 0;
+  padding: 0;
+  min-height: 25px;
+  box-shadow: none;
+}
+.claim-content .claim-attest {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 11px;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+.claim-attest input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ink);
+  margin-top: 3px;
+}
+.claim-content .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 12px 19px;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  background: #fff;
+  color: var(--ink);
+  font:
+    700 14px/1.5 Manrope,
+    Arial,
+    sans-serif;
+  text-decoration: none;
+  cursor: pointer;
+}
+.claim-content .button.primary {
+  background: var(--orange);
+  border-color: var(--orange);
+}
+.claim-content button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.claim-content .text-button {
+  display: inline;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+.claim-success-icon {
+  width: 52px;
+  height: 52px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 24px;
+}
+.claim-content .manage-error {
+  border: 1px solid #ecc4bd;
+  background: #fff6f3;
+  color: #963e2d;
+  padding: 13px 15px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.company-matches {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  margin-top: 18px;
+}
+.company-matches > strong {
+  display: block;
+  font-size: 13px;
+}
+.company-matches > p {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin: 7px 0 10px;
+}
+.company-matches > a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+  color: var(--ink);
+  text-decoration: none;
+  min-width: 0;
+}
+.company-matches > a > span {
+  min-width: 0;
+  flex: 1;
+}
+.company-matches .company-logo {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+.company-matches .company-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.company-matches b,
+.company-matches small {
+  display: block;
+}
+.company-matches b {
+  font-size: 13px;
+}
+.company-matches small {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.company-matches > a > svg {
+  flex: none;
+}
+.welcome-company span {
+  min-width: 0;
+}
+.welcome-company strong {
+  display: block;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.welcome-company small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  margin-top: 4px;
+}
+.welcome-context > p {
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.welcome-eyebrow {
+  display: block;
+  margin-bottom: 18px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+.welcome-body h1 {
+  overflow-wrap: anywhere;
+}
+.welcome-access {
+  display: flex;
+  gap: 13px;
+  padding: 21px;
+  margin: 24px 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--field);
+  color: var(--ink);
+}
+.welcome-access > svg {
+  flex: none;
+}
+.welcome-access strong {
+  font-size: 13px;
+}
+.welcome-access p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.75;
+  margin: 7px 0 0;
+}
+.welcome-access .welcome-job-title {
+  margin: 0 0 8px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.welcome-feedback {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.75;
+  margin-bottom: 20px;
+  overflow-wrap: anywhere;
+}
+.welcome-security {
+  display: flex;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+  margin-top: 24px;
+}
+.welcome-security svg {
+  flex: none;
+  margin-top: 2px;
+}
+.welcome-profile {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 12px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.company-welcome:not(:has(.welcome-body)) {
+  display: block;
+  max-width: 650px;
+  margin: 40px auto;
+  padding: 34px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+}
+.company-welcome:not(:has(.welcome-body)) h1 {
+  font-size: 28px;
+  line-height: 1.3;
+  letter-spacing: -0.03em;
+}
+.company-welcome:not(:has(.welcome-body)) p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+  margin-bottom: 24px;
+}
+@media (max-width: 1050px) {
+  .profile-claim-page,
+  .company-welcome {
+    width: 90%;
+  }
+  .claim-layout,
+  .company-welcome {
+    grid-template-columns: 210px minmax(0, 1fr);
+    gap: 35px;
+  }
+  .claim-content,
+  .welcome-body {
+    padding: 28px;
+  }
+}
+@media (max-width: 800px) {
+  .claim-layout,
+  .company-welcome {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    max-width: 650px;
+    margin: auto;
+  }
+  .claim-context,
+  .welcome-context {
+    padding: 0;
+  }
+  .claim-context > ul,
+  .claim-context .claim-access-note,
+  .welcome-context > p {
+    display: none;
+  }
+  .claim-company-summary,
+  .welcome-company {
+    border: 0;
+    padding: 0;
+    margin-bottom: 20px;
+  }
+  .claim-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 0;
+  }
+  .claim-steps li {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7px;
+    padding: 0;
+  }
+  .claim-steps li::after {
+    display: none;
+  }
+  .claim-steps strong {
+    font-size: 12px;
+  }
+  .claim-company-website {
+    margin-top: 12px;
+  }
+}
+@media (max-width: 520px) {
+  .profile-claim-page {
+    padding-top: 20px;
+  }
+  .claim-back {
+    margin-bottom: 22px;
+  }
+  .claim-content,
+  .welcome-body {
+    padding: 24px 20px;
+  }
+  .claim-content h1,
+  .welcome-body h1 {
+    font-size: 26px;
+  }
+  .claim-content > p {
+    font-size: 13px;
+  }
+  .claim-content .button,
+  .welcome-body .button {
+    width: 100%;
+  }
+  .claim-steps strong {
+    font-size: 11px;
+  }
+  .claim-context > .discovery-eyebrow,
+  .claim-context > h2,
+  .claim-context > p {
+    display: none;
+  }
+  .welcome-access {
+    padding: 17px;
+  }
+}

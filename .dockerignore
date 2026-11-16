@@ -20,3 +20,6 @@ apps/windows
 
 .research
 __pycache__
+
+.presentation-build
+output

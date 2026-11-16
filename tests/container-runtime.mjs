@@ -39,6 +39,8 @@ function readTree(directory) {
 const migrations = readTree("/app/apps/api/migrations");
 const apiFiles = readTree("/app/apps/api/dist");
 const webFiles = readTree("/app/apps/web/dist");
+const colabbFiles = readTree("/app/apps/colabb/dist");
+assert.match(readFileSync("/app/apps/colabb/dist/marketing-home.html", "utf8"), /No one builds/);
 
 // Resolve from the deployed API, where workspace dependencies must be present.
 const apiRequire = createRequire("/app/apps/api/dist/social-interactions.js");
@@ -46,7 +48,7 @@ for (const dependency of Object.keys(apiPackage.dependencies)) {
   await import(pathToFileURL(apiRequire.resolve(dependency)).href);
 }
 console.log(
-  `Runtime user can read ${migrations} migrations, ${apiFiles} API files, ${webFiles} web assets, and load all ${Object.keys(apiPackage.dependencies).length} API dependencies.`,
+  `Runtime user can read ${migrations} migrations, ${apiFiles} API files, ${webFiles} Connect assets, ${colabbFiles} Colabb assets, and load all ${Object.keys(apiPackage.dependencies).length} API dependencies.`,
 );
 const { default: emojiRegex } = await import(
   pathToFileURL(apiRequire.resolve("emoji-regex")).href

@@ -31,6 +31,12 @@ const preferenceInput = z
 const uuid = z.string().uuid();
 const publicFields =
   "n.id,n.sequence::text,n.type,n.category,n.title,n.text,n.url,n.company_id,n.actor_company_id,n.created_at,n.read_at";
+// Colabb replaces the old social network and standalone conversations. Keep
+// their records available to Connect while scoping Colabb lists and read state.
+const colabbNotificationFilter =
+  "n.type NOT IN ('message','message_request','request','accepted','reply','comment','reaction','follow','publication')";
+const notificationScope = (scope: unknown) =>
+  scope === "colabb" ? colabbNotificationFilter : "true";
 // Every read and delivery rechecks current authorization, rather than trusting a
 // recipient snapshot made before membership, block or invitation changes.
 export const visibleNotification = `n.expires_at>now()
@@ -336,6 +342,7 @@ export function notificationRoutes() {
     res.json({ active });
   });
   router.get("/notifications", async (req, res) => {
+    const scope = notificationScope(req.query.scope);
     const before = req.query.before
       ? z
           .string()
@@ -344,11 +351,11 @@ export function notificationRoutes() {
       : null;
     const [page, count] = await Promise.all([
       pool.query(
-        `SELECT ${publicFields} FROM user_notifications n WHERE n.user_id=$1 AND ${visibleNotification} AND($2::bigint IS NULL OR n.sequence<$2) ORDER BY n.sequence DESC LIMIT 31`,
+        `SELECT ${publicFields} FROM user_notifications n WHERE n.user_id=$1 AND ${visibleNotification} AND ${scope} AND($2::bigint IS NULL OR n.sequence<$2) ORDER BY n.sequence DESC LIMIT 31`,
         [req.auth!.userId, before],
       ),
       pool.query(
-        `SELECT count(*)::int AS unread FROM user_notifications n WHERE n.user_id=$1 AND n.read_at IS NULL AND ${visibleNotification}`,
+        `SELECT count(*)::int AS unread FROM user_notifications n WHERE n.user_id=$1 AND n.read_at IS NULL AND ${visibleNotification} AND ${scope}`,
         [req.auth!.userId],
       ),
     ]);
@@ -360,15 +367,16 @@ export function notificationRoutes() {
     });
   });
   router.post("/notifications/read", async (req, res) => {
+    const scope = notificationScope(req.query.scope);
     const { ids } = z
       .object({ ids: z.array(uuid).max(100).optional() })
       .parse(req.body || {});
     const result = await pool.query(
-      "UPDATE user_notifications SET read_at=now() WHERE user_id=$1 AND read_at IS NULL AND($2::uuid[] IS NULL OR id=ANY($2)) RETURNING id",
+      `UPDATE user_notifications n SET read_at=now() WHERE user_id=$1 AND read_at IS NULL AND ${scope} AND($2::uuid[] IS NULL OR id=ANY($2)) RETURNING id`,
       [req.auth!.userId, ids || null],
     );
     // Old clients still read the company-scoped legacy inbox through /network.
-    if (!ids && req.auth!.companyId)
+    if (!ids && req.auth!.companyId && req.query.scope !== "colabb")
       await pool.query(
         "UPDATE notifications SET read_at=now() WHERE company_id=$1 AND read_at IS NULL",
         [req.auth!.companyId],
@@ -403,6 +411,7 @@ export function notificationRoutes() {
     res.json({ ok: true, read: result.rowCount || 0, ids: result.rows.map(row => row.id) });
   });
   router.get("/notifications/events", async (req, res) => {
+    const scope = notificationScope(req.query.scope);
     res.set({
       "Content-Type": "text/event-stream",
       Connection: "keep-alive",
@@ -444,7 +453,7 @@ export function notificationRoutes() {
         }
         const r = (
           await pool.query(
-            `SELECT COALESCE(max(sequence),0)::text AS latest,count(*) FILTER(WHERE read_at IS NULL)::int AS unread FROM user_notifications n WHERE user_id=$1 AND ${visibleNotification}`,
+            `SELECT COALESCE(max(sequence),0)::text AS latest,count(*) FILTER(WHERE read_at IS NULL)::int AS unread FROM user_notifications n WHERE user_id=$1 AND ${visibleNotification} AND ${scope}`,
             [req.auth!.userId],
           )
         ).rows[0];
