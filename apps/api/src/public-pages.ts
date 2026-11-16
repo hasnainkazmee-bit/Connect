@@ -78,6 +78,7 @@ export function publicPages() {
     if (req.path === "/directory" || segments[0] === "directory")
       return res.redirect(301, "/providers");
     if (segments[0] === "posts" && segments.length === 2) {
+      if (colabb) return res.redirect(303, "/providers");
       const row = (
         await pool.query(
           "SELECT c.username,c.slug FROM posts p JOIN companies c ON c.id=p.company_id WHERE p.id::text=$1 AND p.status='published' LIMIT 1",
@@ -166,7 +167,7 @@ export function publicPages() {
             "SELECT r.rating,r.body,u.name FROM company_reviews r JOIN users u ON u.id=r.user_id WHERE r.company_id=$1 AND NOT EXISTS(SELECT 1 FROM memberships m WHERE m.company_id=r.company_id AND m.user_id=r.user_id) ORDER BY r.created_at DESC LIMIT 10",
             [c.id],
           ),
-          pool.query(
+          colabb ? Promise.resolve({ rows: [] }) : pool.query(
             "SELECT id,title,body FROM posts WHERE company_id=$1 AND status='published' ORDER BY created_at DESC LIMIT 10",
             [c.id],
           ),
@@ -202,13 +203,14 @@ export function publicPages() {
       }
     }
     const marketingPage = ({"/":"home","/hire":"hire","/find-work":"work","/how-it-works":"how","/our-story":"story"} as Record<string,string>)[req.path];
-    let colabbFirstPaint = `<main class="colabb-loading" aria-busy="true"><img src="/brand/marks/lockup-primary.svg" alt="Colabb" width="150" height="48"/><p>Opening Colabb…</p><noscript><section class="colabb-static"><h1>${escape(title.replace(/ \| Colabb$/, ""))}</h1><p>${escape(description)}</p><p>Enable JavaScript to use Colabb’s company profiles, proposals and job workspace.</p><a href="/">Back to Colabb</a></section></noscript></main>`;
+    let colabbFirstPaint = `<main class="colabb-static"><h1>${escape(title.replace(/ \| Colabb$/, ""))}</h1><p>${escape(description)}</p><p>Enable JavaScript to use Colabb’s company profiles, proposals and job workspace.</p><a href="/">Back to Colabb</a></main>`;
     if (colabb && marketingPage) {
       colabbFirstPaint = (process.env.NODE_ENV === "production" ? marketingTemplates[marketingPage] : undefined) || (marketingTemplates[marketingPage] = await fs.readFile(path.join(webDist("colabb"), `marketing-${marketingPage}.html`), "utf8"));
     }
     const nonce = randomBytes(16).toString("base64");
     const meta = `<title>${escape(title)}</title><meta name="description" content="${escape(description)}"/><link rel="canonical" href="${escape(origin + canonical)}"/><meta property="og:title" content="${escape(title)}"/><meta property="og:description" content="${escape(description)}"/><meta property="og:url" content="${escape(origin + canonical)}"/><meta property="og:type" content="website"/>${indexable ? "" : "<meta name='robots' content='noindex,follow'/>"}${structured ? `<script type="application/ld+json" nonce="${nonce}">${JSON.stringify(structured).replace(/</g, "\\u003c")}</script>` : ""}`;
     const html = template
+      .replaceAll("__COLABB_BOOT_NONCE__", nonce)
       .replace(/<title>.*?<\/title>/s, "")
       .replace(/<meta\s+name="description"[^>]*>/s, "")
       .replace("</head>", meta + "</head>")

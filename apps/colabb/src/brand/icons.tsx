@@ -5,5 +5,6 @@ icons["credential"]=icons.license;
 icons["save"]='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4V3Z"/></svg>';
 icons["saved"]=icons.shortlist;
 icons["menu"]='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>';
+icons["rating"]='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.8 5.7 6.3.9-4.5 4.4 1.1 6.2-5.7-3-5.7 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg>';
 export const iconMarkup=(name:string,size=20)=>(icons[name]||icons["arrow-right"]).replace(/width="24"/g,`width="${size}"`).replace(/height="24"/g,`height="${size}"`);
 export function BrandIcon({name,size=20,style}:{name:string;size?:number;style?:CSSProperties}){return <span className="colabb-icon" style={style} aria-hidden="true" dangerouslySetInnerHTML={{__html:iconMarkup(name,size)}}/>;}

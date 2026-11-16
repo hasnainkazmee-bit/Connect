@@ -792,7 +792,7 @@ export function ShareProfile({
         <p>
           {reviews
             ? "Send this link after a project. Customers can share their experience and rate your company."
-            : "One link to your updates, work, people, and customer reviews."}
+            : "One link to your work, people, and customer reviews."}
         </p>
       </header>
       <label className="share-address">

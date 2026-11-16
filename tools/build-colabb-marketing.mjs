@@ -9,7 +9,9 @@ const {marketingView,marketingCSS}=await import('data:text/javascript;base64,'+B
 const iconSource=await read('apps/colabb/src/brand/icons.tsx');
 const icons=JSON.parse(iconSource.split(' = ',2)[1].split(';\n',1)[0]);
 const I=(key,size=20)=>(icons[key]||icons['arrow-right']).replace(/width="24"/,'width="'+size+'"').replace(/height="24"/,'height="'+size+'"');
-const publicCompanies=[{name:'Sunhub',kind:'Equipment marketplace',location:'Cleveland, Ohio',services:['Solar equipment','Equipment sourcing','Freight & fulfillment'],logo:'/brand/companies/sunhub.png',profile:'/sunhub-solar'},{name:'YellowLite',kind:'Solar installer',location:'Cleveland, Ohio',services:['Solar installation','Battery storage','Repair & maintenance'],logo:'/brand/companies/yellowlite.webp',profile:'/yellowlite-inc'}];
+const companySource=await read('apps/colabb/src/brand/marketing-companies.ts');
+const companyModule=ts.transpileModule(companySource,{compilerOptions:{module:ts.ModuleKind.ES2022,target:ts.ScriptTarget.ES2022}}).outputText;
+const {marketingCompanySnapshot:publicCompanies}=await import('data:text/javascript;base64,'+Buffer.from(companyModule).toString('base64'));
 const pages={home:'/',hire:'/hire',work:'/find-work',how:'/how-it-works',story:'/our-story'};
 for(const page of Object.keys(pages)){
  let body=marketingView({state:{marketingPage:page},I,photo:(key,alt)=>`<img src="/brand/${key}.webp" alt="${alt}"/>`,companyLogo:id=>`<img src="/assets/demo-logos/demo-${id==='riverbend'?'riverbend-renewables-crew':'summit-grid-electric'}-mark.svg" alt=""/>`,publicCompanies});

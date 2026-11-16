@@ -8,6 +8,7 @@ import { fileTypeFromFile } from "file-type";
 import { pool, tx, HttpError } from "./db.js";
 import { requireAdmin } from "./auth.js";
 import { checkQuota, storeFile, deferDelete } from "./storage.js";
+import { connectCompanyUpdatesOnly } from "./web-ui.js";
 import {
   postCaptionDocument,
   publicationKind,
@@ -17,6 +18,7 @@ import {
 const uuid = z.string().uuid();
 export function publishingRoutes(uploadDir: string) {
   const router = Router();
+  router.use("/publications", connectCompanyUpdatesOnly);
   const upload = multer({
     storage: multer.diskStorage({
       destination: path.join(uploadDir, ".staging"),

@@ -10,9 +10,90 @@
       content="The working network for solar. Find crews, specialists and suppliers. Agree the work and see it through together."
     />
     <title>Colabb — The working network for solar</title>
+    <link rel="preload" as="image" href="/brand/marks/wordmark-ink.svg" />
+    <!-- Critical startup styles are independent of the application bundle. -->
+    <style>
+      html,body{margin:0;background:#f8f8f8}
+      #colabb-startup{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;background:#f8f8f8;opacity:1;transition:opacity 180ms ease;animation:colabb-startup-fail-open 0s linear 12s forwards}
+      #colabb-startup[data-running]{animation:none}
+      #colabb-startup.is-leaving{opacity:0;pointer-events:none}
+      .colabb-startup-brand{display:flex;align-items:center;gap:16px;transform:translateY(-12px)}
+      .colabb-startup-brand>img{display:block;width:156px;height:auto}
+      .colabb-startup-symbol{display:block;width:61px;height:32px;overflow:visible;fill:#ff6a00}
+      .colabb-startup-left{animation:colabb-startup-left 720ms cubic-bezier(.22,1,.36,1) both}
+      .colabb-startup-right{animation:colabb-startup-right 720ms cubic-bezier(.22,1,.36,1) both}
+      .colabb-startup-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+      .colabb-startup-placeholder{min-height:100svh;display:grid;place-items:center;background:#f8f8f8}
+      .colabb-startup-recovery,.colabb-static{font:14px/1.6 Manrope,Arial,sans-serif;color:#172c38;padding:20px 5%;background:#fff}
+      .colabb-startup-recovery{display:flex;justify-content:center;align-items:center;gap:18px;border-bottom:1px solid #e2e6e8}
+      .colabb-startup-recovery a,.colabb-static>a{color:#172c38;text-decoration:underline;text-underline-offset:4px}
+      .colabb-static{max-width:760px;margin:12vh auto;border-radius:16px;padding:32px}
+      .colabb-static h1{font-size:28px;line-height:1.25}
+      @keyframes colabb-startup-left{from{transform:translateX(-7px);opacity:.35}to{transform:translateX(0);opacity:1}}
+      @keyframes colabb-startup-right{from{transform:translateX(7px);opacity:.35}to{transform:translateX(0);opacity:1}}
+      @keyframes colabb-startup-fail-open{to{visibility:hidden;pointer-events:none}}
+      @media(max-width:600px){.colabb-startup-brand>img{width:139px}.colabb-startup-brand{gap:14px}.colabb-startup-symbol{width:54px;height:28px}.colabb-startup-recovery{align-items:flex-start;flex-direction:column;gap:6px}.colabb-static{margin:10vh 5%;padding:24px}}
+      @media(prefers-reduced-motion:reduce){#colabb-startup{transition:none!important}.colabb-startup-left,.colabb-startup-right{animation:none!important}}
+    </style>
   </head>
   <body>
+    <div id="colabb-startup" role="status" aria-label="Opening Colabb">
+      <div class="colabb-startup-brand">
+        <svg class="colabb-startup-symbol" viewBox="10 29 80 42" aria-hidden="true"><path class="colabb-startup-left" d="M10 29L10 71L46.37306695894642 50Z"/><path class="colabb-startup-right" d="M90 29L90 71L53.62693304105358 50Z"/></svg>
+        <img src="/brand/marks/wordmark-ink.svg" alt="Colabb" width="234" height="52" fetchpriority="high" />
+        <span class="colabb-startup-label">Opening Colabb</span>
+      </div>
+    </div>
+    <noscript><style>#colabb-startup{display:none!important}</style></noscript>
     <div id="root"></div>
+    <script nonce="__COLABB_BOOT_NONCE__">
+      (() => {
+        const overlay = document.getElementById("colabb-startup");
+        const root = document.getElementById("root");
+        const firstPaint = root.innerHTML;
+        let finished = false;
+        let started = false;
+        let timer;
+        let recovery;
+        root.inert = true;
+        overlay.dataset.running = "true";
+        const close = () => {
+          if (finished) return;
+          finished = true;
+          clearTimeout(timer);
+          window.removeEventListener("error", failed, true);
+          root.inert = false;
+          overlay.setAttribute("aria-hidden", "true");
+          overlay.classList.add("is-leaving");
+          overlay.addEventListener("transitionend", () => overlay.remove(), { once: true });
+          setTimeout(() => overlay.remove(), matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 200);
+        };
+        const fail = () => {
+          if (finished) return;
+          if (!started) root.innerHTML = firstPaint || '<main class="colabb-static"><h1>Colabb</h1><p>The working network for solar.</p><a href="/">Back to Colabb</a></main>';
+          const message = document.createElement("div");
+          recovery = message;
+          message.className = "colabb-startup-recovery";
+          message.setAttribute("role", "alert");
+          message.innerHTML = '<span>Colabb couldn’t finish opening.</span><a href="">Refresh to try again</a>';
+          root.before(message);
+          close();
+        };
+        const failed = (event) => {
+          const source = event instanceof ErrorEvent ? event.filename : event.target instanceof HTMLScriptElement ? event.target.src : "";
+          if (!source) return;
+          const url = new URL(source, location.href);
+          if (url.origin === location.origin && /^\/(assets|src)\//.test(url.pathname)) fail();
+        };
+        window.addEventListener("error", failed, true);
+        timer = setTimeout(fail, 12000);
+        window.colabbStartup = {
+          start() { started = true; if (!finished) { clearTimeout(timer); timer = setTimeout(fail, 35000); } },
+          ready() { recovery?.remove(); close(); },
+          fail,
+        };
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

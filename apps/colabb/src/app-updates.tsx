@@ -82,12 +82,12 @@ export function WebUpdateNotice() {
   if (!available || available === dismissed) return null;
   return (
     <aside className="web-update-notice" role="status">
-      <RefreshCw size={19} />
-      <div>
-        <strong>A Colabb update is ready.</strong>
-        <span>Refresh to use the latest improvements.</span>
+      <span className="web-update-icon"><RefreshCw size={18} aria-hidden="true" /></span>
+      <div className="web-update-copy">
+        <strong>A new Colabb is ready</strong>
+        <span>Refresh for the latest improvements.</span>
       </div>
-      <button onClick={() => location.reload()}>Refresh Colabb</button>
+      <button className="web-update-refresh" onClick={() => location.reload()}>Refresh</button>
       <button
         className="update-dismiss"
         aria-label="Remind me later"

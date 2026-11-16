@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import pg from "pg";
 import dotenv from "dotenv";
+import { createServer } from "node:net";
+import { once } from "node:events";
 const url = new URL(
   process.env.TEST_DATABASE_URL ||
     "postgres://sunhub:sunhub_local@localhost:5438/sunhub_community_test",
@@ -43,6 +45,7 @@ const env = {
   WEB_PUSH_PRIVATE_KEY: "",
   FIREBASE_SERVICE_ACCOUNT_FILE: "",
   PUSH_WORKER_DISABLED: "true",
+  CONNECT_WEB_UI: "connect",
 };
 const run = (cmd, args) =>
   new Promise((resolve, reject) => {
@@ -54,6 +57,31 @@ const run = (cmd, args) =>
   });
 await run(process.execPath, ["apps/api/dist/migrate.js"]);
 let server;
+let jobsServer;
+async function startJobsServer() {
+  await run("cargo", ["build", "--locked", "-p", "connect-jobs"]);
+  const listener = createServer();
+  listener.listen(0, "127.0.0.1");
+  await once(listener, "listening");
+  const port = listener.address().port;
+  await new Promise((resolve) => listener.close(resolve));
+  env.JOBS_SERVICE_URL = `http://127.0.0.1:${port}`;
+  jobsServer = spawn("./target/debug/connect-jobs", [], {
+    env: { ...env, JOBS_BIND: `127.0.0.1:${port}`, JOBS_UPLOAD_DIR: uploads },
+    stdio: "inherit",
+  });
+  let startupError;
+  jobsServer.once("error", (error) => { startupError = error; });
+  for (let i = 0; i < 60; i++) {
+    if (startupError) throw startupError;
+    if (jobsServer.exitCode !== null) throw new Error("Test jobs service exited.");
+    try {
+      if ((await fetch(env.JOBS_SERVICE_URL + "/health", { signal: AbortSignal.timeout(1000) })).ok) return;
+    } catch {}
+    await wait(100);
+  }
+  throw new Error("Test jobs service did not become ready.");
+}
 async function startServer() {
   server = spawn(process.execPath, ["apps/api/dist/server.js"], {
     env,
@@ -147,12 +175,18 @@ try {
     await stopServer();
     Object.assign(env, saved);
   }
-  if (process.argv.includes("--ui")) {
+  if (process.argv.includes("--ui") || process.argv.includes("--ui-legacy")) {
+    const legacy = process.argv.includes("--ui-legacy");
+    env.CONNECT_WEB_UI = legacy ? "connect" : "colabb";
+    await startJobsServer();
     // Each independent browser suite gets a fresh rate-limit window. Recovery
     // tests deliberately sign in repeatedly; production limits stay unchanged.
     const suites = (await fs.readdir("tests/browser"))
       .filter((name) => name.endsWith(".spec.ts"))
+      .filter((name) => legacy ? !name.startsWith("colabb-") : name.startsWith("colabb-"))
       .sort();
+    if (!suites.length) throw new Error("No browser suites match the selected interface.");
+    console.log(`Browser release checks: ${legacy ? "historical Connect" : "Colabb"} (${suites.length} suites).`);
     for (const suite of suites) {
       await startServer();
       await run(process.execPath, [
@@ -198,5 +232,10 @@ try {
   }
 } finally {
   await stopServer();
+  if (jobsServer && jobsServer.exitCode === null && jobsServer.pid) {
+    const stopped = once(jobsServer, "exit");
+    jobsServer.kill("SIGTERM");
+    await stopped;
+  }
   await fs.rm(uploads, { recursive: true, force: true });
 }

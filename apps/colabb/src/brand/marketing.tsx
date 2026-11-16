@@ -3,6 +3,8 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { marketingView } from "./marketing-template";
 import { iconMarkup, BrandIcon } from "./icons";
 import { useApp } from "../context";
+import { api } from "../api";
+import { marketingCompanySnapshot } from "./marketing-companies";
 import "./marketing-base.css";
 import "./marketing-editorial.css";
 import "./marketing-refinement.css";
@@ -10,10 +12,6 @@ import "./marketing-refinement.css";
 const pages: Record<string,string>={home:"/",hire:"/hire",work:"/find-work",how:"/how-it-works",story:"/our-story"};
 const photos:Record<string,string>={roof:"roof",detail:"detail",planning:"planning",craft:"craft"};
 const escape=(s:string)=>s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
-const publicCompanies=[
- {name:"Sunhub",kind:"Equipment marketplace",location:"Cleveland, Ohio",services:["Solar equipment","Equipment sourcing","Freight & fulfillment"],logo:"/brand/companies/sunhub.png",profile:"/sunhub-solar",managed:true},
- {name:"YellowLite",kind:"Solar installer",location:"Cleveland, Ohio",services:["Solar installation","Battery storage","Repair & maintenance"],logo:"/brand/companies/yellowlite.webp",profile:"/yellowlite-inc",managed:true}
-];
 export function MarketingHeader({signIn}:{signIn:()=>void}){
  const [menu,setMenu]=useState(false);
  useEffect(()=>{const close=(e:KeyboardEvent)=>{if(e.key==="Escape")setMenu(false)};window.addEventListener("keydown",close);return()=>window.removeEventListener("keydown",close)},[]);
@@ -26,6 +24,15 @@ export function ColabbFooter({compact=false}:{compact?:boolean}){
 export function ColabbMarketing({page="home"}:{page?:string}){
  const navigate=useNavigate();const app=useApp();const root=useRef<HTMLDivElement>(null);
  const [state,setState]=useState<Record<string,unknown>>({marketingScope:"electrical"});
+ const [publicCompanies,setPublicCompanies]=useState(marketingCompanySnapshot);
+ useEffect(()=>{
+  if(page!=="home")return;
+  const controller=new AbortController();
+  api<{providers:typeof marketingCompanySnapshot}>("/jobs/providers?sample=false",{signal:controller.signal})
+   .then(({providers})=>setPublicCompanies(marketingCompanySnapshot.map(saved=>providers.find(company=>company.id===saved.id&&company.is_demo===false)||saved)))
+   .catch(()=>{/* Keep the verified first-paint profiles if the directory is unavailable. */});
+  return()=>controller.abort();
+ },[page]);
  const html=marketingView({state:{...state,marketingPage:page},I:iconMarkup,photo:(key:string,alt:string)=>`<img src="/brand/${photos[key]||"roof"}.webp" alt="${escape(alt)}" loading="${key==="planning"?"eager":"lazy"}"/>`,companyLogo:(id:string)=>`<img src="/assets/demo-logos/demo-${id==="riverbend"?"riverbend-renewables-crew":"summit-grid-electric"}-mark.svg" alt=""/>`,publicCompanies});
  function action(event:React.MouseEvent<HTMLDivElement>){
   const el=(event.target as HTMLElement).closest<HTMLElement>("[data-action]");if(!el)return;

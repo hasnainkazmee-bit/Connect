@@ -11,7 +11,7 @@ test('frontend selection is allowlisted and keeps native clients on Connect',()=
  assert.equal(selectedWebUI({headers:{cookie:'connect_web_ui=connect'}}),'connect');
  assert.equal(selectedWebUI({headers:{cookie:'connect_web_ui=../../private'}}),'colabb');
  assert.equal(selectedWebUI({headers:{cookie:'unrelated=connect; connect_web_ui=colabb'}}),'colabb');
- for(const agent of ['ConnectMac/0.1.5','Mozilla/5.0 ConnectWindows/0.1.0'])assert.equal(selectedWebUI({headers:{cookie:'connect_web_ui=colabb','user-agent':agent}}),'connect');
+ for(const agent of ['ConnectMac/0.1.5','Mozilla/5.0 ConnectWindows/0.1.0','ConnectAndroid/0.2'])assert.equal(selectedWebUI({headers:{cookie:'connect_web_ui=colabb','user-agent':agent}}),'connect');
  process.env.CONNECT_WEB_UI='connect';assert.equal(selectedWebUI({headers:{}}),'connect');assert.equal(selectedWebUI({headers:{cookie:'connect_web_ui=colabb'}}),'colabb');process.env.CONNECT_WEB_UI='colabb';
 });
 test('switching is reversible, cache safe, and keeps existing hashed assets available',async()=>{

@@ -5,14 +5,16 @@ const base = process.env.API_TEST_URL || "http://localhost:4101";
 function client() {
   let cookie = "";
   return async (path, body, options = {}) => {
+    const { webUI, ...requestOptions } = options;
+    const requestCookie = [cookie, webUI && "connect_web_ui=" + webUI].filter(Boolean).join("; ");
     const response = await fetch(base + "/api" + path, {
       method: body === undefined ? "GET" : "POST",
-      ...options,
+      ...requestOptions,
       headers: {
         ...(body instanceof FormData
           ? {}
           : { "Content-Type": "application/json" }),
-        ...(cookie ? { Cookie: cookie } : {}),
+        ...(requestCookie ? { Cookie: requestCookie } : {}),
         ...options.headers,
       },
       body:
@@ -592,4 +594,72 @@ test("company social feed, media, follows and permissions", async (t) => {
       assert.equal((await anon("/posts/" + P.id + "/comments")).status, 404);
     },
   );
+});
+
+test("Colabb retires company updates while Connect and installed apps retain them", async () => {
+  const a = client();
+  const suffix = randomUUID().slice(0, 8);
+  const connect = { webUI: "connect" };
+  const colabb = { webUI: "colabb" };
+  const registered = await a("/auth/register", {
+    name: "Company Update Owner",
+    email: `company-update-${suffix}@example.test`,
+    password: "CompanyUpdateTest123!",
+    companyName: "Company Update Test " + suffix,
+  }, connect);
+  assert.equal(registered.status, 201);
+  const companyId = registered.data.activeCompanyId;
+  const body = "Historical company post " + suffix;
+  const form = new FormData();
+  form.set("body", body);
+  const created = await a("/posts", form, connect);
+  assert.equal(created.status, 201);
+  const postId = created.data.id;
+  const draft = await a("/publications", { kind: "post" }, connect);
+  assert.equal(draft.status, 201);
+
+  for (const [path, data, options] of [
+    ["/feed?companyId=" + companyId],
+    ["/posts/" + postId],
+    ["/posts/" + postId + "/comments"],
+    ["/posts/" + postId + "/reactions"],
+    ["/post-media/" + randomUUID()],
+    ["/social/suggestions"],
+    ["/social/companies/" + companyId],
+    ["/publications"],
+    ["/posts", new FormData()],
+    ["/posts/" + postId, undefined, { method: "DELETE" }],
+    ["/posts/" + postId + "/comments", { body: "Unavailable comment" }],
+    ["/posts/" + postId + "/reactions", { emoji: "🎉" }],
+    ["/social/companies/" + companyId + "/follow", { following: true }],
+    ["/publications", { kind: "post" }],
+    ["/publications/" + draft.data.id, { body: "Unavailable edit" }, { method: "PATCH" }],
+    ["/publications/" + draft.data.id + "/media", new FormData()],
+  ]) {
+    const result = await a(path, data, { ...colabb, ...options });
+    assert.equal(result.status, 404, `${options?.method || (data === undefined ? "GET" : "POST")} ${path}`);
+    assert.equal(result.data.error, "Company updates are not available in Colabb.");
+  }
+
+  // The boundary must not delete history, alter drafts, or disable the retained UI.
+  assert.equal((await a("/posts/" + postId, undefined, connect)).data.body, body);
+  assert.deepEqual((await a("/publications", undefined, connect)).data.map(d => d.id), [draft.data.id]);
+  assert.equal((await a("/feed?companyId=" + companyId, undefined, connect)).data.posts[0].id, postId);
+  assert.equal((await a("/session", undefined, colabb)).data.activeCompanyId, companyId);
+  assert.equal((await a("/companies/" + companyId, undefined, colabb)).status, 200);
+  for (const userAgent of ["ConnectMac/0.1.5", "Mozilla/5.0 ConnectWindows/0.1.0", "ConnectAndroid/0.2"]) {
+    const native = { ...colabb, headers: { "User-Agent": userAgent } };
+    assert.equal((await a("/posts/" + postId, undefined, native)).data.body, body);
+    assert.equal((await a("/publications", undefined, native)).data[0].id, draft.data.id);
+  }
+  const postLink = await fetch(base + "/posts/" + postId, {
+    headers: { Cookie: "connect_web_ui=colabb" }, redirect: "manual",
+  });
+  assert.equal(postLink.status, 303);
+  assert.equal(postLink.headers.get("location"), "/providers");
+  const retainedLink = await fetch(base + "/posts/" + postId, {
+    headers: { Cookie: "connect_web_ui=connect" }, redirect: "manual",
+  });
+  assert.equal(retainedLink.status, 301);
+  assert.notEqual(retainedLink.headers.get("location"), "/providers");
 });

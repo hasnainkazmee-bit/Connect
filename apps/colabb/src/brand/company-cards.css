@@ -1,0 +1,64 @@
+/* Company identity first; concrete services and coverage support the decision. */
+.cd-page { max-width: none; }
+.cd-search-form { padding: 7px; gap: 12px; border-radius: 16px; border-color: #ccd4d8; box-shadow: none; transition: border-color .15s, box-shadow .15s; }
+.cd-search-form:focus-within { border-color: #6d7d86; box-shadow: 0 0 0 3px #172c380a; }
+.cd-search-field { padding: 0 10px 0 15px; gap: 13px; box-shadow: none; }
+.cd-search-field:focus-within { box-shadow: none; }
+.cd-search-field input[type=search]:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]) { background: transparent; border: 0; outline: 0; box-shadow: none; padding: 12px 0; border-radius: 0; min-height: 48px; font-size: 15px; }
+.cd-search-field > .colabb-icon { color: #667781; }
+.cd-search-form > .cd-button { min-height: 48px; padding-inline: 24px; font-size: 13px; }
+.cd-filter-panel input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), .cd-filter-panel select { background: #fff; border: 1px solid #cdd5d9; border-radius: 10px; font-size: 14px; }
+.cd-company-list { gap: 18px; }
+.cd-company { padding: 26px 28px 0; border-radius: 18px; border-color: #dce1e3; box-shadow: 0 2px 3px #172c3803; }
+.cd-company-head { display: grid; grid-template-columns: 72px minmax(0,1fr) auto; gap: 18px; align-items: center; }
+.cd-company-logo { width: 72px; height: 72px; padding: 8px; border-radius: 12px; border-color: #e6e9eb; }
+.cd-company-logo > .company-logo { width: 100%; height: 100%; padding: 0; border: 0; border-radius: 0; }
+.cd-company-heading h3 { font-size: 24px; line-height: 1.3; letter-spacing: -.6px; margin-bottom: 7px; overflow-wrap: anywhere; }
+.cd-company-heading h3 a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.cd-company-heading .cd-company-meta { display: flex; flex-wrap: wrap; gap: 4px 13px; margin: 0; font-size: 12px; line-height: 1.6; }
+.cd-company-meta > span { display: inline-flex; align-items: center; gap: 5px; }
+.cd-company-meta > span:first-child { color: #344a56; }
+.cd-company-meta > span + span { border-left: 1px solid #dce1e3; padding-left: 13px; }
+.cd-identity { align-self: start; margin-top: 3px; padding: 5px 0; border: 0; background: none; font-size: 11px; color: #69777e; }
+.cd-identity.cd-managed { padding: 6px 9px; border: 1px solid #dce1e3; border-radius: 7px; color: var(--ink); background: #fff; }
+.cd-description { font-size: 14px; line-height: 1.7; color: #465b67; margin: 19px 0 20px; max-width: 92ch; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.cd-card-details { display: grid; grid-template-columns: minmax(0,1.25fr) minmax(0,1fr); gap: 24px; padding-bottom: 23px; margin-top: 20px; }
+.cd-description + .cd-card-details { margin-top: 0; }
+.cd-card-details > :only-child { grid-column: 1 / -1; }
+.cd-service-summary h4 { margin: 0 0 10px; font-size: 11px; font-weight: 650; color: #687780; }
+.cd-service-chips { display: flex; flex-wrap: wrap; gap: 7px; list-style: none; margin: 0; padding: 0; }
+.cd-service-chips li { display: inline-flex; font-size: 12px; line-height: 1.5; padding: 6px 9px; border: 1px solid #e4e8ea; background: #f7f8f8; border-radius: 7px; color: #304653; }
+.cd-service-chips .cd-more-services { background: none; border-color: transparent; padding-inline: 3px; font-weight: 650; }
+.cd-more-services a:hover, .cd-fact-more:hover { text-decoration: underline; text-underline-offset: 3px; }
+.cd-company-facts { display: grid; grid-template-columns: 1fr; gap: 14px; margin: 0; }
+.cd-company-facts > div { display: block; }
+.cd-company-facts dt { font-size: 11px; gap: 6px; color: #687780; margin-bottom: 5px; }
+.cd-company-facts dd { font-size: 12px; font-weight: 550; line-height: 1.65; color: #304653; overflow-wrap: anywhere; }
+.cd-fact-more { display: inline-block; margin-left: 7px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.cd-company-certifications { padding: 15px 0; border-top: 1px solid #edf0f1; gap: 12px 18px; align-items: flex-start; flex-wrap: wrap; }
+.cd-credential-label { display: flex; align-items: center; gap: 7px; font-size: 11px; line-height: 1.7; color: #687780; }
+.cd-company-certifications ul { display: flex; flex-wrap: wrap; gap: 5px 18px; list-style: none; padding: 0; margin: 0; flex: 1; min-width: 200px; }
+.cd-company-certifications li { color: #304653; font-size: 12px; line-height: 1.65; }
+.cd-company-certifications li small { display:block; color:var(--muted); font-size:10px; line-height:1.5; }
+.cd-company-certifications li a { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.cd-work { margin: 0 0 20px; }
+.cd-company-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 0; border-top: 1px solid #e9edef; }
+.cd-card-status { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cd-card-status:empty { display: none; }
+.cd-record-row { padding: 0; }
+.cd-review-link { gap: 6px; font-size: 12px; }
+.cd-review-link strong { font-size: 14px; }
+.cd-review-link > span, .cd-listing-note { font-size: 11px; }
+.cd-availability { display: flex; align-items: center; gap: 7px; min-width: 0; font-size: 11px; color: #536873; line-height: 1.6; }
+.cd-company-actions { margin-left: auto; }
+.cd-company-actions .cd-button { min-height: 43px; padding: 10px 15px; font-size: 12px; gap: 9px; }
+@media(min-width:1800px) { .cd-company-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-items: stretch; } .cd-company { display:flex; flex-direction:column; } .cd-company-footer { margin-top: auto; } .cd-company-head { grid-template-columns:64px minmax(0,1fr); gap:14px; } .cd-company-logo { width:64px; height:64px; } .cd-company-head .cd-identity { grid-column:2; justify-self:start; margin-top:-8px; } .cd-company-heading h3 { font-size:22px; } .cd-card-details { grid-template-columns:1fr; gap:18px; } .cd-company-facts { grid-template-columns:1fr 1fr; } }
+@media(max-width:1050px) { .cd-company { padding:22px 22px 0; } .cd-company-head { grid-template-columns:64px minmax(0,1fr); gap:14px; } .cd-company-logo { width:64px; height:64px; } .cd-company-head .cd-identity { grid-column:2; justify-self:start; margin-top:-8px; } .cd-company-heading h3 { font-size:22px; } .cd-card-details { gap:18px; } }
+@media(max-width:600px) { .cd-company { padding:20px 18px 0; } .cd-company-head { grid-template-columns:58px minmax(0,1fr); gap:12px; } .cd-company-logo { width:58px; height:58px; padding:5px; border-radius:10px; } .cd-company-heading h3 { font-size:20px; letter-spacing:-.4px; margin-bottom:4px; } .cd-company-heading .cd-company-meta { font-size:11px; gap:2px 8px; } .cd-company-meta > span + span { border:0; padding:0; } .cd-identity { font-size:10px; } .cd-identity.cd-managed { padding:4px 7px; } .cd-description { font-size:13px; margin:16px 0 18px; -webkit-line-clamp:3; } .cd-card-details { grid-template-columns:1fr; gap:18px; padding-bottom:18px; } .cd-company-facts { grid-template-columns:1fr; gap:12px; } .cd-service-chips li { font-size:11px; } .cd-company-facts dd { font-size:12px; } .cd-company-certifications { gap:8px; } .cd-company-certifications ul { flex-basis:100%; min-width:0; gap:5px 12px; } .cd-company-certifications li { font-size:11px; } .cd-company-footer { display:flex; flex-wrap:wrap; gap:12px; padding:14px 0; } .cd-company-actions { width:100%; display:flex; flex-wrap:wrap; gap:8px; } .cd-company-actions .cd-button { flex:1; font-size:11px; padding:10px 12px; min-height:44px; white-space:nowrap; } .cd-search-form { padding:6px; border-radius:13px; gap:6px; } .cd-search-field { padding-left:8px; gap:8px; } .cd-search-field input[type=search]:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]) { font-size:16px; } .cd-search-form > .cd-button { min-height:44px; padding-inline:17px; } }
+
+@media(max-width:600px) {
+ .cd-search-form > .cd-button { width:48px; min-width:48px; flex:0 0 48px; padding:0; }
+ .cd-search-form > .cd-button:before { content:none; }
+ .cd-search-form > .cd-button > span:not(.colabb-icon) { display:none; }
+ .cd-search-form > .cd-button > .colabb-icon { display:inline-flex; }
+}

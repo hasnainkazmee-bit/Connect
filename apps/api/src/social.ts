@@ -9,6 +9,7 @@ import { pool, tx, lockPair, HttpError } from "./db.js";
 import { requireAdmin, requireVerified } from "./auth.js";
 import { storeFile, sendStored, deferDelete, checkQuota } from "./storage.js";
 import { installPostInteractions, unblocked } from "./social-interactions.js";
+import { connectCompanyUpdatesOnly } from "./web-ui.js";
 
 const uuid = z.string().uuid();
 const cursor = z.string().regex(/^[1-9][0-9]{0,18}$/);
@@ -41,6 +42,7 @@ async function getPost(
 }
 export async function socialRoutes(uploadDir: string) {
   const router = Router();
+  router.use(["/feed", "/posts", "/post-media", "/social"], connectCompanyUpdatesOnly);
   const mediaDir = path.join(uploadDir, "posts");
   await fs.mkdir(mediaDir, { recursive: true });
   const staging = path.join(uploadDir, ".staging");

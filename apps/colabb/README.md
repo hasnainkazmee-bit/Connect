@@ -64,6 +64,9 @@ compatible with the additive schema.
   service coverage and availability retain their actual evidence/status.
 - Live third-party Sunhub SSO and Google authorization were not exercised with
   production credentials during the isolated local regression suite.
+- Company social posts and publishing are unavailable in Colabb. Historical
+  posts remain in the preserved Connect interface; job progress updates and
+  attachment/proof workflows are separate and remain available.
 
 ## Reversible production selection
 
@@ -75,7 +78,7 @@ frontend never changes the authenticated user or active company.
 - Selection is an allowlisted HttpOnly, same-site cookie. HTML/worker responses
   vary by cookie and user agent and are not cached. Hashed assets from both
   interfaces remain available to already-open tabs.
-- `ConnectMac/` and `ConnectWindows/` clients retain Connect until a dedicated
+- `ConnectMac/`, `ConnectWindows/` and `ConnectAndroid/` clients retain Connect until a dedicated
   native rebrand release.
 
 `tools/release-colabb.py` prepares exact-SHA app/jobs images, verifies non-root
@@ -96,3 +99,14 @@ without deleting additive data. The backup is local to this server.
 - Local real-API browser checks cover account onboarding, claim/invite entry,
   profile project/license save/remove, directory/profile/editor layouts, inbox
   drafts/send/uploads and full-screen image/PDF preview at desktop/tablet/phone.
+- `npm run test:ui` runs all existing API regressions, starts an isolated Rust
+  jobs service, and runs the `colabb-*.spec.ts` browser release checks. These
+  cover the current provider directory, responsive controls, full-page access,
+  job updates and reversible frontend selection using the actual API. The
+  refresh-notice test bundles the real component with a synthetic release to
+  exercise its appearance, dismissal and reload without changing the app build.
+- Historical browser suites remain available through `npm run test:ui:legacy`.
+  They describe the retired directory/social UI (including modal sign-in and
+  social publishing) and are not a Colabb release gate. Some predate the hiring
+  pivot and require an update before they can pass against preserved Connect.
+  Their underlying API regressions still run in the default test command.

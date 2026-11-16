@@ -26,6 +26,7 @@ jobs:
       - run: npm run build
       - run: node --test tests/job-history-model.test.mjs tests/project-activity-model.test.mjs tests/notification-routing.test.mjs tests/colabb-web-ui.test.mjs
       - run: npx playwright install --with-deps chrome
+      - uses: dtolnay/rust-toolchain@stable
       - run: npm run test:ui
       - uses: actions/upload-artifact@v4
         if: failure()

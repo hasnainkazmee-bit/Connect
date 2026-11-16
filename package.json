@@ -25,6 +25,7 @@
     "test:credential-research": "python3 tests/credential-research.test.py",
     "test": "node tests/run.mjs",
     "test:ui": "node tests/run.mjs --ui",
+    "test:ui:legacy": "node tests/run.mjs --ui-legacy",
     "test:android-core": "node tests/run.mjs --rust",
     "test:android": "node tests/run.mjs --android",
     "build:macos": "./apps/macos/build.sh",

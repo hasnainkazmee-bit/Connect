@@ -1,4 +1,4 @@
-import express, { type Request } from "express";
+import express, { type Request, type RequestHandler } from "express";
 import path from "node:path";
 import { root } from "./db.js";
 
@@ -6,12 +6,19 @@ export type WebUI = "connect" | "colabb";
 const cookieName = "connect_web_ui";
 export function selectedWebUI(req: Pick<Request, "headers">): WebUI {
   // Installed clients retain their existing bridge and layout until a native release.
-  if (/ConnectMac\/|ConnectWindows\//.test(req.headers["user-agent"] || "")) return "connect";
+  if (/ConnectMac\/|ConnectWindows\/|ConnectAndroid\//.test(req.headers["user-agent"] || "")) return "connect";
   const selected = (req.headers.cookie || "").split(";").map(v => v.trim()).find(v => v.startsWith(cookieName + "="))?.slice(cookieName.length + 1);
   if (selected === "connect" || selected === "colabb") return selected;
   return process.env.CONNECT_WEB_UI === "colabb" ? "colabb" : "connect";
 }
 export const webDist = (ui: WebUI) => path.join(root, ui === "colabb" ? "apps/colabb/dist" : "apps/web/dist");
+
+// Company posts belong to the retained Connect interface. Keep this boundary
+// on the social routers only: job activity and proof have separate APIs.
+export const connectCompanyUpdatesOnly: RequestHandler = (req, res, next) => {
+  if (selectedWebUI(req) === "connect") return next();
+  res.status(404).json({ error: "Company updates are not available in Colabb." });
+};
 
 export function webUIRoutes() {
   const router = express.Router();

@@ -1,6 +1,7 @@
 import "./brand/foundation.css";
 import "./brand/colabb.css";
 import "./brand/settings.css";
+import "./brand/notices.css";
 import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -71,13 +72,6 @@ import { AppContext, useApp } from "./context";
 import { Logo, Avatar } from "./identity";
 import { AuthExperience, Onboarding, AccountSecurity } from "./accounts";
 import { sunhubReturnTo } from "./sunhub-auth";
-import {
-  HomeFeed,
-  PostPage,
-  FollowButton,
-  CompanyUpdates,
-  SocialStats,
-} from "./social";
 import { WebUpdateNotice } from "./app-updates";
 import { useDesktopNotifications } from "./desktop-notifications";
 import {
@@ -103,13 +97,11 @@ import { Directory } from "./directory";
 import { ClaimCompanyPage } from "./claim-company";
 import { CompanyMatches } from "./company-matches";
 import { JobMatchesPage } from "./job-matches";
-import { CompanyProfileView } from "./company-profile";
 import { CompanySettings, EmployeeInvite } from "./management";
 import { JobsPage, NewJobPage, JobDetailPage } from "./jobs";
 import { JobInboxPage } from "./job-inbox";
 import { MarketplaceLanding, ProviderDirectory } from "./providers";
 import { ProviderProfilePage } from "./provider-profile";
-import { Publisher, DraftsDialog, preloadPublisher } from "./composer";
 import {
   DesktopPanel,
   useDesktopApp,
@@ -129,6 +121,7 @@ import { BrandIcon } from "./brand/icons";
 import { FindWork } from "./brand/find-work";
 import { ColabbCompanies } from "./brand/companies";
 import { ColabbHelp } from "./brand/help";
+import { commitStartupView, StartupPlaceholder } from "./brand/startup";
 
 const date = (s: string) =>
   new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -467,7 +460,7 @@ function App() {
       accountType: session.user?.account_type || "",
       userName: session.user?.name || "",
       companyName: company?.name || "",
-      canPublish: !!company && admin && !sessionExpired && !incompleteAccount,
+      canPublish: false,
       unreadCount: notificationInbox.unread,
     },
     (command: DesktopCommand) => {
@@ -495,15 +488,6 @@ function App() {
             navigate(command.path);
             auth(undefined, command.path);
           } else navigate(command.path);
-        } else if (command.type === "compose") {
-          if (!session.user || sessionExpired)
-            auth(() => setDesktopIntentAfterSignIn(command));
-          else if (session.user.account_type === "individual")
-            setNotice("Publishing is for company accounts.");
-          else if (!company) setModal(<NewCompany />);
-          else if (!admin)
-            setNotice("Only company owners and administrators can publish.");
-          else setModal(<Publisher />);
         } else if (command.type === "account") {
           if (!session.user || sessionExpired) auth();
           else
@@ -565,7 +549,10 @@ function App() {
     reauthenticate,
     modal,
   ]);
-  if (!ready) return <Loading />;
+  useEffect(() => {
+    if (ready) commitStartupView();
+  }, [ready]);
+  if (!ready) return <StartupPlaceholder />;
   const workspace = (
     <AppContext.Provider
       value={{
@@ -1104,17 +1091,6 @@ function AccountMenuContents({
         <LogOut />
         Sign out
       </button>
-      {desktop && company && admin && (
-        <button
-          onClick={() => {
-            closeMenu?.();
-            open(<DraftsDialog />);
-          }}
-        >
-          <FileText />
-          Your drafts
-        </button>
-      )}
     </>
   );
 }
@@ -1373,32 +1349,6 @@ function ColabbButton({ profile }: { profile: Profile }) {
       <Plus size={16} />
       {r.status === "disconnected" ? "Reconnect" : "Connect"}
     </button>
-  );
-}
-function CompanyProfile() {
-  const { session } = useApp();
-  const { username } = useParams();
-  return (
-    <CompanyProfileView
-      username={username}
-      controls={(data) => (
-        <>
-          {session.user?.account_type === "individual" ? (
-            <PersonalMessageButton company={data.company} />
-          ) : (
-            <ColabbButton profile={data} />
-          )}
-          {session.user &&
-            session.user.account_type !== "individual" &&
-            data.relationship.status !== "self" && (
-              <CompanyMenu
-                company={data.company}
-                relationship={data.relationship}
-              />
-            )}
-        </>
-      )}
-    />
   );
 }
 function CompanyMenu({

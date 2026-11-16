@@ -58,13 +58,6 @@ type Stats = {
   milestones: { id:string; title:string; earned:boolean; earnedAt:string|null; count:number; target:number }[];
   reviews: { id: string; rating: number; text: string; reviewer: string; reviewerLogo?:string; reviewerUsername?:string; reviewerRole?:string; jobTitle?:string; created_at:string }[];
 };
-type Update = {
-  id: string;
-  title: string;
-  body: string;
-  kind: string;
-  published_at: string;
-};
 const list = (value: string) =>
   value
     .split(/[,\n]/)
@@ -80,8 +73,7 @@ export function ProviderProfilePage() {
   const slug = p.slug || p.username || p.id;
   const [profile, setProfile] = useState<Profile | null>(null),
     [provider, setProvider] = useState<Provider | null>(null),
-    [stats, setStats] = useState<Stats | null>(null),
-    [updates, setUpdates] = useState<Update[]>([]);
+    [stats, setStats] = useState<Stats | null>(null);
   const [coverFailed, setCoverFailed] = useState(false);
   const [activeSection, setActiveSection] = useState("overview");
   const [showInvite, setShowInvite] = useState(false),
@@ -98,7 +90,6 @@ export function ProviderProfilePage() {
     setProfile(null);
     setCoverFailed(false);
     setProvider(null);
-    setUpdates([]);
     setChosen("");
     setShowInvite(false);
     Promise.all([
@@ -122,16 +113,6 @@ export function ProviderProfilePage() {
       live = false;
     };
   }, [slug, revision]);
-  useEffect(() => {
-    if (!provider) return;
-    const controller = new AbortController();
-    api<{ posts: Update[] }>("/feed?companyId=" + provider.id, {
-      signal: controller.signal,
-    })
-      .then((v) => setUpdates(v.posts.slice(0, 3)))
-      .catch(() => {});
-    return () => controller.abort();
-  }, [provider?.id]);
   useEffect(() => {
     setJobs([]);
     setChosen("");
@@ -622,28 +603,6 @@ export function ProviderProfilePage() {
             )}
           </section>
           {activeSection==="company-reviews"&&<><section className="profile-editorial-section"><p className="pd-eyebrow">CUSTOMER EXPERIENCES</p><CompanyReviews target={c}/></section><section className="profile-editorial-section"><p className="pd-eyebrow">GOOGLE MAPS</p><h2>Google rating</h2><GoogleRating companyId={c.id} companyName={c.name} location={c.location||""}/>{owner&&<GoogleBusinessManager/>}</section></>}
-          {updates.length > 0 && (
-            <section className="profile-editorial-section provider-updates" hidden={activeSection!=="overview"}>
-              <span className="editorial-label">FROM THE COMPANY</span>
-              <h2>Latest updates.</h2>
-              {updates.map((update) => (
-                <article key={update.id}>
-                  <span>
-                    {update.kind === "press_release"
-                      ? "PRESS RELEASE"
-                      : "UPDATE"}{" "}
-                    ·{" "}
-                    {new Date(update.published_at).toLocaleDateString(
-                      undefined,
-                      { month: "short", day: "numeric", year: "numeric" },
-                    )}
-                  </span>
-                  <h3>{update.title || update.body.slice(0, 70)}</h3>
-                  <p>{update.body.slice(0, 240)}</p>
-                </article>
-              ))}
-            </section>
-          )}
         </div>
         <aside className="provider-company-aside">
           {(c.availability || c.capacity) && (

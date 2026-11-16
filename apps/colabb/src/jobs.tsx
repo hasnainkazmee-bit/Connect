@@ -2750,6 +2750,9 @@ export function JobDetailPage() {
   const quoteDeadlinePassed =
     !!job.quote_deadline && new Date(job.quote_deadline).getTime() < Date.now();
   const completion = detail.updates.find((u) => u.kind === "completion");
+  const progressUpdates = detail.updates
+    .filter((update) => !(job.status === "review" && update.id === completion?.id))
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
   const checklistComplete = (job.work_checklist || []).every(
     (item) => item.completed,
   );
@@ -3833,21 +3836,23 @@ export function JobDetailPage() {
                   className="jobs-panel job-progress-panel job-progress-activity"
                   hidden={progressView !== "updates"}
                 >
-                  <h2>
-                    {job.status === "review" ? "Earlier updates" : "Updates"}
-                  </h2>
-                  {detail.updates.length ? (
-                    detail.updates
-                      .filter(
-                        (u) =>
-                          !(job.status === "review" && u.id === completion?.id),
-                      )
-                      .map((u) => (
-                        <div className="job-update" key={u.id}>
-                          <span className="job-update-dot" />
+                  <header className="job-updates-heading">
+                    <div>
+                      <h2>
+                        {job.status === "review" ? "Earlier updates" : "Updates"}
+                      </h2>
+                      <p>Progress, requests and files shared for this job.</p>
+                    </div>
+                    {!!progressUpdates.length && <span>Newest first</span>}
+                  </header>
+                  {progressUpdates.length ? (
+                    <ol className="job-updates-list" aria-label="Job updates">
+                      {progressUpdates.map((u) => (
+                        <li className="job-update" key={u.id}>
                           <div className="job-update-time">
-                            <b>{date(u.created_at)}</b>
-                            <small>{u.company_name}</small>
+                            <span className="job-update-dot" aria-hidden="true" />
+                            <time dateTime={u.created_at}>{date(u.created_at)}</time>
+                            <span>{u.company_name}</span>
                           </div>
                           <div className="job-update-content">
                             <h3>
@@ -3868,8 +3873,9 @@ export function JobDetailPage() {
                               )}
                             />
                           </div>
-                        </div>
-                      ))
+                        </li>
+                      ))}
+                    </ol>
                   ) : (
                     <p className="job-muted">No updates yet.</p>
                   )}
