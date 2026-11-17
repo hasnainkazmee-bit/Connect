@@ -51,6 +51,9 @@ export const visibleNotification = `n.expires_at>now()
  WHEN 'personal' THEN EXISTS(SELECT 1 FROM personal_threads t WHERE t.id=n.source_id AND t.status<>'declined' AND (t.user_id=n.user_id OR t.company_id=n.company_id))
  WHEN 'post' THEN EXISTS(SELECT 1 FROM posts p WHERE p.id=n.source_id AND p.status='published')
  WHEN 'comment' THEN EXISTS(SELECT 1 FROM post_comments c JOIN posts p ON p.id=c.post_id WHERE c.id=n.source_id AND c.deleted_at IS NULL AND p.status='published')
+ WHEN 'network_post' THEN network_can_read_post(n.source_id,n.user_id,COALESCE((SELECT c.is_demo FROM companies c WHERE c.id=n.company_id),false))
+ WHEN 'network_community' THEN network_can_read_community(n.source_id,n.user_id,COALESCE((SELECT c.is_demo FROM companies c WHERE c.id=n.company_id),false))
+ WHEN 'network_invitation' THEN EXISTS(SELECT 1 FROM network_invitations i JOIN users u ON u.id=n.user_id JOIN network_communities c ON c.id=i.community_id JOIN companies mine ON mine.id=n.company_id WHERE i.id=n.source_id AND i.email=lower(u.email) AND u.email_verified_at IS NOT NULL AND i.status='pending' AND i.expires_at>now() AND c.archived_at IS NULL AND c.is_demo=mine.is_demo)
  ELSE true END`;
 
 type ProviderConfiguration = {

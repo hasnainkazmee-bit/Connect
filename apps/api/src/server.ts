@@ -26,6 +26,7 @@ import {
 } from "./notifications.js";
 import express from "express";
 import { socialRoutes } from "./social.js";
+import { networkProxy } from "./network-proxy.js";
 import { profileRoutes, profileExtras, ensureUsername } from "./profiles.js";
 import { publishingRoutes } from "./publishing.js";
 import { personalMessagesRoutes } from "./personal-messages.js";
@@ -70,7 +71,7 @@ if (process.env.TRUST_PROXY_HOPS === "1") app.set("trust proxy", 1);
 app.use((req, res, next) => {
   const jobFilePreview =
     req.method === "GET" &&
-    /^\/api\/jobs\/files\/[0-9a-f-]{36}$/.test(req.path) &&
+    /^\/api\/(?:jobs|network-v2)\/files\/[0-9a-f-]{36}$/.test(req.path) &&
     req.query.preview === "1";
   res.set({
     "X-Content-Type-Options": "nosniff",
@@ -94,6 +95,12 @@ app.use("/api", (req, res, next) => {
 });
 // Stream job requests before JSON parsing so attachments stay binary. The Rust
 // service checks the same signed session cookie against the shared database.
+const networkWriteLimit = rateLimit({
+  windowMs: 60 * 1000, limit: 100, standardHeaders: "draft-8", legacyHeaders: false,
+  skip: req => ["GET", "HEAD", "OPTIONS"].includes(req.method),
+  message: { error: "Please slow down and try again." },
+});
+app.use("/api/network-v2", networkWriteLimit, networkProxy);
 app.use("/api/jobs", (req, res) => {
   const target = new URL(
     process.env.JOBS_SERVICE_URL || "http://127.0.0.1:4201",

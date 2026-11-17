@@ -1,4 +1,6 @@
 mod job_library;
+mod network;
+mod network_files;
 mod project_chat;
 mod project_publication;
 mod proposal_questions;
@@ -2188,7 +2190,10 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let uploads =
         PathBuf::from(std::env::var("JOBS_UPLOAD_DIR").unwrap_or_else(|_| "uploads".into()));
     let app = Arc::new(App { db: pool, uploads });
+    network_files::start_cleanup(app.clone());
     let routes = Router::new()
+        .merge(network::routes())
+        .merge(network_files::routes())
         .route("/health", get(health))
         .route("/jobs", get(list_jobs).post(create_job))
         .route("/jobs/saved", get(job_library::saved))

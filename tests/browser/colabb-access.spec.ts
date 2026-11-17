@@ -107,7 +107,7 @@ test.describe("Colabb access and interface selection", () => {
     });
   }
 
-  test("company posts stay in Connect and are absent from Colabb profiles", async ({
+  test("legacy company updates stay in Connect while Colabb links to its new Network", async ({
     page,
     request,
   }) => {
@@ -151,6 +151,7 @@ test.describe("Colabb access and interface selection", () => {
     await expect(page.getByRole("heading", { name: "Latest updates.", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Updates", exact: true })).toHaveCount(0);
     await expect(page.getByText(body, { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "Company profile sections" }).getByRole("link", { name: "Posts", exact: true })).toHaveAttribute("href", "/network/companies/" + company.id);
     expect(socialRequests).toEqual([]);
     // The normal profile data still loads after retiring its social feed.
     expect((await page.request.get("/api/jobs/providers/" + company.id)).ok()).toBeTruthy();

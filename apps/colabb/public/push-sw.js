@@ -15,7 +15,7 @@ function safeDestination(value, companyId) {
   const id = "[a-f0-9-]{36}";
   if (
     !new RegExp(
-      `^/(?:jobs/(?:inbox|${id})|messages(?:/(?:people/|company/)?${id})?|posts/${id}|company/${id}|join/[a-z0-9][a-z0-9-]{1,39}|account(?:/updates)?|requests|network(?:/connections)?)$`,
+      `^/(?:jobs/(?:inbox|${id})|messages(?:/(?:people/|company/)?${id})?|posts/${id}|company/${id}|join/[a-z0-9][a-z0-9-]{1,39}|account(?:/updates)?|requests|network(?:/(?:connections|notifications|drafts|discover|(?:posts|companies)/${id}|communities/${id}(?:/manage/(?:members|reports))?|invitations/[a-f0-9]{64}))?)$`,
       "i",
     ).test(url.pathname)
   )

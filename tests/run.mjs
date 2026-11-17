@@ -179,6 +179,9 @@ try {
     const legacy = process.argv.includes("--ui-legacy");
     env.CONNECT_WEB_UI = legacy ? "connect" : "colabb";
     await startJobsServer();
+    await startServer();
+    await run(process.execPath, ["tests/network-files-api.mjs"]);
+    await stopServer();
     // Each independent browser suite gets a fresh rate-limit window. Recovery
     // tests deliberately sign in repeatedly; production limits stay unchanged.
     const suites = (await fs.readdir("tests/browser"))

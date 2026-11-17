@@ -17,6 +17,18 @@ BASE = Path('/opt/sunhub/connect')
 RELEASES = Path('/opt/sunhub/connect-releases')
 DB = 'connect-production-db-1'
 CONTAINERS = {'app': 'connect-production-app-1', 'jobs': 'connect-production-jobs-1'}
+NETWORK_MIGRATION = '042_network.sql'
+NETWORK_TABLES = (
+    'network_administrators', 'network_communities', 'network_members', 'network_invitations',
+    'network_posts', 'network_files', 'network_post_files', 'network_drafts',
+    'network_post_states', 'network_follows', 'network_comments', 'network_reports',
+    'network_moderation_log', 'network_notification_preferences',
+)
+NETWORK_FUNCTIONS = (
+    'network_can_read_community(uuid,uuid,boolean)',
+    'network_can_read_post(uuid,uuid,boolean)',
+    'network_notification_visible(text,uuid,uuid,boolean)',
+)
 
 
 def run(args, **kwargs):
@@ -36,6 +48,65 @@ def request(path, cookie=None):
 
 def health(path='health'):
     return json.loads(request('/api/' + path))
+
+
+def check_network_schema():
+    tables = ','.join("'" + name + "'" for name in NETWORK_TABLES)
+    functions = ','.join("'" + name + "'" for name in NETWORK_FUNCTIONS)
+    query = f"""SELECT json_build_object(
+        'migrationApplied', EXISTS(SELECT 1 FROM public.schema_migrations WHERE name='{NETWORK_MIGRATION}'),
+        'missingTables', ARRAY(SELECT name FROM unnest(ARRAY[{tables}]) AS name WHERE to_regclass('public.' || name) IS NULL),
+        'missingFunctions', ARRAY(SELECT name FROM unnest(ARRAY[{functions}]) AS name WHERE to_regprocedure('public.' || name) IS NULL)
+    )"""
+    schema = json.loads(output(['docker', 'exec', DB, 'psql', '-X', '-U', 'connect', '-d', 'connect',
+                                '-v', 'ON_ERROR_STOP=1', '-Atc', query]))
+    if schema.get('migrationApplied') is not True:
+        raise RuntimeError('Required Network migration 042_network.sql has not been applied.')
+    if schema.get('missingTables') != [] or schema.get('missingFunctions') != []:
+        raise RuntimeError('Network schema is incomplete: ' + json.dumps(schema, sort_keys=True))
+    return {'networkMigration': NETWORK_MIGRATION, 'networkSchema': 'complete'}
+
+
+def check_network_http():
+    status = output(['curl', '--silent', '--show-error', '--max-time', '20', '--output', '/dev/null',
+                     '--write-out', '%{http_code}', 'http://127.0.0.1:14100/api/network-v2/bootstrap'])
+    if status != '401':
+        raise RuntimeError('Guest Network bootstrap must return 401; received ' + status + '.')
+    page = request('/network')
+    assets = re.findall(r'(?:src|href)="(/assets/[^" ]+\.(?:js|css))"', page)
+    if 'Colabb' not in page or not any(asset.endswith('.js') for asset in assets):
+        raise RuntimeError('Colabb Network entry page is unavailable.')
+    pending, visited, network_asset = list(assets), set(), None
+    while pending:
+        asset = pending.pop()
+        if asset in visited:
+            continue
+        visited.add(asset)
+        body = request(asset)
+        if not body.strip() or re.match(r'\s*<(?:!doctype\s+html|html)\b', body, re.I):
+            raise RuntimeError('Network static asset is missing or returned HTML: ' + asset)
+        if asset.endswith('.js'):
+            if '/network-v2' in body:
+                network_asset = asset
+            # Vite emits Network as a lazy module. Checking only index.html and
+            # its main script would miss a missing/stale Network chunk.
+            for child in re.findall(r'import\(\s*["\']((?:\./|/assets/)[^"\']+\.js)["\']\s*\)', body):
+                child = '/assets/' + child[2:] if child.startswith('./') else child
+                if re.fullmatch(r'/assets/[A-Za-z0-9_.-]+\.js', child):
+                    pending.append(child)
+    if network_asset is None:
+        raise RuntimeError('The served Colabb assets do not include Network.')
+    return {'networkGuestStatus': 401, 'networkAsset': network_asset}
+
+
+def backup_metadata(previous, next_sha):
+    return {
+        'previous': previous,
+        'next': next_sha,
+        'database': 'additive migration 042_network.sql; previous schema and data are retained',
+        'backupScope': 'This Connect Postgres database and protected app configuration on this host only',
+        'excludedFromBackup': 'Uploaded attachment bytes and off-host copies; the existing upload volume is preserved, not backed up by this script',
+    }
 
 
 def composition(sha, *args, ui='colabb'):
@@ -84,7 +155,8 @@ def smoke():
         raise RuntimeError('Provider identity contract is unavailable.')
     for asset in re.findall(r'(?:src|href)="(/assets/[^" ]+\.(?:js|css))"', home):
         request(asset)
-    return {'providerCount': providers.get('total'), 'certificationChoices': len(taxonomy['directoryCredentials'])}
+    return {'providerCount': providers.get('total'), 'certificationChoices': len(taxonomy['directoryCredentials']),
+            **check_network_http()}
 
 
 def main():
@@ -142,15 +214,16 @@ console.log('Both frontends, migrations and API dependencies are readable by the
             run(['docker', 'exec', DB, 'pg_dump', '-U', 'connect', '-d', 'connect', '--format=custom'], stdout=handle)
         with (backup / 'database.dump').open('rb') as handle:
             run(['docker', 'exec', '-i', DB, 'pg_restore', '--list'], stdin=handle, stdout=subprocess.DEVNULL)
-        (backup / 'release.json').write_text(json.dumps({'previous': args.expected, 'next': args.sha, 'database': 'additive migration 041; old release remains compatible', 'backupScope': 'This Connect Postgres database and protected app configuration on this host'}, indent=2))
+        (backup / 'release.json').write_text(json.dumps(backup_metadata(args.expected, args.sha), indent=2))
         changed = False
         try:
             run(['git', '-C', str(BASE), 'checkout', '--detach', args.sha])
             changed = True
             composition(args.sha, 'run', '--rm', '--no-deps', 'app', 'node', 'apps/api/dist/migrate.js')
+            network_schema = check_network_schema()
             composition(args.sha, 'up', '-d', '--no-deps', 'jobs', 'app')
             await_ready(args.sha)
-            result = smoke()
+            result = {**network_schema, **smoke()}
             updated = env_text
             for key, value in [('CONNECT_RELEASE', args.sha), ('CONNECT_WEB_UI', 'colabb')]:
                 pattern = r'^' + key + r'=.*$'

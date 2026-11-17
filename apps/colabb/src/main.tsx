@@ -100,6 +100,7 @@ import { JobMatchesPage } from "./job-matches";
 import { CompanySettings, EmployeeInvite } from "./management";
 import { JobsPage, NewJobPage, JobDetailPage } from "./jobs";
 import { JobInboxPage } from "./job-inbox";
+const NetworkPage = React.lazy(() => import("./network").then(module => ({ default: module.NetworkPage })));
 import { MarketplaceLanding, ProviderDirectory } from "./providers";
 import { ProviderProfilePage } from "./provider-profile";
 import {
@@ -652,6 +653,13 @@ function App() {
                 <Building2 size={17} />
                 Companies
               </NavLink>
+              <NavLink
+                to="/network"
+                className={({ isActive }) => (isActive ? "active" : "")}
+              >
+                <Users size={17} />
+                Network
+              </NavLink>
               {session.user ? (
                 <NavLink
                   to="/jobs/inbox"
@@ -770,7 +778,7 @@ function App() {
             <Route path="/company/:id" element={<ProviderProfilePage />} />
             <Route
               path="/network/*"
-              element={<Navigate to="/jobs/mine" replace />}
+              element={<React.Suspense fallback={<div className="network-starting" role="status">Opening Network…</div>}><NetworkPage key={`${session.user?.id || "guest"}:${session.activeCompanyId || "none"}`} /></React.Suspense>}
             />
             <Route
               path="/requests/*"
@@ -935,6 +943,7 @@ function App() {
         !location.pathname.startsWith("/settings/profile") &&
         location.pathname !== "/jobs/new" &&
         location.pathname !== "/jobs/inbox" &&
+        !location.pathname.startsWith("/network") &&
         !/^\/jobs\/[^/]+\/edit$/.test(location.pathname) &&
         !["/hire", "/find-work", "/how-it-works", "/our-story"].includes(location.pathname) &&
         (location.pathname !== "/" || !!session.user) && (
@@ -1840,7 +1849,7 @@ const businessTypes = [
   ["Service provider", "Service providers"],
 ] as const;
 
-function NetworkPage() {
+function LegacyConnectionsPage() {
   const { network } = useApp();
   const [search, setSearch] = useState("");
   const [selectedType, setSelectedType] = useState("");
