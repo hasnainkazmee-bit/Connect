@@ -197,7 +197,7 @@ type InboxState = ReturnType<typeof useNotificationInbox> & {
 };
 export const NotificationContext = createContext<InboxState | null>(null);
 export function useNotificationReadContext(
-  kind: "company_conversation" | "personal_conversation" | "post",
+  kind: "company_conversation" | "company_request" | "personal_conversation" | "post",
   id: string | null,
 ) {
   const { session } = useApp();

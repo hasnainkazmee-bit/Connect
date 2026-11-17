@@ -64,7 +64,7 @@ test("directory messaging and consent-based connections", async (t) => {
     cli("/requests", { companyId: target, kind: "message", note });
 
   await t.test(
-    "all directory companies are searchable and paginated, excluding the acting company",
+    "managed companies with teams are searchable and paginated, excluding the acting company",
     async () => {
       assert.equal((await anon("/messaging/companies")).status, 401);
       const result = await a("/messaging/companies?q=" + suffix);
@@ -83,11 +83,16 @@ test("directory messaging and consent-based connections", async (t) => {
       const db = new pg.Pool({ connectionString: databaseUrl.href });
       const marker = "paging-" + suffix;
       try {
-        for (let i = 0; i < 27; i++)
-          await db.query("INSERT INTO companies(name,slug) VALUES($1,$2)", [
-            marker + " " + String(i).padStart(2, "0"),
-            marker + "-" + i,
-          ]);
+        for (let i = 0; i < 27; i++) {
+          const added = await db.query(
+            "INSERT INTO companies(name,slug) VALUES($1,$2) RETURNING id",
+            [marker + " " + String(i).padStart(2, "0"), marker + "-" + i],
+          );
+          await db.query(
+            "INSERT INTO memberships(company_id,user_id,role) VALUES($1,$2,'owner')",
+            [added.rows[0].id, B.user.id],
+          );
+        }
         const first = (await a("/messaging/companies?q=" + marker)).data;
         const second = (await a("/messaging/companies?q=" + marker + "&page=2"))
           .data;
@@ -167,6 +172,11 @@ test("directory messaging and consent-based connections", async (t) => {
       ]);
       assert.deepEqual(responses.map((r) => r.status).sort(), [200, 409]);
       connectionId = responses.find((r) => r.status === 200).data.connectionId;
+      assert.equal(
+        responses.find((r) => r.status === 200).data.status,
+        "accepted",
+      );
+      assert.ok(responses.find((r) => r.status === 200).data.responded_at);
       const network = (await b("/network")).data;
       assert.equal(network.incoming.length, 0);
       assert.equal(network.connections[0].status, "connected");
@@ -292,10 +302,7 @@ test("directory messaging and consent-based connections", async (t) => {
         role: "member",
       });
       const token = invite.data.url.split("/").at(-1);
-      assert.equal(
-        (await member(`/join/${token}/accept`, {})).status,
-        200,
-      );
+      assert.equal((await member(`/join/${token}/accept`, {})).status, 200);
       assert.equal((await send(member, C.activeCompanyId)).status, 403);
       const pending = await send(c, B.activeCompanyId);
       assert.equal(pending.status, 201);
@@ -309,4 +316,279 @@ test("directory messaging and consent-based connections", async (t) => {
       );
     },
   );
+});
+
+test("Colabb company messaging keeps recipients, notices and attachments scoped", async (t) => {
+  const databaseUrl = new URL(process.env.DATABASE_URL);
+  assert.match(databaseUrl.pathname, /_test$/);
+  const db = new pg.Pool({ connectionString: databaseUrl.href });
+  const a = client(),
+    b = client(),
+    demo = client(),
+    outsider = client(),
+    member = client();
+  const marker = "colabb-message-" + randomUUID().slice(0, 8);
+  async function register(cli, name, withCompany = true) {
+    const result = await cli("/auth/register", {
+      name,
+      email: `${name.toLowerCase()}-${randomUUID()}@example.test`,
+      password: "MessageRequest123!",
+      ...(withCompany ? { companyName: `${marker} ${name}` } : {}),
+    });
+    assert.equal(result.status, 201);
+    return result.data;
+  }
+  const A = await register(a, "Alice"),
+    B = await register(b, "Bob"),
+    D = await register(demo, "Demo"),
+    O = await register(outsider, "Outside"),
+    M = await register(member, "Member", false);
+  const send = (
+    cli,
+    target,
+    note = "Could we discuss partnering on the next installation?",
+  ) => cli("/requests", { companyId: target, kind: "message", note });
+  let requestId, connectionId, attachmentId;
+  try {
+    await db.query("UPDATE companies SET is_demo=true WHERE id=$1", [
+      D.activeCompanyId,
+    ]);
+    const unclaimed = (
+      await db.query(
+        "INSERT INTO companies(name,slug,listing_status) VALUES($1,$2,'unclaimed') RETURNING id",
+        [`${marker} Unclaimed`, `${marker}-unclaimed`],
+      )
+    ).rows[0].id;
+    const empty = (
+      await db.query(
+        "INSERT INTO companies(name,slug) VALUES($1,$2) RETURNING id",
+        [`${marker} No team`, `${marker}-empty`],
+      )
+    ).rows[0].id;
+    await db.query(
+      "INSERT INTO memberships(company_id,user_id,role) VALUES($1,$2,'member')",
+      [B.activeCompanyId, M.user.id],
+    );
+    await db.query("UPDATE sessions SET company_id=$1 WHERE user_id=$2", [
+      B.activeCompanyId,
+      M.user.id,
+    ]);
+
+    await t.test(
+      "recipient search excludes unclaimed, ownerless, blocked and other-demo companies",
+      async () => {
+        const found = (await a(`/messaging/companies?q=${marker}`)).data
+          .companies;
+        assert.deepEqual(
+          new Set(found.map((c) => c.id)),
+          new Set([B.activeCompanyId, O.activeCompanyId]),
+        );
+        assert.equal((await send(a, unclaimed)).status, 409);
+        assert.equal((await send(a, empty)).status, 409);
+        assert.equal((await send(a, D.activeCompanyId)).status, 404);
+        assert.equal((await send(demo, A.activeCompanyId)).status, 404);
+        assert.equal(
+          (
+            await outsider(`/relationships/${A.activeCompanyId}`, {
+              action: "block",
+            })
+          ).status,
+          200,
+        );
+        const afterBlock = (await a(`/messaging/companies?q=${marker}`)).data
+          .companies;
+        assert.deepEqual(
+          afterBlock.map((c) => c.id),
+          [B.activeCompanyId],
+        );
+        assert.equal((await send(a, O.activeCompanyId)).status, 403);
+      },
+    );
+
+    await t.test(
+      "company request notices are actionable in Colabb and read only by the current reader",
+      async () => {
+        const created = await send(a, B.activeCompanyId);
+        assert.equal(created.status, 201);
+        requestId = created.data.id;
+        const notices = (await b("/notifications?scope=colabb")).data
+          .notifications;
+        const notice = notices.find((n) => n.type === "message_request");
+        assert.ok(notice);
+        assert.equal(
+          notice.url,
+          `/inbox/companies?company=${A.activeCompanyId}`,
+        );
+        assert.equal(
+          (await member("/notifications?scope=colabb")).data.notifications.some(
+            (n) => n.id === notice.id,
+          ),
+          false,
+        );
+        assert.equal(
+          (
+            await outsider("/notifications/read-context", {
+              kind: "company_request",
+              id: requestId,
+            })
+          ).status,
+          404,
+        );
+        const read = await b("/notifications/read-context", {
+          kind: "company_request",
+          id: requestId,
+        });
+        assert.equal(read.status, 200);
+        assert.ok(read.data.ids.includes(notice.id));
+        assert.equal(
+          (await member(`/requests/${requestId}/respond`, { action: "accept" }))
+            .status,
+          403,
+        );
+        const accepted = await b(`/requests/${requestId}/respond`, {
+          action: "accept",
+        });
+        assert.equal(accepted.status, 200);
+        assert.equal(accepted.data.status, "accepted");
+        connectionId = accepted.data.connectionId;
+        const received = (
+          await a("/notifications?scope=colabb")
+        ).data.notifications.find((n) => n.type === "accepted");
+        assert.equal(
+          received.url,
+          `/inbox/companies?company=${B.activeCompanyId}`,
+        );
+      },
+    );
+
+    await t.test(
+      "accepted company members can reply and PDF previews retain attachment authorization",
+      async () => {
+        const body = new FormData();
+        body.set("body", "Here are the installation plans.");
+        body.set("clientId", randomUUID());
+        body.append(
+          "files",
+          new Blob(["%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF"], {
+            type: "application/pdf",
+          }),
+          "plans.pdf",
+        );
+        assert.equal(
+          (await member(`/conversations/${connectionId}/messages`, body))
+            .status,
+          201,
+        );
+        const duplicate = await member(
+          `/conversations/${connectionId}/messages`,
+          body,
+        );
+        assert.equal(duplicate.status, 200);
+        assert.equal(duplicate.data.duplicate, true);
+        const notices = (await a("/notifications?scope=colabb")).data
+          .notifications;
+        assert.equal(
+          notices.find((n) => n.type === "message").url,
+          `/inbox/companies?company=${B.activeCompanyId}`,
+        );
+        const conversation = (
+          await a(`/conversations/${connectionId}/messages`)
+        ).data;
+        assert.equal(conversation.messages.length, 2);
+        assert.equal(conversation.messages[0].source_request_id, requestId);
+        attachmentId = conversation.messages[1].attachments[0].id;
+        const inline = await a(`/attachments/${attachmentId}?inline=1`);
+        assert.equal(inline.status, 200);
+        assert.match(inline.headers.get("content-type"), /^application\/pdf/);
+        assert.equal(inline.headers.get("content-disposition"), "inline");
+        assert.equal(inline.headers.get("x-frame-options"), "SAMEORIGIN");
+        assert.equal(inline.headers.get("x-content-type-options"), "nosniff");
+        assert.match(
+          (await a(`/attachments/${attachmentId}`)).headers.get(
+            "content-disposition",
+          ),
+          /^attachment/,
+        );
+        assert.equal(
+          (await outsider(`/attachments/${attachmentId}?inline=1`)).status,
+          404,
+        );
+        assert.equal(
+          (await a("/network")).data.connections.find(
+            (c) => c.id === connectionId,
+          ).unread,
+          0,
+        );
+        const clear = await a("/notifications/read-context", {
+          kind: "company_conversation",
+          id: connectionId,
+        });
+        assert.equal(clear.status, 200);
+        assert.equal(
+          (await a("/notifications?scope=colabb")).data.notifications.find(
+            (n) => n.type === "message",
+          ).read_at !== null,
+          true,
+        );
+        await db.query(
+          "DELETE FROM memberships WHERE user_id=$1 AND company_id=$2",
+          [M.user.id, B.activeCompanyId],
+        );
+        assert.equal(
+          (await member(`/conversations/${connectionId}/messages`)).status,
+          403,
+        );
+        assert.equal(
+          (await member(`/attachments/${attachmentId}?inline=1`)).status,
+          403,
+        );
+      },
+    );
+
+    await t.test(
+      "historic connected mixed-demo threads keep working without admitting new cross-cohort requests",
+      async () => {
+        const [lo, hi] = [A.activeCompanyId, D.activeCompanyId].sort();
+        const existing = (
+          await db.query(
+            "INSERT INTO connections(company_a,company_b) VALUES($1,$2) RETURNING id",
+            [lo, hi],
+          )
+        ).rows[0].id;
+        const body = new FormData();
+        body.set("body", "Continuing our existing demonstration conversation.");
+        assert.equal(
+          (await a(`/conversations/${existing}/messages`, body)).status,
+          201,
+        );
+        assert.equal(
+          (await demo(`/conversations/${existing}/messages`)).data.messages
+            .length,
+          1,
+        );
+        assert.equal(
+          (await outsider(`/conversations/${existing}/messages`)).status,
+          404,
+        );
+        const pending = (
+          await db.query(
+            "INSERT INTO connection_requests(from_id,to_id,author_id,note,kind) VALUES($1,$2,$3,'Old demonstration request','message') RETURNING id",
+            [B.activeCompanyId, D.activeCompanyId, B.user.id],
+          )
+        ).rows[0].id;
+        assert.equal(
+          (await demo(`/requests/${pending}/respond`, { action: "accept" }))
+            .status,
+          404,
+        );
+        assert.equal(
+          (await demo(`/requests/${pending}/respond`, { action: "decline" }))
+            .status,
+          200,
+        );
+      },
+    );
+  } finally {
+    await db.end();
+  }
 });

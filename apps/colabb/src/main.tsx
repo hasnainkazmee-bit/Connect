@@ -101,6 +101,7 @@ import { JobMatchesPage } from "./job-matches";
 import { CompanySettings, EmployeeInvite } from "./management";
 import { JobsPage, NewJobPage, JobDetailPage } from "./jobs";
 import { JobInboxPage } from "./job-inbox";
+import { CompanyInboxPage } from "./company-inbox";
 const NetworkPage = React.lazy(() => import("./network").then(module => ({ default: module.NetworkPage })));
 import { MarketplaceLanding, ProviderDirectory } from "./providers";
 import { ProviderProfilePage } from "./provider-profile";
@@ -440,9 +441,8 @@ function App() {
     const query = new URLSearchParams(location.search);
     if (
       query.has("notificationCompany") ||
-      query.has("conversation") ||
-      query.has("personal") ||
-      query.has("company") ||
+      (/^\/messages(?:\/|$)/.test(location.pathname) &&
+        (query.has("conversation") || query.has("personal") || query.has("company"))) ||
       query.has("notification") ||
       location.pathname === "/account/updates"
     )
@@ -662,13 +662,14 @@ function App() {
                 Network
               </NavLink>
               {session.user ? (
-                <NavLink
+                <Link
                   to="/jobs/inbox"
-                  className={({ isActive }) => (isActive ? "active" : "")}
+                  className={location.pathname === "/jobs/inbox" || location.pathname.startsWith("/inbox/") ? "active" : ""}
+                  aria-current={location.pathname === "/jobs/inbox" || location.pathname.startsWith("/inbox/") ? "page" : undefined}
                 >
                   <Mail size={17} />
                   Inbox
-                </NavLink>
+                </Link>
               ) : (
                 <Link to="/#how-it-works">How it works</Link>
               )}
@@ -759,6 +760,7 @@ function App() {
             <Route path="/jobs" element={<FindWork />} />
             <Route path="/jobs/mine" element={<JobsPage mine />} />
             <Route path="/jobs/inbox" element={<JobInboxPage />} />
+            <Route path="/inbox/companies" element={<CompanyInboxPage />} />
             <Route path="/jobs/new" element={<NewJobPage />} />
             <Route
               path="/jobs/companies/:slug"
@@ -783,11 +785,11 @@ function App() {
             />
             <Route
               path="/requests/*"
-              element={<Navigate to="/jobs/mine" replace />}
+              element={<LegacyInboxRedirect requests />}
             />
             <Route
               path="/messages/*"
-              element={<Navigate to="/jobs/mine" replace />}
+              element={<LegacyInboxRedirect />}
             />
             <Route
               path="/settings/blocked"
@@ -944,6 +946,7 @@ function App() {
         !location.pathname.startsWith("/settings/profile") &&
         location.pathname !== "/jobs/new" &&
         location.pathname !== "/jobs/inbox" &&
+        location.pathname !== "/inbox/companies" &&
         !location.pathname.startsWith("/network") &&
         !/^\/jobs\/[^/]+\/edit$/.test(location.pathname) &&
         !["/hire", "/find-work", "/how-it-works", "/our-story"].includes(location.pathname) &&
@@ -1175,6 +1178,7 @@ function AuthModal({
   sunhubErrorCode?: string;
 }) {
   const { setSession, close, refresh } = useApp();
+  const navigate = useNavigate(), location = useLocation();
   return (
     <AuthExperience
       initialMode={initialMode}
@@ -1183,12 +1187,36 @@ function AuthModal({
       onSuccess={(value) => {
         setSession(value);
         refresh();
-        close();
+        const destination = returnTo ? sunhubReturnTo(returnTo) : null;
+        const source = (location.state as { returnTo?: string } | null)?.returnTo;
+        // Auth can start on a profile but continue in a different workflow.
+        // Preserve the full-page back behavior when returning to its source.
+        if (destination && !/^\/actions(?:\/|$)/.test(destination) && destination !== source)
+          navigate(destination, { replace: true });
+        else close();
         after?.();
       }}
     />
   );
 }
+function LegacyInboxRedirect({ requests = false }: { requests?: boolean }) {
+  const location = useLocation();
+  const destination = notificationDestination(location.pathname + location.search);
+  const query = new URLSearchParams(
+    destination?.path.startsWith("/inbox/companies")
+      ? destination.path.split("?")[1]
+      : "",
+  );
+  if (requests) query.set("filter", "requests");
+  const original = new URLSearchParams(location.search);
+  for (const key of ["notification", "notificationCompany"]) {
+    const value = original.get(key);
+    if (value && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value))
+      query.set(key, value);
+  }
+  return <Navigate to={"/inbox/companies" + (query.size ? "?" + query : "")} replace />;
+}
+
 function NewCompany() {
   const { setSession, close, refresh, toast } = useApp();
   const task = useTask();

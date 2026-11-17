@@ -29,12 +29,16 @@ const preferenceInput = z
   })
   .strict();
 const uuid = z.string().uuid();
-const publicFields =
-  "n.id,n.sequence::text,n.type,n.category,n.title,n.text,n.url,n.company_id,n.actor_company_id,n.created_at,n.read_at";
-// Colabb replaces the old social network and standalone conversations. Keep
-// their records available to Connect while scoping Colabb lists and read state.
+const publicFields = (colabb: boolean) =>
+  `n.id,n.sequence::text,n.type,n.category,n.title,n.text,${
+    colabb
+      ? "CASE WHEN n.source_kind IN ('connection','request') AND n.actor_company_id IS NOT NULL THEN '/inbox/companies?company='||n.actor_company_id::text ELSE n.url END AS url"
+      : "n.url"
+  },n.company_id,n.actor_company_id,n.created_at,n.read_at`;
+// Company conversations are shared by Connect and Colabb. Personal messages and
+// retired social events stay scoped out of Colabb's inbox and read actions.
 const colabbNotificationFilter =
-  "n.type NOT IN ('message','message_request','request','accepted','reply','comment','reaction','follow','publication')";
+  "(n.type NOT IN ('message','message_request','request','accepted','reply','comment','reaction','follow','publication') OR (n.type='message' AND n.source_kind='connection') OR (n.type IN ('message_request','request','accepted') AND n.source_kind='request'))";
 const notificationScope = (scope: unknown) =>
   scope === "colabb" ? colabbNotificationFilter : "true";
 // Every read and delivery rechecks current authorization, rather than trusting a
@@ -354,7 +358,7 @@ export function notificationRoutes() {
       : null;
     const [page, count] = await Promise.all([
       pool.query(
-        `SELECT ${publicFields} FROM user_notifications n WHERE n.user_id=$1 AND ${visibleNotification} AND ${scope} AND($2::bigint IS NULL OR n.sequence<$2) ORDER BY n.sequence DESC LIMIT 31`,
+        `SELECT ${publicFields(req.query.scope === "colabb")} FROM user_notifications n WHERE n.user_id=$1 AND ${visibleNotification} AND ${scope} AND($2::bigint IS NULL OR n.sequence<$2) ORDER BY n.sequence DESC LIMIT 31`,
         [req.auth!.userId, before],
       ),
       pool.query(
@@ -384,34 +388,68 @@ export function notificationRoutes() {
         "UPDATE notifications SET read_at=now() WHERE company_id=$1 AND read_at IS NULL",
         [req.auth!.companyId],
       );
-    res.json({ ok: true, ids: result.rows.map(row => row.id) });
+    res.json({ ok: true, ids: result.rows.map((row) => row.id) });
   });
   router.post("/notifications/read-context", async (req, res) => {
-    const { kind, id } = z.object({
-      kind: z.enum(["company_conversation", "personal_conversation", "post"]),
-      id: uuid,
-    }).strict().parse(req.body);
+    const { kind, id } = z
+      .object({
+        kind: z.enum([
+          "company_conversation",
+          "company_request",
+          "personal_conversation",
+          "post",
+        ]),
+        id: uuid,
+      })
+      .strict()
+      .parse(req.body);
     const auth = req.auth!;
-    const accessible = kind === "company_conversation"
-      ? await pool.query(`SELECT 1 FROM connections c JOIN memberships m ON m.company_id=$2 AND m.user_id=$3
-          WHERE c.id=$1 AND $2 IN(c.company_a,c.company_b)`, [id, auth.companyId, auth.userId])
-      : kind === "personal_conversation"
-        ? await pool.query(`SELECT 1 FROM personal_threads t WHERE t.id=$1 AND (t.user_id=$2 OR
+    const accessible =
+      kind === "company_conversation"
+        ? await pool.query(
+            `SELECT 1 FROM connections c JOIN memberships m ON m.company_id=$2 AND m.user_id=$3
+          WHERE c.id=$1 AND $2 IN(c.company_a,c.company_b)`,
+            [id, auth.companyId, auth.userId],
+          )
+        : kind === "company_request"
+          ? await pool.query(
+              `SELECT 1 FROM connection_requests r JOIN memberships m ON m.company_id=$2 AND m.user_id=$3
+            WHERE r.id=$1 AND $2 IN(r.from_id,r.to_id)`,
+              [id, auth.companyId, auth.userId],
+            )
+          : kind === "personal_conversation"
+            ? await pool.query(
+                `SELECT 1 FROM personal_threads t WHERE t.id=$1 AND (t.user_id=$2 OR
             (t.company_id=$3 AND EXISTS(SELECT 1 FROM memberships m WHERE m.user_id=$2 AND m.company_id=t.company_id)))`,
-          [id, auth.userId, auth.companyId])
-        : await pool.query("SELECT 1 FROM posts WHERE id=$1 AND status='published'", [id]);
-    if (!accessible.rowCount) throw new HttpError(404, "This conversation or post is unavailable.");
+                [id, auth.userId, auth.companyId],
+              )
+            : await pool.query(
+                "SELECT 1 FROM posts WHERE id=$1 AND status='published'",
+                [id],
+              );
+    if (!accessible.rowCount)
+      throw new HttpError(404, "This conversation or post is unavailable.");
     // Only the current reader's notifications for the opened object are cleared.
     // Other company workspaces and unrelated/offscreen inbox rows stay unread.
-    const match = kind === "company_conversation"
-      ? "n.source_kind='connection' AND n.source_id=$2 AND n.company_id=$3"
-      : kind === "personal_conversation"
-        ? "n.source_kind='personal' AND n.source_id=$2"
-        : "((n.source_kind='post' AND n.source_id=$2) OR (n.source_kind='comment' AND EXISTS(SELECT 1 FROM post_comments c WHERE c.id=n.source_id AND c.post_id=$2)))";
-    const result = await pool.query(`UPDATE user_notifications n SET read_at=now() WHERE n.user_id=$1
+    const match =
+      kind === "company_conversation"
+        ? "n.source_kind='connection' AND n.source_id=$2 AND n.company_id=$3"
+        : kind === "company_request"
+          ? "n.source_kind='request' AND n.source_id=$2 AND n.company_id=$3"
+          : kind === "personal_conversation"
+            ? "n.source_kind='personal' AND n.source_id=$2"
+            : "((n.source_kind='post' AND n.source_id=$2) OR (n.source_kind='comment' AND EXISTS(SELECT 1 FROM post_comments c WHERE c.id=n.source_id AND c.post_id=$2)))";
+    const result = await pool.query(
+      `UPDATE user_notifications n SET read_at=now() WHERE n.user_id=$1
       AND n.read_at IS NULL AND (n.company_id IS NULL OR n.company_id=$3) AND ${visibleNotification}
-      AND (${match}) RETURNING n.id`, [auth.userId, id, auth.companyId]);
-    res.json({ ok: true, read: result.rowCount || 0, ids: result.rows.map(row => row.id) });
+      AND (${match}) RETURNING n.id`,
+      [auth.userId, id, auth.companyId],
+    );
+    res.json({
+      ok: true,
+      read: result.rowCount || 0,
+      ids: result.rows.map((row) => row.id),
+    });
   });
   router.get("/notifications/events", async (req, res) => {
     const scope = notificationScope(req.query.scope);

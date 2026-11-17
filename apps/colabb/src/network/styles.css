@@ -630,9 +630,21 @@ body.nw-enabled .app-route-container {
   font-size: 12px;
   color: var(--nw-muted);
 }
-.nw-company-header > .nw-text {
-  flex-basis: 100%;
-  margin-left: 82px;
+.nw-company-header > .nw-company-actions {
+  display: flex;
+  flex: 0 0 100%;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+  padding-left: 82px;
+}
+.nw-company-actions > .nw-text {
+  min-height: 40px;
+  margin-left: auto;
+}
+.nw-company-actions > .nw-text:only-child {
+  margin-left: 0;
 }
 .nw-feed-stream {
   max-width: 640px;
@@ -1968,8 +1980,8 @@ body.nw-enabled .app-route-container {
   .nw-company-header {
     gap: 14px;
   }
-  .nw-company-header > .nw-text {
-    margin-left: 0;
+  .nw-company-header > .nw-company-actions {
+    padding-left: 0;
   }
   .nw-tabs {
     gap: 17px;

@@ -15,11 +15,35 @@ function safeDestination(value, companyId) {
   const id = "[a-f0-9-]{36}";
   if (
     !new RegExp(
-      `^/(?:jobs/(?:inbox|${id})|messages(?:/(?:people/|company/)?${id})?|posts/${id}|company/${id}|join/[a-z0-9][a-z0-9-]{1,39}|account(?:/updates)?|requests|network(?:/(?:connections|notifications|drafts|discover|(?:posts|companies)/${id}|communities/${id}(?:/manage/(?:members|reports))?|invitations/[a-f0-9]{64}))?)$`,
+      `^/(?:inbox/companies|jobs/(?:inbox|${id})|messages(?:/(?:people/|company/)?${id})?|posts/${id}|company/${id}|join/[a-z0-9][a-z0-9-]{1,39}|account(?:/updates)?|requests|network(?:/(?:connections|notifications|drafts|discover|(?:posts|companies)/${id}|communities/${id}(?:/manage/(?:members|reports))?|invitations/[a-f0-9]{64}))?)$`,
       "i",
     ).test(url.pathname)
   )
     return null;
+  const contextCompany =
+    companyId || url.searchParams.get("notificationCompany");
+  const notification = url.searchParams.get("notification");
+  const legacyCompany = url.pathname.match(
+    /^\/messages\/company\/([^/]+)$/,
+  )?.[1];
+  const legacyConversation = url.pathname.match(/^\/messages\/([^/]+)$/)?.[1];
+  if (legacyCompany && UUID.test(legacyCompany)) {
+    url.pathname = "/inbox/companies";
+    url.search = new URLSearchParams({ company: legacyCompany }).toString();
+  } else if (legacyConversation && UUID.test(legacyConversation)) {
+    url.pathname = "/inbox/companies";
+    url.search = new URLSearchParams({
+      conversation: legacyConversation,
+    }).toString();
+  } else if (
+    url.pathname === "/messages" &&
+    !UUID.test(url.searchParams.get("personal") || "")
+  ) {
+    url.pathname = "/inbox/companies";
+  } else if (url.pathname === "/requests") {
+    url.pathname = "/inbox/companies";
+    url.search = "filter=requests";
+  }
   const cleaned = new URL(url.pathname, self.location.origin);
   for (const key of [
     "conversation",
@@ -33,8 +57,22 @@ function safeDestination(value, companyId) {
     const part = url.searchParams.get(key);
     if (part && UUID.test(part)) cleaned.searchParams.set(key, part);
   }
-  if (companyId && UUID.test(companyId))
-    cleaned.searchParams.set("notificationCompany", companyId);
+  if (url.pathname === "/inbox/companies") {
+    cleaned.search = "";
+    const target = url.searchParams.get("company"),
+      conversation = url.searchParams.get("conversation");
+    if (target && UUID.test(target))
+      cleaned.searchParams.set("company", target);
+    else if (conversation && UUID.test(conversation))
+      cleaned.searchParams.set("conversation", conversation);
+    const filter = url.searchParams.get("filter");
+    if (filter === "requests" || filter === "unread")
+      cleaned.searchParams.set("filter", filter);
+    if (notification && UUID.test(notification))
+      cleaned.searchParams.set("notification", notification);
+  }
+  if (contextCompany && UUID.test(contextCompany))
+    cleaned.searchParams.set("notificationCompany", contextCompany);
   if (
     url.pathname.startsWith("/jobs/") &&
     UUID.test(url.pathname.slice("/jobs/".length)) &&

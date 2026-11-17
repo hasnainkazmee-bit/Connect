@@ -2,7 +2,6 @@ import {
   directoryRoutes,
   directorySearch,
   preventDuplicateCompany,
-  requireManagedCompany,
 } from "./directory.js";
 import { publicPages } from "./public-pages.js";
 import { webUIRoutes } from "./web-ui.js";
@@ -23,6 +22,7 @@ import {
   closeNotificationStreams,
   recordNotificationRelease,
   pushConfiguration,
+  visibleNotification,
 } from "./notifications.js";
 import express from "express";
 import { socialRoutes } from "./social.js";
@@ -76,8 +76,10 @@ if (process.env.TRUST_PROXY_HOPS === "1") app.set("trust proxy", 1);
 app.use((req, res, next) => {
   const jobFilePreview =
     req.method === "GET" &&
-    /^\/api\/(?:jobs|network-v2)\/files\/[0-9a-f-]{36}$/.test(req.path) &&
-    req.query.preview === "1";
+    ((/^\/api\/(?:jobs|network-v2)\/files\/[0-9a-f-]{36}$/.test(req.path) &&
+      req.query.preview === "1") ||
+      (/^\/api\/attachments\/[0-9a-f-]{36}$/.test(req.path) &&
+        req.query.inline === "1"));
   res.set({
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
@@ -101,8 +103,11 @@ app.use("/api", (req, res, next) => {
 // Stream job requests before JSON parsing so attachments stay binary. The Rust
 // service checks the same signed session cookie against the shared database.
 const networkWriteLimit = rateLimit({
-  windowMs: 60 * 1000, limit: 100, standardHeaders: "draft-8", legacyHeaders: false,
-  skip: req => ["GET", "HEAD", "OPTIONS"].includes(req.method),
+  windowMs: 60 * 1000,
+  limit: 100,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  skip: (req) => ["GET", "HEAD", "OPTIONS"].includes(req.method),
   message: { error: "Please slow down and try again." },
 });
 app.use("/api/network-v2", networkWriteLimit, networkProxy);
@@ -202,6 +207,30 @@ async function companyExists(db: PoolClient, id: string) {
   const { rows } = await db.query("SELECT * FROM companies WHERE id=$1", [id]);
   if (!rows[0]) throw new HttpError(404, "Company not found.");
   return rows[0];
+}
+async function messageRecipient(
+  db: PoolClient,
+  actor: string,
+  other: string,
+  allowExistingConnection = false,
+) {
+  const { rows } = await db.query(
+    `SELECT target.listing_status,
+      EXISTS(SELECT 1 FROM memberships m WHERE m.company_id=target.id) AS has_team,
+      mine.is_demo=target.is_demo AS same_demo,
+      EXISTS(SELECT 1 FROM connections n WHERE n.company_a=LEAST(mine.id,target.id)
+        AND n.company_b=GREATEST(mine.id,target.id) AND n.status='connected') AS connected
+     FROM companies target JOIN companies mine ON mine.id=$1 WHERE target.id=$2`,
+    [actor, other],
+  );
+  const target = rows[0];
+  if (
+    !target ||
+    (!target.same_demo && !(allowExistingConnection && target.connected))
+  )
+    throw new HttpError(404, "This company is not available for messaging.");
+  if (target.listing_status !== "managed" || !target.has_team)
+    throw new HttpError(409, "This company hasn’t joined Colabb yet.");
 }
 async function conversation(db: PoolClient, id: string, actor: string) {
   const { rows } = await db.query(
@@ -479,8 +508,7 @@ app.post("/api/requests", requireAdmin, async (req, res) => {
     throw new HttpError(400, "You cannot connect with your own company.");
   const request = await tx(async (db) => {
     await lockPair(db, actor, companyId);
-    await companyExists(db, companyId);
-    await requireManagedCompany(db, companyId);
+    await messageRecipient(db, actor, companyId);
     await noBlock(db, actor, companyId);
     const [a, b] = pair(actor, companyId);
     if (
@@ -549,17 +577,20 @@ app.post("/api/requests/:id/respond", requireAdmin, async (req, res) => {
     if (current.status !== "pending")
       throw new HttpError(409, "This request has already been handled.");
     await noBlock(db, r.from_id, r.to_id);
-    await db.query(
-      "UPDATE connection_requests SET status=$1,responded_at=now() WHERE id=$2",
-      [
-        action === "accept"
-          ? "accepted"
-          : action === "decline"
-            ? "declined"
-            : "withdrawn",
-        r.id,
-      ],
-    );
+    if (action === "accept") await messageRecipient(db, actor, r.from_id);
+    const updated = (
+      await db.query(
+        "UPDATE connection_requests SET status=$1,responded_at=now() WHERE id=$2 RETURNING *",
+        [
+          action === "accept"
+            ? "accepted"
+            : action === "decline"
+              ? "declined"
+              : "withdrawn",
+          r.id,
+        ],
+      )
+    ).rows[0];
     let connectionId = null;
     if (action === "accept") {
       const [a, b] = pair(r.from_id, r.to_id);
@@ -584,7 +615,7 @@ app.post("/api/requests/:id/respond", requireAdmin, async (req, res) => {
         actor,
       );
     }
-    return { ...r, connectionId };
+    return { ...updated, connectionId };
   });
   broadcast(result.from_id, result.to_id);
   res.json(result);
@@ -677,7 +708,11 @@ app.get("/api/messaging/companies", requireCompany, async (req, res) => {
       LEFT JOIN connections n ON n.company_a=LEAST(c.id,$1::uuid) AND n.company_b=GREATEST(c.id,$1::uuid)
       LEFT JOIN connection_requests r ON r.status='pending' AND LEAST(r.from_id,r.to_id)=LEAST(c.id,$1::uuid) AND GREATEST(r.from_id,r.to_id)=GREATEST(c.id,$1::uuid)
       LEFT JOIN LATERAL (SELECT max(created_at) AS last_message_at FROM messages WHERE connection_id=n.id) m ON true
-      WHERE c.id<>$1 AND ($2='' OR concat_ws(' ',c.name,c.type,c.location) ILIKE '%'||$2||'%')
+      WHERE c.id<>$1 AND c.listing_status='managed'
+      AND c.is_demo=(SELECT is_demo FROM companies WHERE id=$1)
+      AND EXISTS(SELECT 1 FROM memberships reachable WHERE reachable.company_id=c.id)
+      AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_id=$1 AND b.blocked_id=c.id) OR (b.blocker_id=c.id AND b.blocked_id=$1))
+      AND ($2='' OR concat_ws(' ',c.name,c.type,c.location) ILIKE '%'||$2||'%')
     ), paged AS (SELECT * FROM filtered ORDER BY activity_at DESC NULLS LAST,name,id LIMIT 24 OFFSET $3)
     SELECT COALESCE((SELECT json_agg(paged ORDER BY activity_at DESC NULLS LAST,name,id) FROM paged),'[]') AS companies,
       (SELECT count(*)::int FROM filtered) AS total`,
@@ -689,6 +724,8 @@ app.use("/api", notificationRoutes());
 app.get("/api/conversations/:id/messages", requireCompany, async (req, res) => {
   const id = idSchema.parse(req.params.id),
     actor = req.auth!.companyId!,
+    markRead =
+      z.enum(["true", "false"]).optional().parse(req.query.read) !== "false",
     before = req.query.before
       ? z
           .string()
@@ -703,7 +740,7 @@ app.get("/api/conversations/:id/messages", requireCompany, async (req, res) => {
     );
     const cutoff = rows[0]?.sequence;
     let readChanged = false;
-    if (!before && cutoff) {
+    if (markRead && !before && cutoff) {
       const receipt = await db.query(
         "INSERT INTO conversation_reads(connection_id,company_id,read_sequence) VALUES($1,$2,$3) ON CONFLICT(connection_id,company_id) DO UPDATE SET read_at=now(),read_sequence=$3 WHERE conversation_reads.read_sequence<$3 RETURNING read_sequence",
         [id, actor, cutoff],
@@ -729,6 +766,69 @@ app.get("/api/conversations/:id/messages", requireCompany, async (req, res) => {
   if (readChanged)
     broadcast(payload.connection.company_a, payload.connection.company_b);
   res.json(payload);
+});
+app.post("/api/conversations/:id/read", requireCompany, async (req, res) => {
+  const id = idSchema.parse(req.params.id),
+    actor = req.auth!.companyId!,
+    { sequence } = z
+      .object({
+        sequence: z
+          .string()
+          .regex(/^[1-9][0-9]{0,18}$/)
+          .refine(
+            (value) => value.length < 19 || value <= "9223372036854775807",
+          ),
+      })
+      .strict()
+      .parse(req.body);
+  const result = await tx(async (db) => {
+    const c = await conversation(db, id, actor);
+    const message = await db.query(
+      "SELECT 1 FROM messages WHERE connection_id=$1 AND sequence=$2::bigint",
+      [id, sequence],
+    );
+    if (!message.rowCount)
+      throw new HttpError(404, "This message is unavailable.");
+    const receipt = await db.query(
+      "INSERT INTO conversation_reads(connection_id,company_id,read_sequence) VALUES($1,$2,$3) ON CONFLICT(connection_id,company_id) DO UPDATE SET read_at=now(),read_sequence=$3 WHERE conversation_reads.read_sequence<$3 RETURNING read_sequence",
+      [id, actor, sequence],
+    );
+    const readSequence =
+      receipt.rows[0]?.read_sequence ??
+      (
+        await db.query(
+          "SELECT read_sequence FROM conversation_reads WHERE connection_id=$1 AND company_id=$2",
+          [id, actor],
+        )
+      ).rows[0].read_sequence;
+    // The company receipt is shared; notification read state belongs only to
+    // this reader and only to messages that their client actually displayed.
+    const notices = await db.query(
+      `UPDATE user_notifications n SET read_at=now()
+       WHERE n.user_id=$1 AND n.company_id=$2 AND n.read_at IS NULL
+       AND n.source_kind='connection' AND n.source_id=$3
+       AND ${visibleNotification}
+       AND EXISTS(SELECT 1 FROM messages m WHERE m.connection_id=$3
+         AND m.sequence<=$4::bigint AND n.event_key='message:'||m.id::text)
+       RETURNING n.id`,
+      [req.auth!.userId, actor, id, sequence],
+    );
+    return {
+      companyA: c.company_a,
+      companyB: c.company_b,
+      readSequence,
+      notificationIds: notices.rows.map((row) => row.id),
+      changed: !!receipt.rowCount,
+    };
+  });
+  if (result.changed || result.notificationIds.length)
+    broadcast(result.companyA, result.companyB);
+  res.json({
+    ok: true,
+    readSequence: result.readSequence,
+    notificationIds: result.notificationIds,
+    changed: result.changed,
+  });
 });
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -798,6 +898,10 @@ app.post(
             "Reconnect with this company to send new messages.",
           );
         await noBlock(db, c.company_a, c.company_b);
+        const other = c.company_a === actor ? c.company_b : c.company_a;
+        // Existing consenting threads, including historic demo conversations,
+        // keep working. New requests and discovery stay in their own cohort.
+        await messageRecipient(db, actor, other, true);
         if (clientId) {
           const previous = (
             await db.query(
@@ -845,7 +949,6 @@ app.post(
             ],
           );
         }
-        const other = c.company_a === actor ? c.company_b : c.company_a;
         const me = await companyExists(db, actor);
         await notify(db, other, "message", `${me.name} sent a message.`, actor);
         return message;
@@ -880,7 +983,10 @@ app.get("/api/attachments/:id", requireCompany, async (req, res) => {
   ).rows[0];
   if (!a) throw new HttpError(404, "Attachment not found.");
   res.type(a.mime_type);
-  if (req.query.inline === "1" && a.mime_type.startsWith("image/"))
+  if (
+    req.query.inline === "1" &&
+    (a.mime_type.startsWith("image/") || a.mime_type === "application/pdf")
+  )
     res.set("Content-Disposition", "inline");
   else res.attachment(a.original_name);
   await sendStored(req, res, a.storage_backend, a.storage_name);

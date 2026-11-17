@@ -25,6 +25,7 @@ import {
   Users,
 } from "lucide-react";
 import { useApp } from "../context";
+import { CompanyMessageLink } from "../company-message-link";
 import { api } from "../api";
 import {
   CompanyLogo,
@@ -572,12 +573,16 @@ function CompanyPosts({
     [busy, setBusy] = useState(false);
   useEffect(() => {
     const c = new AbortController();
-    api<{ company: NetworkCompany }>(`/companies/${encodeURIComponent(id)}`, {
+    api<{ company: NetworkCompany; team: { id: string }[] }>(`/companies/${encodeURIComponent(id)}`, {
       signal: c.signal,
     })
       .then((r) => {
-        setCompany(r.company);
-        onCompany(r.company);
+        const maintained = {
+          ...r.company,
+          on_colabb: r.company.listing_status === "managed" && r.team.length > 0,
+        };
+        setCompany(maintained);
+        onCompany(maintained);
       })
       .catch((e) => {
         if (!c.signal.aborted) setError(networkError(e));
@@ -606,22 +611,27 @@ function CompanyPosts({
           <h1>{company.name}</h1>
           <p>{company.tagline || company.location}</p>
         </div>
-        {bootstrap.viewer.company?.id !== id && (
-          <button className="nw-button" onClick={toggle} disabled={busy}>
-            {follow ? (
-              <>
-                <Check size={15} />
-                Following
-              </>
-            ) : (
-              "+ Follow"
-            )}
-          </button>
-        )}
-        <Link className="nw-text" to={companyPath(company)}>
-          Company profile
-          <ArrowRight size={16} />
-        </Link>
+        <div className="nw-company-actions">
+          {bootstrap.viewer.company?.id !== id && (
+            <button className="nw-button" onClick={toggle} disabled={busy}>
+              {follow ? (
+                <>
+                  <Check size={15} />
+                  Following
+                </>
+              ) : (
+                "+ Follow"
+              )}
+            </button>
+          )}
+          {company.on_colabb && (
+            <CompanyMessageLink company={company} className="nw-button" />
+          )}
+          <Link className="nw-text" to={companyPath(company)}>
+            Company profile
+            <ArrowRight size={16} />
+          </Link>
+        </div>
       </header>
       <div className="nw-tabs">
         <span aria-current="page">Posts</span>

@@ -110,6 +110,7 @@ try {
     "tests/api.test.mjs",
     "tests/social.test.mjs",
     "tests/message-requests.test.mjs",
+    "tests/company-message-reads.test.mjs",
     "tests/accounts.test.mjs",
     "tests/company-business-types.test.mjs",
     "tests/team-invitations.test.mjs",

@@ -231,30 +231,48 @@ export function notificationDestination(
     if (/[\\\x00-\x20]/.test(value) || value.startsWith("//")) return null;
     const url = new URL(value, location.origin);
     if (url.origin !== location.origin) return null;
+    const notificationCompany =
+      companyId || url.searchParams.get("notificationCompany");
     const id = "[a-f0-9-]{36}";
     if (
       !new RegExp(
-        `^/(?:jobs/(?:inbox|${id})|messages(?:/(?:people/|company/)?${id})?|posts/${id}|company/${id}|join/[a-z0-9][a-z0-9-]{1,39}|account(?:/updates)?|requests|network(?:/(?:connections|notifications|drafts|discover|(?:posts|companies)/${id}|communities/${id}(?:/manage/(?:members|reports))?|invitations/[a-f0-9]{64}))?)$`,
+        `^/(?:inbox/companies|jobs/(?:inbox|${id})|messages(?:/(?:people/|company/)?${id})?|posts/${id}|company/${id}|join/[a-z0-9][a-z0-9-]{1,39}|account(?:/updates)?|requests|network(?:/(?:connections|notifications|drafts|discover|(?:posts|companies)/${id}|communities/${id}(?:/manage/(?:members|reports))?|invitations/[a-f0-9]{64}))?)$`,
         "i",
       ).test(url.pathname)
     )
       return null;
-    if (
-      url.pathname === "/messages" &&
-      UUID.test(url.searchParams.get("conversation") || "")
-    )
-      url.pathname += "/" + url.searchParams.get("conversation");
-    else if (
-      url.pathname === "/messages" &&
-      UUID.test(url.searchParams.get("personal") || "")
-    )
-      url.pathname += "/people/" + url.searchParams.get("personal");
-    else if (
-      url.pathname === "/messages" &&
-      UUID.test(url.searchParams.get("company") || "")
-    )
-      url.pathname += "/company/" + url.searchParams.get("company");
+    const legacyCompany = url.pathname.match(
+      /^\/messages\/company\/([^/]+)$/,
+    )?.[1];
+    const legacyConversation = url.pathname.match(/^\/messages\/([^/]+)$/)?.[1];
+    if (legacyCompany && UUID.test(legacyCompany)) {
+      url.pathname = "/inbox/companies";
+      url.search = new URLSearchParams({ company: legacyCompany }).toString();
+    } else if (legacyConversation && UUID.test(legacyConversation)) {
+      url.pathname = "/inbox/companies";
+      url.search = new URLSearchParams({
+        conversation: legacyConversation,
+      }).toString();
+    } else if (url.pathname === "/messages") {
+      const personal = url.searchParams.get("personal");
+      if (personal && UUID.test(personal))
+        url.pathname = "/messages/people/" + personal;
+      else url.pathname = "/inbox/companies";
+    } else if (url.pathname === "/requests") {
+      url.pathname = "/inbox/companies";
+      url.search = "filter=requests";
+    }
     const query = new URLSearchParams();
+    if (url.pathname === "/inbox/companies") {
+      const target = url.searchParams.get("company"),
+        conversation = url.searchParams.get("conversation");
+      if (target && UUID.test(target)) query.set("company", target);
+      else if (conversation && UUID.test(conversation))
+        query.set("conversation", conversation);
+      const filter = url.searchParams.get("filter");
+      if (filter === "requests" || filter === "unread")
+        query.set("filter", filter);
+    }
     if (url.pathname === "/jobs/inbox") {
       const job = url.searchParams.get("job"),
         provider = url.searchParams.get("provider");
@@ -265,7 +283,7 @@ export function notificationDestination(
     }
     const comment = url.searchParams.get("comment");
     if (comment && UUID.test(comment)) query.set("comment", comment);
-    const company = companyId || url.searchParams.get("notificationCompany");
+    const company = notificationCompany;
     // Job notifications can point directly at the review they require. Keep
     // only known section anchors; arbitrary fragments and queries stay removed.
     const jobHash =

@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { api, post } from "./api";
 import { useApp } from "./context";
+import { InboxSections } from "./inbox-sections";
 import { JobLogo, type JobDetail, type JobStatus } from "./jobs";
 import { JobAttachments, type JobFile } from "./job-attachments";
 import { ChatAttachmentUpload } from "./project-chat-attachments";
@@ -361,6 +362,7 @@ function InboxWorkspace({ company }: { company: Company }) {
               <BrandIcon name="company" size={20} />
             </Link>
           </header>
+          <InboxSections active="jobs" />
           <div className="inbox-list-tools">
             <label className="inbox-search">
               <Search size={17} />

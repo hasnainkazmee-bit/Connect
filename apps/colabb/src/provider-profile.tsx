@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { api, post } from "./api";
 import { useApp } from "./context";
+import { CompanyMessageLink } from "./company-message-link";
 import { projectsPath } from "./profile-projects";
 import type { Company, Profile, Project } from "./types";
 import {
@@ -236,7 +237,7 @@ export function ProviderProfilePage() {
           <div className="pp-identity-copy"><p className="pd-eyebrow">{c.listing_status==="unclaimed"?"PUBLIC COMPANY LISTING":"COMPANY PROFILE"}{c.is_demo?" · DEMO":""}</p><h1><span>{c.name}</span>{c.on_colabb && <Link to="/help/trust" className="pp-identity-mark" aria-label="On Colabb: managed company account"><img src="/brand/badges/on-colabb.svg" alt="" width={28} height={28}/></Link>}</h1>
           <p className="pp-tagline">{c.tagline||c.type}</p><div className="pp-meta">{c.location&&<span><BrandIcon name="location"/>{c.location}</span>}<span><BrandIcon name="company"/>{c.type}</span>{c.on_colabb&&<span>On Colabb</span>}</div></div>
         </div>
-        <div className="pp-identity-actions">{owner?<Link className="pd-btn pd-primary" to="/settings/profile/overview"><BrandIcon name="edit" size={18}/>Edit profile</Link>:c.listing_status==="unclaimed"?<><a className="pd-btn" href={c.website||undefined} hidden={!c.website} target="_blank" rel="noreferrer">Visit website<BrandIcon name="open-external" size={18}/></a><Link className="pd-quiet" to={"/claim/"+(c.username||c.slug)}>Is this your company?</Link></>:mine?.id!==c.id?<button className="pd-btn pd-primary" onClick={()=>{if(!mine){const next=new URLSearchParams(params);next.set("action","invite");signIn(location.pathname+"?"+next.toString())}else setShowInvite(true)}}><BrandIcon name="invite-company" size={18}/>Invite to a job</button>:null}<button className="pd-quiet" onClick={()=>void shareProfile()}><Share2 size={16}/>Share profile</button></div>
+        <div className="pp-identity-actions">{c.on_colabb && <CompanyMessageLink company={c} className="pd-btn"/>}{owner?<Link className="pd-btn pd-primary" to="/settings/profile/overview"><BrandIcon name="edit" size={18}/>Edit profile</Link>:c.listing_status==="unclaimed"?<><a className="pd-btn" href={c.website||undefined} hidden={!c.website} target="_blank" rel="noreferrer">Visit website<BrandIcon name="open-external" size={18}/></a><Link className="pd-quiet" to={"/claim/"+(c.username||c.slug)}>Is this your company?</Link></>:mine?.id!==c.id?<button className="pd-btn pd-primary" onClick={()=>{if(!mine){const next=new URLSearchParams(params);next.set("action","invite");signIn(location.pathname+"?"+next.toString())}else setShowInvite(true)}}><BrandIcon name="invite-company" size={18}/>Invite to a job</button>:null}<button className="pd-quiet" onClick={()=>void shareProfile()}><Share2 size={16}/>Share profile</button></div>
       </header>
       <nav className="pd-tabs pp-tabs" aria-label="Company profile sections">{[["overview","Overview"],["services","Services"],["recent-work","Projects"],["credentials","Credentials"],["company-reviews","Reputation"],["team","Team"]].map(([section,label])=><a key={section} href={"#"+section} aria-current={activeSection===section?"page":undefined} onClick={()=>setActiveSection(section)}>{label}</a>)}<Link to={"/network/companies/"+c.id}>Posts</Link></nav>
       <div className="provider-profile-layout">

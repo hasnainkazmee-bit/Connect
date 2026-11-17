@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { companyTypes } from "../../../api/src/shared/company-types";
 import { useApp } from "../context";
+import { CompanyMessageLink } from "../company-message-link";
 import { Logo } from "../identity";
 import type { Company } from "../types";
 import { BrandIcon as Icon } from "./icons";
@@ -608,6 +609,9 @@ function CompanyCard({
           )}
         </div>
         <div className="cd-company-actions">
+          {c.on_colabb === true && c.id !== ownCompanyId && (
+            <CompanyMessageLink company={c} className="cd-button" compact />
+          )}
           <Link className="cd-button" to={href}>
             View company
             <Icon name="arrow-right" size={16} />

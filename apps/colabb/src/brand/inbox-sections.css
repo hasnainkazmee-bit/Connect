@@ -1,0 +1,40 @@
+.inbox-sections {
+  display: flex;
+  gap: 22px;
+  flex: none;
+  padding: 0 22px;
+  border-bottom: 1px solid #e2e5e7;
+  margin: 0 0 18px;
+}
+.inbox-sections a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 8px 0;
+  border-bottom: 3px solid transparent;
+  color: #61717a;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.inbox-sections a[aria-current="page"] {
+  color: #172c38;
+  border-bottom-color: #ff6a00;
+}
+.inbox-sections a:hover {
+  color: #172c38;
+}
+.inbox-sections a > span {
+  display: grid;
+  place-items: center;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 4px;
+  border: 1px solid #ff6a00;
+  border-radius: 20px;
+  font-size: 10px;
+  color: #172c38;
+  background: #fff;
+}

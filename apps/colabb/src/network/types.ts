@@ -8,6 +8,8 @@ export type NetworkCompany = {
   location?: string;
   following?: boolean;
   is_demo?: boolean;
+  listing_status?: "managed" | "unclaimed";
+  on_colabb?: boolean;
 };
 export type NetworkPerson = { id: string; name: string };
 export type NetworkAttachment = {
