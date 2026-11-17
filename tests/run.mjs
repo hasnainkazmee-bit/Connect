@@ -111,6 +111,7 @@ try {
     "tests/social.test.mjs",
     "tests/message-requests.test.mjs",
     "tests/accounts.test.mjs",
+    "tests/company-business-types.test.mjs",
     "tests/team-invitations.test.mjs",
     "tests/session-persistence.test.mjs",
     "tests/sunhub-sso.test.mjs",

@@ -766,7 +766,8 @@
   align-items: center;
   border: 0;
   background: none;
-  padding: 0;
+  min-height: 36px;
+  padding: 6px 0;
   font: inherit;
   font-size: 10px;
   color: #5b7180;
@@ -1795,8 +1796,16 @@
   display: none;
 }
 @container (max-width:750px) {
-  .nc-community-header {
-    grid-template-columns: minmax(0, 1fr) auto;
+  .nc-community-header,
+  .nc-community-header:not(:has(.nc-header-cover)) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .nc-community-header > .nc-membership {
+    order: 3;
+    justify-self: start;
+  }
+  .nc-community-header > .nc-membership > .nc-actions {
+    justify-content: flex-start;
   }
   .nc-header-cover {
     display: none;
@@ -2047,6 +2056,7 @@
   }
   .nc-discussion footer > button {
     width: 100%;
+    min-height: 44px;
     font-size: 10px;
   }
   .nc-discussion-facts {

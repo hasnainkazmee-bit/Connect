@@ -1473,6 +1473,18 @@ body.nw-enabled .app-route-container {
   border-radius: 14px;
   overflow: hidden;
 }
+.nw-crop-stage-fit {
+  display: grid;
+  place-items: center;
+  margin-bottom: 24px;
+}
+.nw-fit-frame {
+  width: 100%;
+  max-width: calc(min(60vh, 550px) * var(--nw-fit-ratio));
+  aspect-ratio: var(--nw-fit-ratio);
+  overflow: hidden;
+  background: #fff;
+}
 .nw-zoom {
   display: flex;
   align-items: center;
@@ -2194,6 +2206,7 @@ body.nw-enabled .app-route-container {
 }
 .nw-comment-thread .nw-comment-actions > button {
   min-height: 32px;
+  min-width: 32px;
   font-weight: 700;
 }
 .nw-replies-toggle {
@@ -2467,7 +2480,8 @@ body.nw-enabled .app-route-container {
     padding: 14px 17px max(14px, env(safe-area-inset-bottom));
   }
   .nw-comment-thread .nw-comment-actions > button {
-    min-height: 40px;
+    min-height: 44px;
+    min-width: 44px;
   }
   .nw-comment-child .nw-comment-avatar {
     display: none;

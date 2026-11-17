@@ -3,6 +3,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type FormEvent,
 } from "react";
 import Cropper, { type Area } from "react-easy-crop";
@@ -58,6 +59,7 @@ const fresh = (communityId?: string, topicId?: string): NetworkPostInput => ({
 type Upload = {
   id: string;
   file: File;
+  replaces?: string;
   state: "uploading" | "error";
   error?: string;
 };
@@ -107,7 +109,9 @@ export function NetworkComposer({
     lastSaved = useRef(""),
     publishing = useRef(false),
     topicDrafts = useRef<Record<string, NetworkPostInput["answers"]>>({}),
-    adjustAttempt = useRef("");
+    adjustAttempt = useRef(""),
+    attachmentOrder = useRef(new Map<string, number>()),
+    nextAttachmentOrder = useRef(0);
   const dirty =
     !loading &&
     JSON.stringify(input) !== lastSaved.current &&
@@ -144,6 +148,10 @@ export function NetworkComposer({
         setOriginalPostTypeLabel(post.post_type_label || "");
         setPostVersion(post.version);
         setFiles(post.files || []);
+        attachmentOrder.current = new Map(
+          post.files.map((file, i) => [file.id, i]),
+        );
+        nextAttachmentOrder.current = post.files.length;
         setInput({
           client_id: post.id,
           mention_user_ids: post.mentions
@@ -191,6 +199,10 @@ export function NetworkComposer({
         if (draft) {
           setInput(draft.body);
           setFiles(draft.files || []);
+          attachmentOrder.current = new Map(
+            draft.body.file_ids.map((id, i) => [id, i]),
+          );
+          nextAttachmentOrder.current = draft.body.file_ids.length;
           version.current = draft.version;
           lastSaved.current = JSON.stringify(draft.body);
         } else {
@@ -342,7 +354,11 @@ export function NetworkComposer({
     if (topic && input.topic_version !== topic.version && !editId)
       update({ topic_version: topic.version });
   }, [topic?.id, topic?.version]);
-  async function uploadFile(file: File, id: string = crypto.randomUUID()) {
+  async function uploadFile(
+    file: File,
+    id: string = crypto.randomUUID(),
+    replaces?: string,
+  ) {
     if (
       !["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(
         file.type,
@@ -352,9 +368,18 @@ export function NetworkComposer({
       setError(`${file.name}: choose a JPG, PNG, WebP or PDF up to 12 MB.`);
       return;
     }
+    // Reserve the album position before the request starts. Parallel uploads and
+    // retries can finish in any order; adjusting a photo keeps its original slot.
+    if (!attachmentOrder.current.has(id)) {
+      attachmentOrder.current.set(
+        id,
+        (replaces ? attachmentOrder.current.get(replaces) : undefined) ??
+          nextAttachmentOrder.current++,
+      );
+    }
     setUploads((rows) => [
       ...rows.filter((r) => r.id !== id),
-      { id, file, state: "uploading" },
+      { id, file, replaces, state: "uploading" },
     ]);
     try {
       const q = new URLSearchParams({
@@ -368,8 +393,26 @@ export function NetworkComposer({
         headers: { "Content-Type": file.type },
         body: file,
       });
-      setFiles((rows) => [...rows, r.file]);
-      setInput((v) => ({ ...v, file_ids: [...v.file_ids, r.file.id] }));
+      attachmentOrder.current.set(r.file.id, attachmentOrder.current.get(id)!);
+      const position = (fileId: string) =>
+        attachmentOrder.current.get(fileId) ?? Number.MAX_SAFE_INTEGER;
+      setFiles((rows) =>
+        [
+          ...rows.filter(
+            (item) => item.id !== replaces && item.id !== r.file.id,
+          ),
+          r.file,
+        ].sort((a, b) => position(a.id) - position(b.id)),
+      );
+      setInput((v) => ({
+        ...v,
+        file_ids: [
+          ...v.file_ids.filter(
+            (fileId) => fileId !== replaces && fileId !== r.file.id,
+          ),
+          r.file.id,
+        ].sort((a, b) => position(a) - position(b)),
+      }));
       setUploads((rows) => rows.filter((r) => r.id !== id));
       return r.file;
     } catch (e) {
@@ -465,12 +508,12 @@ export function NetworkComposer({
           const uploaded = await uploadFile(
             replacement,
             adjustAttempt.current || crypto.randomUUID(),
+            adjust.id,
           );
           if (!uploaded)
             throw new Error(
               "The adjusted photo could not be uploaded. Your original photo is safe. Please try again.",
             );
-          await removeFile(adjust);
           setAdjust(null);
         }}
       />
@@ -713,7 +756,9 @@ export function NetworkComposer({
                   <button
                     type="button"
                     className="nw-text"
-                    onClick={() => uploadFile(upload.file, upload.id)}
+                    onClick={() =>
+                      uploadFile(upload.file, upload.id, upload.replaces)
+                    }
                   >
                     Retry
                   </button>
@@ -1076,7 +1121,11 @@ function ImageAdjustment({
       <BackButton onClick={onBack}>Back to post</BackButton>
       <div className="nw-section-heading">
         <h1>Adjust photo</h1>
-        <p>Move the photo to choose what stays in the frame.</p>
+        <p>
+          {mode === "fit"
+            ? `The whole photo fits inside the ${format} frame. Extra space stays white.`
+            : "Move the photo to choose what stays in the frame."}
+        </p>
       </div>
       <div className="nw-image-modes">
         <label>
@@ -1096,13 +1145,20 @@ function ImageAdjustment({
           Fit whole photo
         </label>
       </div>
-      <div className="nw-crop-stage">
+      <div
+        className={`nw-crop-stage${mode === "fit" ? " nw-crop-stage-fit" : ""}`}
+      >
         {mode === "fit" ? (
-          <img
-            className="nw-fit-preview"
-            src={networkFileUrl(file)}
-            alt={file.name}
-          />
+          <div
+            className="nw-fit-frame"
+            style={{ "--nw-fit-ratio": a / b } as CSSProperties}
+          >
+            <img
+              className="nw-fit-preview"
+              src={networkFileUrl(file)}
+              alt={file.name}
+            />
+          </div>
         ) : (
           <Cropper
             image={networkFileUrl(file)}
@@ -1112,21 +1168,24 @@ function ImageAdjustment({
             onCropChange={setCrop}
             onZoomChange={setZoom}
             onCropComplete={(_, pixels) => setArea(pixels)}
+            zoomWithScroll={false}
             showGrid
           />
         )}
       </div>
-      <label className="nw-zoom">
-        Zoom
-        <input
-          type="range"
-          min="1"
-          max="3"
-          step="0.05"
-          value={zoom}
-          onChange={(e) => setZoom(Number(e.target.value))}
-        />
-      </label>
+      {mode === "crop" && (
+        <label className="nw-zoom">
+          Zoom
+          <input
+            type="range"
+            min="1"
+            max="3"
+            step="0.05"
+            value={zoom}
+            onChange={(e) => setZoom(Number(e.target.value))}
+          />
+        </label>
+      )}
       {error && <p className="nw-error">{error}</p>}
       <div className="nw-actions">
         <button className="nw-button" disabled={busy} onClick={onBack}>

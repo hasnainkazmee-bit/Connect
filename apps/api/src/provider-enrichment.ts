@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { tx } from "./db.js";
 import { projectProviderResearch } from "./provider-matching.js";
+import { companyTypeSchema } from "./company-types.js";
 
 const key = z.string().regex(/^[a-z][a-z0-9-]{1,79}$/);
 const text = (max: number) => z.string().trim().min(1).max(max);
@@ -126,15 +127,7 @@ const coverage = z
     sourceIds: refs,
   })
   .strict();
-const businessType = z.enum([
-  "Installer",
-  "EPC",
-  "Contractor",
-  "Service provider",
-  "Manufacturer",
-  "Distributor",
-  "Developer",
-]);
+const businessType = companyTypeSchema;
 const profile = z
   .object({
     type: businessType.optional(),

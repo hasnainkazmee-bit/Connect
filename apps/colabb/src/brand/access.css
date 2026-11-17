@@ -48,7 +48,8 @@
   padding: 0;
   margin: 0 0 12px;
 }
-#root .colabb-access .account-form input {
+#root .colabb-access .account-form input,
+#root .colabb-access .account-form select {
   display: block;
   width: 100%;
   outline: none;
@@ -560,7 +561,8 @@
   color: #6a7e89;
   font-weight: 400;
 }
-#root .colabb-access .account-form input:focus {
+#root .colabb-access .account-form input:focus,
+#root .colabb-access .account-form select:focus {
   border-color: #536a78;
   box-shadow: 0 0 0 2px #d4e0e7;
 }

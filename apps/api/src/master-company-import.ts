@@ -3,6 +3,7 @@ import path from "node:path";
 import { z } from "zod";
 import { normalizedName } from "./directory.js";
 import { usernameSchema } from "./profiles.js";
+import { companyTypeSchema } from "./company-types.js";
 
 const recordSchema = z.strictObject({
   name: z.string().trim().min(1),
@@ -11,7 +12,7 @@ const recordSchema = z.strictObject({
     .trim()
     .toLowerCase()
     .regex(/^[a-z0-9.-]+\.[a-z]{2,}$/),
-  type: z.string().trim().min(1),
+  type: companyTypeSchema,
   location: z.string(),
   website: z.url(),
   description: z.string().trim().min(1),

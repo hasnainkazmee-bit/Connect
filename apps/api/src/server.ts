@@ -28,6 +28,11 @@ import express from "express";
 import { socialRoutes } from "./social.js";
 import { networkProxy } from "./network-proxy.js";
 import { profileRoutes, profileExtras, ensureUsername } from "./profiles.js";
+import {
+  companyTypeSchema,
+  companyTypeUpdateInput,
+  validateCompanyTypeUpdate,
+} from "./company-types.js";
 import { publishingRoutes } from "./publishing.js";
 import { personalMessagesRoutes } from "./personal-messages.js";
 import { accountRoutes, sessionPayload as mePayload } from "./accounts.js";
@@ -354,15 +359,7 @@ app.patch("/api/companies/current", requireAdmin, async (req, res) => {
       name: z.string().trim().min(2).max(120),
       tagline: z.string().max(200),
       description: z.string().max(3000),
-      type: z.enum([
-        "Installer",
-        "EPC",
-        "Contractor",
-        "Developer",
-        "Distributor",
-        "Manufacturer",
-        "Service provider",
-      ]),
+      type: companyTypeUpdateInput,
       location: z.string().max(160),
       service_areas: z.array(z.string().min(1).max(60)).max(30),
       services: z.array(z.string().min(1).max(80)).max(30),
@@ -379,6 +376,13 @@ app.patch("/api/companies/current", requireAdmin, async (req, res) => {
     .parse(req.body);
   const { rows } = await tx(async (db) => {
     await preventDuplicateCompany(db, body.name, req.auth!.companyId!);
+    const before = (
+      await db.query("SELECT type FROM companies WHERE id=$1 FOR UPDATE", [
+        req.auth!.companyId,
+      ])
+    ).rows[0];
+    if (!before) throw new HttpError(404, "Company not found.");
+    validateCompanyTypeUpdate(body.type, before.type);
     return db.query(
       "UPDATE companies SET name=$1,tagline=$2,description=$3,type=$4,location=$5,service_areas=$6,services=$7,website=$8 WHERE id=$9 RETURNING *",
       [
@@ -402,8 +406,11 @@ app.post("/api/companies", requireVerified, async (req, res) => {
       403,
       "Individual accounts cannot manage company profiles.",
     );
-  const { name } = z
-    .object({ name: z.string().trim().min(2).max(120) })
+  const { name, type } = z
+    .object({
+      name: z.string().trim().min(2).max(120),
+      type: companyTypeSchema.optional(),
+    })
     .parse(req.body);
   const company = await tx(async (db) => {
     await preventDuplicateCompany(db, name);
@@ -413,8 +420,8 @@ app.post("/api/companies", requireVerified, async (req, res) => {
       randomBytes(3).toString("hex");
     const c = (
       await db.query(
-        "INSERT INTO companies(name,slug) VALUES($1,$2) RETURNING *",
-        [name, slug],
+        "INSERT INTO companies(name,slug,type) VALUES($1,$2,$3) RETURNING *",
+        [name, slug, type || ""],
       )
     ).rows[0];
     await db.query(

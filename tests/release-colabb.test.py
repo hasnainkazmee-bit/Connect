@@ -15,6 +15,16 @@ SPEC.loader.exec_module(release)
 
 
 class NetworkReleaseChecks(unittest.TestCase):
+    def test_company_type_migration_and_unclassified_default_are_required(self):
+        valid = {'migrationApplied': True, 'default': "''::text"}
+        with patch.object(release, 'output', return_value=json.dumps(valid)) as output:
+            self.assertEqual(release.check_company_type_schema()['companyTypeDefault'], 'unclassified')
+        self.assertIn('044_company_business_types.sql', output.call_args.args[0][-1])
+        for invalid in [{**valid, 'migrationApplied': False}, {**valid, 'default': "'Installer'::text"}, {}]:
+            with self.subTest(invalid=invalid), patch.object(release, 'output', return_value=json.dumps(invalid)):
+                with self.assertRaisesRegex(RuntimeError, 'unclassified default'):
+                    release.check_company_type_schema()
+
     def test_schema_requires_recorded_migration_and_all_tables_and_acl_functions(self):
         state = {'migrationApplied': True, 'missingTables': [], 'missingFunctions': []}
         with patch.object(release, 'output', return_value=json.dumps(state)) as output:
@@ -132,7 +142,7 @@ class NetworkReleaseChecks(unittest.TestCase):
             smoke.assert_not_called()
             self.assertEqual((base / '.env.production').read_text(), env)
             metadata = json.loads(next(releases.glob('colabb-backup-*/release.json')).read_text())
-            self.assertIn('043_network_post_types.sql', metadata['database'])
+            self.assertIn('044_company_business_types.sql', metadata['database'])
             self.assertNotIn('041', metadata['database'])
             self.assertIn('Uploaded attachment bytes', metadata['excludedFromBackup'])
             self.assertIn('not backed up', metadata['excludedFromBackup'])

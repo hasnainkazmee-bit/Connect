@@ -23,6 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { api } from "./api";
+import { companyTypes } from "../../api/src/shared/company-types";
 import { useApp } from "./context";
 import { Logo } from "./identity";
 import {
@@ -354,7 +355,7 @@ function profileForm(c: Provider) {
     username: c.username || "",
     tagline: c.tagline,
     description: c.description,
-    type: c.type,
+    type: c.type || "",
     location: c.location,
     services: c.services || [],
     service_areas: c.service_areas || [],
@@ -560,21 +561,31 @@ function ProfileSectionForm({
               <label>
                 Business type
                 <select
+                  aria-label="Business type"
+                  aria-describedby="profile-type-help"
                   value={form.type}
                   onChange={(e) => update("type", e.target.value)}
                 >
-                  {[
-                    "Installer",
-                    "EPC",
-                    "Contractor",
-                    "Developer",
-                    "Distributor",
-                    "Manufacturer",
-                    "Service provider",
-                  ].map((t) => (
-                    <option key={t}>{t}</option>
+                  <option value="" disabled>
+                    Choose business type
+                  </option>
+                  {form.type &&
+                    !companyTypes.some(
+                      (choice) => choice.value === form.type,
+                    ) && (
+                      <option value={form.type}>{form.type} (current)</option>
+                    )}
+                  {companyTypes.map(({ value, label }) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
                   ))}
                 </select>
+                <small id="profile-type-help">
+                  {companyTypes.find((choice) => choice.value === form.type)
+                    ?.description ||
+                    "Choose the option that best describes your main business."}
+                </small>
               </label>
               <label>
                 <span className="workspace-label">

@@ -486,3 +486,71 @@ test("Composer attachment controls never publish and edited posts warn before le
   ).toBeVisible();
   expect(publishes).toEqual([]);
 });
+
+test("Photo selection order survives parallel uploads and photo adjustments", async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  await fixture(request, baseURL!);
+  await page.context().addCookies((await request.storageState()).cookies);
+  const photo = await readFile("apps/colabb/public/assets/solar.jpg");
+  // The first selected photo deliberately finishes last.
+  await page.route("**/api/network-v2/files?*", async (route) => {
+    if (new URL(route.request().url()).searchParams.get("name") === "first.jpg")
+      await new Promise((resolve) => setTimeout(resolve, 800));
+    await route.continue();
+  });
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await openReady(page, `/network/compose/${randomUUID()}`);
+    await page
+      .getByLabel("Post caption", { exact: true })
+      .fill("Local photo-order check.");
+    const pickerPromise = page.waitForEvent("filechooser");
+    await page.locator(".nw-upload").click();
+    await (
+      await pickerPromise
+    ).setFiles([
+      { name: "first.jpg", mimeType: "image/jpeg", buffer: photo },
+      { name: "second.jpg", mimeType: "image/jpeg", buffer: photo },
+    ]);
+    const attachments = page.locator(".nw-attachment-manager > div");
+    await expect(attachments).toHaveCount(2);
+    await expect(attachments.nth(0)).toContainText("first.jpg");
+    await expect(attachments.nth(1)).toContainText("second.jpg");
+    await attachments
+      .nth(0)
+      .getByRole("button", { name: "Adjust", exact: true })
+      .click();
+    await page
+      .getByRole("radio", { name: "Fit whole photo", exact: true })
+      .check();
+    await expect(
+      page.getByRole("slider", { name: "Zoom", exact: true }),
+    ).toHaveCount(0);
+    const frame = await page.locator(".nw-fit-frame").boundingBox();
+    expect(frame).not.toBeNull();
+    expect(frame!.width / frame!.height).toBeCloseTo(4 / 5, 2);
+    expect(frame!.height).toBeLessThanOrEqual(550);
+    await page
+      .getByRole("button", { name: "Use this photo", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "New post", exact: true }),
+    ).toBeVisible();
+    await expect(attachments).toHaveCount(2);
+    await expect(attachments.nth(0)).toContainText("first.jpg");
+    await expect(attachments.nth(1)).toContainText("second.jpg");
+    await page.getByRole("button", { name: "Post", exact: true }).click();
+    await expect(page).toHaveURL(/\/network\/posts\//);
+    const postId = new URL(page.url()).pathname.split("/").at(-1);
+    const result = await request.get(`/api/network-v2/posts/${postId}`);
+    expect(result.ok()).toBeTruthy();
+    expect(
+      (await result.json()).post.files.map(
+        (file: { name: string }) => file.name,
+      ),
+    ).toEqual(["first.jpg", "second.jpg"]);
+  }
+});

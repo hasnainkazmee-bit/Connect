@@ -41,7 +41,7 @@ test("public directory, ownership claims and shared company identity", async (t)
     const username = "listing-" + randomUUID().slice(0, 12);
     const c = (
       await db.query(
-        "INSERT INTO companies(name,slug,username,location,services,service_areas,audiences,listing_status,website,description) VALUES($1,$2,$2,$3,'{Installation}',$4,'{Residential,Commercial}','unclaimed','https://official.example.test','A public solar company profile with accurate service areas.') RETURNING *",
+        "INSERT INTO companies(name,slug,username,type,location,services,service_areas,audiences,listing_status,website,description) VALUES($1,$2,$2,'Installer',$3,'{Installation}',$4,'{Residential,Commercial}','unclaimed','https://official.example.test','A public solar company profile with accurate service areas.') RETURNING *",
         [name, username, location, areas],
       )
     ).rows[0];

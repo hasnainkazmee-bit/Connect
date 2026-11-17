@@ -18,6 +18,7 @@ RELEASES = Path('/opt/sunhub/connect-releases')
 DB = 'connect-production-db-1'
 CONTAINERS = {'app': 'connect-production-app-1', 'jobs': 'connect-production-jobs-1'}
 NETWORK_MIGRATION = '043_network_post_types.sql'
+COMPANY_TYPES_MIGRATION = '044_company_business_types.sql'
 NETWORK_TABLES = (
     'network_administrators', 'network_communities', 'network_members', 'network_invitations',
     'network_posts', 'network_files', 'network_post_files', 'network_drafts',
@@ -99,11 +100,24 @@ def check_network_http():
     return {'networkGuestStatus': 401, 'networkAsset': network_asset}
 
 
+def check_company_type_schema():
+    query = f"""SELECT json_build_object(
+        'migrationApplied', EXISTS(SELECT 1 FROM public.schema_migrations WHERE name='{COMPANY_TYPES_MIGRATION}'),
+        'default', (SELECT column_default FROM information_schema.columns
+                    WHERE table_schema='public' AND table_name='companies' AND column_name='type')
+    )"""
+    schema = json.loads(output(['docker', 'exec', DB, 'psql', '-X', '-U', 'connect', '-d', 'connect',
+                                '-v', 'ON_ERROR_STOP=1', '-Atc', query]))
+    if schema.get('migrationApplied') is not True or schema.get('default') != "''::text":
+        raise RuntimeError('Company business-type migration or unclassified default is missing.')
+    return {'companyTypesMigration': COMPANY_TYPES_MIGRATION, 'companyTypeDefault': 'unclassified'}
+
+
 def backup_metadata(previous, next_sha):
     return {
         'previous': previous,
         'next': next_sha,
-        'database': 'additive migrations through ' + NETWORK_MIGRATION + '; previous schema and data are retained',
+        'database': 'migrations through ' + COMPANY_TYPES_MIGRATION + '; existing company data is retained; future companies no longer default to Installer',
         'backupScope': 'This Connect Postgres database and protected app configuration on this host only',
         'excludedFromBackup': 'Uploaded attachment bytes and off-host copies; the existing upload volume is preserved, not backed up by this script',
     }
@@ -220,10 +234,10 @@ console.log('Both frontends, migrations and API dependencies are readable by the
             run(['git', '-C', str(BASE), 'checkout', '--detach', args.sha])
             changed = True
             composition(args.sha, 'run', '--rm', '--no-deps', 'app', 'node', 'apps/api/dist/migrate.js')
-            network_schema = check_network_schema()
+            schema = {**check_network_schema(), **check_company_type_schema()}
             composition(args.sha, 'up', '-d', '--no-deps', 'jobs', 'app')
             await_ready(args.sha)
-            result = {**network_schema, **smoke()}
+            result = {**schema, **smoke()}
             updated = env_text
             for key, value in [('CONNECT_RELEASE', args.sha), ('CONNECT_WEB_UI', 'colabb')]:
                 pattern = r'^' + key + r'=.*$'

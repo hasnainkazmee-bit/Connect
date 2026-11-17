@@ -56,6 +56,7 @@ import {
   Mail,
 } from "lucide-react";
 import { api, post } from "./api";
+import { companyTypes } from "../../api/src/shared/company-types";
 import {
   emptyNetwork,
   type Company,
@@ -1192,6 +1193,7 @@ function NewCompany() {
   const { setSession, close, refresh, toast } = useApp();
   const task = useTask();
   const [name, setName] = useState("");
+  const [type, setType] = useState("");
   return (
     <>
       <h2>Create your company</h2>
@@ -1205,7 +1207,7 @@ function NewCompany() {
           e.preventDefault();
           const name = new FormData(e.currentTarget).get("name");
           void task.run(async () => {
-            await post("/companies", { name });
+            await post("/companies", { name, type });
             setSession(await api("/session"));
             refresh();
             close();
@@ -1224,6 +1226,31 @@ function NewCompany() {
           />
         </label>
         <CompanyMatches name={name} onSelect={close} />
+        <label>
+          Business type
+          <select
+            name="type"
+            aria-label="Business type"
+            aria-describedby="new-company-type-help"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            required
+          >
+            <option value="" disabled>
+              Choose business type
+            </option>
+            {companyTypes.map(({ value, label }) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <small id="new-company-type-help">
+            {companyTypes.find((choice) => choice.value === type)
+              ?.description ||
+              "Choose the option that best describes your main business."}
+          </small>
+        </label>
         <ErrorBox message={task.error} />
         <button className="button primary" disabled={task.busy}>
           Create company

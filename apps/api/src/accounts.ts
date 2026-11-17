@@ -19,6 +19,7 @@ import {
 import { codeHash, queueCode, flushMail } from "./mail.js";
 import { claimUsername, ensureUsername, usernameSchema } from "./profiles.js";
 import { preventDuplicateCompany } from "./directory.js";
+import { companyTypeSchema } from "./company-types.js";
 
 const email = z.string().trim().toLowerCase().max(254).pipe(z.email());
 const password = z.string().min(12, "Use at least 12 characters.").max(128);
@@ -138,16 +139,6 @@ const event = (db: PoolClient, user: string, name: string) =>
     user,
     name,
   ]);
-const companyTypes = z.enum([
-  "Installer",
-  "EPC",
-  "Contractor",
-  "Developer",
-  "Distributor",
-  "Manufacturer",
-  "Service provider",
-]);
-
 export function accountRoutes() {
   const router = Router();
   router.post("/auth/register", async (req, res) => {
@@ -158,6 +149,7 @@ export function accountRoutes() {
         password,
         accountType: z.enum(["company", "individual"]).default("company"),
         companyName: z.string().trim().min(2).max(120).optional(),
+        type: companyTypeSchema.optional(),
       })
       .parse(req.body);
     await limit(`register:${b.email}`, 5);
@@ -179,8 +171,8 @@ export function accountRoutes() {
           randomBytes(4).toString("hex");
         companyId = (
           await db.query(
-            "INSERT INTO companies(name,slug) VALUES($1,$2) RETURNING id",
-            [b.companyName, slug],
+            "INSERT INTO companies(name,slug,type) VALUES($1,$2,$3) RETURNING id",
+            [b.companyName, slug, b.type || ""],
           )
         ).rows[0].id;
         await ensureUsername(db, companyId, b.companyName);
@@ -412,7 +404,7 @@ export function accountRoutes() {
       .object({
         name: z.string().trim().min(2).max(120),
         username: usernameSchema.optional(),
-        type: companyTypes,
+        type: companyTypeSchema,
         location: z.string().trim().min(2).max(160),
         services: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
         serviceAreas: z

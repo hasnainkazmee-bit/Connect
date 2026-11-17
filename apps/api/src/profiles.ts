@@ -9,6 +9,10 @@ import { pool, tx, HttpError } from "./db.js";
 import { requireAdmin, requireVerified } from "./auth.js";
 import { checkQuota, storeBuffer, sendStored, deferDelete } from "./storage.js";
 import { preventDuplicateCompany } from "./directory.js";
+import {
+  companyTypeUpdateInput,
+  validateCompanyTypeUpdate,
+} from "./company-types.js";
 
 const uuid = z.string().uuid();
 const companySizes = [
@@ -258,15 +262,7 @@ export function profileRoutes() {
         username: usernameSchemaForCompany(req.auth!.companyId).optional(),
         tagline: z.string().trim().max(200),
         description: z.string().trim().max(3000),
-        type: z.enum([
-          "Installer",
-          "EPC",
-          "Contractor",
-          "Developer",
-          "Distributor",
-          "Manufacturer",
-          "Service provider",
-        ]),
+        type: companyTypeUpdateInput,
         location: z.string().trim().max(160),
         services: z.array(z.string().trim().min(1).max(80)).max(30),
         service_areas: z.array(z.string().trim().min(1).max(60)).max(30),
@@ -309,6 +305,7 @@ export function profileRoutes() {
           [req.auth!.companyId],
         )
       ).rows[0];
+      validateCompanyTypeUpdate(b.type, before.type);
       if (
         !companySizes.includes(b.employee_count) &&
         b.employee_count !== (before.employee_count || "")

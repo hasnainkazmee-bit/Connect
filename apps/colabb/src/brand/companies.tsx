@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
+import { companyTypes } from "../../../api/src/shared/company-types";
 import { useApp } from "../context";
 import { Logo } from "../identity";
 import type { Company } from "../types";
@@ -226,16 +227,10 @@ export function ColabbCompanies() {
                 onChange={(e) => filter("kind", e.target.value)}
               >
                 <option value="">All company types</option>
-                {[
-                  "Installer",
-                  "EPC",
-                  "Contractor",
-                  "Service provider",
-                  "Manufacturer",
-                  "Distributor",
-                  "Developer",
-                ].map((k) => (
-                  <option key={k}>{k}</option>
+                {companyTypes.map(({ value, label }) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
                 ))}
               </select>
             </fieldset>

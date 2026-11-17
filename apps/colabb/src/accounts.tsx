@@ -23,6 +23,7 @@ import {
   Search,
 } from "lucide-react";
 import { api, post } from "./api";
+import { companyTypes } from "../../api/src/shared/company-types";
 import { useApp } from "./context";
 import { Logo } from "./identity";
 import type { Company, Session } from "./types";
@@ -441,15 +442,6 @@ export function AuthExperience({
   );
 }
 
-const types = [
-  "Installer",
-  "EPC",
-  "Contractor",
-  "Developer",
-  "Distributor",
-  "Manufacturer",
-  "Service provider",
-];
 const services = [
   "Installation",
   "Design",
@@ -687,7 +679,11 @@ export function Onboarding({
     [challengeId, setChallengeId] = useState(session.challengeId || ""),
     [cooldown, setCooldown] = useState(0),
     [sent, setSent] = useState(!!session.challengeId);
-  const [type, setType] = useState(company?.type || "Installer"),
+  const [type, setType] = useState(
+      companyTypes.some((choice) => choice.value === company?.type)
+        ? company!.type
+        : "",
+    ),
     [selected, setSelected] = useState<string[]>(company?.services || []);
   useEffect(() => {
     if (!cooldown) return;
@@ -872,22 +868,31 @@ export function Onboarding({
               onChange={setUsername}
               current={company?.username}
             />
-            <fieldset>
-              <legend>What best describes your business?</legend>
-              <div className="business-choices">
-                {types.map((t) => (
-                  <button
-                    type="button"
-                    key={t}
-                    aria-pressed={type === t}
-                    onClick={() => setType(t)}
-                  >
-                    {type === t ? <Check size={15} /> : <Building2 size={15} />}
-                    {t}
-                  </button>
+            <label>
+              Business type
+              <select
+                name="type"
+                aria-label="Business type"
+                aria-describedby="onboarding-type-help"
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                required
+              >
+                <option value="" disabled>
+                  Choose business type
+                </option>
+                {companyTypes.map(({ value, label }) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
                 ))}
-              </div>
-            </fieldset>
+              </select>
+              <small id="onboarding-type-help">
+                {companyTypes.find((choice) => choice.value === type)
+                  ?.description ||
+                  "Choose the option that best describes your main business."}
+              </small>
+            </label>
             <label>
               Based in
               <input
