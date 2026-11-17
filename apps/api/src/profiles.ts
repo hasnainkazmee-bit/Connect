@@ -86,7 +86,7 @@ const reserved = new Set([
   "sitemap.xml",
   "robots.txt",
 ]);
-export const usernameSchema = z
+const usernameFormat = z
   .string()
   .trim()
   .toLowerCase()
@@ -95,13 +95,35 @@ export const usernameSchema = z
   .regex(
     /^[a-z][a-z0-9-]*[a-z0-9]$/,
     "Use 3–30 letters, numbers, or hyphens; begin with a letter.",
-  )
-  .refine((v) => !reserved.has(v), "This username is reserved.");
+  );
+export const usernameSchema = usernameFormat.refine(
+  (v) => !reserved.has(v),
+  "This username is reserved.",
+);
+function usernameSchemaForCompany(companyId?: string | null) {
+  const officialId = uuid.safeParse(
+    process.env.COLABB_OFFICIAL_COMPANY_ID?.trim().toLowerCase(),
+  );
+  return usernameFormat.refine(
+    (value) =>
+      !reserved.has(value) ||
+      (value === "colabb" &&
+        officialId.success &&
+        officialId.data === companyId?.toLowerCase()),
+    "This username is reserved.",
+  );
+}
 export async function claimUsername(
   db: PoolClient,
   companyId: string,
   username: string,
+  authenticatedCompanyId?: string | null,
 ) {
+  // Imports and generated names remain subject to the ordinary reserved list.
+  // The branded exception requires the explicitly authenticated target company.
+  username = usernameSchemaForCompany(
+    authenticatedCompanyId === companyId ? authenticatedCompanyId : null,
+  ).parse(username);
   await db.query("SELECT pg_advisory_xact_lock(hashtextextended($1,2))", [
     username,
   ]);
@@ -233,7 +255,7 @@ export function profileRoutes() {
           })
           .optional(),
         name: z.string().trim().min(2).max(120),
-        username: usernameSchema.optional(),
+        username: usernameSchemaForCompany(req.auth!.companyId).optional(),
         tagline: z.string().trim().max(200),
         description: z.string().trim().max(3000),
         type: z.enum([
@@ -302,7 +324,13 @@ export function profileRoutes() {
           JSON.stringify(before[key]) !==
           JSON.stringify(b[key as keyof typeof b]),
       );
-      if (b.username) await claimUsername(db, req.auth!.companyId!, b.username);
+      if (b.username)
+        await claimUsername(
+          db,
+          req.auth!.companyId!,
+          b.username,
+          req.auth!.companyId,
+        );
       await db.query(
         "UPDATE companies SET name=$1,tagline=$2,description=$3,type=$4,location=$5,services=$6,service_areas=$7,website=$8,employee_count=$9,established=$10 WHERE id=$11",
         [
@@ -373,7 +401,9 @@ export function profileRoutes() {
     res.json({ ok: true });
   });
   router.get("/usernames/:username", async (req, res) => {
-    const username = usernameSchema.parse(req.params.username);
+    const username = usernameSchemaForCompany(req.auth?.companyId).parse(
+      req.params.username,
+    );
     const r = await pool.query(
       "SELECT 1 FROM companies WHERE (username=$1 OR slug=$1) AND id IS DISTINCT FROM $2 UNION ALL SELECT 1 FROM company_username_history WHERE username=$1 AND company_id IS DISTINCT FROM $2",
       [username, req.auth?.companyId || null],
@@ -381,8 +411,12 @@ export function profileRoutes() {
     res.json({ username, available: !r.rowCount });
   });
   router.put("/companies/current/username", requireAdmin, async (req, res) => {
-    const username = usernameSchema.parse(req.body.username);
-    await tx((db) => claimUsername(db, req.auth!.companyId!, username));
+    const username = usernameSchemaForCompany(req.auth!.companyId).parse(
+      req.body.username,
+    );
+    await tx((db) =>
+      claimUsername(db, req.auth!.companyId!, username, req.auth!.companyId),
+    );
     res.json({ username });
   });
   router.patch("/companies/current/details", requireAdmin, async (req, res) => {

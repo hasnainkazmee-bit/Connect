@@ -23,10 +23,12 @@ export function NetworkMedia({
   files = [],
   format = "4:5",
   onOpen,
+  onOpenPost,
 }: {
   files: NetworkAttachment[];
   format?: NetworkPost["media_format"];
   onOpen: (file: NetworkAttachment) => void;
+  onOpenPost?: () => void;
 }) {
   const images = files.filter((f) => f.mime_type.startsWith("image/")),
     documents = files.filter((f) => !f.mime_type.startsWith("image/"));
@@ -76,8 +78,10 @@ export function NetworkMedia({
                   type="button"
                   key={file.id}
                   className="nw-gallery-slide"
-                  onClick={() => onOpen(file)}
-                  aria-label={`Open ${file.name}, image ${i + 1} of ${images.length}`}
+                  onClick={() => onOpenPost ? onOpenPost() : onOpen(file)}
+                  aria-label={onOpenPost
+                    ? `View post and comments, image ${i + 1} of ${images.length}`
+                    : `Open ${file.name}, image ${i + 1} of ${images.length}`}
                 >
                   <img
                     src={networkFileUrl(file)}

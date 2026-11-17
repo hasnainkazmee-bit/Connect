@@ -4,6 +4,7 @@ import {
   ArrowUpRight,
   Bookmark,
   Heart,
+  ThumbsUp,
   ImagePlus,
   MessageCircle,
   MoreHorizontal,
@@ -239,6 +240,9 @@ export function NetworkPostCard({
             <ArrowUpRight size={13} />
           </button>
         )}
+        {post.post_type_label && (
+          <span className="nw-badge">{post.post_type_label}</span>
+        )}
         {post.title &&
           (detail ? (
             <h1>{post.title}</h1>
@@ -281,28 +285,33 @@ export function NetworkPostCard({
         files={post.files || []}
         format={post.media_format}
         onOpen={actions.onFile}
+        onOpenPost={detail ? undefined : () => actions.onPost(post.id)}
       />
       <footer className="nw-post-footer">
-        <div className="nw-reactions">
+        <div className={`nw-reactions${detail && post.community_id ? " nw-community-reactions" : ""}`}>
           <button
             aria-label={post.liked ? "Unlike post" : "Like post"}
             aria-pressed={post.liked}
             disabled={!!busy}
             onClick={() => state("like", !post.liked)}
           >
-            <Heart size={23} />
+            {detail && post.community_id ? <><ThumbsUp size={18} /><span>{post.liked ? "Liked" : "Like"}</span></> : <Heart size={23} />}
           </button>
           <button
-            aria-label="Read comments"
-            onClick={() =>
-              detail
-                ? document
-                    .querySelector(".nw-comments")
-                    ?.scrollIntoView({ behavior: "smooth" })
-                : actions.onPost(post.id)
+            aria-label={
+              post.comment_count > 0
+                ? `Read ${post.comment_count} ${post.comment_count === 1 ? "comment" : "comments"}`
+                : "Read comments"
             }
+            onClick={() => actions.onPost(post.id)}
           >
-            <MessageCircle size={23} />
+            <MessageCircle size={detail && post.community_id ? 18 : 23} />
+            {detail && post.community_id && <span>Comment</span>}
+            {post.comment_count > 0 && (
+              <span className="nw-comment-total" aria-hidden="true">
+                {post.comment_count}
+              </span>
+            )}
           </button>
           <button
             aria-label={post.saved ? "Unsave post" : "Save post"}
@@ -310,7 +319,8 @@ export function NetworkPostCard({
             disabled={!!busy}
             onClick={() => state("save", !post.saved)}
           >
-            <Bookmark size={23} />
+            <Bookmark size={detail && post.community_id ? 18 : 23} />
+            {detail && post.community_id && <span>{post.saved ? "Saved" : "Save"}</span>}
           </button>
         </div>
         {post.reaction_count > 0 && (

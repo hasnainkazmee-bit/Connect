@@ -19,6 +19,7 @@ pub(super) async fn access(app: &App, id: &str, ctx: &Context) -> Result<Value> 
         json!((joined || host) && c["archived_at"].is_null() && writer(ctx, false).is_ok());
     if !read {
         c["topics"] = json!([]);
+        c["post_types"] = json!([]);
         c["cover_url"] = json!("");
     }
     Ok(c)
@@ -46,7 +47,7 @@ async fn detail(
     Ok(Json(json!({"community":access(&app,&id,&c).await?})))
 }
 fn settings(v: &Value, old: Option<&Value>) -> Result<Value> {
-    let mut x=old.cloned().unwrap_or_else(||json!({"description":"","visibility":"public","join_policy":"open","rules":[],"topics":[],"require_topic":false}));
+    let mut x=old.cloned().unwrap_or_else(||json!({"description":"","visibility":"public","join_policy":"open","rules":[],"topics":[],"post_types":[],"require_topic":false}));
     for k in [
         "name",
         "description",
@@ -54,6 +55,7 @@ fn settings(v: &Value, old: Option<&Value>) -> Result<Value> {
         "join_policy",
         "rules",
         "topics",
+        "post_types",
         "require_topic",
     ] {
         if let Some(val) = v.get(k) {
@@ -74,6 +76,10 @@ fn settings(v: &Value, old: Option<&Value>) -> Result<Value> {
     x["topics"] = fields::topics(
         &x["topics"],
         &old.map(|o| o["topics"].clone()).unwrap_or(json!([])),
+    )?;
+    x["post_types"] = fields::post_types(
+        &x["post_types"],
+        &old.map(|o| o["post_types"].clone()).unwrap_or(json!([])),
     )?;
     if x["require_topic"].as_bool().is_none() {
         return Err(bad("Choose whether a topic is required."));
@@ -110,8 +116,8 @@ async fn create(
     let cover_id = uid(&v, "cover_file_id")?;
     let mut tx = app.db.begin().await?;
     cover(&mut tx, &c, cover_id, None).await?;
-    let id:String=sqlx::query_scalar("INSERT INTO network_communities(owner_company_id,created_by,name,description,visibility,join_policy,rules,topics,require_topic,is_demo,cover_file_id) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9,$10,$11::uuid) RETURNING id::text")
- .bind(company).bind(&c.actor.user).bind(s["name"].as_str()).bind(s["description"].as_str()).bind(s["visibility"].as_str()).bind(s["join_policy"].as_str()).bind(s["rules"].to_string()).bind(s["topics"].to_string()).bind(s["require_topic"].as_bool()).bind(c.is_demo).bind(cover_id).fetch_one(&mut *tx).await?;
+    let id:String=sqlx::query_scalar("INSERT INTO network_communities(owner_company_id,created_by,name,description,visibility,join_policy,rules,topics,require_topic,is_demo,cover_file_id,post_types) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9,$10,$11::uuid,$12::jsonb) RETURNING id::text")
+ .bind(company).bind(&c.actor.user).bind(s["name"].as_str()).bind(s["description"].as_str()).bind(s["visibility"].as_str()).bind(s["join_policy"].as_str()).bind(s["rules"].to_string()).bind(s["topics"].to_string()).bind(s["require_topic"].as_bool()).bind(c.is_demo).bind(cover_id).bind(s["post_types"].to_string()).fetch_one(&mut *tx).await?;
     sqlx::query("INSERT INTO network_members(community_id,user_id,company_id,role,status) VALUES($1::uuid,$2::uuid,$3::uuid,'admin','joined')").bind(&id).bind(&c.actor.user).bind(company).execute(&mut *tx).await?;
     if let Some(fid) = cover_id {
         sqlx::query("UPDATE network_files SET community_id=$1::uuid WHERE id=$2::uuid")
@@ -146,8 +152,8 @@ async fn edit(
     if v.get("cover_file_id").is_some() && cover_id != old["cover_file_id"].as_str() {
         cover(&mut tx, &c, cover_id, Some(&id)).await?
     }
-    let changed=sqlx::query("UPDATE network_communities SET name=$1,description=$2,visibility=$3,join_policy=$4,rules=$5::jsonb,topics=$6::jsonb,require_topic=$7,cover_file_id=$8::uuid,archived_at=CASE WHEN $9::boolean IS NULL THEN archived_at WHEN $9 THEN COALESCE(archived_at,now()) ELSE NULL END,version=version+1,updated_at=now() WHERE id=$10::uuid AND version=$11")
- .bind(s["name"].as_str()).bind(s["description"].as_str()).bind(s["visibility"].as_str()).bind(s["join_policy"].as_str()).bind(s["rules"].to_string()).bind(s["topics"].to_string()).bind(s["require_topic"].as_bool()).bind(cover_id).bind(v["archived"].as_bool()).bind(&id).bind(ver).execute(&mut *tx).await?;
+    let changed=sqlx::query("UPDATE network_communities SET name=$1,description=$2,visibility=$3,join_policy=$4,rules=$5::jsonb,topics=$6::jsonb,require_topic=$7,cover_file_id=$8::uuid,archived_at=CASE WHEN $9::boolean IS NULL THEN archived_at WHEN $9 THEN COALESCE(archived_at,now()) ELSE NULL END,post_types=$12::jsonb,version=version+1,updated_at=now() WHERE id=$10::uuid AND version=$11")
+ .bind(s["name"].as_str()).bind(s["description"].as_str()).bind(s["visibility"].as_str()).bind(s["join_policy"].as_str()).bind(s["rules"].to_string()).bind(s["topics"].to_string()).bind(s["require_topic"].as_bool()).bind(cover_id).bind(v["archived"].as_bool()).bind(&id).bind(ver).bind(s["post_types"].to_string()).execute(&mut *tx).await?;
     if changed.rows_affected() != 1 {
         return Err(conflict(
             "Community settings changed. Reload before saving.",

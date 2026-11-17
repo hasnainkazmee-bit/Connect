@@ -18,11 +18,11 @@ class NetworkReleaseChecks(unittest.TestCase):
     def test_schema_requires_recorded_migration_and_all_tables_and_acl_functions(self):
         state = {'migrationApplied': True, 'missingTables': [], 'missingFunctions': []}
         with patch.object(release, 'output', return_value=json.dumps(state)) as output:
-            self.assertEqual(release.check_network_schema()['networkMigration'], '042_network.sql')
+            self.assertEqual(release.check_network_schema()['networkMigration'], '043_network_post_types.sql')
         command = output.call_args.args[0]
         self.assertEqual(command[:4], ['docker', 'exec', release.DB, 'psql'])
         self.assertIn('ON_ERROR_STOP=1', command)
-        for name in ('042_network.sql', *release.NETWORK_TABLES, *release.NETWORK_FUNCTIONS):
+        for name in ('043_network_post_types.sql', *release.NETWORK_TABLES, *release.NETWORK_FUNCTIONS):
             self.assertIn(name, command[-1])
         for invalid, message in [
             ({**state, 'migrationApplied': False}, 'has not been applied'),
@@ -132,7 +132,7 @@ class NetworkReleaseChecks(unittest.TestCase):
             smoke.assert_not_called()
             self.assertEqual((base / '.env.production').read_text(), env)
             metadata = json.loads(next(releases.glob('colabb-backup-*/release.json')).read_text())
-            self.assertIn('042_network.sql', metadata['database'])
+            self.assertIn('043_network_post_types.sql', metadata['database'])
             self.assertNotIn('041', metadata['database'])
             self.assertIn('Uploaded attachment bytes', metadata['excludedFromBackup'])
             self.assertIn('not backed up', metadata['excludedFromBackup'])

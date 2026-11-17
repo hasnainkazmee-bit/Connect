@@ -5,9 +5,10 @@ Base `/api/network-v2` (gateway to Rust `/network-v2`). Cookie session authentic
 ## Shared shapes
 
 Company `{id,name,slug,logo_url,tagline,location,is_demo}`. User `{id,name}` (emails only host invitation/member management).
-Community `{id,sequence,name,description,visibility:'public'|'private',join_policy:'open'|'approval',rules:[{title,body}],topics:[Topic],require_topic,archived_at,cover_url,company:Company,membership:null|{role:'admin'|'moderator'|'member',status:'joined'|'pending'|'removed'},member_count,can_manage,can_moderate,can_post,can_read,version}`.
+Community `{id,sequence,name,description,visibility:'public'|'private',join_policy:'open'|'approval',rules:[{title,body}],topics:[Topic],post_types:[PostType],require_topic,archived_at,cover_url,company:Company,membership:null|{role:'admin'|'moderator'|'member',status:'joined'|'pending'|'removed'},member_count,can_manage,can_moderate,can_post,can_read,version}`.
 Topic `{id,label,version,fields:[{id,label,type:'text'|'number'|'date'|'select',required,placeholder,unit,min?,step?,options?:string[]}]}`. IDs UUIDs from `crypto.randomUUID()`, retained when renamed. Saving topics increments versions server-side.
-Post `{id,sequence,community_id,company_id,author_id,kind:'post'|'question'|'sourcing'|'available',title,body,topic_id,topic_label,topic_version,answers:[{field_id,label,type,unit,value}],media_format:'4:5'|'1:1'|'1.91:1'|'3:4',comments_open,sourcing_status:'open'|'sourced'|'unavailable',created_at,updated_at,version,company,author,community_name,files:[File],reaction_count,comment_count,liked,saved,can_edit,can_delete,can_comment,can_moderate,pinned,source_job_id}`.
+PostType `{id,label,kind:'post'|'question'|'sourcing'|'available',version}`. The host/admin creates these choices; communities start with an empty list. Up to 20 unique names/UUIDs, labels up to 80 characters. The server increments a type's version when its name or format changes.
+Post `{id,sequence,community_id,company_id,author_id,post_type_id,post_type_label,post_type_version,kind:'post'|'question'|'sourcing'|'available',title,body,topic_id,topic_label,topic_version,answers:[{field_id,label,type,unit,value}],media_format:'4:5'|'1:1'|'1.91:1'|'3:4',comments_open,sourcing_status:'open'|'sourced'|'unavailable',created_at,updated_at,version,company,author,community_name,files:[File],reaction_count,comment_count,liked,saved,can_edit,can_delete,can_comment,can_moderate,pinned,source_job_id}`.
 File `{id,name,mime_type,size_bytes,url,width?,height?}`. URLs authorized `/api/network-v2/files/:id`. Do not render arbitrary client file URLs.
 Comment `{id,sequence,post_id,parent_id,body,deleted_at,created_at,updated_at,version,author,company,can_edit}`. Deleted body is empty; children retained. `parent_id` max one level.
 
@@ -16,8 +17,8 @@ Comment `{id,sequence,post_id,parent_id,body,deleted_at,created_at,updated_at,ve
 - `GET /bootstrap` → `{viewer:{id,name,email_verified,company:Company|null,can_publish,can_host,is_platform_admin},communities:Community[],suggested_companies:Company[],following_company_ids:string[],unread_count,draft_count}`. Communities list current memberships (max100); discover separately paginated.
 - `GET /posts?cursor=&limit=&company_id=&community_id=&saved=true&following=true&q=&topic_id=` → post list. company feed default, community only with `community_id`.
 - `GET /posts/:id` → `{post}`.
-- `POST /posts` `{client_id:UUID,community_id?:UUID,kind,title,body,topic_id?,topic_version?,answers:[{field_id,value}],file_ids:UUID[],media_format,comments_open}` → `{post}`. `client_id` idempotency. Resumed drafts may supply `draft_id` and `draft_version`; only that exact version is cleared. A community post requires membership; company post requires publisher.
-- `PATCH /posts/:id` same editable fields plus `{version}` → `{post}`. Omitting `file_ids` preserves files; published file replacement not supported. Requires current version, author for discussions, publisher for company posts.
+- `POST /posts` `{client_id:UUID,community_id?:UUID,post_type_id?:UUID,post_type_version?:number,title,body,topic_id?,topic_version?,answers:[{field_id,value}],file_ids:UUID[],media_format,comments_open}` → `{post}`. `client_id` idempotency. Resumed drafts may supply `draft_id` and `draft_version`; only that exact version is cleared. A community post requires membership; company post requires publisher. The server derives `kind` from the selected current host-created type. An optional supplied `kind` must match it. Without a selection, only an ordinary `post` is accepted; company posts always use `post`. Unknown/retired selections or stale type versions return409. The resolved id, label and version are saved on the post, so later host edits cannot rewrite its identity.
+- `PATCH /posts/:id` same editable fields plus `{version}` → `{post}`. Omitting `file_ids` preserves files; published file replacement not supported. Requires current version, author for discussions, publisher for company posts. Published `kind` and `post_type_*` snapshots cannot be changed, including after the host retires a type; content edits still work. Existing pre-configuration discussions retain their original kind and historical display label.
 - `DELETE /posts/:id` `{version}` → `{ok:true}` soft delete.
 - `POST /posts/:id/state` `{action:'save'|'like'|'hide',value:boolean}` OR `{action:'comments',value:boolean}` OR `{action:'sourcing',value:'open'|'sourced'|'unavailable'}` → `{ok:true}`.
 - `POST /posts/:id/report` `{reason,details}` → `{ok:true}`.
@@ -31,7 +32,7 @@ Comment `{id,sequence,post_id,parent_id,body,deleted_at,created_at,updated_at,ve
 
 - `GET /drafts` → `{items:[{id,version,community_id,company_id,updated_at,body:{...PostInput},files:File[],can_publish}],next_cursor}`.
 - `GET /drafts/:clientUUID` → `{draft}` for the exact owned draft, including attachments and `can_publish`; independent of list pagination. Missing/foreign drafts return404.
-- `PUT /drafts/:clientUUID` `{version:0 for new,body:{...PostInput}}` → `{draft}`. 409 stale; server persistent author+company ownership. `DELETE` `{version}`.
+- `PUT /drafts/:clientUUID` `{version:0 for new,body:{...PostInput}}` → `{draft}`. 409 stale; server persistent author+company ownership. Draft body retains `post_type_id` and `post_type_version` even if the host changes/removes a choice; publishing revalidates the selection and leaves a rejected draft intact. `DELETE` `{version}`.
 - `POST /files?name=encoded&community_id=optional&purpose=post|cover` raw PDF/JPEG/PNG/WebP bytes, correct Content-Type; max12MB → `{file}`. Unattached files private to uploader. Cover upload requires host. Upload before publishing, pass ids. Retry can include `upload_id=UUID` for idempotency.
 - `GET /files/:id` binary guarded download. File URLs become readable only under accessible post/community; private access revoked on removal.
 - `POST /posts/:id/job-draft` `{title,description,location,start_window,file_ids:[]}` → `{job_id,url:'/jobs/:id/edit'}`. Author only; idempotent per post; nothing published. Explicit selected files only.
@@ -39,7 +40,7 @@ Comment `{id,sequence,post_id,parent_id,body,deleted_at,created_at,updated_at,ve
 ## Communities
 
 - `GET /communities?q=&cursor=&limit=&joined=true` → community list.
-- `POST /communities` `{name,description,visibility,join_policy,rules,topics,require_topic,cover_file_id?}` → `{community}`. Current company owner/admin becomes community admin.
+- `POST /communities` `{name,description,visibility,join_policy,rules,topics,post_types,require_topic,cover_file_id?}` → `{community}`. Current company owner/admin becomes community admin.
 - `GET /communities/:id` → `{community}`. Private nonmembers see metadata/rules, never posts/members/files.
 - `PATCH /communities/:id` same fields plus `{version,archived?:boolean}` → `{community}`; partial updates allowed. Host/admin only.
 - `POST /communities/:id/membership` `{action:'join'|'cancel'|'leave'}` → `{community}`. Open join or pending request, last-admin protection.

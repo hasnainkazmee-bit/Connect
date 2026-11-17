@@ -160,6 +160,8 @@ async fn create(
         .await?;
     if let Some(row)=sqlx::query("SELECT id::text,request_hash FROM network_posts WHERE author_id=$1::uuid AND company_id=$2::uuid AND client_id=$3::uuid").bind(&c.actor.user).bind(company).bind(client).fetch_optional(&mut *tx).await?{if row.get::<String,_>("request_hash")!=hash{return Err(conflict("This request was already used for a different post."))}let id:String=row.get("id");tx.commit().await?;return Ok(Json(json!({"post":access(&app,&id,&c).await?}))) }
     let comm = destination(&app, &c, community).await?;
+    let (kind, post_type_id, post_type_label, post_type_version) =
+        fields::selected_post_type(&v, comm.as_ref())?;
     let files = fields::id_list(&v, "file_ids", 10)?;
     validate_content(&v, community.is_some(), !files.is_empty())?;
     let (topic, label, tver, answers) = if let Some(comm) = &comm {
@@ -183,8 +185,8 @@ async fn create(
             ));
         }
     }
-    let id:String=sqlx::query_scalar("INSERT INTO network_posts(client_id,author_id,company_id,community_id,kind,title,body,topic_id,topic_label,topic_version,answers,media_format,comments_open,is_demo,request_hash) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6,$7,$8::uuid,$9,$10,$11::jsonb,$12,$13,$14,$15) RETURNING id::text")
- .bind(client).bind(&c.actor.user).bind(company).bind(community).bind(v["kind"].as_str().unwrap_or("post")).bind(txt(&v,"title",180)?).bind(txt(&v,"body",10000)?).bind(topic).bind(label).bind(tver).bind(answers.to_string()).bind(v["media_format"].as_str().unwrap_or("4:5")).bind(v["comments_open"].as_bool().unwrap_or(true)).bind(c.is_demo).bind(hash).fetch_one(&mut *tx).await?;
+    let id:String=sqlx::query_scalar("INSERT INTO network_posts(client_id,author_id,company_id,community_id,kind,title,body,topic_id,topic_label,topic_version,answers,media_format,comments_open,is_demo,request_hash,post_type_id,post_type_label,post_type_version) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6,$7,$8::uuid,$9,$10,$11::jsonb,$12,$13,$14,$15,$16::uuid,$17,$18) RETURNING id::text")
+ .bind(client).bind(&c.actor.user).bind(company).bind(community).bind(kind).bind(txt(&v,"title",180)?).bind(txt(&v,"body",10000)?).bind(topic).bind(label).bind(tver).bind(answers.to_string()).bind(v["media_format"].as_str().unwrap_or("4:5")).bind(v["comments_open"].as_bool().unwrap_or(true)).bind(c.is_demo).bind(hash).bind(post_type_id).bind(post_type_label).bind(post_type_version).fetch_one(&mut *tx).await?;
     attach(&mut tx, &c, &id, community, &files).await?;
     // Fan-out is one transactional statement; notification and push outbox writes
     // commit with the publication and never truncate a large community's members.
@@ -215,6 +217,16 @@ async fn edit(
         return Err(forbidden());
     }
     let ver = version(&v)?;
+    for key in [
+        "kind",
+        "post_type_id",
+        "post_type_label",
+        "post_type_version",
+    ] {
+        if v.get(key).is_some_and(|value| value != &p[key]) {
+            return Err(bad("A published post keeps its original post type."));
+        }
+    }
     let mut input = p.clone();
     for key in ["body", "title", "media_format", "comments_open"] {
         if let Some(val) = v.get(key) {

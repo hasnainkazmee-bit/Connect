@@ -45,6 +45,9 @@ export type NetworkPost = {
   topic_id?: string;
   topic_label?: string;
   topic_version?: number;
+  post_type_id?: string | null;
+  post_type_label?: string;
+  post_type_version?: number | null;
   title: string;
   body: string;
   files: NetworkAttachment[];
@@ -68,6 +71,8 @@ export type NetworkPostInput = {
   client_id: string;
   community_id?: string;
   kind: NetworkPost["kind"];
+  post_type_id?: string | null;
+  post_type_version?: number | null;
   title: string;
   body: string;
   topic_id?: string;
@@ -111,6 +116,12 @@ export type NetworkTopic = {
   fields: NetworkTopicField[];
   version: number;
 };
+export type NetworkPostType = {
+  id: string;
+  label: string;
+  kind: NetworkPost["kind"];
+  version: number;
+};
 export type NetworkCommunity = {
   id: string;
   name: string;
@@ -129,6 +140,7 @@ export type NetworkCommunity = {
   can_moderate: boolean;
   can_read: boolean;
   topics: NetworkTopic[];
+  post_types: NetworkPostType[];
   require_topic: boolean;
   archived_at?: string;
   version: number;

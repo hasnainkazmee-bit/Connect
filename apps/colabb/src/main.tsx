@@ -587,10 +587,10 @@ function App() {
               aria-label="Colabb home"
             >
               <img
-                src="/brand/marks/lockup-primary.svg"
+                src="/brand/marks/lockup-nav.svg"
                 alt="Colabb"
-                width={1465}
-                height={276}
+                width={349.4285}
+                height={52}
               />
 
             </Link>

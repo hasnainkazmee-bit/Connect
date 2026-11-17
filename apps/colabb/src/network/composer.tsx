@@ -96,6 +96,7 @@ export function NetworkComposer({
     [adjust, setAdjust] = useState<NetworkAttachment | null>(null),
     [postVersion, setPostVersion] = useState(0),
     [originalTopicLabel, setOriginalTopicLabel] = useState(""),
+    [originalPostTypeLabel, setOriginalPostTypeLabel] = useState(""),
     [canEdit, setCanEdit] = useState(true),
     [leaving, setLeaving] = useState(false);
   const version = useRef(0),
@@ -140,6 +141,7 @@ export function NetworkComposer({
         );
         setCanEdit(post.can_edit);
         setOriginalTopicLabel(post.topic_label || "");
+        setOriginalPostTypeLabel(post.post_type_label || "");
         setPostVersion(post.version);
         setFiles(post.files || []);
         setInput({
@@ -152,6 +154,8 @@ export function NetworkComposer({
             .map((m) => m.id),
           community_id: post.community_id || undefined,
           kind: post.kind,
+          post_type_id: post.post_type_id,
+          post_type_version: post.post_type_version,
           title: post.title,
           body: post.body,
           topic_id: post.topic_id,
@@ -171,6 +175,8 @@ export function NetworkComposer({
             .map((m) => m.id),
           community_id: post.community_id || undefined,
           kind: post.kind,
+          post_type_id: post.post_type_id,
+          post_type_version: post.post_type_version,
           title: post.title,
           body: post.body,
           topic_id: post.topic_id,
@@ -211,6 +217,7 @@ export function NetworkComposer({
       return;
     }
     const c = new AbortController();
+    setCommunity(null);
     networkApi<{ community: NetworkCommunity }>(
       `/communities/${input.community_id}`,
       { signal: c.signal },
@@ -289,6 +296,28 @@ export function NetworkComposer({
   const update = (patch: Partial<NetworkPostInput>) =>
     setInput((v) => ({ ...v, ...patch }));
   const topic = community?.topics.find((t) => t.id === input.topic_id);
+  const postTypes = community?.post_types || [];
+  const postType = postTypes.find((t) => t.id === input.post_type_id);
+  const missingPostType =
+    !!community && !editId && !!input.post_type_id && !postType;
+  useEffect(() => {
+    if (editId || !community) return;
+    if (
+      postType &&
+      (input.post_type_version !== postType.version ||
+        input.kind !== postType.kind)
+    ) {
+      update({ post_type_version: postType.version, kind: postType.kind });
+    } else if (!input.post_type_id && input.kind !== "post") {
+      update({ kind: "post" });
+    }
+  }, [
+    community?.id,
+    postType?.id,
+    postType?.version,
+    input.post_type_id,
+    editId,
+  ]);
   const fields: NetworkTopicField[] = editId
     ? input.answers.map((answer) => {
         const current = topic?.fields.find((f) => f.id === answer.field_id);
@@ -520,6 +549,9 @@ export function NetworkComposer({
                   onChange={(e) => {
                     update({
                       community_id: e.target.value || undefined,
+                      kind: "post",
+                      post_type_id: undefined,
+                      post_type_version: undefined,
                       topic_id: undefined,
                       topic_version: undefined,
                       answers: [],
@@ -738,23 +770,61 @@ export function NetworkComposer({
           {community && (
             <div className="nw-compose-topic">
               <div className="nw-field-grid">
-                <label className="nw-field">
-                  Post type
-                  <select
-                    disabled={!!editId}
-                    value={input.kind}
-                    onChange={(e) =>
-                      update({
-                        kind: e.target.value as NetworkPostInput["kind"],
-                      })
-                    }
-                  >
-                    <option value="post">Discussion</option>
-                    <option value="question">Question</option>
-                    <option value="sourcing">Looking for equipment</option>
-                    <option value="available">Equipment available</option>
-                  </select>
-                </label>
+                {(postTypes.length > 0 ||
+                  input.post_type_id ||
+                  originalPostTypeLabel) && (
+                  <label className="nw-field">
+                    Post type (optional)
+                    <select
+                      disabled={!!editId}
+                      value={input.post_type_id || ""}
+                      onChange={(e) => {
+                        const selected = postTypes.find(
+                          (t) => t.id === e.target.value,
+                        );
+                        update({
+                          post_type_id: selected?.id,
+                          post_type_version: selected?.version,
+                          kind: selected?.kind || "post",
+                        });
+                      }}
+                      aria-invalid={missingPostType || undefined}
+                      aria-describedby={
+                        missingPostType
+                          ? "network-post-type-unavailable"
+                          : undefined
+                      }
+                    >
+                      <option value="">
+                        {editId && originalPostTypeLabel
+                          ? originalPostTypeLabel
+                          : "No post type"}
+                      </option>
+                      {input.post_type_id && (editId || !postType) && (
+                        <option value={input.post_type_id}>
+                          {originalPostTypeLabel ||
+                            "Post type no longer available"}
+                        </option>
+                      )}
+                      {postTypes
+                        .filter((t) => !editId || t.id !== input.post_type_id)
+                        .map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.label}
+                          </option>
+                        ))}
+                    </select>
+                    {missingPostType && (
+                      <small
+                        className="nw-error"
+                        id="network-post-type-unavailable"
+                      >
+                        The host removed this post type. Choose another type or
+                        select “No post type”.
+                      </small>
+                    )}
+                  </label>
+                )}
                 <label className="nw-field">
                   Topic {community.require_topic ? "" : "(optional)"}
                   <select
@@ -874,6 +944,7 @@ export function NetworkComposer({
                 disabled={
                   busy ||
                   uploads.length > 0 ||
+                  missingPostType ||
                   !input.body.trim() ||
                   (!!input.community_id && !input.title.trim())
                 }

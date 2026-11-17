@@ -55,6 +55,7 @@ services:
       TRUST_PROXY_HOPS: 1
       CONNECT_RELEASE: ${CONNECT_RELEASE:-local}
       CONNECT_WEB_UI: ${CONNECT_WEB_UI:-colabb}
+      COLABB_OFFICIAL_COMPANY_ID: ${COLABB_OFFICIAL_COMPANY_ID:-}
       UPLOAD_DIR: /app/uploads
       JOBS_SERVICE_URL: http://jobs:4201
       AUTH_TOKEN_SECRET: ${AUTH_TOKEN_SECRET:?Set account token secret}

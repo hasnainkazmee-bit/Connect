@@ -142,6 +142,9 @@ try {
   );
   const publicCommunity = await comm(h),
     privateCommunity = await comm(h, "private");
+  assert.deepEqual(publicCommunity.post_types, []);
+  assert.deepEqual(privateCommunity.post_types, []);
+  checks += 2;
   assert.equal(privateCommunity.join_policy, "approval");
   checks++;
   await call(
@@ -200,10 +203,21 @@ try {
       { id: randomUUID(), label: "Needed by", type: "date", required: true },
     ],
   };
+  const sourcingType = {
+    id: randomUUID(),
+    label: "Equipment request",
+    kind: "sourcing",
+  };
+  const questionType = {
+    id: randomUUID(),
+    label: "Ask the community",
+    kind: "question",
+  };
   let configured = (
     await call(`/communities/${privateCommunity.id}`, h, "PATCH", {
       version: privateCommunity.version,
       topics: [topic],
+      post_types: [sourcingType, questionType],
       require_topic: true,
     })
   ).community;
@@ -224,6 +238,8 @@ try {
   const form = {
     community_id: privateCommunity.id,
     kind: "sourcing",
+    post_type_id: sourcingType.id,
+    post_type_version: 1,
     title: "200 modules needed in Cleveland",
     body: "We need modules for a commercial rooftop project.",
     topic_id: topic.id,
@@ -707,6 +723,8 @@ try {
   const hiddenMention = await post(p, {
     community_id: privateCommunity.id,
     kind: "question",
+    post_type_id: questionType.id,
+    post_type_version: 1,
     title: "Private mention access check",
     body: `Question for @${other.name}`,
     topic_id: topic.id,
@@ -828,7 +846,7 @@ try {
   const publicPost = await post(member, {
     community_id: publicCommunity.id,
     title: "Public community discussion",
-    kind: "question",
+    kind: "post",
   });
   await call(`/posts/${publicPost.id}/state`, h, "POST", {
     action: "pin",
@@ -925,6 +943,238 @@ try {
     (await call("/posts", demo)).items.some((p) => p.id === companyPost.id),
     false,
   );
+  checks++;
+  // Community hosts choose types; the client cannot turn built-in formats into choices.
+  let typedCommunity = await comm(h);
+  const customType = {
+    id: randomUUID(),
+    label: "Looking for surplus modules",
+    kind: "sourcing",
+  };
+  await call(`/communities/${typedCommunity.id}/membership`, p, "POST", {
+    action: "join",
+  });
+  await call(
+    `/communities/${typedCommunity.id}`,
+    p,
+    "PATCH",
+    { version: typedCommunity.version, post_types: [customType] },
+    403,
+  );
+  for (const post_types of [
+    [
+      customType,
+      { ...customType, id: randomUUID(), label: "LOOKING FOR SURPLUS MODULES" },
+    ],
+    [customType, { ...customType, label: "Another name" }],
+    [{ ...customType, kind: "unrecognized" }],
+    Array.from({ length: 21 }, (_, i) => ({
+      id: randomUUID(),
+      label: `Type ${i}`,
+      kind: "post",
+    })),
+  ])
+    await call(
+      `/communities/${typedCommunity.id}`,
+      h,
+      "PATCH",
+      { version: typedCommunity.version, post_types },
+      400,
+    );
+  typedCommunity = (
+    await call(`/communities/${typedCommunity.id}`, h, "PATCH", {
+      version: typedCommunity.version,
+      post_types: [customType],
+    })
+  ).community;
+  assert.deepEqual(typedCommunity.post_types, [{ ...customType, version: 1 }]);
+  checks++;
+  const typedInput = {
+    community_id: typedCommunity.id,
+    title: "Modules for a rooftop installation",
+    body: "Please share specifications and quantity.",
+    post_type_id: customType.id,
+    post_type_version: 1,
+  };
+  let typedPost = (
+    await call("/posts", p, "POST", { client_id: randomUUID(), ...typedInput })
+  ).post;
+  assert.equal(typedPost.kind, "sourcing");
+  assert.equal(typedPost.post_type_label, customType.label);
+  assert.equal(typedPost.post_type_version, 1);
+  assert.equal(
+    (await call(`/posts?community_id=${typedCommunity.id}`, p)).items[0]
+      .post_type_label,
+    customType.label,
+  );
+  checks += 4;
+  await call(
+    "/posts",
+    p,
+    "POST",
+    { client_id: randomUUID(), ...typedInput, kind: "available" },
+    400,
+  );
+  await call(
+    "/posts",
+    p,
+    "POST",
+    {
+      client_id: randomUUID(),
+      ...typedInput,
+      post_type_id: null,
+      kind: "sourcing",
+    },
+    400,
+  );
+  await call(
+    "/posts",
+    p,
+    "POST",
+    { client_id: randomUUID(), ...typedInput, community_id: null },
+    400,
+  );
+  await call(
+    "/posts",
+    p,
+    "POST",
+    {
+      client_id: randomUUID(),
+      ...typedInput,
+      community_id: publicCommunity.id,
+    },
+    409,
+  );
+  await call(
+    "/posts",
+    p,
+    "POST",
+    { client_id: randomUUID(), ...typedInput, post_type_version: 0 },
+    409,
+  );
+  const typedDraftID = randomUUID();
+  const typedDraft = (
+    await call(`/drafts/${typedDraftID}`, p, "PUT", {
+      version: 0,
+      body: typedInput,
+    })
+  ).draft;
+  assert.equal(
+    (await call(`/drafts/${typedDraftID}`, p)).draft.body.post_type_id,
+    customType.id,
+  );
+  checks++;
+  typedCommunity = (
+    await call(`/communities/${typedCommunity.id}`, h, "PATCH", {
+      version: typedCommunity.version,
+      post_types: [{ ...customType, label: "Request solar modules" }],
+    })
+  ).community;
+  assert.equal(typedCommunity.post_types[0].version, 2);
+  assert.equal(
+    (await call(`/posts/${typedPost.id}`, p)).post.post_type_label,
+    customType.label,
+  );
+  checks += 2;
+  await call(
+    "/posts",
+    p,
+    "POST",
+    {
+      client_id: randomUUID(),
+      ...typedDraft.body,
+      draft_id: typedDraftID,
+      draft_version: typedDraft.version,
+    },
+    409,
+  );
+  assert.equal(
+    (await call(`/drafts/${typedDraftID}`, p)).draft.version,
+    typedDraft.version,
+  );
+  checks++;
+  const renamedPost = (
+    await call("/posts", p, "POST", {
+      client_id: randomUUID(),
+      ...typedInput,
+      post_type_version: 2,
+    })
+  ).post;
+  assert.equal(renamedPost.post_type_label, "Request solar modules");
+  checks++;
+  typedCommunity = (
+    await call(`/communities/${typedCommunity.id}`, h, "PATCH", {
+      version: typedCommunity.version,
+      post_types: [],
+    })
+  ).community;
+  await call(
+    "/posts",
+    p,
+    "POST",
+    { client_id: randomUUID(), ...typedInput, post_type_version: 2 },
+    409,
+  );
+  typedPost = (
+    await call(`/posts/${typedPost.id}`, p, "PATCH", {
+      version: typedPost.version,
+      body: "Updated quantity while retaining the original type.",
+    })
+  ).post;
+  assert.equal(typedPost.post_type_label, customType.label);
+  assert.equal(typedPost.post_type_id, customType.id);
+  assert.equal(typedPost.kind, "sourcing");
+  checks += 3;
+  await call(
+    `/posts/${typedPost.id}`,
+    p,
+    "PATCH",
+    { version: typedPost.version, post_type_id: null },
+    400,
+  );
+  await call(
+    `/posts/${typedPost.id}`,
+    p,
+    "PATCH",
+    { version: typedPost.version, kind: "post" },
+    400,
+  );
+  const ordinaryPost = await post(p, {
+    community_id: typedCommunity.id,
+    title: "An ordinary discussion",
+  });
+  assert.equal(ordinaryPost.kind, "post");
+  assert.equal(ordinaryPost.post_type_id, null);
+  assert.equal(ordinaryPost.post_type_label, "");
+  checks += 3;
+  // Historical built-in types remain editable after the host removes all choices.
+  await db.query(
+    "UPDATE network_posts SET kind='question',post_type_label='Question' WHERE id=$1",
+    [ordinaryPost.id],
+  );
+  const historicalPost = (
+    await call(`/posts/${ordinaryPost.id}`, p, "PATCH", {
+      version: ordinaryPost.version,
+      body: "A useful correction to this historical discussion.",
+    })
+  ).post;
+  assert.equal(historicalPost.kind, "question");
+  assert.equal(historicalPost.post_type_label, "Question");
+  checks += 2;
+  // Existing delegated community administrators can configure types, just like topics.
+  await call(`/communities/${typedCommunity.id}/members/${p.user}`, h, "POST", {
+    action: "role",
+    role: "admin",
+  });
+  typedCommunity = (
+    await call(`/communities/${typedCommunity.id}`, p, "PATCH", {
+      version: typedCommunity.version,
+      post_types: [
+        { id: randomUUID(), label: "Technical help", kind: "question" },
+      ],
+    })
+  ).community;
+  assert.equal(typedCommunity.post_types[0].label, "Technical help");
   checks++;
   console.log(
     `Network API: ${checks} checks passed (real auth, membership, drafts, typed forms, post/comment lifecycle, reports, invites, notifications, sourcing).`,

@@ -23,6 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { useApp } from "../context";
+import { usePageGuard } from "../page-navigation";
 import { networkApi, networkPost, networkPatch } from "./client";
 import {
   communityDate,
@@ -37,6 +38,7 @@ import {
   type CommunityList,
   type CommunityMember,
   type CommunityPost,
+  type CommunityPostType,
   type CommunityReport,
   type CommunityRule,
   type CommunityTopic,
@@ -348,10 +350,14 @@ function MembershipButton({
         {c.can_manage || c.can_moderate ? (
           <button
             className="nc-btn"
-            onClick={() => navigate(`${routeTo(c)}/manage/members`)}
+            onClick={() =>
+              navigate(
+                `${routeTo(c)}/manage/${c.can_manage ? "settings" : "members"}`,
+              )
+            }
           >
             <Settings2 size={16} />
-            Manage
+            {c.can_manage ? "Community settings" : "Manage community"}
           </button>
         ) : null}
         {joined ? (
@@ -855,19 +861,23 @@ function DiscussionRow({
   onOpen: () => void;
 }) {
   const kind =
-    p.kind === "question"
+    p.post_type_label ||
+    (p.kind === "question"
       ? "Question"
       : p.kind === "sourcing"
         ? "Looking for equipment"
         : p.kind === "available"
           ? "Equipment available"
-          : "Discussion";
+          : "");
   return (
     <article className="nc-discussion">
       <CompanyMark company={p.company} size={42} />
       <div className="nc-discussion-content">
         <div className="nc-discussion-tags">
-          <span>{p.topic_label || kind}</span>
+          {kind && <span>{kind}</span>}
+          {p.topic_label && p.topic_label !== kind && (
+            <span>{p.topic_label}</span>
+          )}
           {p.sourcing_status && p.sourcing_status !== "open" && (
             <span>
               {p.sourcing_status === "sourced"
@@ -1016,6 +1026,7 @@ function CommunityEditor(
         : await networkPost<{ community: Community }>("/communities", {
             ...body,
             topics: [],
+            post_types: [],
             require_topic: false,
           });
       props.onRefresh();
@@ -1426,16 +1437,17 @@ function ManageCommunity(
       </EmptyState>
     );
   const tabs = [
-    { id: "members", label: "Members" },
-    { id: "posts", label: "Posts & reports" },
     ...(canAdmin
       ? [
-          { id: "topics", label: "Topics & post fields" },
-          { id: "settings", label: "Settings" },
+          { id: "settings", label: "General" },
+          { id: "topics", label: "Topics & fields" },
+          { id: "post-types", label: "Post types" },
         ]
       : []),
+    { id: "members", label: "Members" },
+    { id: "posts", label: "Posts & reports" },
   ];
-  const tab = tabs.some((t) => t.id === props.tab) ? props.tab : "members";
+  const tab = tabs.some((t) => t.id === props.tab) ? props.tab : tabs[0].id;
   return (
     <div className="nc-task">
       <button className="nc-back" onClick={() => props.onNavigate(routeTo(c))}>
@@ -1444,6 +1456,9 @@ function ManageCommunity(
       </button>
       <header className="nc-manage-heading">
         <div>
+          <span className="nc-eyebrow">
+            {canAdmin ? "Community settings" : "Manage community"}
+          </span>
           <h1>{c.name}</h1>
           <div className="nc-host nc-host-small">
             <CompanyMark company={c.company} size={30} />
@@ -1459,7 +1474,7 @@ function ManageCommunity(
       </header>
       <div className="nc-manage-layout">
         <aside className="nc-manage-nav nc-panel">
-          <nav aria-label="Manage community">
+          <nav aria-label="Community settings">
             {tabs.map((t) => (
               <button
                 key={t.id}
@@ -1471,7 +1486,7 @@ function ManageCommunity(
             ))}
           </nav>
           <label>
-            Manage community
+            {canAdmin ? "Community settings" : "Manage community"}
             <select
               value={tab}
               onChange={(e) =>
@@ -1494,6 +1509,8 @@ function ManageCommunity(
             <CommunityEditor {...props} embedded />
           ) : tab === "topics" ? (
             <TopicEditor {...props} />
+          ) : tab === "post-types" ? (
+            <PostTypeEditor {...props} />
           ) : tab === "posts" ? (
             <ModerationPanel {...props} />
           ) : (
@@ -2004,6 +2021,358 @@ function MembersPanel(props: CommunityProps & { community: Community }) {
     </div>
   );
 }
+const postTypeBehaviors: {
+  kind: CommunityPostType["kind"];
+  label: string;
+  description: string;
+}[] = [
+  {
+    kind: "post",
+    label: "Discussion",
+    description: "A regular post for sharing news, ideas or experience.",
+  },
+  {
+    kind: "question",
+    label: "Question",
+    description: "The author can mark a helpful reply as the answer.",
+  },
+  {
+    kind: "sourcing",
+    label: "Equipment request",
+    description:
+      "The author can mark the request as sourced when they find what they need.",
+  },
+  {
+    kind: "available",
+    label: "Equipment offer",
+    description:
+      "The author can close the offer when the equipment is no longer available.",
+  },
+];
+function PostTypeEditor(props: CommunityProps & { community: Community }) {
+  const c = props.community;
+  const { toast } = useApp();
+  const [types, setTypes] = useState<CommunityPostType[]>(() =>
+    structuredClone(c.post_types || []),
+  );
+  const [version, setVersion] = useState(c.version);
+  const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [removeId, setRemoveId] = useState("");
+  const [confirmReload, setConfirmReload] = useState(false);
+  const [focusTypeId, setFocusTypeId] = useState("");
+  usePageGuard(dirty, busy);
+  const changedElsewhere = c.version > version;
+  const update = (id: string, values: Partial<CommunityPostType>) => {
+    setTypes((current) =>
+      current.map((type) => (type.id === id ? { ...type, ...values } : type)),
+    );
+    setDirty(true);
+    setError("");
+  };
+  function addType() {
+    if (types.length >= 20) return;
+    const id = crypto.randomUUID();
+    setTypes((current) => [...current, { id, label: "", kind: "post" }]);
+    setFocusTypeId(id);
+    setDirty(true);
+    setError("");
+  }
+  async function reload() {
+    setBusy(true);
+    setError("");
+    try {
+      const result = await networkApi<{ community: Community }>(
+        `/communities/${c.id}`,
+      );
+      setTypes(structuredClone(result.community.post_types || []));
+      setVersion(result.community.version);
+      setDirty(false);
+      setRemoveId("");
+      setConfirmReload(false);
+      props.onRefresh();
+    } catch (e) {
+      setError(communityError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    if (busy || !dirty) return;
+    setError("");
+    if (changedElsewhere) {
+      setError(
+        "Community settings changed while you were editing. Your edits are still here. Reload the saved types before making further changes.",
+      );
+      return;
+    }
+    const labels = new Set<string>();
+    for (const type of types) {
+      const label = type.label.trim().toLowerCase();
+      if (!label || labels.has(label)) {
+        setError(
+          "Give each post type a different name, or remove any blank types.",
+        );
+        return;
+      }
+      labels.add(label);
+    }
+    setBusy(true);
+    try {
+      const result = await networkPatch<{ community: Community }>(
+        `/communities/${c.id}`,
+        {
+          version,
+          post_types: types.map((type) => ({
+            ...type,
+            label: type.label.trim(),
+          })),
+        },
+      );
+      setTypes(structuredClone(result.community.post_types || []));
+      setVersion(result.community.version);
+      setDirty(false);
+      setRemoveId("");
+      props.onRefresh();
+      toast("Post types saved.");
+    } catch (e) {
+      setError(communityError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <form className="nc-post-type-editor" onSubmit={save}>
+      <header className="nc-section-heading">
+        <div>
+          <h2>Post types</h2>
+          <p>Choose the kinds of posts members can share in {c.name}.</p>
+        </div>
+        <span className="nc-save-status">
+          {dirty ? "Unsaved changes" : "All changes saved"}
+        </span>
+      </header>
+      <ErrorLine>{error}</ErrorLine>
+      {changedElsewhere && !error && (
+        <p className="nc-quiet-box" role="status">
+          Community settings have changed. Reload saved types to see the latest
+          version.
+        </p>
+      )}
+      <div className="nc-post-type-layout">
+        <section className="nc-panel nc-form-panel">
+          {types.length ? (
+            <>
+              <div className="nc-post-type-list">
+                {types.map((type, index) => (
+                  <section className="nc-post-type-card" key={type.id}>
+                    <div className="nc-inline-head">
+                      <strong>Post type {index + 1}</strong>
+                      <button
+                        className="nc-icon-btn"
+                        type="button"
+                        disabled={busy}
+                        aria-label={`Remove ${type.label || `post type ${index + 1}`}`}
+                        onClick={() => setRemoveId(type.id)}
+                      >
+                        <Trash2 size={17} />
+                      </button>
+                    </div>
+                    <label className="nc-field">
+                      <span>Type name</span>
+                      <input
+                        required
+                        maxLength={80}
+                        autoFocus={type.id === focusTypeId}
+                        value={type.label}
+                        disabled={busy}
+                        onChange={(e) =>
+                          update(type.id, { label: e.target.value })
+                        }
+                        placeholder="e.g. Looking for modules"
+                      />
+                    </label>
+                    <label className="nc-field">
+                      <span id={`post-type-behavior-${type.id}`}>
+                        How this type works
+                      </span>
+                      <select
+                        aria-labelledby={`post-type-behavior-${type.id}`}
+                        aria-describedby={`post-type-help-${type.id}`}
+                        value={type.kind}
+                        disabled={busy}
+                        onChange={(e) =>
+                          update(type.id, {
+                            kind: e.target.value as CommunityPostType["kind"],
+                          })
+                        }
+                      >
+                        {postTypeBehaviors.map((behavior) => (
+                          <option key={behavior.kind} value={behavior.kind}>
+                            {behavior.label}
+                          </option>
+                        ))}
+                      </select>
+                      <small id={`post-type-help-${type.id}`}>
+                        {
+                          postTypeBehaviors.find(
+                            (behavior) => behavior.kind === type.kind,
+                          )?.description
+                        }
+                      </small>
+                    </label>
+                    {removeId === type.id && (
+                      <div className="nc-confirm">
+                        <strong>
+                          Remove {type.label || "this post type"}?
+                        </strong>
+                        <p>
+                          It will no longer appear for new posts. Published
+                          posts keep their original type.
+                        </p>
+                        <div className="nc-actions">
+                          <button
+                            className="nc-btn"
+                            type="button"
+                            disabled={busy}
+                            onClick={() => {
+                              setTypes((current) =>
+                                current.filter((item) => item.id !== type.id),
+                              );
+                              setDirty(true);
+                              setRemoveId("");
+                            }}
+                          >
+                            Remove type
+                          </button>
+                          <button
+                            className="nc-text-btn"
+                            type="button"
+                            onClick={() => setRemoveId("")}
+                          >
+                            Keep type
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </section>
+                ))}
+              </div>
+              <button
+                className="nc-btn"
+                type="button"
+                disabled={busy || types.length >= 20}
+                onClick={addType}
+              >
+                <Plus size={16} /> Add post type
+              </button>
+              {types.length >= 20 && (
+                <p className="nc-muted">You can have up to 20 post types.</p>
+              )}
+            </>
+          ) : (
+            <div className="nc-post-type-empty">
+              <Tag size={26} />
+              <h3>Your community, your post types.</h3>
+              <p>
+                Give members a useful starting point, such as an equipment
+                request or a question. You choose the names and how each type
+                works.
+              </p>
+              <button
+                className="nc-btn nc-primary"
+                type="button"
+                disabled={busy}
+                onClick={addType}
+              >
+                <Plus size={16} /> Add your first post type
+              </button>
+              <small>
+                Without post types, members can still write a regular post.
+              </small>
+            </div>
+          )}
+        </section>
+        <aside className="nc-panel nc-post-type-preview">
+          <span className="nc-eyebrow">When members post</span>
+          <h3>{types.length ? "Types they can choose" : "A simple post"}</h3>
+          {types.length ? (
+            <div className="nc-post-type-preview-list">
+              {types.map((type) => (
+                <span key={type.id}>
+                  {type.label.trim() || "Your type name"}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p>No extra type selector appears until you add a type.</p>
+          )}
+          <div className="nc-post-type-note">
+            <strong>Need details such as quantity or location?</strong>
+            <p>
+              Add those under Topics & fields. Post types describe the purpose;
+              topics collect the details.
+            </p>
+            <button
+              className="nc-text-btn"
+              type="button"
+              onClick={() => props.onNavigate(`${routeTo(c)}/manage/topics`)}
+            >
+              Topics & fields <ArrowRight size={15} />
+            </button>
+          </div>
+        </aside>
+      </div>
+      {confirmReload && (
+        <div className="nc-confirm">
+          <strong>Replace your edits with the saved post types?</strong>
+          <p>Your unsaved changes will be discarded.</p>
+          <div className="nc-actions">
+            <button
+              className="nc-btn"
+              type="button"
+              disabled={busy}
+              onClick={reload}
+            >
+              Reload saved types
+            </button>
+            <button
+              className="nc-text-btn"
+              type="button"
+              onClick={() => setConfirmReload(false)}
+            >
+              Keep editing
+            </button>
+          </div>
+        </div>
+      )}
+      <footer className="nc-topic-save">
+        <p>
+          Changes apply to new posts. Published posts keep their original type.
+        </p>
+        <div className="nc-actions">
+          <button
+            className="nc-btn"
+            type="button"
+            disabled={busy}
+            onClick={() => (dirty ? setConfirmReload(true) : void reload())}
+          >
+            Reload saved types
+          </button>
+          <button
+            className="nc-btn nc-primary"
+            type="submit"
+            disabled={busy || !dirty || changedElsewhere}
+          >
+            {busy ? "Saving…" : "Save post types"}
+          </button>
+        </div>
+      </footer>
+    </form>
+  );
+}
 function TopicEditor(props: CommunityProps & { community: Community }) {
   const c = props.community,
     { toast } = useApp();
@@ -2016,6 +2385,7 @@ function TopicEditor(props: CommunityProps & { community: Community }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  usePageGuard(dirty, busy);
   const topic = topics.find((t) => t.id === selected);
   const change = (next: CommunityTopic[]) => {
     setTopics(next);

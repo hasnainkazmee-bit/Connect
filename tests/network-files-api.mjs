@@ -98,6 +98,9 @@ const { community } = await call(n + "/communities", owner, "POST", {
   join_policy: "approval",
   rules: [{ title: "Clear requests", body: "Include quantity and location." }],
   topics: [topic],
+  post_types: [
+    { id: randomUUID(), label: "Equipment request", kind: "sourcing" },
+  ],
   require_topic: true,
 });
 await call(`${n}/communities/${community.id}/membership`, member, "POST", {
@@ -173,6 +176,8 @@ const { post } = await call(n + "/posts", member, "POST", {
   client_id: randomUUID(),
   community_id: community.id,
   kind: "sourcing",
+  post_type_id: community.post_types[0].id,
+  post_type_version: community.post_types[0].version,
   title: "200 modules needed for a rooftop project",
   body: "Please confirm availability for 200 solar modules and delivery to Cleveland.",
   topic_id: topic.id,

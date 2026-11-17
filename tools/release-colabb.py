@@ -17,7 +17,7 @@ BASE = Path('/opt/sunhub/connect')
 RELEASES = Path('/opt/sunhub/connect-releases')
 DB = 'connect-production-db-1'
 CONTAINERS = {'app': 'connect-production-app-1', 'jobs': 'connect-production-jobs-1'}
-NETWORK_MIGRATION = '042_network.sql'
+NETWORK_MIGRATION = '043_network_post_types.sql'
 NETWORK_TABLES = (
     'network_administrators', 'network_communities', 'network_members', 'network_invitations',
     'network_posts', 'network_files', 'network_post_files', 'network_drafts',
@@ -61,7 +61,7 @@ def check_network_schema():
     schema = json.loads(output(['docker', 'exec', DB, 'psql', '-X', '-U', 'connect', '-d', 'connect',
                                 '-v', 'ON_ERROR_STOP=1', '-Atc', query]))
     if schema.get('migrationApplied') is not True:
-        raise RuntimeError('Required Network migration 042_network.sql has not been applied.')
+        raise RuntimeError('Required Network migration ' + NETWORK_MIGRATION + ' has not been applied.')
     if schema.get('missingTables') != [] or schema.get('missingFunctions') != []:
         raise RuntimeError('Network schema is incomplete: ' + json.dumps(schema, sort_keys=True))
     return {'networkMigration': NETWORK_MIGRATION, 'networkSchema': 'complete'}
@@ -103,7 +103,7 @@ def backup_metadata(previous, next_sha):
     return {
         'previous': previous,
         'next': next_sha,
-        'database': 'additive migration 042_network.sql; previous schema and data are retained',
+        'database': 'additive migrations through ' + NETWORK_MIGRATION + '; previous schema and data are retained',
         'backupScope': 'This Connect Postgres database and protected app configuration on this host only',
         'excludedFromBackup': 'Uploaded attachment bytes and off-host copies; the existing upload volume is preserved, not backed up by this script',
     }

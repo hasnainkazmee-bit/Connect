@@ -974,7 +974,7 @@
 }
 .nc-options {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   min-width: 0;
   padding: 0;
@@ -988,6 +988,7 @@
 }
 .nc-options > label {
   display: flex;
+  min-width: 0;
   align-items: flex-start;
   gap: 10px;
   padding: 15px 13px;
@@ -999,12 +1000,29 @@
   border-color: #ff6a00;
   background: #fff;
 }
-.nc-options input {
-  width: 17px;
-  height: 17px;
+.nw-root .nc-options input[type="radio"] {
+  appearance: auto;
+  width: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  max-height: 18px;
+  padding: 0;
   accent-color: #ff6a00;
-  flex: none;
+  flex: 0 0 18px;
   margin: 3px 0 0;
+  box-shadow: none;
+}
+.nc-options > label > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.nw-root .nc-options input[type="radio"]:focus-visible,
+.nw-root .nc-checkbox input[type="checkbox"]:focus-visible {
+  outline: 2px solid #ff6a00;
+  outline-offset: 3px;
 }
 .nc-options strong {
   display: block;
@@ -1153,12 +1171,23 @@
   font-size: 12px;
   line-height: 1.6;
 }
-.nc-checkbox input {
-  width: 17px;
-  height: 17px;
-  flex: 0 0 17px;
+.nw-root .nc-checkbox input[type="checkbox"] {
+  appearance: auto;
+  width: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  max-height: 18px;
+  padding: 0;
+  flex: 0 0 18px;
   accent-color: #ff6a00;
   margin: 1px 0 0;
+  box-shadow: none;
+}
+.nc-checkbox > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .nc-manage-heading {
   display: flex;
@@ -2242,5 +2271,108 @@
   }
   .nc-pinned-posts > button {
     padding: 12px;
+  }
+}
+
+/* Host-defined post types use the same full-page editor as topics. */
+.nc-post-type-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 270px;
+  align-items: start;
+  gap: 20px;
+}
+.nc-post-type-list {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+.nc-post-type-card {
+  padding: 20px;
+  min-width: 0;
+  border: 1px solid #e1e7ea;
+  border-radius: 10px;
+}
+.nc-post-type-card > .nc-inline-head {
+  margin-bottom: 15px;
+  font-size: 12px;
+  color: #536c7a;
+}
+.nc-post-type-card > .nc-field:last-child {
+  margin-bottom: 0;
+}
+.nc-post-type-preview {
+  padding: 22px;
+  min-width: 0;
+  position: sticky;
+  top: 0;
+}
+.nc-post-type-preview h3,
+.nc-post-type-empty h3 {
+  margin: 12px 0;
+  font-size: 18px;
+  line-height: 1.4;
+}
+.nc-post-type-preview p,
+.nc-post-type-empty p {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #637984;
+}
+.nc-post-type-preview-list {
+  display: grid;
+  gap: 8px;
+}
+.nc-post-type-preview-list > span {
+  padding: 10px 12px;
+  border: 1px solid #e1e7ea;
+  border-radius: 7px;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.nc-post-type-note {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e1e7ea;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.nc-post-type-note .nc-text-btn {
+  font-size: 12px;
+}
+.nc-post-type-empty {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  padding: 16px 0;
+}
+.nc-post-type-empty > svg {
+  color: #637984;
+}
+.nc-post-type-empty > p {
+  max-width: 480px;
+  margin: 0 0 24px;
+}
+.nc-post-type-empty > small {
+  color: #637984;
+  font-size: 11px;
+  line-height: 1.6;
+  margin-top: 16px;
+}
+@media (max-width: 1100px) {
+  .nc-post-type-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .nc-post-type-preview {
+    position: static;
+  }
+}
+@media (max-width: 600px) {
+  .nc-post-type-card {
+    padding: 16px;
+  }
+  .nc-post-type-editor > .nc-section-heading {
+    flex-direction: column;
+    gap: 8px;
   }
 }

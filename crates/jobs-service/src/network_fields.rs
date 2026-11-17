@@ -102,6 +102,81 @@ pub(super) fn topics(v: &Value, old: &Value) -> Result<Value> {
     }
     Ok(json!(out))
 }
+pub(super) fn post_types(v: &Value, old: &Value) -> Result<Value> {
+    let items = v
+        .as_array()
+        .ok_or_else(|| bad("Check community post types."))?;
+    if items.len() > 20 {
+        return Err(bad("Use up to 20 post types."));
+    }
+    let mut ids = HashSet::new();
+    let mut labels = HashSet::new();
+    let mut out = Vec::new();
+    for item in items {
+        let id = uid(item, "id")?
+            .ok_or_else(|| bad("A post type needs a stable identifier."))?
+            .to_ascii_lowercase();
+        let label = req(item, "label", 1, 80)?.trim();
+        if label.is_empty() || !ids.insert(id.clone()) || !labels.insert(label.to_lowercase()) {
+            return Err(bad("Give each post type a unique name and identifier."));
+        }
+        let kind = req(item, "kind", 1, 10)?;
+        if !matches!(kind, "post" | "question" | "sourcing" | "available") {
+            return Err(bad("Choose a supported post type format."));
+        }
+        let prior = old
+            .as_array()
+            .and_then(|all| all.iter().find(|p| p["id"] == id));
+        let changed = prior.is_none_or(|p| p["label"] != label || p["kind"] != kind);
+        let version = prior.and_then(|p| p["version"].as_i64()).unwrap_or(0) + i64::from(changed);
+        out.push(json!({"id":id,"label":label,"kind":kind,"version":version.max(1)}));
+    }
+    Ok(json!(out))
+}
+
+pub(super) fn selected_post_type(
+    input: &Value,
+    community: Option<&Value>,
+) -> Result<(String, Option<String>, String, Option<i32>)> {
+    let id = uid(input, "post_type_id")?;
+    let Some(id) = id else {
+        if input["kind"].as_str().is_some_and(|kind| kind != "post") {
+            return Err(bad("Choose a post type created by this community's host."));
+        }
+        return Ok(("post".into(), None, String::new(), None));
+    };
+    let community = community.ok_or_else(|| bad("Choose a community for this post type."))?;
+    let item = community["post_types"]
+        .as_array()
+        .and_then(|all| {
+            all.iter()
+                .find(|p| p["id"].as_str().is_some_and(|s| s.eq_ignore_ascii_case(id)))
+        })
+        .ok_or_else(|| {
+            conflict("This post type is no longer available. Choose a current post type.")
+        })?;
+    let version = item["version"].as_i64().unwrap_or(1);
+    if input["post_type_version"].as_i64() != Some(version) {
+        return Err(conflict(
+            "This post type changed. Reload it before publishing.",
+        ));
+    }
+    let kind = item["kind"].as_str().unwrap_or("post");
+    if input["kind"]
+        .as_str()
+        .is_some_and(|supplied| supplied != kind)
+    {
+        return Err(bad(
+            "The post format must match the selected community post type.",
+        ));
+    }
+    Ok((
+        kind.into(),
+        Some(id.to_ascii_lowercase()),
+        item["label"].as_str().unwrap_or("").into(),
+        Some(version as i32),
+    ))
+}
 fn date_valid(s: &str) -> bool {
     let b = s.as_bytes();
     if b.len() != 10

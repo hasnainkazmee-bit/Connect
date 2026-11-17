@@ -27,6 +27,12 @@ export type CommunityTopic = {
   version?: number;
   fields: CommunityField[];
 };
+export type CommunityPostType = {
+  id: string;
+  label: string;
+  kind: "post" | "question" | "sourcing" | "available";
+  version?: number;
+};
 export type CommunityRule = { title: string; body: string };
 export type Community = {
   id: string;
@@ -36,6 +42,7 @@ export type Community = {
   join_policy: "open" | "approval";
   rules: CommunityRule[];
   topics: CommunityTopic[];
+  post_types: CommunityPostType[];
   require_topic: boolean;
   archived_at?: string | null;
   cover_url?: string;
@@ -86,6 +93,9 @@ export type CommunityPost = {
   title: string;
   body: string;
   kind: string;
+  post_type_id?: string;
+  post_type_label?: string;
+  post_type_version?: number;
   topic_id?: string;
   topic_label?: string;
   created_at: string;
@@ -195,7 +205,7 @@ export function communityRoute(path: string) {
         ? parts[1]
         : undefined,
     task: parts[1] === "new" ? "new" : parts[2] === "manage" ? "manage" : "",
-    tab: parts[3] || "members",
+    tab: parts[3] || "settings",
     token: parts[0] === "invitations" ? parts[1] : undefined,
   };
 }
