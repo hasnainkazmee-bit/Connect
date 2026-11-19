@@ -27,7 +27,7 @@ export function marketingView({state:s,I,photo,companyLogo,publicCompanies=[],re
   const footnote='<p class="mk-example-note">Example workflow. Company names, prices and project images are illustrative.</p>';
   const photoBlock=(key,alt,cls='')=>`<div class="mk-photo ${cls}">${photo(key,alt)}</div>`;
   const actions=(work=false)=>`<div class="mk-actions">${a(work?'Set up your company':'Post a job','marketing-start',work?'company':'post-job',true)}${link(work?'Explore jobs':'Explore companies',work?'marketing-jobs':'marketing-companies')}</div>`;
-  const brandLine=()=>`<h2 class="mk-brand-line"><span>Good work</span> <span class="mk-brand-line-bridge">happens in</span> <span>great company.</span></h2>`;
+  const brandLine=()=>`<h2 class="mk-brand-line"><span>Good work <span class="mk-brand-line-muted">happens</span></span> <span><span class="mk-brand-line-muted">in</span> great company.</span></h2>`;
   const close=()=>`<section class="mk-close mk-wrap"><div>${kicker('YOUR NEXT WORKING CONNECTION')}${brandLine()}</div><div><p>Find the right company to work with.<br>Meet the people who make it happen.</p><div class="mk-actions">${a('Find a company','marketing-companies','',true)}${link('Find work','marketing-page','work')}</div></div></section>`;
   function walkthrough(standalone=false){
     const i=Number(s.marketingStage||0),st=stages[i];
