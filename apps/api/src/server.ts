@@ -3,6 +3,7 @@ import {
   directorySearch,
   preventDuplicateCompany,
 } from "./directory.js";
+import { colabbSEO, publicSEOApi } from "./colabb-seo.js";
 import { publicPages } from "./public-pages.js";
 import { webUIRoutes } from "./web-ui.js";
 import { profileRecordRoutes } from "./profile-records.js";
@@ -92,6 +93,7 @@ app.use((req, res, next) => {
 });
 app.use("/api", (req, res, next) => {
   res.set("Cache-Control", "no-store");
+  if (!req.path.startsWith("/company-assets/")) res.set("X-Robots-Tag", "noindex");
   if (
     !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
     req.headers.origin &&
@@ -1201,10 +1203,12 @@ app.delete("/api/team/:userId", requireAdmin, async (req, res) => {
 });
 app.use("/api", await socialRoutes(uploadDir));
 app.use("/api", publishingRoutes(uploadDir));
+app.use("/api", publicSEOApi());
 app.use("/api", (_req, _res, next) =>
   next(new HttpError(404, "API endpoint not found.")),
 );
 app.use(webUIRoutes());
+app.use(colabbSEO());
 app.use(publicPages());
 app.use(
   (

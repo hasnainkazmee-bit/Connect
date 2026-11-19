@@ -1,3 +1,4 @@
+import { PublicSEO, ServiceDiscovery } from "./public-seo";
 import "./brand/foundation.css";
 import "./brand/colabb.css";
 import "./brand/settings.css";
@@ -731,6 +732,7 @@ function App() {
               : "")
         }
       >
+        <PublicSEO />
         <ErrorBox message={startupError} />
         <div
           className="app-route-container"
@@ -757,6 +759,8 @@ function App() {
             <Route path="/our-story" element={<ColabbMarketing page="story" />} />
             <Route path="/help/:topic?" element={<ColabbHelp />} />
             <Route path="/providers" element={<ColabbCompanies />} />
+            <Route path="/providers/page/:page" element={<ColabbCompanies />} />
+            <Route path="/services/*" element={<ServiceDiscovery />} />
             <Route path="/jobs" element={<FindWork />} />
             <Route path="/jobs/mine" element={<JobsPage mine />} />
             <Route path="/jobs/inbox" element={<JobInboxPage />} />

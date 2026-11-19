@@ -33,5 +33,5 @@ for(const page of Object.keys(pages)){
  return href?`<a${attrs} href="${href}">${label}</a>`:all;
  });
  const header=`<header class="mk-header"><div class="mk-header-inner"><a class="mk-brand" href="/" aria-label="Colabb home"><img src="/brand/marks/lockup-nav.svg" alt="Colabb" width="349.4285" height="52"/></a><nav class="mk-nav" aria-label="Main navigation"><a href="/hire">Hire a company</a><a href="/find-work">Find work</a><a href="/providers">Companies</a><a href="/network">Network</a><a href="/how-it-works">How it works</a></nav><div class="mk-header-actions"><a class="mk-link" href="/account">Sign in</a><a class="mk-btn mk-primary" href="/jobs/new"><span class="colabb-icon" aria-hidden="true">${I('post-job',17)}</span>Post a job</a></div></div></header>`;
- await fs.writeFile(new URL(`apps/colabb/dist/marketing-${page}.html`,root),`${header}<main class="app-main colabb-marketing">${body}</main>`);
+ await fs.writeFile(new URL(`apps/colabb/dist/marketing-${page}.html`,root),`${header}<main class="app-main colabb-marketing">${body}</main><footer class="seo-footer"><a href="/services">Browse services and locations</a><a href="/help">Help</a><a href="/help/privacy">Privacy</a><a href="/our-story">A Sunhub company</a></footer>`);
 }

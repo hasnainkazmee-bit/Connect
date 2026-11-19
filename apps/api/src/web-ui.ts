@@ -33,7 +33,12 @@ export function webUIRoutes() {
     res.set({"Cache-Control":"no-store, max-age=0", "CDN-Cache-Control":"no-store", "Cloudflare-CDN-Cache-Control":"no-store", "Service-Worker-Allowed":"/"});
     res.sendFile(path.join(webDist(selectedWebUI(req)), "push-sw.js"), {cacheControl:false,lastModified:false}, error => { if(error) next(error); });
   });
-  const staticUI = {connect:express.static(webDist("connect"), {index:false}), colabb:express.static(webDist("colabb"), {index:false})};
+  const staticOptions = {index:false as const, setHeaders(res: import("express").Response, file: string) {
+    if (/[/\\]assets[/\\][\w.-]+-[\w-]{8,}\.(?:js|css)$/.test(file)) res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    // Build-time HTML fragments are resources, never additional public pages.
+    if (file.endsWith(".html")) res.setHeader("X-Robots-Tag", "noindex");
+  }};
+  const staticUI = {connect:express.static(webDist("connect"), staticOptions), colabb:express.static(webDist("colabb"), staticOptions)};
   router.use("/brand", express.static(path.join(webDist("colabb"), "brand"), {index:false}));
   router.use((req,res,next) => {
     res.vary("Cookie");

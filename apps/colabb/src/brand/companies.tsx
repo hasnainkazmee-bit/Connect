@@ -1,5 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import {
+  Link,
+  useSearchParams,
+  useParams,
+  useNavigate,
+} from "react-router-dom";
 import { api } from "../api";
 import { companyTypes } from "../../../api/src/shared/company-types";
 import { useApp } from "../context";
@@ -50,7 +55,9 @@ const services = [
 ];
 export function ColabbCompanies() {
   const { company } = useApp();
-  const [params, setParams] = useSearchParams();
+  const { page: routePage } = useParams();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
   const [q, setQ] = useState(params.get("q") || "");
   const [area, setArea] = useState(params.get("location") || "");
   const [expanded, setExpanded] = useState(false);
@@ -87,6 +94,7 @@ export function ColabbCompanies() {
     const c = new AbortController();
     const query = new URLSearchParams(params);
     query.set("sample", String(sample));
+    if (routePage) query.set("page", routePage);
     setLoading(true);
     setError("");
     api<{ providers: Provider[]; total: number; page: number }>(
@@ -101,12 +109,12 @@ export function ColabbCompanies() {
         if (!c.signal.aborted) setLoading(false);
       });
     return () => c.abort();
-  }, [params, sample, retry]);
+  }, [params, sample, retry, routePage]);
   function filter(k: string, v: string) {
     const n = new URLSearchParams(params);
     v ? n.set(k, v) : n.delete(k);
     if (k !== "page") n.delete("page");
-    setParams(n);
+    navigate("/providers" + (n.size ? "?" + n.toString() : ""));
   }
   function search(e: FormEvent) {
     e.preventDefault();
@@ -117,8 +125,10 @@ export function ColabbCompanies() {
     ])
       v ? n.set(k, v) : n.delete(k);
     n.delete("page");
-    setParams(n);
+    navigate("/providers" + (n.size ? "?" + n.toString() : ""));
   }
+  const unfiltered =
+    !sample && ![...params.keys()].some((k) => !["page", "sample"].includes(k));
   return (
     <div className="pd-page cd-page">
       <header className="cd-heading">
@@ -137,6 +147,9 @@ export function ColabbCompanies() {
           </Link>
         </div>
       </header>
+      <p className="cd-discovery-link">
+        <Link to="/services">Browse companies by service and location →</Link>
+      </p>
       <form className="cd-search-form" onSubmit={search} role="search">
         <label className="cd-search-field">
           <Icon name="search" size={21} />
@@ -149,7 +162,11 @@ export function ColabbCompanies() {
             placeholder="Company or service"
           />
         </label>
-        <button className="cd-button cd-primary" type="submit" aria-label="Search companies">
+        <button
+          className="cd-button cd-primary"
+          type="submit"
+          aria-label="Search companies"
+        >
           <span>Search companies</span>
           <Icon name="arrow-right" size={17} />
         </button>
@@ -184,7 +201,7 @@ export function ColabbCompanies() {
           <div className="cd-filter-panel" id="company-filters">
             <div className="cd-filter-title">
               <h2>Narrow the search</h2>
-              <button onClick={() => setParams({ sample: String(sample) })}>
+              <button onClick={() => navigate(sample ? "/providers?sample=true" : "/providers")}>
                 Reset
               </button>
             </div>
@@ -378,7 +395,7 @@ export function ColabbCompanies() {
               <p>Try a wider area or another service.</p>
               <button
                 className="cd-button"
-                onClick={() => setParams({ sample: String(sample) })}
+                onClick={() => navigate(sample ? "/providers?sample=true" : "/providers")}
               >
                 Clear filters
               </button>
@@ -386,23 +403,47 @@ export function ColabbCompanies() {
           )}
           {result && result.total > 24 && (
             <nav className="market-pagination" aria-label="Company pages">
-              <button
-                className="cd-button"
-                disabled={result.page === 1}
-                onClick={() => filter("page", String(result.page - 1))}
-              >
-                Previous
-              </button>
+              {unfiltered && result.page > 1 ? (
+                <Link
+                  className="cd-button"
+                  rel="prev"
+                  to={
+                    result.page === 2
+                      ? "/providers"
+                      : "/providers/page/" + (result.page - 1)
+                  }
+                >
+                  Previous
+                </Link>
+              ) : (
+                <button
+                  className="cd-button"
+                  disabled={result.page === 1}
+                  onClick={() => filter("page", String(result.page - 1))}
+                >
+                  Previous
+                </button>
+              )}
               <span>
                 Page {result.page} of {Math.ceil(result.total / 24)}
               </span>
-              <button
-                className="cd-button"
-                disabled={result.page * 24 >= result.total}
-                onClick={() => filter("page", String(result.page + 1))}
-              >
-                Next
-              </button>
+              {unfiltered && result.page * 24 < result.total ? (
+                <Link
+                  className="cd-button"
+                  rel="next"
+                  to={"/providers/page/" + (result.page + 1)}
+                >
+                  Next
+                </Link>
+              ) : (
+                <button
+                  className="cd-button"
+                  disabled={result.page * 24 >= result.total}
+                  onClick={() => filter("page", String(result.page + 1))}
+                >
+                  Next
+                </button>
+              )}
             </nav>
           )}
         </section>
@@ -550,8 +591,12 @@ function CompanyCard({
             {c.certifications.slice(0, 2).map((credential) => (
               <li key={credential.id}>
                 {credential.title}
-                {credential.scope === "personnel" && <small>Personnel qualification</small>}
-                {credential.scope === "product" && <small>Product certification</small>}
+                {credential.scope === "personnel" && (
+                  <small>Personnel qualification</small>
+                )}
+                {credential.scope === "product" && (
+                  <small>Product certification</small>
+                )}
               </li>
             ))}
             {(c.certification_count || 0) > 2 && (
