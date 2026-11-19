@@ -26,7 +26,7 @@ const noIndexPaths = new Set([
 ]);
 const templates: Record<string, string> = {};
 const marketingTemplates: Record<string, string> = {};
-const marketingPaths = new Map([["/hire", "Hire a company"], ["/find-work", "Find work"], ["/how-it-works", "How Colabb works"], ["/our-story", "Our story"]]);
+const marketingPaths = new Map([["/hire", "Hire a company"], ["/find-work", "Find work"], ["/how-it-works", "How Colabb works"], ["/our-story", "Our story"], ["/network", "Company posts and communities"]]);
 
 export function publicPages() {
   const router = Router();
@@ -34,14 +34,14 @@ export function publicPages() {
     /\/$/,
     "",
   );
-  router.get("/robots.txt", (_req, res) =>
+  router.get("/robots.txt", (req, res) =>
     res
       .type("text/plain")
       .send(
-        `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /claim\nDisallow: /account\nDisallow: /settings\nDisallow: /messages\nDisallow: /network\nDisallow: /invite\nDisallow: /join\nSitemap: ${origin}/sitemap.xml\n`,
+        `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /claim\nDisallow: /account\nDisallow: /settings\nDisallow: /messages\n${selectedWebUI(req) === "colabb" ? "Allow: /network$\nDisallow: /network/" : "Disallow: /network"}\nDisallow: /invite\nDisallow: /join\nSitemap: ${origin}/sitemap.xml\n`,
       ),
   );
-  router.get("/sitemap.xml", async (_req, res) => {
+  router.get("/sitemap.xml", async (req, res) => {
     const companies = (
       await pool.query(
         "SELECT username FROM companies WHERE NOT is_demo AND username IS NOT NULL ORDER BY username LIMIT 45000",
@@ -51,6 +51,7 @@ export function publicPages() {
       "/",
       "/providers",
       "/jobs",
+      ...(selectedWebUI(req) === "colabb" ? [...marketingPaths.keys()] : []),
       ...companies.map((c) => publicUrl(c.username)),
     ];
     res
@@ -89,9 +90,15 @@ export function publicPages() {
         ? res.redirect(301, publicUrl(row.username || row.slug))
         : res.sendStatus(404);
     }
-    if (marketingPaths.has(req.path) || segments[0] === "help") {
+    if ((marketingPaths.has(req.path) && (req.path !== "/network" || colabb)) || segments[0] === "help") {
       title = (marketingPaths.get(req.path) || "Help") + " | Colabb";
-      description = "The working network for solar. Find companies, agree the work and keep it moving.";
+      description = ({
+        "/hire": "Post a solar job, compare company matches and proposals, then track tasks and approve the work on Colabb.",
+        "/find-work": "Show your services and past projects, find solar jobs, send proposals and connect with potential clients on Colabb.",
+        "/how-it-works": "See how jobs, proposals, task approvals, company messages, social posts and communities work on Colabb.",
+        "/our-story": "From YellowLite’s installation experience to Sunhub’s solar supply chain ecosystem and Colabb’s company network.",
+        "/network": "Follow solar companies, share posts and join company-hosted communities. Discuss equipment, fieldwork, compliance and more on Colabb.",
+      } as Record<string,string>)[req.path] || "Help with Colabb accounts, company profiles, jobs, messages and communities.";
       content = `<section class="colabb-help"><h1>${escape(marketingPaths.get(req.path) || "Help with Colabb")}</h1><p>${escape(description)}</p></section>`;
     } else if (req.path === "/") {
       title = "Connect by Sunhub | Find solar work and service providers";
@@ -199,11 +206,11 @@ export function publicPages() {
       description = description.replace(/Connect by Sunhub|Connect/g, "Colabb");
       if (req.path === "/") {
         title = "Colabb | No one builds solar alone";
-        description = "Find the right solar company for your work. Share a brief, compare proposals and keep the work moving together on Colabb.";
+        description = "Find solar crews, specialists and suppliers. Post jobs, compare proposals, follow company posts and join communities on Colabb.";
       }
     }
-    const marketingPage = ({"/":"home","/hire":"hire","/find-work":"work","/how-it-works":"how","/our-story":"story"} as Record<string,string>)[req.path];
-    let colabbFirstPaint = `<main class="colabb-static"><h1>${escape(title.replace(/ \| Colabb$/, ""))}</h1><p>${escape(description)}</p><p>Enable JavaScript to use Colabb’s company profiles, proposals and job workspace.</p><a href="/">Back to Colabb</a></main>`;
+    const marketingPage = ({"/":"home","/hire":"hire","/find-work":"work","/how-it-works":"how","/our-story":"story","/network":"network"} as Record<string,string>)[req.path];
+    let colabbFirstPaint = `<main class="colabb-static"><h1>${escape(title.replace(/ \| Colabb$/, ""))}</h1><p>${escape(description)}</p><p>Enable JavaScript to use Colabb’s jobs, company messages, social feed and communities.</p><a href="/">Back to Colabb</a></main>`;
     if (colabb && marketingPage) {
       colabbFirstPaint = (process.env.NODE_ENV === "production" ? marketingTemplates[marketingPage] : undefined) || (marketingTemplates[marketingPage] = await fs.readFile(path.join(webDist("colabb"), `marketing-${marketingPage}.html`), "utf8"));
     }

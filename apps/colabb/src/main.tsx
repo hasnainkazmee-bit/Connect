@@ -779,6 +779,7 @@ function App() {
               element={<Navigate to="/providers" replace />}
             />
             <Route path="/company/:id" element={<ProviderProfilePage />} />
+            <Route path="/network" element={session.user ? <React.Suspense fallback={<div className="network-starting" role="status">Opening Network…</div>}><NetworkPage key={`${session.user.id}:${session.activeCompanyId || "none"}`} /></React.Suspense> : <ColabbMarketing page="network" />} />
             <Route
               path="/network/*"
               element={<React.Suspense fallback={<div className="network-starting" role="status">Opening Network…</div>}><NetworkPage key={`${session.user?.id || "guest"}:${session.activeCompanyId || "none"}`} /></React.Suspense>}

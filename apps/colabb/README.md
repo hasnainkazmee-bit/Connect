@@ -64,9 +64,13 @@ compatible with the additive schema.
   service coverage and availability retain their actual evidence/status.
 - Live third-party Sunhub SSO and Google authorization were not exercised with
   production credentials during the isolated local regression suite.
-- Company social posts and publishing are unavailable in Colabb. Historical
-  posts remain in the preserved Connect interface; job progress updates and
-  attachment/proof workflows are separate and remain available.
+- Network supports company posts, follows, comments and company-hosted communities
+  with host-defined topics, post types and fields. Historical Connect posts remain
+  in the preserved interface. Job progress updates stay in the job workflow.
+- Company message requests require recipient acceptance before ongoing messages
+  and files can be shared. These conversations appear in Inbox → Companies.
+- Guests see a public Network overview at `/network`; signed-in users see their
+  feed at the same address. Nested Network routes retain the sign-in gate.
 
 ## Reversible production selection
 
