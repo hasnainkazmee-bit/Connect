@@ -227,7 +227,7 @@
 
 /* Two balanced lines, with the connecting words in the same muted tone. */
 .mk-site .mx-close,.mk-site .mk-close>div:first-child{container-type:inline-size}
-.mk-site .mk-brand-line{font-size:clamp(24px,9.5cqi,190px);line-height:1.08;letter-spacing:-.065em}
+.mk-site .mx-close h2.mk-brand-line,.mk-site .mk-close h2.mk-brand-line{font-size:clamp(24px,9.5cqi,190px);line-height:1.08;letter-spacing:-.05em}
 .mk-site .mk-brand-line>span{display:block;white-space:nowrap;text-align:right}
 .mk-site .mk-brand-line>span:first-child{text-align:left}
 .mk-site .mk-brand-line-muted{color:var(--muted)}
