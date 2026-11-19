@@ -396,3 +396,31 @@ test("members can review matches but cannot invite companies", async ({
     ]);
   }
 });
+
+test("group invitation errors remain visible if the job closes before sending", async ({
+  page,
+}) => {
+  const id = await setup(page);
+  await db.query(
+    "UPDATE jobs SET quote_deadline=now()-interval '1 day' WHERE id=$1",
+    [id],
+  );
+  await page.getByRole("button", { name: /Invite matched companies/ }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "quote deadline has passed",
+  );
+  await expect(
+    page.getByRole("button", { name: /Invite matched companies/ }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("article", { name: providers[0].name, exact: true }),
+  ).toBeVisible();
+  expect(
+    (
+      await db.query(
+        "SELECT count(*)::int n FROM job_invitations WHERE job_id=$1",
+        [id],
+      )
+    ).rows[0].n,
+  ).toBe(0);
+});

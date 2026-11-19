@@ -747,6 +747,11 @@ export function JobMatchesPage() {
           </Link>
         </div>
       )}
+      {inviteError && inviteError.ids.length > 1 && (
+        <p className="match-invite-error" role="alert">
+          {inviteError.message}
+        </p>
+      )}
       {error ? (
         <section className="jobs-panel match-empty" role="alert">
           <h2>We couldn’t load these companies.</h2>
@@ -864,7 +869,7 @@ export function JobMatchesPage() {
                       ) : (
                         <Check size={18} />
                       )}
-                      {inviting.length > 1
+                      {inviting.length > 0
                         ? "Sending invites…"
                         : inviteableIds.length
                           ? "Invite matched companies"
@@ -875,11 +880,6 @@ export function JobMatchesPage() {
                         </span>
                       )}
                     </button>
-                    {inviteError && inviteError.ids.length > 1 && (
-                      <p className="match-invite-error" role="alert">
-                        {inviteError.message}
-                      </p>
-                    )}
                   </section>
                 )}
               <div className="match-result-list">
