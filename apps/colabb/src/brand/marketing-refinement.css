@@ -224,3 +224,8 @@
  .mx-origin-connector{display:none}
 }
 @media(max-width:350px){.mk-site .mx-origin-note h2{font-size:31px}.mx-origin-photo{aspect-ratio:1.18}.mx-origin-lineage{margin-top:26px}}
+
+/* Read as one thought; company means both a business and the people beside you. */
+.mk-site .mk-brand-line>span{display:block}
+.mk-site .mk-brand-line>span:first-child{text-align:left}
+.mk-site .mk-brand-line>.mk-brand-line-bridge{font-size:clamp(16px,.28em,44px);line-height:1.3;font-weight:500;letter-spacing:-.025em;color:var(--muted);text-align:center;margin:.35em 0}
