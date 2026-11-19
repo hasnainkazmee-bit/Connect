@@ -9,7 +9,8 @@ let pending = 0;
 let committed = false;
 let finished = false;
 let frame = 0;
-window.colabbStartup?.start();
+// Shared Network components also render at build time for public previews.
+if (typeof window !== "undefined") window.colabbStartup?.start();
 
 function revealWhenReady() {
   cancelAnimationFrame(frame);

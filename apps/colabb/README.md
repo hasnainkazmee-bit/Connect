@@ -71,6 +71,10 @@ compatible with the additive schema.
   and files can be shared. These conversations appear in Inbox → Companies.
 - Guests see a public Network overview at `/network`; signed-in users see their
   feed at the same address. Nested Network routes retain the sign-in gate.
+- Marketing previews reuse `NetworkPostCard`, `CommunityHeader` and
+  `DiscussionRow`. Their labelled example content uses local state adapters;
+  reactions and saves never write to the live Network API. The same React
+  components are rendered at build time for the public page's first paint.
 
 ## Reversible production selection
 

@@ -1,6 +1,9 @@
 /** Render the approved marketing source for first paint and non-JavaScript visitors. */
 import fs from 'node:fs/promises';
 import ts from 'typescript';
+import { build } from 'esbuild';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 const root=new URL('../',import.meta.url);
 const read=p=>fs.readFile(new URL(p,root),'utf8');
 const source=await read('apps/colabb/src/brand/marketing-template.ts');
@@ -12,9 +15,18 @@ const I=(key,size=20)=>(icons[key]||icons['arrow-right']).replace(/width="24"/,'
 const companySource=await read('apps/colabb/src/brand/marketing-companies.ts');
 const companyModule=ts.transpileModule(companySource,{compilerOptions:{module:ts.ModuleKind.ES2022,target:ts.ScriptTarget.ES2022}}).outputText;
 const {marketingCompanySnapshot:publicCompanies}=await import('data:text/javascript;base64,'+Buffer.from(companyModule).toString('base64'));
+// Server-render the same React cards used in Network, not a second HTML replica.
+const previewBundle=await build({
+ stdin:{contents:`import {createElement} from 'react'; import {renderToStaticMarkup} from 'react-dom/server'; import {MemoryRouter} from 'react-router-dom'; import {NetworkMarketingPreview} from './apps/colabb/src/brand/network-preview.tsx'; export const renderNetworkPreview=kind=>renderToStaticMarkup(createElement(MemoryRouter,null,createElement(NetworkMarketingPreview,{kind})));`,resolveDir:fileURLToPath(root)},
+ bundle:true,write:false,platform:'node',format:'cjs',jsx:'automatic',loader:{'.css':'empty'},
+ external:['react','react/*','react-dom/*','react-router-dom','lucide-react'],
+});
+const previewModule={exports:{}};
+new Function('require','module','exports',previewBundle.outputFiles[0].text)(createRequire(import.meta.url),previewModule,previewModule.exports);
+const {renderNetworkPreview}=previewModule.exports;
 const pages={home:'/',hire:'/hire',work:'/find-work',how:'/how-it-works',story:'/our-story',network:'/network'};
 for(const page of Object.keys(pages)){
- let body=marketingView({state:{marketingPage:page},I,photo:(key,alt)=>`<img src="/brand/${key}.webp" alt="${alt}"/>`,companyLogo:id=>`<img src="/assets/demo-logos/demo-${id==='riverbend'?'riverbend-renewables-crew':'summit-grid-electric'}-mark.svg" alt=""/>`,publicCompanies});
+ let body=marketingView({state:{marketingPage:page},I,photo:(key,alt)=>`<img src="/brand/${key}.webp" alt="${alt}"/>`,renderNetworkPreview,companyLogo:id=>`<img src="/assets/demo-logos/demo-${id==='riverbend'?'riverbend-renewables-crew':'summit-grid-electric'}-mark.svg" alt=""/>`,publicCompanies});
  body=body.replace(/<button([^>]*data-action="([^"]+)"[^>]*)>([\s\S]*?)<\/button>/g,(all,attrs,action,label)=>{
  const value=attrs.match(/data-value="([^"]*)"/)?.[1]||'';
  const href=action==='marketing-page'?pages[value]:action==='marketing-start'?(value==='post-job'?'/jobs/new':'/claim'):action==='marketing-signin'?'/network/communities':action==='marketing-jobs'?'/jobs':action==='marketing-companies'||action==='marketing-need-companies'||action==='marketing-profile'?'/providers':null;

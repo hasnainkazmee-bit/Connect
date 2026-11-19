@@ -32,6 +32,9 @@ export type PostActions = {
   onFile: (file: NetworkAttachment) => void;
   onNavigate: (path: string) => void;
   onChanged?: () => void;
+  // Optional adapters let public product examples use the real UI without API writes.
+  onState?: (id: string, action: string, value: boolean | string) => Promise<void>;
+  fileUrl?: (file: NetworkAttachment) => string;
 };
 export function NetworkPostCard({
   post: initial,
@@ -70,7 +73,8 @@ export function NetworkPostCard({
     setBusy(action);
     setError("");
     try {
-      await networkPost(`/posts/${post.id}/state`, { action, value });
+      if (actions.onState) await actions.onState(post.id, action, value);
+      else await networkPost(`/posts/${post.id}/state`, { action, value });
       if (action === "hide") setHidden(!!value);
       let next = post;
       if (action === "like")
@@ -285,6 +289,7 @@ export function NetworkPostCard({
         files={post.files || []}
         format={post.media_format}
         onOpen={actions.onFile}
+        fileUrl={actions.fileUrl}
         onOpenPost={detail ? undefined : () => actions.onPost(post.id)}
       />
       <footer className="nw-post-footer">

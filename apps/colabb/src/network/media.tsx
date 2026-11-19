@@ -24,11 +24,13 @@ export function NetworkMedia({
   format = "4:5",
   onOpen,
   onOpenPost,
+  fileUrl = networkFileUrl,
 }: {
   files: NetworkAttachment[];
   format?: NetworkPost["media_format"];
   onOpen: (file: NetworkAttachment) => void;
   onOpenPost?: () => void;
+  fileUrl?: (file: NetworkAttachment) => string;
 }) {
   const images = files.filter((f) => f.mime_type.startsWith("image/")),
     documents = files.filter((f) => !f.mime_type.startsWith("image/"));
@@ -84,7 +86,7 @@ export function NetworkMedia({
                     : `Open ${file.name}, image ${i + 1} of ${images.length}`}
                 >
                   <img
-                    src={networkFileUrl(file)}
+                    src={fileUrl(file)}
                     alt={file.name}
                     loading="lazy"
                   />

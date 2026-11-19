@@ -21,7 +21,16 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     await expect(page.locator("#mx-network-example")).toContainText("200 modules");
     await expect(page.getByRole("button", { name: "Communities", exact: true })).toBeFocused();
     await page.getByRole("button", { name: "Company posts", exact: true }).click();
-    await expect(page.locator("#mx-network-example")).toContainText("Example Solar Co.");
+    await expect(page.locator("#mx-network-example")).toContainText("Colabb team");
+    const preview = page.locator("#mx-network-example");
+    const writes: string[] = [];
+    page.on("request", sent => { if (sent.method() !== "GET" && sent.url().includes("/api/network")) writes.push(sent.url()); });
+    await expect(preview.getByRole("button", { name: "Like post", exact: true }).locator("svg")).toHaveClass(/lucide-heart/);
+    await preview.getByRole("button", { name: "Like post", exact: true }).click();
+    await expect(preview.getByRole("button", { name: "Unlike post", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await preview.getByRole("button", { name: "Save post", exact: true }).click();
+    await expect(preview.getByRole("button", { name: "Unsave post", exact: true })).toHaveAttribute("aria-pressed", "true");
+    expect(writes).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
     // A test-owned account is created through the normal isolated test API.
@@ -37,10 +46,10 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     await page.getByLabel("Password", { exact: true }).fill(password);
     await page.locator("form").filter({ has: page.getByLabel("Email address", { exact: true }) }).getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/network$/);
-    await expect(page.getByRole("button", { name: /Share something from Network Marketing Solar/ })).toBeVisible();
+    await expect(page.getByRole("main", { name: "Network content", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Follow companies. Join the conversation." })).toHaveCount(0);
     await page.reload();
-    await expect(page.getByRole("button", { name: /Share something from Network Marketing Solar/ })).toBeVisible();
+    await expect(page.getByRole("main", { name: "Network content", exact: true })).toBeVisible();
     expect(errors).toEqual([]);
   });
 }

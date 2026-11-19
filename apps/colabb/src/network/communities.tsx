@@ -609,6 +609,37 @@ function DiscoverCommunities(props: CommunityProps) {
     </div>
   );
 }
+export function CommunityHeader({ community: c, action, headingLevel = 1 }: {
+  community: Community;
+  action?: ReactNode;
+  headingLevel?: 1 | 3;
+}) {
+  const Heading = headingLevel === 1 ? "h1" : "h3";
+  return (
+      <header className="nc-community-header">
+        <div className="nc-community-heading">
+          <CompanyMark company={c.company} size={54} />
+          <div>
+            <Heading>{c.name}</Heading>
+            <p className="nc-hosted">
+              Hosted by <CompanyLink company={c.company} />
+            </p>
+            <AccessLabel community={c} />
+          </div>
+        </div>
+        {action}
+        {c.cover_url && (
+          <img
+            className="nc-header-cover"
+            src={c.cover_url}
+            alt={`${c.name} cover`}
+          />
+        )}
+        <p className="nc-community-purpose">{c.description}</p>
+      </header>
+  );
+}
+
 function CommunityDetail({
   community: c,
   ...props
@@ -676,31 +707,7 @@ function CommunityDetail({
   const posts = items;
   return (
     <div className="nc-detail nc-panel">
-      <header className="nc-community-header">
-        <div className="nc-community-heading">
-          <CompanyMark company={c.company} size={54} />
-          <div>
-            <h1>{c.name}</h1>
-            <p className="nc-hosted">
-              Hosted by <CompanyLink company={c.company} />
-            </p>
-            <AccessLabel community={c} />
-          </div>
-        </div>
-        <MembershipButton
-          community={c}
-          refresh={props.onRefresh}
-          navigate={props.onNavigate}
-        />
-        {c.cover_url && (
-          <img
-            className="nc-header-cover"
-            src={c.cover_url}
-            alt={`${c.name} cover`}
-          />
-        )}
-        <p className="nc-community-purpose">{c.description}</p>
-      </header>
+      <CommunityHeader community={c} action={<MembershipButton community={c} refresh={props.onRefresh} navigate={props.onNavigate} />} />
       <details className="nc-mobile-about">
         <summary>
           About, topics & community rules <ChevronDown size={16} />
@@ -853,7 +860,7 @@ function CommunityDetail({
     </div>
   );
 }
-function DiscussionRow({
+export function DiscussionRow({
   post: p,
   onOpen,
 }: {

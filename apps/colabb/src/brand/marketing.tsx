@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { marketingView } from "./marketing-template";
 import { iconMarkup, BrandIcon } from "./icons";
@@ -8,6 +9,7 @@ import { marketingCompanySnapshot } from "./marketing-companies";
 import "./marketing-base.css";
 import "./marketing-editorial.css";
 import "./marketing-refinement.css";
+import { NetworkMarketingPreview } from "./network-preview";
 import "./marketing-network.css";
 
 const pages: Record<string,string>={home:"/",hire:"/hire",work:"/find-work",how:"/how-it-works",story:"/our-story",network:"/network"};
@@ -26,6 +28,7 @@ export function ColabbMarketing({page="home"}:{page?:string}){
  const navigate=useNavigate();const location=useLocation();const app=useApp();const root=useRef<HTMLDivElement>(null);
  const [state,setState]=useState<Record<string,unknown>>({marketingScope:"electrical"});
  const [publicCompanies,setPublicCompanies]=useState(marketingCompanySnapshot);
+ const [previewSlot,setPreviewSlot]=useState<HTMLElement|null>(null);
  useEffect(()=>{
   if(location.hash!=="#mx-messaging-title")return;
   const frame=requestAnimationFrame(()=>document.getElementById("mx-messaging-title")?.scrollIntoView({block:"start"}));
@@ -40,6 +43,8 @@ export function ColabbMarketing({page="home"}:{page?:string}){
   return()=>controller.abort();
  },[page]);
  const html=marketingView({state:{...state,marketingPage:page},I:iconMarkup,photo:(key:string,alt:string)=>`<img src="/brand/${photos[key]||"roof"}.webp" alt="${escape(alt)}" loading="${key==="planning"?"eager":"lazy"}"/>`,companyLogo:(id:string)=>`<img src="/assets/demo-logos/demo-${id==="riverbend"?"riverbend-renewables-crew":"summit-grid-electric"}-mark.svg" alt=""/>`,publicCompanies});
+ useLayoutEffect(()=>{setPreviewSlot(root.current?.querySelector<HTMLElement>("[data-network-preview]")||null)},[html]);
+ function enterNetwork(){if(app.session.user)navigate("/network");else app.signIn("/network")}
  function action(event:React.MouseEvent<HTMLDivElement>){
   const el=(event.target as HTMLElement).closest<HTMLElement>("[data-action]");if(!el)return;
   const a=el.dataset.action!,v=el.dataset.value||"";
@@ -53,5 +58,5 @@ export function ColabbMarketing({page="home"}:{page?:string}){
   else if(a==="marketing-signin")app.signIn(v||undefined);
   else if(a==="marketing-support")navigate("/help/"+v);
  }
- return <><div ref={root} className="colabb-marketing" onClick={action} dangerouslySetInnerHTML={{__html:html}}/><ColabbFooter/></>;
+ return <><div ref={root} className="colabb-marketing" onClick={action} dangerouslySetInnerHTML={{__html:html}}/>{previewSlot&&createPortal(<NetworkMarketingPreview kind={previewSlot.dataset.networkPreview} onEnter={enterNetwork}/>,previewSlot)}<ColabbFooter/></>;
 }
