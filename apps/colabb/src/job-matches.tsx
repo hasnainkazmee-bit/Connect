@@ -1,5 +1,5 @@
 import "./brand/matching.css";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -14,10 +14,12 @@ import {
   MapPin,
   Pencil,
   MessageCircle,
+  Send,
+  Users,
   SlidersHorizontal,
   X,
 } from "lucide-react";
-import { api } from "./api";
+import { api, post } from "./api";
 import { useApp } from "./context";
 import { matchFit, type Match, type Matches } from "./match-fit";
 import { MatchCompanyLogo } from "./match-company-logo";
@@ -326,12 +328,18 @@ function MatchRow({
   page,
   section,
   admin,
+  inviting,
+  onInvite,
+  inviteError,
 }: {
   match: Match;
   data: Matches;
   page: number;
   section: string;
   admin: boolean;
+  inviting: string[];
+  onInvite: (ids: string[]) => void;
+  inviteError?: string;
 }) {
   const c = match.company;
   const existing = data.conversationCompanyIds?.includes(c.id);
@@ -342,6 +350,8 @@ function MatchRow({
     (!data.job.quote_deadline ||
       new Date(data.job.quote_deadline).getTime() > Date.now());
   const canMessage = c.claimed && (existing || invited || canStart);
+  const canInvite = c.claimed && canStart && !invited;
+  const sending = inviting.includes(c.id);
   const returnView = section === "matches" ? "matches" : "confirmation";
   const profile = `/jobs/companies/${c.username || c.slug}?back=${data.job.id}&from=matches&matchPage=${page}&matchView=${returnView}`;
   const conversation = `/jobs/inbox?${new URLSearchParams({ job: data.job.id, provider: c.id, from: "matches", matchPage: String(page), matchView: returnView })}`;
@@ -410,44 +420,61 @@ function MatchRow({
       <footer className="match-card-footer">
         <div className="match-contact-status">
           <strong>
-            {c.claimed && <img className="match-member-mark" src="/brand/badges/on-colabb.svg" alt="" width={20} height={20}/>}
-            {invited
-              ? "Invited to quote"
-              : c.claimed
-                ? "On Colabb"
-                : "Not on Colabb yet"}
+            {c.claimed && (
+              <img
+                className="match-member-mark"
+                src="/brand/badges/on-colabb.svg"
+                alt=""
+                width={20}
+                height={20}
+              />
+            )}
+            {c.claimed ? "On Colabb" : "Not on Colabb yet"}
           </strong>
           <p>
             {!c.claimed
               ? "Open their profile for contact details."
-              : canMessage
-                ? "Discuss your job and confirm the details."
-                : !admin
-                  ? "A company admin can start the conversation."
-                  : "You can still view their company profile."}
+              : invited
+                ? "They can review your job and send a quote."
+                : canInvite
+                  ? "Invite them to review your job and send a quote."
+                  : !admin
+                    ? "A company admin can invite them to quote."
+                    : "You can still view their company profile."}
           </p>
         </div>
         <div className="match-card-actions">
-          {canMessage && (
-            <Link className="match-profile-link" to={profile}>
-              View profile
-              <ArrowUpRight size={15} />
+          <Link className="match-profile-link" to={profile}>
+            View profile
+            <ArrowUpRight size={15} />
+          </Link>
+          {canMessage && (existing || invited) && (
+            <Link className="match-profile-link" to={conversation}>
+              <MessageCircle size={17} />
+              Message
             </Link>
           )}
-          <Link
-            className={`jobs-button ${canMessage ? "jobs-primary" : "jobs-secondary"}`}
-            to={canMessage ? conversation : profile}
-          >
-            {canMessage ? <MessageCircle size={18} /> : null}
-            {canMessage
-              ? existing
-                ? "Open conversation"
-                : "Message company"
-              : "View company profile"}
-            {!canMessage && <ArrowRight size={16} />}
-          </Link>
+          {canInvite ? (
+            <button
+              className="jobs-button jobs-primary"
+              disabled={inviting.length > 0}
+              onClick={() => onInvite([c.id])}
+            >
+              <Send size={17} />
+              {sending ? "Sending invite…" : "Invite to Quote"}
+            </button>
+          ) : invited ? (
+            <span className="match-invited">
+              <Check size={17} /> Invited to quote
+            </span>
+          ) : null}
         </div>
       </footer>
+      {inviteError && (
+        <p className="match-invite-error" role="alert">
+          {inviteError}
+        </p>
+      )}
       {!!offering?.sources.length && (
         <details className="match-fit-details">
           <summary>
@@ -487,6 +514,16 @@ export function JobMatchesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
+  const [inviting, setInviting] = useState<string[]>([]);
+  const [inviteError, setInviteError] = useState<{
+    ids: string[];
+    message: string;
+  } | null>(null);
+  const [invitationNotice, setInvitationNotice] = useState("");
+  const inviteLock = useRef(false);
+  const scope = `${id}:${company?.id}`;
+  const currentScope = useRef(scope);
+  currentScope.current = scope;
   const section =
     params.get("view") === "confirmation" ||
     (data?.totalMatches === 0 && !!data.totalNeedsConfirmation)
@@ -510,7 +547,75 @@ export function JobMatchesPage() {
   }, [setJobSection]);
   useEffect(() => {
     setData(null);
+    setInviting([]);
+    setInviteError(null);
+    setInvitationNotice("");
+    inviteLock.current = false;
   }, [id, company?.id]);
+  const invite = async (companyIds: string[]) => {
+    if (!id || !data || !admin || inviteLock.current || !companyIds.length)
+      return;
+    inviteLock.current = true;
+    setInviting(companyIds);
+    setInviteError(null);
+    setInvitationNotice("");
+    const requestScope = scope;
+    try {
+      const result = await post<{ invitedCompanyIds: string[] }>(
+        `/jobs/${id}/invite`,
+        { companyIds },
+      );
+      if (currentScope.current !== requestScope) return;
+      setData(
+        (previous) =>
+          previous && {
+            ...previous,
+            invitedCompanyIds: result.invitedCompanyIds,
+          },
+      );
+      const sent = companyIds.filter((companyId) =>
+        result.invitedCompanyIds.includes(companyId),
+      );
+      const missing = companyIds.filter(
+        (companyId) => !result.invitedCompanyIds.includes(companyId),
+      );
+      if (sent.length)
+        setInvitationNotice(
+          `${sent.length === 1 ? "Invitation sent" : `${sent.length} invitations sent`}. You can compare quotes on your job as they arrive.`,
+        );
+      if (missing.length)
+        setInviteError({
+          ids: missing,
+          message:
+            "Some companies could not be invited. Refresh the matches to check their availability on Colabb.",
+        });
+    } catch (error) {
+      if (currentScope.current !== requestScope) return;
+      setInviteError({ ids: companyIds, message: (error as Error).message });
+      // A timed-out request may have sent an invitation. Read persisted state
+      // before offering another attempt; the API also deduplicates retries.
+      try {
+        const latest = await api<Matches>(`/jobs/${id}/matches?page=${page}`);
+        if (currentScope.current === requestScope)
+          setData(
+            (previous) =>
+              previous && {
+                ...previous,
+                job: latest.job,
+                invitedCompanyIds: latest.invitedCompanyIds,
+                conversationCompanyIds: latest.conversationCompanyIds,
+              },
+          );
+      } catch {
+        /* Keep the original error and the current results visible. */
+      }
+    } finally {
+      if (currentScope.current === requestScope) {
+        setInviting([]);
+        inviteLock.current = false;
+      }
+    }
+  };
   useEffect(() => {
     if (!company) return;
     const controller = new AbortController();
@@ -542,7 +647,7 @@ export function JobMatchesPage() {
           <p>
             {session.user
               ? "Switch to the company that posted this job to see its matches."
-              : "Sign in to see companies for your job and start a conversation."}
+              : "Sign in to see companies for your job and invite them to quote."}
           </p>
           {!session.user && (
             <button className="jobs-button jobs-primary" onClick={signIn}>
@@ -558,6 +663,17 @@ export function JobMatchesPage() {
       ? data?.totalMatches || 0
       : data?.totalNeedsConfirmation || 0;
   const pageSize = data?.pageSize || 12;
+  const invitationsOpen =
+    admin &&
+    data?.job.status === "open" &&
+    (!data.job.quote_deadline ||
+      new Date(data.job.quote_deadline).getTime() > Date.now());
+  const matchedCompanies = (data?.matches || []).filter(
+    (match) => match.eligible && match.company.claimed,
+  );
+  const inviteableIds = matchedCompanies
+    .filter((match) => !data?.invitedCompanyIds?.includes(match.company.id))
+    .map((match) => match.company.id);
   return (
     <div className="jobs-page job-workspace match-discovery">
       <Link className="job-back" to={`/jobs/${id}`}>
@@ -566,7 +682,21 @@ export function JobMatchesPage() {
       </Link>
       <header className="match-discovery-heading">
         <h1>Find the right company for your job</h1>
-        <p>See what matches. Check what’s missing. Start a conversation.</p>
+        <p>
+          Invite companies that fit your job. Compare their quotes, then choose
+          who you’ll work with.
+        </p>
+        <ol className="match-next-steps" aria-label="Steps to hire a company">
+          <li aria-current="step">
+            <span>1</span> Invite to quote
+          </li>
+          <li>
+            <span>2</span> Compare quotes
+          </li>
+          <li>
+            <span>3</span> Choose a company
+          </li>
+        </ol>
       </header>
       {data && (
         <section className="match-job-ticket" aria-label="Your job">
@@ -593,6 +723,9 @@ export function JobMatchesPage() {
             </p>
           </div>
           <div className="match-job-ticket-actions">
+            <Link to={`/jobs/${id}#received-quotes`}>
+              View quotes <ArrowRight size={16} />
+            </Link>
             {data.canEdit && (
               <Link to={`/jobs/${id}/edit`} aria-label="Edit job">
                 <Pencil size={15} />
@@ -604,6 +737,15 @@ export function JobMatchesPage() {
             </Link>
           </div>
         </section>
+      )}
+      {invitationNotice && (
+        <div className="match-invitation-notice" role="status">
+          <Check size={19} />
+          <p>{invitationNotice}</p>
+          <Link to={`/jobs/${id}#received-quotes`}>
+            View quotes <ArrowRight size={16} />
+          </Link>
+        </div>
       )}
       {error ? (
         <section className="jobs-panel match-empty" role="alert">
@@ -665,28 +807,102 @@ export function JobMatchesPage() {
               <p className="match-group-explanation">
                 {section === "matches"
                   ? "Their listed services, service area and selected project details match your job. Check timing and capacity below."
-                  : "These companies offer the work, but some job details are missing. Each card shows exactly what to ask."}
-                {" "}Companies on Colabb appear first.
+                  : "These companies offer the work, but some job details are missing. Each card shows exactly what to ask."}{" "}
+                Companies on Colabb appear first.
               </p>
             </div>
           )}
           {loading ? (
             <div className="match-loading" role="status">
-              <svg className="colabb-match-motion" viewBox="0 0 100 100" aria-hidden="true"><path className="left" fill="#ff6a00" d="M10 29V71L46.373 50Z"/><path className="right" fill="#ff6a00" d="M90 29V71L53.627 50Z"/></svg><h2>Finding the right fit.</h2><p>Comparing services, coverage and the details of your job.</p>
+              <svg
+                className="colabb-match-motion"
+                viewBox="0 0 100 100"
+                aria-hidden="true"
+              >
+                <path
+                  className="left"
+                  fill="#ff6a00"
+                  d="M10 29V71L46.373 50Z"
+                />
+                <path
+                  className="right"
+                  fill="#ff6a00"
+                  d="M90 29V71L53.627 50Z"
+                />
+              </svg>
+              <h2>Finding the right fit.</h2>
+              <p>Comparing services, coverage and the details of your job.</p>
             </div>
           ) : items.length ? (
-            <div className="match-result-list">
-              {items.map((match) => (
-                <MatchRow
-                  key={match.company.id}
-                  match={match}
-                  data={data!}
-                  page={page}
-                  section={section}
-                  admin={admin}
-                />
-              ))}
-            </div>
+            <>
+              {section === "matches" &&
+                invitationsOpen &&
+                matchedCompanies.length > 0 && (
+                  <section
+                    className="match-invite-group"
+                    aria-label="Invite matched companies"
+                  >
+                    <div>
+                      <h2>
+                        {inviteableIds.length
+                          ? "Ready to receive quotes?"
+                          : "Your invitations are sent"}
+                      </h2>
+                      <p>
+                        {inviteableIds.length
+                          ? `Invite ${inviteableIds.length} matched ${inviteableIds.length === 1 ? "company" : "companies"} on Colabb${total > pageSize ? " on this page" : ""}. Already invited companies are skipped.`
+                          : `All matched companies on Colabb${total > pageSize ? " on this page" : ""} have been invited. Compare their quotes as they arrive.`}
+                      </p>
+                    </div>
+                    <button
+                      className="jobs-button jobs-primary"
+                      disabled={!inviteableIds.length || inviting.length > 0}
+                      onClick={() => invite(inviteableIds)}
+                    >
+                      {inviteableIds.length ? (
+                        <Users size={18} />
+                      ) : (
+                        <Check size={18} />
+                      )}
+                      {inviting.length > 1
+                        ? "Sending invites…"
+                        : inviteableIds.length
+                          ? "Invite matched companies"
+                          : "Companies invited"}
+                      {inviteableIds.length > 0 && (
+                        <span className="match-invite-count">
+                          {inviteableIds.length}
+                        </span>
+                      )}
+                    </button>
+                    {inviteError && inviteError.ids.length > 1 && (
+                      <p className="match-invite-error" role="alert">
+                        {inviteError.message}
+                      </p>
+                    )}
+                  </section>
+                )}
+              <div className="match-result-list">
+                {items.map((match) => (
+                  <MatchRow
+                    key={match.company.id}
+                    match={match}
+                    data={data!}
+                    page={page}
+                    section={section}
+                    admin={admin}
+                    inviting={inviting}
+                    onInvite={invite}
+                    inviteError={
+                      inviteError?.ids.length === 1 &&
+                      inviteError.ids[0] === match.company.id
+                        ? inviteError.message
+                        : undefined
+                    }
+                  />
+                ))}
+              </div>
+            </>
           ) : (
             <div className="jobs-panel match-empty">
               <h2>

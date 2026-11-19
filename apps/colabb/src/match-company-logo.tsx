@@ -79,7 +79,7 @@ export function MatchCompanyLogo({ src, name }: { src: string; name: string }) {
       className={`match-card-logo${dark ? " match-card-logo-dark" : ""}`}
       data-logo-surface={dark ? "dark" : "light"}
       data-logo-aspect={surface?.aspect}
-      style={{ backgroundColor: dark ? "#203746" : "#fff" }}
+      style={{ backgroundColor: dark ? "var(--ink)" : "#fff" }}
       aria-hidden={!src || failed ? true : undefined}
     >
       {src && !failed ? (
