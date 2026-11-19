@@ -172,6 +172,10 @@ export async function resolvePublicPage(
     };
   if (parts[0] === "directory")
     return { ...r, redirect: "/providers", status: 301 };
+  // The retired company-update URLs keep their existing Colabb redirect.
+  // Network posts have their own /network/posts routes.
+  if (parts[0] === "posts" && parts.length === 2)
+    return { ...r, redirect: "/providers", status: 303 };
   if (marketing[pathname]) {
     const m = marketing[pathname];
     r.metadata.title = m.title;
@@ -600,7 +604,7 @@ export function colabbSEO() {
     )
       return next();
     const r = await resolvePublicPage(req.originalUrl, origin);
-    if (r.redirect) return res.redirect(301, r.redirect);
+    if (r.redirect) return res.redirect(r.status, r.redirect);
     const nonce = randomBytes(16).toString("base64");
     const payload: PublicPagePayload = {
       metadata: r.metadata,
