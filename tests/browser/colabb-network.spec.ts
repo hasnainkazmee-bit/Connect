@@ -459,6 +459,10 @@ test("Composer attachment controls never publish and edited posts warn before le
     )
       publishes.push(r.url());
   });
+  // Parallel uploads can leave the scroll-snap gallery on either photo. Start
+  // from a known image before checking navigation; neither control may publish.
+  await page.getByRole("button", { name: "Show image 1", exact: true }).click();
+  await expect(page.locator(".nw-gallery-count")).toHaveText("1 / 2");
   await page.getByRole("button", { name: "Next image", exact: true }).click();
   await expect(page.locator(".nw-gallery-count")).toHaveText("2 / 2");
   await page.getByRole("button", { name: "Show image 1", exact: true }).click();
