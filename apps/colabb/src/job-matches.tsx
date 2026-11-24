@@ -1,3 +1,4 @@
+import { OnColabbMark } from "./on-colabb-mark";
 import "./brand/matching.css";
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
@@ -421,13 +422,7 @@ function MatchRow({
         <div className="match-contact-status">
           <strong>
             {c.claimed && (
-              <img
-                className="match-member-mark"
-                src="/brand/badges/on-colabb.svg"
-                alt=""
-                width={20}
-                height={20}
-              />
+              <OnColabbMark size={20} className="match-member-mark" />
             )}
             {c.claimed ? "On Colabb" : "Not on Colabb yet"}
           </strong>

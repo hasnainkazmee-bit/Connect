@@ -1,3 +1,4 @@
+import { OnColabbMark } from "../on-colabb-mark";
 import { useEffect, useState, type FormEvent } from "react";
 import {
   Link,
@@ -514,12 +515,7 @@ function CompanyCard({
           }
         >
           {c.on_colabb === true && (
-            <img
-              src="/brand/badges/on-colabb.svg"
-              alt=""
-              width={18}
-              height={18}
-            />
+            <OnColabbMark size={18} />
           )}
           {c.on_colabb === true ? "On Colabb" : "Public listing"}
         </span>

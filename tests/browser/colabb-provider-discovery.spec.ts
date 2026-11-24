@@ -60,6 +60,11 @@ for (const viewport of windows) {
     const errors: string[] = [];
     page.on("pageerror", error => errors.push(error.message));
     await page.setViewportSize(viewport);
+    const badgeRequests: string[] = [];
+    await page.route("**/brand/badges/on-colabb.svg", route => {
+      badgeRequests.push(route.request().url());
+      return route.abort();
+    });
     // The supported selector route makes the chosen interface explicit even
     // when the environment defaults to the preserved Connect frontend.
     await page.context().request.get("/_interface/colabb");
@@ -75,6 +80,8 @@ for (const viewport of windows) {
     const cards = page.locator(".cd-company:not(.market-skeleton)");
     await expect(cards).toHaveCount(2);
     await expect(cards.filter({ hasText: names[0] }).locator(".cd-identity")).toHaveText("On Colabb");
+    await expect(cards.filter({ hasText: names[0] }).locator(".cd-identity svg")).toBeVisible();
+    expect(badgeRequests).toEqual([]);
     await expect(cards.filter({ hasText: names[1] }).locator(".cd-identity")).toHaveText("Public listing");
     await expect(cards.filter({ hasText: names[1] }).getByText("Personnel qualification", { exact: true })).toBeVisible();
     if ([320, 1920].includes(viewport.width)) {
