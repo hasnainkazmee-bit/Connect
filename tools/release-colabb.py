@@ -90,11 +90,12 @@ def check_network_http():
         if asset.endswith('.js'):
             if '/network-v2' in body:
                 network_asset = asset
-            # Vite emits Network as a lazy module. Checking only index.html and
-            # its main script would miss a missing/stale Network chunk.
-            for child in re.findall(r'import\(\s*["\']((?:\./|/assets/)[^"\']+\.js)["\']\s*\)', body):
+            # Follow lazy imports AND static shared-module/side-effect imports.
+            # Vite can extract Network's API and UI into a shared module when
+            # another lazy page (such as the marketing preview) also uses it.
+            for child in re.findall(r'\b(?:from\s*|import\s*(?:\(\s*)?)["\']((?:\./|/assets/)[^"\']+\.(?:js|css))["\']', body):
                 child = '/assets/' + child[2:] if child.startswith('./') else child
-                if re.fullmatch(r'/assets/[A-Za-z0-9_.-]+\.js', child):
+                if re.fullmatch(r'/assets/[A-Za-z0-9_.-]+\.(?:js|css)', child):
                     pending.append(child)
     if network_asset is None:
         raise RuntimeError('The served Colabb assets do not include Network.')

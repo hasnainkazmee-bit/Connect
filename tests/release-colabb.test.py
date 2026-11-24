@@ -71,6 +71,22 @@ class NetworkReleaseChecks(unittest.TestCase):
                     release.check_network_http()
                 request.assert_not_called()
 
+    def test_network_shared_static_dependencies_and_styles_are_checked(self):
+        assets = self.network_assets()
+        assets['/assets/network.js'] = 'import{a}from"./shared.js";import"./network.css";export{b}from"./reexport.js";'
+        assets['/assets/shared.js'] = 'const api="/network-v2";import"./network.js";'
+        assets['/assets/reexport.js'] = 'export const b=1;'
+        assets['/assets/network.css'] = '.network{display:grid}'
+        with patch.object(release, 'output', return_value='401'), patch.object(release, 'request', side_effect=assets.__getitem__) as request:
+            self.assertEqual(release.check_network_http()['networkAsset'], '/assets/shared.js')
+        visited = [c.args[0] for c in request.call_args_list]
+        for path in assets:
+            self.assertEqual(visited.count(path), 1)
+        for path in ['/assets/shared.js', '/assets/network.css', '/assets/reexport.js']:
+            with self.subTest(path=path), patch.object(release, 'output', return_value='401'), patch.object(release, 'request', side_effect={**assets, path: '<!doctype html><html>fallback</html>'}.__getitem__):
+                with self.assertRaisesRegex(RuntimeError, 'returned HTML'):
+                    release.check_network_http()
+
     def test_missing_lazy_bundle_and_stale_frontend_cannot_pass(self):
         for replacement, message in [
             ('', 'static asset'),
