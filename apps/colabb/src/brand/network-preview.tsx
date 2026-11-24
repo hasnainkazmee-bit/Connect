@@ -42,7 +42,7 @@ const post: NetworkPost = {
       name: "Rooftop installation",
       mime_type: "image/webp",
       size_bytes: 0,
-      url: "/brand/photos/roof-v1-960.webp",
+      url: "/brand/roof.webp",
     },
   ],
 };

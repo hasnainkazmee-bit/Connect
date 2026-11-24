@@ -25,7 +25,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: python3 tests/release-colabb.test.py
-      - run: node --test tests/profile-image.test.mjs tests/job-history-model.test.mjs tests/project-activity-model.test.mjs tests/notification-routing.test.mjs tests/colabb-web-ui.test.mjs tests/network-proxy.test.mjs tests/network-notification-routing.test.mjs
+      - run: node --test tests/job-history-model.test.mjs tests/project-activity-model.test.mjs tests/notification-routing.test.mjs tests/colabb-web-ui.test.mjs tests/network-proxy.test.mjs tests/network-notification-routing.test.mjs
       - run: npx playwright install --with-deps chrome
       - uses: dtolnay/rust-toolchain@stable
       - run: npm run test:ui

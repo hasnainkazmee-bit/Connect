@@ -1,4 +1,3 @@
-import { publicImage } from "./public-image";
 import { useState } from "react";
 import type { Company } from "./types";
 const initials = (s: string) =>
@@ -22,10 +21,8 @@ export function Logo({
     >
       {imageUrl ? (
         <img
-          src={publicImage(imageUrl, size === "large" ? 384 : 192)}
+          src={imageUrl}
           alt=""
-          loading="lazy"
-          decoding="async"
           referrerPolicy="no-referrer"
           onError={() => setFailedUrl(imageUrl)}
           style={{

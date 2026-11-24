@@ -1,7 +1,6 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { marketingPhoto } from "./marketing-photo";
 import { marketingView } from "./marketing-template";
 import { iconMarkup, BrandIcon } from "./icons";
 import { useApp } from "../context";
@@ -10,10 +9,12 @@ import { marketingCompanySnapshot } from "./marketing-companies";
 import "./marketing-base.css";
 import "./marketing-editorial.css";
 import "./marketing-refinement.css";
-const NetworkMarketingPreview = lazy(() => import("./network-preview").then(module => ({ default: module.NetworkMarketingPreview })));
+import { NetworkMarketingPreview } from "./network-preview";
 import "./marketing-network.css";
 
 const pages: Record<string,string>={home:"/",hire:"/hire",work:"/find-work",how:"/how-it-works",story:"/our-story",network:"/network"};
+const photos:Record<string,string>={roof:"roof",detail:"detail",planning:"planning",craft:"craft"};
+const escape=(s:string)=>s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
 export function MarketingHeader({signIn}:{signIn:()=>void}){
  const [menu,setMenu]=useState(false);
  useEffect(()=>{const close=(e:KeyboardEvent)=>{if(e.key==="Escape")setMenu(false)};window.addEventListener("keydown",close);return()=>window.removeEventListener("keydown",close)},[]);
@@ -28,16 +29,6 @@ export function ColabbMarketing({page="home"}:{page?:string}){
  const [state,setState]=useState<Record<string,unknown>>({marketingScope:"electrical"});
  const [publicCompanies,setPublicCompanies]=useState(marketingCompanySnapshot);
  const [previewSlot,setPreviewSlot]=useState<HTMLElement|null>(null);
- const [previewVisible,setPreviewVisible]=useState(false);
- useEffect(()=>{
-  setPreviewVisible(false);
-  if(!previewSlot)return;
-  const observer=new IntersectionObserver(entries=>{
-   if(entries.some(entry=>entry.isIntersecting)){setPreviewVisible(true);observer.disconnect()}
-  },{rootMargin:"400px"});
-  observer.observe(previewSlot);
-  return()=>observer.disconnect();
- },[previewSlot]);
  useEffect(()=>{
   if(location.hash!=="#mx-messaging-title")return;
   const frame=requestAnimationFrame(()=>document.getElementById("mx-messaging-title")?.scrollIntoView({block:"start"}));
@@ -51,7 +42,7 @@ export function ColabbMarketing({page="home"}:{page?:string}){
    .catch(()=>{/* Keep the verified first-paint profiles if the directory is unavailable. */});
   return()=>controller.abort();
  },[page]);
- const html=marketingView({state:{...state,marketingPage:page},I:iconMarkup,photo:marketingPhoto,companyLogo:(id:string)=>`<img src="/assets/demo-logos/demo-${id==="riverbend"?"riverbend-renewables-crew":"summit-grid-electric"}-mark.svg" alt=""/>`,publicCompanies});
+ const html=marketingView({state:{...state,marketingPage:page},I:iconMarkup,photo:(key:string,alt:string)=>`<img src="/brand/${photos[key]||"roof"}.webp" alt="${escape(alt)}" loading="${key==="planning"?"eager":"lazy"}"/>`,companyLogo:(id:string)=>`<img src="/assets/demo-logos/demo-${id==="riverbend"?"riverbend-renewables-crew":"summit-grid-electric"}-mark.svg" alt=""/>`,publicCompanies});
  useLayoutEffect(()=>{setPreviewSlot(root.current?.querySelector<HTMLElement>("[data-network-preview]")||null)},[html]);
  function enterNetwork(){if(app.session.user)navigate("/network");else app.signIn("/network")}
  function action(event:React.MouseEvent<HTMLDivElement>){
@@ -67,5 +58,5 @@ export function ColabbMarketing({page="home"}:{page?:string}){
   else if(a==="marketing-signin")app.signIn(v||undefined);
   else if(a==="marketing-support")navigate("/help/"+v);
  }
- return <><div ref={root} className="colabb-marketing" onClick={action} dangerouslySetInnerHTML={{__html:html}}/>{previewSlot&&previewVisible&&createPortal(<Suspense fallback={<div role="status" style={{minHeight:380}}>Loading Network preview…</div>}><NetworkMarketingPreview kind={previewSlot.dataset.networkPreview} onEnter={enterNetwork}/></Suspense>,previewSlot)}<ColabbFooter/></>;
+ return <><div ref={root} className="colabb-marketing" onClick={action} dangerouslySetInnerHTML={{__html:html}}/>{previewSlot&&createPortal(<NetworkMarketingPreview kind={previewSlot.dataset.networkPreview} onEnter={enterNetwork}/>,previewSlot)}<ColabbFooter/></>;
 }

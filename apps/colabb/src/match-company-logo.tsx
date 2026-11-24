@@ -1,4 +1,3 @@
-import { publicImage } from "./public-image";
 import { useState } from "react";
 
 type LogoSurface = { dark: boolean; aspect: number };
@@ -85,7 +84,7 @@ export function MatchCompanyLogo({ src, name }: { src: string; name: string }) {
     >
       {src && !failed ? (
         <img
-          src={publicImage(src, 384)}
+          src={src}
           alt={`${name} logo`}
           loading="lazy"
           decoding="async"

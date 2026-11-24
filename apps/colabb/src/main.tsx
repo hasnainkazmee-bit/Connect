@@ -1,4 +1,3 @@
-import { RouteLoadBoundary } from "./route-loading";
 import { PublicSEO, ServiceDiscovery } from "./public-seo";
 import "./brand/foundation.css";
 import "./brand/colabb.css";
@@ -95,21 +94,18 @@ import {
   PersonalInbox,
   PersonalMessageButton,
 } from "./personal-messages";
-const JoinCompanyPage = React.lazy(() => import("./join-company").then(module => ({ default: module.JoinCompanyPage })));
+import { JoinCompanyPage } from "./join-company";
 import { Directory } from "./directory";
-const ClaimCompanyPage = React.lazy(() => import("./claim-company").then(module => ({ default: module.ClaimCompanyPage })));
+import { ClaimCompanyPage } from "./claim-company";
 import { CompanyMatches } from "./company-matches";
-const JobMatchesPage = React.lazy(() => import("./job-matches").then(module => ({ default: module.JobMatchesPage })));
-const CompanySettings = React.lazy(() => import("./management").then(module => ({ default: module.CompanySettings })));
-const EmployeeInvite = React.lazy(() => import("./management").then(module => ({ default: module.EmployeeInvite })));
-const JobsPage = React.lazy(() => import("./jobs").then(module => ({ default: module.JobsPage })));
-const NewJobPage = React.lazy(() => import("./jobs").then(module => ({ default: module.NewJobPage })));
-const JobDetailPage = React.lazy(() => import("./jobs").then(module => ({ default: module.JobDetailPage })));
-const JobInboxPage = React.lazy(() => import("./job-inbox").then(module => ({ default: module.JobInboxPage })));
-const CompanyInboxPage = React.lazy(() => import("./company-inbox").then(module => ({ default: module.CompanyInboxPage })));
+import { JobMatchesPage } from "./job-matches";
+import { CompanySettings, EmployeeInvite } from "./management";
+import { JobsPage, NewJobPage, JobDetailPage } from "./jobs";
+import { JobInboxPage } from "./job-inbox";
+import { CompanyInboxPage } from "./company-inbox";
 const NetworkPage = React.lazy(() => import("./network").then(module => ({ default: module.NetworkPage })));
 import { MarketplaceLanding, ProviderDirectory } from "./providers";
-const ProviderProfilePage = React.lazy(() => import("./provider-profile").then(module => ({ default: module.ProviderProfilePage })));
+import { ProviderProfilePage } from "./provider-profile";
 import {
   DesktopPanel,
   useDesktopApp,
@@ -123,12 +119,12 @@ import {
   PageScopeProvider,
   usePageNavigation,
 } from "./page-navigation";
-const CompanyProfileEditorPage = React.lazy(() => import("./profile-editor-page").then(module => ({ default: module.CompanyProfileEditorPage })));
+import { CompanyProfileEditorPage } from "./profile-editor-page";
 import { ColabbMarketing, MarketingHeader, ColabbFooter } from "./brand/marketing";
 import { BrandIcon } from "./brand/icons";
-const FindWork = React.lazy(() => import("./brand/find-work").then(module => ({ default: module.FindWork })));
-const ColabbCompanies = React.lazy(() => import("./brand/companies").then(module => ({ default: module.ColabbCompanies })));
-const ColabbHelp = React.lazy(() => import("./brand/help").then(module => ({ default: module.ColabbHelp })));
+import { FindWork } from "./brand/find-work";
+import { ColabbCompanies } from "./brand/companies";
+import { ColabbHelp } from "./brand/help";
 import { commitStartupView, StartupPlaceholder } from "./brand/startup";
 
 const date = (s: string) =>
@@ -748,7 +744,7 @@ function App() {
             !!pageNavigation.pendingLeave
           }
         >
-          <RouteLoadBoundary resetKey={location.pathname}><React.Suspense fallback={<Loading />}><Routes location={pageNavigation.active?.background || location}>
+          <Routes location={pageNavigation.active?.background || location}>
             <Route
               path="/"
               element={session.user ? <FindWork /> : <ColabbMarketing />}
@@ -855,7 +851,7 @@ function App() {
                 </Empty>
               }
             />
-          </Routes></React.Suspense></RouteLoadBoundary>
+          </Routes>
         </div>
         {pageNavigation.pages.map((page) => (
           <div
@@ -871,7 +867,7 @@ function App() {
           >
             <PageScopeProvider value={"/actions/" + page.id}>
               <FullPage back={() => pageNavigation.close()}>
-                <RouteLoadBoundary><React.Suspense fallback={<Loading />}>{page.content}</React.Suspense></RouteLoadBoundary>
+                {page.content}
               </FullPage>
             </PageScopeProvider>
           </div>

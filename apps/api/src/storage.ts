@@ -86,28 +86,6 @@ export async function storeFile(key: string, file: string, mime: string) {
   }
   return { storage_backend, sha256 };
 }
-// Bounded reads for server-generated public image thumbnails only.
-export async function readStoredImage(storageBackend: string, key: string) {
-  const limit = 10 * 1024 * 1024;
-  if (storageBackend === "local") {
-    const file = localPath(key);
-    if ((await fs.stat(file)).size > limit) throw new Error("Image exceeds thumbnail limit.");
-    return fs.readFile(file);
-  }
-  const object = await s3().send(new GetObjectCommand({Bucket:process.env.S3_BUCKET, Key:key}));
-  const stream = object.Body as Readable | undefined;
-  if (!stream) throw new Error("Image not found.");
-  if ((object.ContentLength || 0) > limit) { stream.destroy(); throw new Error("Image exceeds thumbnail limit."); }
-  const chunks: Buffer[] = [];
-  let size = 0;
-  for await (const chunk of stream) {
-    size += chunk.length;
-    if (size > limit) { stream.destroy(); throw new Error("Image exceeds thumbnail limit."); }
-    chunks.push(Buffer.from(chunk));
-  }
-  return Buffer.concat(chunks);
-}
-
 export async function sendStored(
   req: Request,
   res: Response,

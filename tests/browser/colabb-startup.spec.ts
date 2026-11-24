@@ -42,7 +42,7 @@ test.describe("Colabb document startup", () => {
     });
   }
 
-  test("waits for the session but lets people navigate while providers load, and respects reduced motion", async ({ page }, info) => {
+  test("waits for the session and first provider response, and respects reduced motion", async ({ page }, info) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     const session = deferred(), providers = deferred(), providerRequested = deferred();
@@ -60,24 +60,12 @@ test.describe("Colabb document startup", () => {
     await page.screenshot({ path: info.outputPath("session-delayed-reduced-motion.png") });
     session.resolve();
     await providerRequested.promise;
-    await expect(page.locator("#colabb-startup")).toHaveCount(0);
-    await expect(page.locator("#root")).not.toHaveAttribute("inert", "");
-    await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeEnabled();
+    await expect(page.locator("#colabb-startup")).toBeVisible();
+    await expect(page.locator("#root")).toHaveAttribute("inert", "");
     providers.resolve();
     await expect(page.locator("#colabb-startup")).toHaveCount(0);
     await expect(page.locator(".cd-company").first()).toBeVisible();
     await expect(page.locator("#root")).not.toHaveAttribute("inert", "");
-  });
-
-  test("a failed route download preserves navigation and offers explicit recovery", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.locator("#colabb-startup")).toHaveCount(0);
-    await page.route(/\/assets\/companies-[^/]+\.js(?:\?|$)/, route => route.abort("failed"));
-    await page.getByRole("navigation", {name:"Main navigation"}).getByRole("link", {name:"Companies",exact:true}).click();
-    await expect(page.getByRole("alert")).toContainText("This page couldn’t open.");
-    await expect(page.getByRole("button", {name:"Refresh to try again"})).toBeVisible();
-    await page.getByRole("link", {name:"Colabb home"}).click();
-    await expect(page.getByRole("heading", {name:/No one builds solar alone/})).toBeVisible();
   });
 
   test("a failed bundle restores the public page and an actionable recovery link", async ({ page }) => {
