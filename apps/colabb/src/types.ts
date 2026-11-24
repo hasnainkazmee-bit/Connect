@@ -1,4 +1,13 @@
+export type CompanyEvent = {
+  key: string;
+  name: string;
+  year: number;
+  website: string;
+  logo_path: string;
+  participation: "attendee" | "exhibitor" | "sponsor" | "speaker";
+};
 export type Company = {
+  events?: CompanyEvent[];
   id: string;
   slug: string;
   username?: string | null;
@@ -93,6 +102,7 @@ export type Rating = {
   distribution: { rating: number; count: number }[];
 };
 export type Profile = {
+  events?: CompanyEvent[];
   credentials?: Credential[];
   licenses?: License[];
   insurance?: Insurance[];

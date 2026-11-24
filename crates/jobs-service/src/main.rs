@@ -304,6 +304,7 @@ async fn list_providers(
           'capacity',COALESCE(p.capacity,''),'project_count',(SELECT count(*) FROM projects pr WHERE pr.company_id=c.id),
           'completed_jobs',(SELECT count(*) FROM jobs j JOIN job_quotes q ON q.id=j.chosen_quote_id WHERE j.status='completed' AND q.provider_company_id=c.id),
           'on_colabb',(c.listing_status='managed' AND EXISTS(SELECT 1 FROM memberships m WHERE m.company_id=c.id)),
+          'events',(SELECT COALESCE(jsonb_agg(to_jsonb(e)-'company_id' ORDER BY e.year DESC,e.name,e.key),'[]') FROM company_public_events e WHERE e.company_id=c.id),
           'certification_count',(SELECT count(*) FROM company_credentials cc WHERE cc.company_id=c.id AND cc.category IN ('certification','qualification') AND (cc.valid_until IS NULL OR cc.valid_until>=CURRENT_DATE)),
           'certifications',(SELECT COALESCE(jsonb_agg(jsonb_build_object('id',cc.id,'catalog_key',cc.catalog_key,'title',cc.title,'category',cc.category,'scope',cc.scope,'scope_detail',cc.scope_detail,'organization',cc.organization,'evidence_basis',cc.evidence_basis,'source_url',cc.source_url) ORDER BY cc.title,cc.scope),'[]') FROM company_credentials cc WHERE cc.company_id=c.id AND cc.category IN ('certification','qualification') AND (cc.valid_until IS NULL OR cc.valid_until>=CURRENT_DATE)),
           'job_rating',(SELECT ROUND(AVG(r.rating)::numeric,1) FROM job_reviews r WHERE r.reviewed_company_id=c.id),

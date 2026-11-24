@@ -122,6 +122,7 @@ try {
     "tests/profile-workspace.test.mjs",
     "tests/sunhub-integration.test.mjs",
     "tests/credentials.test.mjs",
+    "tests/event-companies.test.mjs",
     "tests/credential-batches.test.mjs",
     "tests/provider-enrichment.test.mjs",
     "tests/provider-matching.test.mjs",

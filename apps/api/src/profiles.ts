@@ -185,7 +185,7 @@ export async function ensureUsername(
 }
 const reviewVisible = `NOT EXISTS(SELECT 1 FROM memberships m WHERE m.user_id=r.user_id AND m.company_id=r.company_id)`;
 export async function profileExtras(companyId: string) {
-  const [achievements, reviews, credentials, licenses, insurance] =
+  const [achievements, reviews, credentials, licenses, insurance, events] =
     await Promise.all([
       // Keep sourced credentials separate from company-authored achievements.
       pool.query(
@@ -208,6 +208,10 @@ export async function profileExtras(companyId: string) {
         "SELECT *,coverage_limit::float AS coverage_limit,expires_on::text AS expires_on FROM company_insurance WHERE company_id=$1 ORDER BY created_at,id",
         [companyId],
       ),
+      pool.query(
+        "SELECT key,name,year,website,logo_path,participation FROM company_public_events WHERE company_id=$1 ORDER BY year DESC,name,key",
+        [companyId],
+      ),
     ]);
   const stats = reviews.rows[0];
   const distribution = [5, 4, 3, 2, 1].map((rating, index) => ({
@@ -216,6 +220,7 @@ export async function profileExtras(companyId: string) {
   }));
   return {
     achievements: achievements.rows,
+    events: events.rows,
     credentials: credentials.rows,
     licenses: licenses.rows,
     insurance: insurance.rows,

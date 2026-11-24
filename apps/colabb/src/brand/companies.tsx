@@ -10,6 +10,7 @@ import { companyTypes } from "../../../api/src/shared/company-types";
 import { useApp } from "../context";
 import { CompanyMessageLink } from "../company-message-link";
 import { Logo } from "../identity";
+import { CompanyEvents } from "../company-events";
 import type { Company } from "../types";
 import { BrandIcon as Icon } from "./icons";
 import "./companies-reference.css";
@@ -524,6 +525,7 @@ function CompanyCard({
         </span>
       </header>
       {description && <p className="cd-description">{description}</p>}
+      <CompanyEvents events={c.events} compact />
       {(services.length > 0 || areas.length > 0 || projectTypes.length > 0) && (
         <div className="cd-card-details">
           {services.length > 0 && (

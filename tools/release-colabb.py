@@ -19,6 +19,7 @@ DB = 'connect-production-db-1'
 CONTAINERS = {'app': 'connect-production-app-1', 'jobs': 'connect-production-jobs-1'}
 NETWORK_MIGRATION = '043_network_post_types.sql'
 COMPANY_TYPES_MIGRATION = '044_company_business_types.sql'
+EVENTS_MIGRATION = '045_company_events.sql'
 NETWORK_TABLES = (
     'network_administrators', 'network_communities', 'network_members', 'network_invitations',
     'network_posts', 'network_files', 'network_post_files', 'network_drafts',
@@ -117,7 +118,7 @@ def backup_metadata(previous, next_sha):
     return {
         'previous': previous,
         'next': next_sha,
-        'database': 'migrations through ' + COMPANY_TYPES_MIGRATION + '; existing company data is retained; future companies no longer default to Installer',
+        'database': 'migrations through ' + EVENTS_MIGRATION + '; existing company data is retained; event participation imports are explicit and separately audited',
         'backupScope': 'This Connect Postgres database and protected app configuration on this host only',
         'excludedFromBackup': 'Uploaded attachment bytes and off-host copies; the existing upload volume is preserved, not backed up by this script',
     }
@@ -167,6 +168,8 @@ def smoke():
     providers = json.loads(request('/api/jobs/providers'))
     if not providers.get('providers') or 'on_colabb' not in providers['providers'][0]:
         raise RuntimeError('Provider identity contract is unavailable.')
+    if not isinstance(providers['providers'][0].get('events'), list):
+        raise RuntimeError('Provider event participation contract is unavailable.')
     for asset in re.findall(r'(?:src|href)="(/assets/[^" ]+\.(?:js|css))"', home):
         request(asset)
     return {'providerCount': providers.get('total'), 'certificationChoices': len(taxonomy['directoryCredentials']),
@@ -235,6 +238,12 @@ console.log('Both frontends, migrations and API dependencies are readable by the
             changed = True
             composition(args.sha, 'run', '--rm', '--no-deps', 'app', 'node', 'apps/api/dist/migrate.js')
             schema = {**check_network_schema(), **check_company_type_schema()}
+            event_schema = output(['docker', 'exec', DB, 'psql', '-X', '-U', 'connect', '-d', 'connect',
+                '-v', 'ON_ERROR_STOP=1', '-Atc',
+                "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE name='" + EVENTS_MIGRATION + "') AND to_regclass('public.company_public_events') IS NOT NULL AND to_regclass('public.company_event_imports') IS NOT NULL"])
+            if event_schema != 't':
+                raise RuntimeError('Event participation schema is incomplete.')
+            schema['eventMigration'] = EVENTS_MIGRATION
             composition(args.sha, 'up', '-d', '--no-deps', 'jobs', 'app')
             await_ready(args.sha)
             result = {**schema, **smoke()}

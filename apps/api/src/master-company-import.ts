@@ -5,7 +5,7 @@ import { normalizedName } from "./directory.js";
 import { usernameSchema } from "./profiles.js";
 import { companyTypeSchema } from "./company-types.js";
 
-const recordSchema = z.strictObject({
+export const masterCompanySchema = z.strictObject({
   name: z.string().trim().min(1),
   domain: z
     .string()
@@ -27,7 +27,7 @@ const recordSchema = z.strictObject({
   suggestedUsername: z.string(),
   sourceCheckedAt: z.iso.date(),
 });
-export type MasterCompany = z.infer<typeof recordSchema>;
+export type MasterCompany = z.infer<typeof masterCompanySchema>;
 
 function verifiedPublicCorrection(item: MasterCompany): MasterCompany {
   if (item.name !== "Barnhart Pump Co" || item.domain !== "barnhartpump.com")
@@ -99,7 +99,7 @@ export async function loadMasterCompanySnapshot(root: string) {
       .split("\n")
       .filter(Boolean);
     for (const [index, line] of lines.entries()) {
-      const item = recordSchema.parse(JSON.parse(line));
+      const item = masterCompanySchema.parse(JSON.parse(line));
       if (!matchesDomain(item.website, item.domain))
         throw new Error(`Website/domain mismatch in ${file} line ${index + 1}`);
       if (item.logoUrl && !host(item.logoUrl))

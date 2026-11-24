@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import https from "node:https";
 import { isIP } from "node:net";
-import sharp from "sharp";
+import { companyLogoImage } from "./company-logo-image.js";
 import { pool, tx } from "./db.js";
 import { storeBuffer } from "./storage.js";
 
@@ -10,6 +10,7 @@ type Listing = { id: string; name: string; logo_url: string };
 const maxSourceBytes = 4 * 1024 * 1024;
 const args = process.argv.slice(2);
 const apply = args.includes("--apply");
+const event = args.find((arg) => arg.startsWith("--event="))?.slice(8) || "";
 const limit = Number(
   args.find((arg) => arg.startsWith("--limit="))?.slice(8) || 0,
 );
@@ -21,14 +22,17 @@ if (
     (arg) =>
       arg !== "--apply" &&
       !/^--limit=\d+$/.test(arg) &&
-      !/^--concurrency=\d+$/.test(arg),
+      !/^--concurrency=\d+$/.test(arg) &&
+      !/^--event=[a-z0-9][a-z0-9-]{2,79}$/.test(arg),
   ) ||
   !Number.isSafeInteger(limit) ||
   !Number.isSafeInteger(concurrency) ||
   concurrency < 1 ||
   concurrency > 20
 )
-  throw new Error("Use --apply, --limit=N, and --concurrency=1..20 only.");
+  throw new Error(
+    "Use --apply, --limit=N, --event=event-key, and --concurrency=1..20 only.",
+  );
 
 function publicIpv4(address: string) {
   if (isIP(address) !== 4) return false;
@@ -117,14 +121,7 @@ async function downloadImage(input: string, redirects = 0): Promise<Buffer> {
 
 async function cacheLogo(company: Listing) {
   const source = await downloadImage(company.logo_url);
-  const image = await sharp(source, {
-    failOn: "error",
-    limitInputPixels: 25_000_000,
-  })
-    .rotate()
-    .resize(640, 640, { fit: "inside", withoutEnlargement: true })
-    .webp({ quality: 86, effort: 4 })
-    .toBuffer();
+  const image = await companyLogoImage(source, Boolean(event));
   if (!image.length || image.length > 2 * 1024 * 1024)
     throw new Error("Normalized logo exceeds size limit");
   const key = `imported-logos/${company.id}.webp`;
@@ -160,9 +157,11 @@ try {
   const { rows } = await pool.query<Listing>(
     `SELECT id,name,logo_url FROM companies
      WHERE NOT is_demo AND listing_status='unclaimed'
-       AND source_checked_at::date='2026-11-03'
+       AND (($1='' AND source_checked_at::date='2026-11-03') OR
+         ($1<>'' AND EXISTS(SELECT 1 FROM company_event_participations ep WHERE ep.company_id=companies.id AND ep.event_key=$1)))
        AND logo_url ~* '^https?://'
      ORDER BY name,id`,
+    [event],
   );
   const companies = limit ? rows.slice(0, limit) : rows;
   if (!apply) {
