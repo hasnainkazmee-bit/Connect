@@ -39,7 +39,7 @@ export function webUIRoutes() {
     if (file.endsWith(".html")) res.setHeader("X-Robots-Tag", "noindex");
   }};
   const staticUI = {connect:express.static(webDist("connect"), staticOptions), colabb:express.static(webDist("colabb"), staticOptions)};
-  router.use("/brand", express.static(path.join(webDist("colabb"), "brand"), {index:false}));
+  router.use("/brand", express.static(path.join(webDist("colabb"), "brand"), {index:false, maxAge:"1d"}));
   router.use((req,res,next) => {
     res.vary("Cookie");
     res.vary("User-Agent");

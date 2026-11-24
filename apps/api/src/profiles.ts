@@ -1,3 +1,4 @@
+import { profileImage, profileImageWidths } from "./profile-image.js";
 import { workSettingsInput, workLabels } from "./profile-records.js";
 import { Router } from "express";
 import { z } from "zod";
@@ -7,7 +8,7 @@ import { fileTypeFromBuffer } from "file-type";
 import type { PoolClient } from "pg";
 import { pool, tx, HttpError } from "./db.js";
 import { requireAdmin, requireVerified } from "./auth.js";
-import { checkQuota, storeBuffer, sendStored, deferDelete } from "./storage.js";
+import { checkQuota, storeBuffer, sendStored, deferDelete, readStoredImage } from "./storage.js";
 import { preventDuplicateCompany } from "./directory.js";
 import {
   companyTypeUpdateInput,
@@ -692,9 +693,27 @@ export function profileRoutes() {
       ])
     ).rows[0];
     if (!a) throw new HttpError(404, "Photo not found.");
+    const width = req.query.width === undefined ? undefined : z.coerce.number().int()
+      .refine(value => profileImageWidths.has(value), "Unsupported image size.").parse(req.query.width);
+    if (width && ["image/jpeg", "image/png", "image/webp"].includes(a.mime_type)) {
+      const key = a.sha256 + "-webp-v1-" + width;
+      res.set("Cache-Control", "public, max-age=86400");
+      res.set("ETag", '"' + key + '"');
+      if (req.fresh) return void res.status(304).end();
+      const image = await profileImage(key, width, () => readStoredImage(a.storage_backend, a.storage_name));
+      if (image) return void res.type("image/webp").send(image);
+      // Retry optimization soon if transforms were busy; don't cache the large fallback.
+      res.set("Cache-Control", "public, max-age=60");
+      res.type(a.mime_type);
+      await sendStored(req, res, a.storage_backend, a.storage_name);
+      return;
+    }
     res.type(a.mime_type);
-    if (a.storage_name.startsWith("imported-logos/"))
-      res.set("Cache-Control", "public, max-age=604800, immutable");
+    // These are public profile assets with immutable IDs. Private job/chat
+    // attachments use separate authenticated routes and remain uncached.
+    res.set("Cache-Control", "public, max-age=86400");
+    res.set("ETag", '"' + a.sha256 + '"');
+    if (req.fresh) return void res.status(304).end();
     await sendStored(req, res, a.storage_backend, a.storage_name);
   });
   router.get("/companies/:id/reviews", async (req, res) => {

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "tsc --noEmit && vite build && node ../../tools/build-colabb-marketing.mjs",
+    "build": "tsc --noEmit && vite build && node ../../tools/build-colabb-images.mjs && node ../../tools/build-colabb-marketing.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

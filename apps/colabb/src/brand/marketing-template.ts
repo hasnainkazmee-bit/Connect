@@ -19,7 +19,7 @@ export function marketingView({state:s,I,photo,companyLogo,publicCompanies=[],re
   const actualCompanies=publicCompanies.filter(c=>c.is_demo===false);
   const profileUrl=c=>'/'+encodeURIComponent(c.username);
   const logoUrl=c=>/^\/(?:api\/company-assets\/|assets\/companies\/|brand\/companies\/)/.test(c.logo_url||'')?c.logo_url:'';
-  const logo=c=>logoUrl(c)?`<img src="${escape(logoUrl(c))}" alt="" loading="lazy"/>`:'<span class="mx-company-empty-mark" aria-hidden="true"></span>';
+  const logo=c=>logoUrl(c)?`<img src="${escape(logoUrl(c))}${/^\/api\/company-assets\/[\da-f-]{36}$/i.test(logoUrl(c))?'?width=192':''}" alt="" loading="lazy" decoding="async"/>`:'<span class="mx-company-empty-mark" aria-hidden="true"></span>';
 
   const a=(label,action,value='',primary=false,extra='')=>`<button class="mk-btn${primary?' mk-primary':''}" data-action="${action}" data-value="${value}" ${extra}>${label}</button>`;
   const link=(label,action,value='')=>`<button class="mk-link" data-action="${action}" data-value="${value}">${label}${I('arrow-right',18)}</button>`;

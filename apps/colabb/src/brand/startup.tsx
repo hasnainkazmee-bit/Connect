@@ -5,7 +5,6 @@ declare global {
     colabbStartup?: { start(): void; ready(): void; fail(): void };
   }
 }
-let pending = 0;
 let committed = false;
 let finished = false;
 let frame = 0;
@@ -14,11 +13,12 @@ if (typeof window !== "undefined") window.colabbStartup?.start();
 
 function revealWhenReady() {
   cancelAnimationFrame(frame);
-  if (finished || !committed || pending) return;
-  // Let response state updates commit and paint before fading the cover away.
+  if (finished || !committed) return;
+  // Reveal once the authenticated shell commits. Background requests and route
+  // data have local loading states and must never keep the entire app inert.
   frame = requestAnimationFrame(() => {
     frame = requestAnimationFrame(() => {
-      if (finished || !committed || pending) return;
+      if (finished || !committed) return;
       finished = true;
       window.colabbStartup?.ready();
       // Also recover if an intermediary stripped the nonce-bearing bootstrap.
@@ -27,19 +27,6 @@ function revealWhenReady() {
       if (!window.colabbStartup) document.getElementById("colabb-startup")?.remove();
     });
   });
-}
-
-export function trackStartupRequest() {
-  if (finished) return () => {};
-  pending++;
-  cancelAnimationFrame(frame);
-  let released = false;
-  return () => {
-    if (released) return;
-    released = true;
-    pending--;
-    revealWhenReady();
-  };
 }
 
 export function commitStartupView() {

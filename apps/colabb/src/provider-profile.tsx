@@ -1,3 +1,4 @@
+import { publicImage } from "./public-image";
 import { CompanyReviews } from "./reviews";
 import { CompanyEvents } from "./company-events";
 import { GoogleRating } from "./google-rating";
@@ -234,7 +235,7 @@ export function ProviderProfilePage() {
           : "Find companies"}
       </Link>
       <header className="pp-identity">
-        <div className="pp-identity-main"><div className="pp-logo">{c.logo_url && <img src={c.is_demo && c.logo_url.startsWith("/assets/demo-logos/") ? c.logo_url.replace(/(?<!-mark)\.svg$/, "-mark.svg") : c.logo_url} alt={`${c.name} logo`} onError={e=>{e.currentTarget.style.visibility="hidden"}}/>}</div>
+        <div className="pp-identity-main"><div className="pp-logo">{c.logo_url && <img src={c.is_demo && c.logo_url.startsWith("/assets/demo-logos/") ? c.logo_url.replace(/(?<!-mark)\.svg$/, "-mark.svg") : publicImage(c.logo_url, 384)} decoding="async" alt={`${c.name} logo`} onError={e=>{e.currentTarget.style.visibility="hidden"}}/>}</div>
           <div className="pp-identity-copy"><p className="pd-eyebrow">{c.listing_status==="unclaimed"?"PUBLIC COMPANY LISTING":"COMPANY PROFILE"}{c.is_demo?" · DEMO":""}</p><h1><span>{c.name}</span>{c.on_colabb && <Link to="/help/trust" className="pp-identity-mark" aria-label="On Colabb: managed company account"><img src="/brand/badges/on-colabb.svg" alt="" width={28} height={28}/></Link>}</h1>
           <p className="pp-tagline">{c.tagline||c.type}</p><div className="pp-meta">{c.location&&<span><BrandIcon name="location"/>{c.location}</span>}<span><BrandIcon name="company"/>{c.type}</span>{c.on_colabb&&<span>On Colabb</span>}</div></div>
         </div>

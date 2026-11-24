@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import pg from "pg";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
 import fs from "node:fs/promises";
+import sharp from "sharp";
 const base = process.env.API_TEST_URL || "http://localhost:4101";
 function client() {
   let cookie = "";
@@ -55,6 +56,28 @@ test("publishing, company profiles, customer accounts, and employee access", asy
     B = await register(b, "Other", "company", "Other " + suffix),
     I = await register(person, "Customer", "individual"),
     E = await register(employee, "Employee");
+  await t.test("public profile images have bounded thumbnails and conditional caching", async () => {
+    const image = await sharp({create:{width:1600,height:800,channels:4,background:"#ff6a00"}}).png().toBuffer();
+    const form = new FormData();
+    form.set("file", new Blob([image], {type:"image/png"}), "logo.png");
+    const upload = await a("/companies/current/assets", form);
+    assert.equal(upload.status,201,JSON.stringify(upload.data));
+    const url = base + upload.data.url;
+    const original = await fetch(url);
+    assert.equal(original.status,200);
+    assert.match(original.headers.get("cache-control"),/public, max-age=86400/);
+    assert.deepEqual(Buffer.from(await original.arrayBuffer()),image);
+    const thumbnail = await fetch(url+"?width=192");
+    assert.equal(thumbnail.status,200);
+    assert.match(thumbnail.headers.get("content-type"),/image\/webp/);
+    assert.match(thumbnail.headers.get("cache-control"),/public, max-age=86400/);
+    const metadata = await sharp(Buffer.from(await thumbnail.arrayBuffer())).metadata();
+    assert.equal(metadata.width,192); assert.equal(metadata.height,96);
+    const cached = await fetch(url+"?width=192",{cache:"force-cache",headers:{"If-None-Match":thumbnail.headers.get("etag")}});
+    assert.equal(cached.status,304);
+    assert.equal((await fetch(url+"?width=999999")).status,400);
+    assert.match((await fetch(base+"/api/session")).headers.get("cache-control"),/no-store/);
+  });
   let draft, media, thread, invite;
   const patch = async (data) => {
     const r = await a(
