@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import https from "node:https";
 import { isIP } from "node:net";
-import { companyLogoImage } from "./company-logo-image.js";
+import {
+  companyLogoImage,
+  reviewedCompanyLogos,
+} from "./company-logo-image.js";
 import { pool, tx } from "./db.js";
 import { storeBuffer } from "./storage.js";
 
@@ -11,6 +14,8 @@ const maxSourceBytes = 4 * 1024 * 1024;
 const args = process.argv.slice(2);
 const apply = args.includes("--apply");
 const event = args.find((arg) => arg.startsWith("--event="))?.slice(8) || "";
+const cacheDir =
+  args.find((arg) => arg.startsWith("--cache-dir="))?.slice(12) || "";
 const limit = Number(
   args.find((arg) => arg.startsWith("--limit="))?.slice(8) || 0,
 );
@@ -23,16 +28,19 @@ if (
       arg !== "--apply" &&
       !/^--limit=\d+$/.test(arg) &&
       !/^--concurrency=\d+$/.test(arg) &&
+      !/^--cache-dir=.+$/.test(arg) &&
       !/^--event=[a-z0-9][a-z0-9-]{2,79}$/.test(arg),
   ) ||
+  (cacheDir && !event) ||
   !Number.isSafeInteger(limit) ||
   !Number.isSafeInteger(concurrency) ||
   concurrency < 1 ||
   concurrency > 20
 )
   throw new Error(
-    "Use --apply, --limit=N, --event=event-key, and --concurrency=1..20 only.",
+    "Use --apply, --limit=N, --event=event-key, --cache-dir=path (with event), and --concurrency=1..20 only.",
   );
+const reviewed = cacheDir ? await reviewedCompanyLogos(cacheDir) : null;
 
 function publicIpv4(address: string) {
   if (isIP(address) !== 4) return false;
@@ -120,7 +128,9 @@ async function downloadImage(input: string, redirects = 0): Promise<Buffer> {
 }
 
 async function cacheLogo(company: Listing) {
-  const source = await downloadImage(company.logo_url);
+  const source = reviewed
+    ? await reviewed.read(company.logo_url)
+    : await downloadImage(company.logo_url);
   const image = await companyLogoImage(source, Boolean(event));
   if (!image.length || image.length > 2 * 1024 * 1024)
     throw new Error("Normalized logo exceeds size limit");
@@ -163,12 +173,15 @@ try {
      ORDER BY name,id`,
     [event],
   );
-  const companies = limit ? rows.slice(0, limit) : rows;
+  const eligible = reviewed
+    ? rows.filter((row) => reviewed.has(row.logo_url))
+    : rows;
+  const companies = limit ? eligible.slice(0, limit) : eligible;
   if (!apply) {
     console.log(
       JSON.stringify({
         mode: "dry-run",
-        eligible: rows.length,
+        eligible: eligible.length,
         selected: companies.length,
       }),
     );

@@ -1,4 +1,32 @@
 import sharp from "sharp";
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { z } from "zod";
+
+// An operator can publish the exact artwork that passed visual review, even
+// when the source CDN later fails. URLs remain bound to content hashes.
+export async function reviewedCompanyLogos(directory: string) {
+  const manifest = z
+    .record(z.url(), z.string().regex(/^[a-f0-9]{64}$/))
+    .parse(
+      JSON.parse(await readFile(path.join(directory, "manifest.json"), "utf8")),
+    );
+  return {
+    has: (url: string) => Object.hasOwn(manifest, url),
+    async read(url: string) {
+      const hash = Object.hasOwn(manifest, url) ? manifest[url] : undefined;
+      if (!hash) throw new Error("Logo source is not in the reviewed manifest");
+      const bytes = await readFile(path.join(directory, hash + ".webp"));
+      if (
+        bytes.length > 2 * 1024 * 1024 ||
+        createHash("sha256").update(bytes).digest("hex") !== hash
+      )
+        throw new Error("Reviewed logo content does not match its manifest");
+      return bytes;
+    },
+  };
+}
 
 /** Preserve supplied colors; give reversed marks a contrasting plate. */
 export async function companyLogoImage(

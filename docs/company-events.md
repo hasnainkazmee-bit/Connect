@@ -28,6 +28,8 @@ node apps/api/dist/import-company-logos.js --event=replus-2026 --apply
 
 Only unclaimed listings with remote logos are eligible. This does not modify managed companies or unrelated listings.
 
+For reproducible visual review, add `--cache-dir=/path/to/reviewed-logos` with `--event`. That directory contains `manifest.json` mapping each exact source URL to its SHA-256, plus `<sha256>.webp` files. Only source URLs in the manifest are selected, and altered bytes are rejected. Reversed white marks receive a dark plate without recoloring their artwork.
+
 ## RE+ research
 
 The supplied workbook has 1,045 contact rows representing 625 distinct exhibitor/domain pairs. Only company columns were retained for research; contact fields are not part of import batches. The user confirmed that the list describes RE+ 2026. The initial inventory comparison found 85 exact domain matches, five name-only candidates and 535 potentially new companies. A domain match is not enough when the exhibitor name identifies a different business.

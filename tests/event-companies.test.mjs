@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
+import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { pool } from "../apps/api/dist/db.js";
 import {
   eventCompanyBatch,
@@ -8,7 +11,41 @@ import {
 } from "../apps/api/dist/event-company-import.js";
 import { profileExtras } from "../apps/api/dist/profiles.js";
 import sharp from "sharp";
-import { companyLogoImage } from "../apps/api/dist/company-logo-image.js";
+import {
+  companyLogoImage,
+  reviewedCompanyLogos,
+} from "../apps/api/dist/company-logo-image.js";
+
+test("reviewed logo cache binds the exact source URL to unchanged artwork", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "colabb-logo-test-"));
+  try {
+    const source = "https://example.test/logo.svg",
+      bytes = Buffer.from("reviewed artwork");
+    const hash = createHash("sha256").update(bytes).digest("hex");
+    await writeFile(
+      path.join(dir, "manifest.json"),
+      JSON.stringify({ [source]: hash }),
+    );
+    await writeFile(path.join(dir, hash + ".webp"), bytes);
+    const cache = await reviewedCompanyLogos(dir);
+    assert.equal(cache.has(source), true);
+    assert.equal(cache.has("https://other.test/logo.svg"), false);
+    assert.deepEqual(await cache.read(source), bytes);
+    await assert.rejects(
+      cache.read("https://other.test/logo.svg"),
+      /not in the reviewed manifest/,
+    );
+    await writeFile(path.join(dir, hash + ".webp"), "changed artwork");
+    await assert.rejects(cache.read(source), /does not match/);
+    await writeFile(
+      path.join(dir, "manifest.json"),
+      JSON.stringify({ [source]: "../unrelated" }),
+    );
+    await assert.rejects(reviewedCompanyLogos(dir));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
 
 test("reversed event-company marks remain readable without recoloring their artwork", async () => {
   const white = Buffer.from(
