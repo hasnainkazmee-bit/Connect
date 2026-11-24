@@ -101,11 +101,19 @@ class NetworkReleaseChecks(unittest.TestCase):
                 '/': 'No one builds <img src="/brand/marks/lockup-primary.svg">',
                 '/hire': 'Colabb',
                 '/api/jobs/provider-taxonomy': '{"directoryCredentials":[]}',
-                '/api/jobs/providers': '{"providers":[{"on_colabb":true}],"total":1}',
+                '/api/jobs/providers': '{"providers":[{"on_colabb":true,"events":[]}],"total":1}',
             }[path]
         with patch.object(release, 'request', side_effect=response), patch.object(release, 'check_network_http', side_effect=RuntimeError('Network unavailable')):
             with self.assertRaisesRegex(RuntimeError, 'Network unavailable'):
                 release.smoke()
+        for invalid in [None, {}, 'RE+ 2026']:
+            def old_contract(path, cookie=None):
+                if path == '/api/jobs/providers':
+                    return json.dumps({'providers': [{'on_colabb': True, 'events': invalid}], 'total': 1})
+                return response(path, cookie)
+            with self.subTest(events=invalid), patch.object(release, 'request', side_effect=old_contract):
+                with self.assertRaisesRegex(RuntimeError, 'event participation contract'):
+                    release.smoke()
 
     def test_schema_failure_prevents_new_service_start_and_records_backup_boundary(self):
         previous, next_sha = 'a' * 40, 'b' * 40
@@ -142,7 +150,7 @@ class NetworkReleaseChecks(unittest.TestCase):
             smoke.assert_not_called()
             self.assertEqual((base / '.env.production').read_text(), env)
             metadata = json.loads(next(releases.glob('colabb-backup-*/release.json')).read_text())
-            self.assertIn('044_company_business_types.sql', metadata['database'])
+            self.assertIn('045_company_events.sql', metadata['database'])
             self.assertNotIn('041', metadata['database'])
             self.assertIn('Uploaded attachment bytes', metadata['excludedFromBackup'])
             self.assertIn('not backed up', metadata['excludedFromBackup'])
