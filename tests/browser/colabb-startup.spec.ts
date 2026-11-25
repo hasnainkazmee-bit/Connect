@@ -42,9 +42,13 @@ test.describe("Colabb document startup", () => {
     });
   }
 
-  test("waits for the session and first provider response, and respects reduced motion", async ({ page }, info) => {
+  test("waits for the session but opens the shell while providers load, and respects reduced motion", async ({ page }, info) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ reducedMotion: "reduce" });
+    const unrelated: string[] = [];
+    page.on("request", request => {
+      if (/\/assets\/(?:jobs-|job-inbox-|company-inbox-|profile-editor-page-)/.test(request.url())) unrelated.push(request.url());
+    });
     const session = deferred(), providers = deferred(), providerRequested = deferred();
     await page.route("**/api/session", async (route) => { await session.promise; await route.continue(); });
     await page.route(/\/api\/jobs\/providers(?:\?|$)/, async (route) => {
@@ -60,19 +64,36 @@ test.describe("Colabb document startup", () => {
     await page.screenshot({ path: info.outputPath("session-delayed-reduced-motion.png") });
     session.resolve();
     await providerRequested.promise;
-    await expect(page.locator("#colabb-startup")).toBeVisible();
-    await expect(page.locator("#root")).toHaveAttribute("inert", "");
+    await expect(page.locator("#colabb-startup")).toHaveCount(0);
+    await expect(page.locator("#root")).not.toHaveAttribute("inert", "");
+    await expect(page.getByRole("searchbox", { name: "Company or service" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
     providers.resolve();
     await expect(page.locator("#colabb-startup")).toHaveCount(0);
     await expect(page.locator(".cd-company").first()).toBeVisible();
+    expect(unrelated).toEqual([]);
     await expect(page.locator("#root")).not.toHaveAttribute("inert", "");
+  });
+
+  test("recovers an interrupted app download without refreshing the page", async ({ page }) => {
+    let attempts = 0;
+    await page.route(/\/assets\/index-.*\.js(?:\?|$)/, async (route) => {
+      attempts++;
+      if (attempts === 1) await route.abort("failed");
+      else await route.continue();
+    });
+    await page.goto("/");
+    await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+    expect(attempts).toBe(2);
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(page.locator("#colabb-startup")).toHaveCount(0);
   });
 
   test("a failed bundle restores the public page and an actionable recovery link", async ({ page }) => {
     await page.route(/\/assets\/.*\.js(?:\?|$)/, (route) => route.abort("failed"));
     await page.goto("/");
-    await expect(page.getByRole("alert")).toContainText("Colabb couldn’t finish opening.");
-    await expect(page.getByRole("link", { name: "Refresh to try again" })).toHaveAttribute("href", "");
+    await expect(page.getByRole("alert")).toContainText("The connection was interrupted.");
+    await expect(page.getByRole("link", { name: "Try again" })).toHaveAttribute("href", "");
     await expect(page.locator("#colabb-startup")).toHaveCount(0);
     await expect(page.getByRole("heading", { name: /No one builds solar alone/ })).toBeVisible();
     await expect(page.locator("#root")).not.toHaveAttribute("inert", "");
@@ -86,14 +107,16 @@ test.describe("Colabb document startup", () => {
     await expect(page.locator("#colabb-startup")).toBeVisible();
     await expect(page.locator("#root")).toHaveAttribute("inert", "");
     await page.clock.runFor(12250);
-    await expect(page.locator("#colabb-startup")).toHaveCount(0);
+    await expect(page.locator("#colabb-startup")).toBeHidden();
     await expect(page.getByRole("heading", { name: /No one builds solar alone/ })).toBeVisible();
-    await expect(page.getByRole("alert")).toBeVisible();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(page.getByText("Still connecting… This page will open automatically.")).toBeVisible();
     const session = page.waitForResponse((response) => response.url().endsWith("/api/session"));
     bundle.resolve();
     await session;
     await page.clock.resume();
     await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(page.getByText("Still connecting… This page will open automatically.")).toHaveCount(0);
     await expect(page.locator("#root")).not.toHaveAttribute("inert", "");
   });
 

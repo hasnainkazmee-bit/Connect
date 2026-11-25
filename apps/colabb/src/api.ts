@@ -1,10 +1,7 @@
-import { trackStartupRequest } from "./brand/startup";
-
 export async function api<T = any>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const releaseStartup = trackStartupRequest();
   const controller = new AbortController();
   const abort = () => controller.abort();
   if (options.signal?.aborted) abort();
@@ -54,7 +51,6 @@ export async function api<T = any>(
       throw new Error("This is taking longer than expected. Please try again.");
     throw error;
   } finally {
-    releaseStartup();
     clearTimeout(timer);
     options.signal?.removeEventListener("abort", abort);
   }

@@ -100,9 +100,11 @@ import { ClaimCompanyPage } from "./claim-company";
 import { CompanyMatches } from "./company-matches";
 import { JobMatchesPage } from "./job-matches";
 import { CompanySettings, EmployeeInvite } from "./management";
-import { JobsPage, NewJobPage, JobDetailPage } from "./jobs";
-import { JobInboxPage } from "./job-inbox";
-import { CompanyInboxPage } from "./company-inbox";
+const JobsPage = React.lazy(() => import("./jobs").then(module => ({ default: module.JobsPage })));
+const NewJobPage = React.lazy(() => import("./jobs").then(module => ({ default: module.NewJobPage })));
+const JobDetailPage = React.lazy(() => import("./jobs").then(module => ({ default: module.JobDetailPage })));
+const JobInboxPage = React.lazy(() => import("./job-inbox").then(module => ({ default: module.JobInboxPage })));
+const CompanyInboxPage = React.lazy(() => import("./company-inbox").then(module => ({ default: module.CompanyInboxPage })));
 const NetworkPage = React.lazy(() => import("./network").then(module => ({ default: module.NetworkPage })));
 import { MarketplaceLanding, ProviderDirectory } from "./providers";
 import { ProviderProfilePage } from "./provider-profile";
@@ -119,7 +121,7 @@ import {
   PageScopeProvider,
   usePageNavigation,
 } from "./page-navigation";
-import { CompanyProfileEditorPage } from "./profile-editor-page";
+const CompanyProfileEditorPage = React.lazy(() => import("./profile-editor-page").then(module => ({ default: module.CompanyProfileEditorPage })));
 import { ColabbMarketing, MarketingHeader, ColabbFooter } from "./brand/marketing";
 import { BrandIcon } from "./brand/icons";
 import { FindWork } from "./brand/find-work";
@@ -744,7 +746,7 @@ function App() {
             !!pageNavigation.pendingLeave
           }
         >
-          <Routes location={pageNavigation.active?.background || location}>
+          <React.Suspense fallback={<Loading />}><Routes location={pageNavigation.active?.background || location}>
             <Route
               path="/"
               element={session.user ? <FindWork /> : <ColabbMarketing />}
@@ -851,7 +853,7 @@ function App() {
                 </Empty>
               }
             />
-          </Routes>
+          </Routes></React.Suspense>
         </div>
         {pageNavigation.pages.map((page) => (
           <div

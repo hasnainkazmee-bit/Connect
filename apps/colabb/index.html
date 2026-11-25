@@ -25,7 +25,7 @@
       .colabb-startup-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
       .colabb-startup-placeholder{min-height:100svh;display:grid;place-items:center;background:#f8f8f8}
       .colabb-startup-recovery,.colabb-static{font:14px/1.6 Manrope,Arial,sans-serif;color:#172c38;padding:20px 5%;background:#fff}
-      .colabb-startup-recovery{display:flex;justify-content:center;align-items:center;gap:18px;border-bottom:1px solid #e2e6e8}
+      .colabb-startup-recovery{position:relative;z-index:10001;display:flex;justify-content:center;align-items:center;gap:18px;border-bottom:1px solid #e2e6e8}
       .colabb-startup-recovery a,.colabb-static>a{color:#172c38;text-decoration:underline;text-underline-offset:4px}
       .colabb-static{max-width:760px;margin:12vh auto;border-radius:16px;padding:32px}
       .colabb-static h1{font-size:28px;line-height:1.25}
@@ -55,6 +55,8 @@
         let started = false;
         let timer;
         let recovery;
+        let attempts = 0;
+        let retryTimer;
         root.inert = true;
         overlay.dataset.running = "true";
         const close = () => {
@@ -68,27 +70,64 @@
           overlay.addEventListener("transitionend", () => overlay.remove(), { once: true });
           setTimeout(() => overlay.remove(), matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 200);
         };
-        const fail = () => {
-          if (finished) return;
-          if (!started) root.innerHTML = firstPaint || '<main class="colabb-static"><h1>Colabb</h1><p>The working network for solar.</p><a href="/">Back to Colabb</a></main>';
+        const showMessage = (failed = false) => {
+          recovery?.remove();
           const message = document.createElement("div");
           recovery = message;
           message.className = "colabb-startup-recovery";
-          message.setAttribute("role", "alert");
-          message.innerHTML = '<span>Colabb couldn’t finish opening.</span><a href="">Refresh to try again</a>';
+          message.setAttribute("role", failed ? "alert" : "status");
+          message.innerHTML = failed
+            ? '<span>The connection was interrupted.</span><a href="">Try again</a>'
+            : '<span>Still connecting… This page will open automatically.</span>';
           root.before(message);
+        };
+        const fail = () => {
+          if (finished) return;
+          clearTimeout(retryTimer);
+          if (!started) root.innerHTML = firstPaint || '<main class="colabb-static"><h1>Colabb</h1><p>Please check your connection, then try again.</p></main>';
+          showMessage(true);
           close();
         };
+        // A slow response is not a failed response. Keep the original download
+        // alive, reveal available public content, and let ready() clear this.
+        const slow = () => {
+          if (finished) return;
+          showMessage();
+          if (!started && firstPaint) {
+            root.inert = false;
+            overlay.style.display = "none";
+          }
+        };
         const failed = (event) => {
-          const source = event instanceof ErrorEvent ? event.filename : event.target instanceof HTMLScriptElement ? event.target.src : "";
-          if (!source) return;
-          const url = new URL(source, location.href);
-          if (url.origin === location.origin && /^\/(assets|src)\//.test(url.pathname)) fail();
+          if (finished) return;
+          if (event instanceof ErrorEvent && event.filename) {
+            const source = new URL(event.filename, location.href);
+            if (source.origin === location.origin && /^\/(assets|src)\//.test(source.pathname)) fail();
+            return;
+          }
+          const script = event.target;
+          // Only a failed module download can safely be retried. Runtime errors
+          // must not execute the application a second time.
+          if (!(script instanceof HTMLScriptElement) || script.type !== "module" || started) return;
+          const url = new URL(script.src, location.href);
+          if (url.origin !== location.origin || !/^\/(assets|src)\//.test(url.pathname)) return;
+          if (attempts >= 2) { fail(); return; }
+          attempts++;
+          clearTimeout(retryTimer);
+          retryTimer = setTimeout(() => {
+            if (started || finished) return;
+            const retry = document.createElement("script");
+            retry.type = "module";
+            retry.crossOrigin = script.crossOrigin;
+            url.searchParams.set("startup_retry", String(attempts));
+            retry.src = url.href;
+            document.head.append(retry);
+          }, attempts * 750);
         };
         window.addEventListener("error", failed, true);
-        timer = setTimeout(fail, 12000);
+        timer = setTimeout(slow, 12000);
         window.colabbStartup = {
-          start() { started = true; if (!finished) { clearTimeout(timer); timer = setTimeout(fail, 35000); } },
+          start() { started = true; clearTimeout(retryTimer); if (!finished) { clearTimeout(timer); timer = setTimeout(slow, 12000); } },
           ready() { recovery?.remove(); close(); },
           fail,
         };
